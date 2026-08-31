@@ -86,6 +86,7 @@ public class GuestServiceImpl implements GuestService {
         validateComune(request.comune(), request.provincia());
         final UUID hotelId = extractHotelId();
         final Guest entity = guestMapper.toEntity(request);
+        normalizeMexicoGuest(entity);
         entity.setActive(true);
         entity.setHotelId(hotelId);
         entity.setGdprConsentDate(LocalDate.now());
@@ -140,6 +141,7 @@ public class GuestServiceImpl implements GuestService {
         final UUID hotelId = extractHotelId();
         final Guest guest = Objects.requireNonNull(resolveGuest(id, hotelId));
         guestMapper.updateEntityFromRequest(request, guest);
+        normalizeMexicoGuest(guest);
         final Guest savedGuest = Objects.requireNonNull(guestRepository.save(guest));
         return guestMapper.toResponse(savedGuest);
     }
@@ -155,6 +157,42 @@ public class GuestServiceImpl implements GuestService {
      * @throws GuestValidationException if exactly one of the two is present, or the
      *                                   pair doesn't match a real active comune
      */
+    private static void normalizeMexicoGuest(final Guest guest) {
+        if (guest.getCountry() == null || guest.getCountry().isBlank()) {
+            guest.setCountry("MX");
+        }
+
+        if (guest.getRfc() != null) {
+            guest.setRfc(
+                    guest.getRfc().trim()
+                            .toUpperCase(java.util.Locale.ROOT));
+        }
+
+        if (guest.getFiscalName() != null) {
+            guest.setFiscalName(guest.getFiscalName().trim());
+        }
+
+        if (guest.getFiscalPostalCode() != null) {
+            guest.setFiscalPostalCode(guest.getFiscalPostalCode().trim());
+        }
+
+        if (guest.getFiscalRegime() != null) {
+            guest.setFiscalRegime(guest.getFiscalRegime().trim());
+        }
+
+        if (guest.getCfdiUse() != null) {
+            guest.setCfdiUse(
+                    guest.getCfdiUse().trim()
+                            .toUpperCase(java.util.Locale.ROOT));
+        }
+
+        if (guest.getBillingEmail() != null) {
+            guest.setBillingEmail(
+                    guest.getBillingEmail().trim()
+                            .toLowerCase(java.util.Locale.ROOT));
+        }
+    }
+
     private void validateComune(final String comune, final String provincia) {
         final boolean hasComune = comune != null && !comune.isBlank();
         final boolean hasProvincia = provincia != null && !provincia.isBlank();
@@ -213,6 +251,12 @@ public class GuestServiceImpl implements GuestService {
         guest.setCity(null);
         guest.setCountry(null);
         guest.setDateOfBirth(null);
+        guest.setRfc(null);
+        guest.setFiscalName(null);
+        guest.setFiscalPostalCode(null);
+        guest.setFiscalRegime(null);
+        guest.setCfdiUse(null);
+        guest.setBillingEmail(null);
         guest.getIdentityDocuments().clear();
         guest.setActive(false);
         guestRepository.save(Objects.requireNonNull(guest));

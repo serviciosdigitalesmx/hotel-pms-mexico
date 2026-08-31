@@ -93,8 +93,7 @@ class GuestControllerTest {
                 TEST_LAST_NAME,
                 TEST_EMAIL,
                 null, null, null, null, null,
-                null, null, null, null, null,
-                null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
                 Collections.emptyList(),
                 null, null, null);
     }
@@ -104,8 +103,7 @@ class GuestControllerTest {
         final GuestRequest request = new GuestRequest(
                 TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
                 null, null, null, null, null,
-                null, null, null, null, null,
-                null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         when(guestService.createGuest(any(GuestRequest.class))).thenReturn(guestResponse);
 
@@ -153,8 +151,7 @@ class GuestControllerTest {
         final GuestRequest request = new GuestRequest(
                 TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
                 null, null, null, null, null,
-                null, null, null, null, null,
-                null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         when(guestService.updateGuest(any(UUID.class), any(GuestRequest.class)))
                 .thenReturn(guestResponse);

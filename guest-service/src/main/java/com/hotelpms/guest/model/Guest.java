@@ -88,6 +88,28 @@ public class Guest {
     @Column(length = MAX_LOCATION_LENGTH)
     private String country;
 
+    @Column(name = "rfc", length = 13)
+    private String rfc;
+
+    @Column(name = "fiscal_name", length = 200)
+    private String fiscalName;
+
+    @Column(name = "fiscal_postal_code", length = 5)
+    private String fiscalPostalCode;
+
+    @Column(name = "fiscal_regime", length = 3)
+    private String fiscalRegime;
+
+    @Column(name = "cfdi_use", length = 4)
+    private String cfdiUse;
+
+    @Column(name = "billing_email", length = MAX_EMAIL_LENGTH)
+    private String billingEmail;
+
+    /*
+     * Legacy FatturaPA fields.
+     * Keep temporarily while billing-service is migrated from Italy to Mexico.
+     */
     @Column(name = "fiscal_code", length = MAX_FISCAL_CODE_LENGTH)
     private String fiscalCode;
 

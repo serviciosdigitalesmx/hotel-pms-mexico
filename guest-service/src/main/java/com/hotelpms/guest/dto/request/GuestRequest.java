@@ -55,6 +55,37 @@ public record GuestRequest(
         @Pattern(regexp = ValidationConstants.LOCATION_PATTERN)
         String country,
         @Past LocalDate dateOfBirth,
+        @Size(max = 13)
+        @Pattern(
+                regexp = "^$|^[A-Za-zÑñ&]{3,4}[0-9]{6}[A-Za-z0-9]{3}$",
+                message = "RFC_INVALID")
+        String rfc,
+
+        @Size(max = 200)
+        String fiscalName,
+
+        @Pattern(
+                regexp = "^$|^[0-9]{5}$",
+                message = "FISCAL_POSTAL_CODE_INVALID")
+        String fiscalPostalCode,
+
+        @Pattern(
+                regexp = "^$|^[0-9]{3}$",
+                message = "FISCAL_REGIME_INVALID")
+        String fiscalRegime,
+
+        @Pattern(
+                regexp = "^$|^[A-Za-z0-9]{3,4}$",
+                message = "CFDI_USE_INVALID")
+        String cfdiUse,
+
+        @Email
+        @Size(max = ValidationConstants.MAX_EMAIL_LENGTH)
+        String billingEmail,
+
+        /*
+         * Legacy Italia — temporary compatibility with billing-service.
+         */
         @Size(max = ValidationConstants.MAX_FISCAL_CODE_LENGTH)
         @Pattern(regexp = ValidationConstants.FISCAL_CODE_PATTERN)
         String fiscalCode,
@@ -83,5 +114,29 @@ public record GuestRequest(
         final boolean hasEmail = email != null && !email.isBlank();
         final boolean hasPhone = phone != null && !phone.isBlank();
         return hasEmail || hasPhone;
+    }
+
+    @AssertTrue(message = "CFDI_PROFILE_INCOMPLETE")
+    public boolean isCfdiProfileComplete() {
+        final boolean anyCfdi =
+                notBlank(rfc)
+                || notBlank(fiscalName)
+                || notBlank(fiscalPostalCode)
+                || notBlank(fiscalRegime)
+                || notBlank(cfdiUse);
+
+        if (!anyCfdi) {
+            return true;
+        }
+
+        return notBlank(rfc)
+                && notBlank(fiscalName)
+                && notBlank(fiscalPostalCode)
+                && notBlank(fiscalRegime)
+                && notBlank(cfdiUse);
+    }
+
+    private static boolean notBlank(final String value) {
+        return value != null && !value.isBlank();
     }
 }

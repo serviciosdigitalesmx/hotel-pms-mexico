@@ -42,6 +42,14 @@ public record GuestResponse(
         String city,
         String country,
         LocalDate dateOfBirth,
+
+        String rfc,
+        String fiscalName,
+        String fiscalPostalCode,
+        String fiscalRegime,
+        String cfdiUse,
+        String billingEmail,
+
         String fiscalCode,
         String vatNumber,
         String companyName,

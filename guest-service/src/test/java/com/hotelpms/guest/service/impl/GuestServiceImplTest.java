@@ -119,6 +119,9 @@ class GuestServiceImplTest {
                 .lastName(TEST_LAST_NAME)
                 .email(TEST_EMAIL)
                 .phone(TEST_PHONE)
+                .address(TEST_ADDRESS)
+                .city(TEST_CITY)
+                .country(TEST_COUNTRY)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .active(true)
@@ -133,8 +136,8 @@ class GuestServiceImplTest {
                 TEST_CITY,
                 TEST_COUNTRY,
                 null,
-                null, null, null, null, null,
-                null, null, null);
+                null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
 
         guestResponse = new GuestResponse(
                 guestId,
@@ -147,7 +150,7 @@ class GuestServiceImplTest {
                 TEST_COUNTRY,
                 null,
                 null, null, null, null, null,
-                null, null, null,
+                null, null, null, null, null, null, null, null, null,
                 Collections.emptyList(),
                 null,
                 guest.getCreatedAt(),
@@ -187,7 +190,7 @@ class GuestServiceImplTest {
         final GuestRequest requestWithAddress = new GuestRequest(
                 TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
                 TEST_PHONE, TEST_ADDRESS, TEST_CITY, TEST_COUNTRY, null,
-                null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
                 "00100", COMUNE_ROMA, PROVINCIA_RM);
         final Guest nonNullGuest = Objects.requireNonNull(guest);
         final GuestResponse nonNullGuestResponse = Objects.requireNonNull(guestResponse);
@@ -209,7 +212,7 @@ class GuestServiceImplTest {
         final GuestRequest requestWithBadComune = new GuestRequest(
                 TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
                 null, null, null, null, null,
-                null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
                 null, "Cittainesistente", PROVINCIA_RM);
 
         when(alloggiatiComuniClient.searchComuni("Cittainesistente", PROVINCIA_RM)).thenReturn(List.of());
@@ -223,7 +226,7 @@ class GuestServiceImplTest {
         final GuestRequest requestWithoutProvincia = new GuestRequest(
                 TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
                 null, null, null, null, null,
-                null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
                 null, COMUNE_ROMA, null);
 
         assertThrows(GuestValidationException.class, () -> guestService.createGuest(requestWithoutProvincia));

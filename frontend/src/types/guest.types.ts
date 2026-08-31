@@ -22,6 +22,13 @@ export interface GuestRequestDTO {
   address?: string;
   city?: string;
   country?: string;
+  rfc?: string;
+  fiscalName?: string;
+  fiscalPostalCode?: string;
+  fiscalRegime?: string;
+  cfdiUse?: string;
+  billingEmail?: string;
+
   fiscalCode?: string;
   vatNumber?: string;
   companyName?: string;
@@ -44,6 +51,13 @@ export interface GuestResponseDTO {
   address?: string;
   city?: string;
   country?: string;
+  rfc?: string;
+  fiscalName?: string;
+  fiscalPostalCode?: string;
+  fiscalRegime?: string;
+  cfdiUse?: string;
+  billingEmail?: string;
+
   fiscalCode?: string;
   vatNumber?: string;
   companyName?: string;

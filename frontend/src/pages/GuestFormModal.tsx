@@ -6,10 +6,10 @@ import type { GuestResponseDTO, GuestRequestDTO } from '../types/guest.types';
 import { MaterialIcon } from '../components/MaterialIcon';
 import { M3Button } from '../components/m3/M3Button';
 import { M3Dialog } from '../components/m3/M3Dialog';
-import { StructuredAddressFields } from '../components/StructuredAddressFields';
 import { useToastStore } from '../store/toastStore';
 
 const COUNTRY_CODES = [
+  { code: '+52', label: '🇲🇽 +52' },
   { code: '+39', label: '🇮🇹 +39' },
   { code: '+44', label: '🇬🇧 +44' },
   { code: '+1',  label: '🇺🇸 +1' },
@@ -32,7 +32,13 @@ export const GuestFormModal = memo(({ guest, onClose, onSaved }: Props) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showFiscalSection, setShowFiscalSection] = useState(
-    !!(guest?.fiscalCode || guest?.vatNumber || guest?.companyName || guest?.sdiCode || guest?.pecEmail)
+    !!(
+      guest?.rfc
+      || guest?.fiscalName
+      || guest?.fiscalPostalCode
+      || guest?.fiscalRegime
+      || guest?.cfdiUse
+    )
   );
 
   const guestSchema = useMemo(() => z.object({
@@ -49,7 +55,7 @@ export const GuestFormModal = memo(({ guest, onClose, onSaved }: Props) => {
 
   const { initPrefix, initNumber } = useMemo(() => {
     const initialPhone = guest?.phone || '';
-    let prefix = '+39';
+    let prefix = '+52';
     let number = initialPhone;
 
     if (initialPhone) {
@@ -74,34 +80,19 @@ export const GuestFormModal = memo(({ guest, onClose, onSaved }: Props) => {
     email: guest?.email || '',
     phone: '', // Will be merged on submit
     city: guest?.city || '',
-    country: guest?.country || '',
-    fiscalCode: guest?.fiscalCode || '',
-    vatNumber: guest?.vatNumber || '',
-    companyName: guest?.companyName || '',
-    sdiCode: guest?.sdiCode || '',
-    pecEmail: guest?.pecEmail || '',
-    cap: guest?.cap || '',
-    comune: guest?.comune || '',
-    provincia: guest?.provincia || '',
+    country: guest?.country || 'MX',
+    rfc: guest?.rfc || '',
+    fiscalName: guest?.fiscalName || '',
+    fiscalPostalCode: guest?.fiscalPostalCode || '',
+    fiscalRegime: guest?.fiscalRegime || '',
+    cfdiUse: guest?.cfdiUse || '',
+    billingEmail: guest?.billingEmail || '',
   });
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
-
-  const handleCapChange = useCallback(
-    (value: string) => setFormData((prev) => ({ ...prev, cap: value })),
-    [],
-  );
-  const handleComuneChange = useCallback(
-    (value: string) => setFormData((prev) => ({ ...prev, comune: value })),
-    [],
-  );
-  const handleProvinciaChange = useCallback(
-    (value: string) => setFormData((prev) => ({ ...prev, provincia: value })),
-    [],
-  );
 
   const handlePhonePrefixChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setPhonePrefix(e.target.value);
@@ -292,7 +283,7 @@ export const GuestFormModal = memo(({ guest, onClose, onSaved }: Props) => {
                     value={phoneNumber}
                     onChange={handlePhoneNumberChange}
                     className={`${inputClass} flex-1`}
-                    placeholder="Es. 333 1234567"
+                    placeholder="Ej. 81 1234 5678"
                   />
                 </div>
               </div>
@@ -325,49 +316,107 @@ export const GuestFormModal = memo(({ guest, onClose, onSaved }: Props) => {
                 </button>
                 {showFiscalSection && (
                   <div id="fiscal-section" className="px-3 pb-3 pt-1 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="fiscalCode" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
-                          {t('label_fiscal_code')}
-                        </label>
-                        <input type="text" id="fiscalCode" name="fiscalCode" value={formData.fiscalCode ?? ''} onChange={handleChange} className={inputClass} />
-                      </div>
-                      <div>
-                        <label htmlFor="vatNumber" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
-                          {t('label_vat_number')}
-                        </label>
-                        <input type="text" id="vatNumber" name="vatNumber" value={formData.vatNumber ?? ''} onChange={handleChange} className={inputClass} />
-                      </div>
-                    </div>
+                    <p className="text-xs text-on-surface-variant">
+                      Datos opcionales para CFDI 4.0. No son necesarios para registrar al huésped ni para hacer check-in.
+                    </p>
+
                     <div>
-                      <label htmlFor="companyName" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
-                        {t('label_company_name')}
+                      <label htmlFor="rfc" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
+                        RFC
                       </label>
-                      <input type="text" id="companyName" name="companyName" value={formData.companyName ?? ''} onChange={handleChange} className={inputClass} />
+                      <input
+                        type="text"
+                        id="rfc"
+                        name="rfc"
+                        maxLength={13}
+                        value={formData.rfc ?? ''}
+                        onChange={handleChange}
+                        className={inputClass}
+                        placeholder="Ej. XAXX010101000"
+                      />
                     </div>
+
+                    <div>
+                      <label htmlFor="fiscalName" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
+                        Nombre / Razón social fiscal
+                      </label>
+                      <input
+                        type="text"
+                        id="fiscalName"
+                        name="fiscalName"
+                        value={formData.fiscalName ?? ''}
+                        onChange={handleChange}
+                        className={inputClass}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label htmlFor="sdiCode" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
-                          {t('label_sdi_code')}
+                        <label htmlFor="fiscalPostalCode" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
+                          Código postal fiscal
                         </label>
-                        <input type="text" id="sdiCode" name="sdiCode" value={formData.sdiCode ?? ''} onChange={handleChange} className={inputClass} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          id="fiscalPostalCode"
+                          name="fiscalPostalCode"
+                          maxLength={5}
+                          value={formData.fiscalPostalCode ?? ''}
+                          onChange={handleChange}
+                          className={inputClass}
+                          placeholder="Ej. 64000"
+                        />
                       </div>
+
                       <div>
-                        <label htmlFor="pecEmail" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
-                          {t('label_pec_email')}
+                        <label htmlFor="fiscalRegime" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
+                          Régimen fiscal
                         </label>
-                        <input type="email" id="pecEmail" name="pecEmail" value={formData.pecEmail ?? ''} onChange={handleChange} className={inputClass} />
+                        <input
+                          type="text"
+                          id="fiscalRegime"
+                          name="fiscalRegime"
+                          maxLength={3}
+                          value={formData.fiscalRegime ?? ''}
+                          onChange={handleChange}
+                          className={inputClass}
+                          placeholder="Ej. 612"
+                        />
                       </div>
                     </div>
-                    <StructuredAddressFields
-                      idPrefix="guest"
-                      cap={formData.cap ?? ''}
-                      comune={formData.comune ?? ''}
-                      provincia={formData.provincia ?? ''}
-                      onCapChange={handleCapChange}
-                      onComuneChange={handleComuneChange}
-                      onProvinciaChange={handleProvinciaChange}
-                    />
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="cfdiUse" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
+                          Uso CFDI
+                        </label>
+                        <input
+                          type="text"
+                          id="cfdiUse"
+                          name="cfdiUse"
+                          maxLength={4}
+                          value={formData.cfdiUse ?? ''}
+                          onChange={handleChange}
+                          className={inputClass}
+                          placeholder="Ej. G03"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="billingEmail" className="block text-sm font-medium font-body text-on-surface-variant mb-1">
+                          Correo para factura
+                        </label>
+                        <input
+                          type="email"
+                          id="billingEmail"
+                          name="billingEmail"
+                          value={formData.billingEmail ?? ''}
+                          onChange={handleChange}
+                          className={inputClass}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
