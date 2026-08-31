@@ -27,9 +27,11 @@ const SETTINGS: HotelSettingsResponse = {
   alloggiatiCredentialsConfigured: false,
   sendReservationConfirmedEmail: false,
   sendCheckoutEmail: false,
+  aiEnabled: false,
+  aiModel: 'qwen3:4b-instruct-2507-q4_K_M',
+  aiApiKeyConfigured: false,
 };
 
-const ALLOGGIATI_SWITCH = /alloggiati_auto_send_label/;
 const RESERVATION_EMAIL_SWITCH = /email_reservation_confirmed_label/;
 const CHECKOUT_EMAIL_SWITCH = /email_checkout_label/;
 
@@ -47,10 +49,10 @@ describe('SettingsSystem', () => {
     expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
-  it('loads hotel settings and reflects the current alloggiatiAutoSend value', async () => {
+  it('loads hotel settings and reflects the current reservation email value', async () => {
     vi.mocked(stayService.getHotelSettings).mockResolvedValue(SETTINGS);
     renderPage();
-    await waitFor(() => expect(screen.getByRole('switch', { name: ALLOGGIATI_SWITCH }))
+    await waitFor(() => expect(screen.getByRole('switch', { name: RESERVATION_EMAIL_SWITCH }))
       .toHaveAttribute('aria-checked', 'false'));
   });
 
@@ -62,16 +64,16 @@ describe('SettingsSystem', () => {
     }
   });
 
-  it('toggles alloggiatiAutoSend on click', async () => {
+  it('toggles reservation-confirmed email on click', async () => {
     vi.mocked(stayService.getHotelSettings).mockResolvedValue(SETTINGS);
-    vi.mocked(stayService.updateHotelSettings).mockResolvedValue({ ...SETTINGS, alloggiatiAutoSend: true });
+    vi.mocked(stayService.updateHotelSettings).mockResolvedValue({ ...SETTINGS, sendReservationConfirmedEmail: true });
     renderPage();
-    const toggle = screen.getByRole('switch', { name: ALLOGGIATI_SWITCH });
+    const toggle = screen.getByRole('switch', { name: RESERVATION_EMAIL_SWITCH });
     await waitFor(() => expect(toggle).not.toBeDisabled());
 
     fireEvent.click(toggle);
 
-    await waitFor(() => expect(stayService.updateHotelSettings).toHaveBeenCalledWith({ alloggiatiAutoSend: true }));
+    await waitFor(() => expect(stayService.updateHotelSettings).toHaveBeenCalledWith({ sendReservationConfirmedEmail: true }));
     await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
   });
 
@@ -149,7 +151,7 @@ describe('SettingsSystem', () => {
     vi.mocked(stayService.getHotelSettings).mockResolvedValue(
       { ...SETTINGS, sendReservationConfirmedEmail: true, sendCheckoutEmail: true });
     const { container } = renderPage();
-    await waitFor(() => expect(screen.getByRole('switch', { name: ALLOGGIATI_SWITCH })).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('switch', { name: RESERVATION_EMAIL_SWITCH })).not.toBeDisabled());
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

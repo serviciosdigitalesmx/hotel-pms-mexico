@@ -38,6 +38,13 @@ public class HotelSettings {
     private static final int LEN_CAP = 5;
     private static final int LEN_PROVINCIA = 2;
     private static final int LEN_COMUNE = 100;
+    private static final int LEN_COUNTRY = 100;
+    private static final int LEN_CURRENCY = 3;
+    private static final int LEN_LOCALE = 20;
+    private static final int LEN_TIMEZONE = 50;
+    private static final int LEN_SLUG = 120;
+    private static final int LEN_AI_MODEL = 150;
+    private static final int LEN_AI_INSTRUCTIONS = 1000;
 
     /** The hotel this settings row belongs to (primary key). */
     @Id
@@ -85,6 +92,50 @@ public class HotelSettings {
     /** Provincia — 2-letter province code (e.g. {@code "RM"}). */
     @Column(name = "provincia", length = LEN_PROVINCIA)
     private String provincia;
+
+    @Column(name = "city", length = LEN_COMUNE)
+    private String city;
+
+    @Column(name = "state", length = LEN_COMUNE)
+    private String state;
+
+    @Column(name = "country", length = LEN_COUNTRY)
+    private String country;
+
+    @Column(name = "postal_code", length = LEN_CAP)
+    private String postalCode;
+
+    @Column(name = "currency", length = LEN_CURRENCY, nullable = false)
+    @Builder.Default
+    private String currency = "MXN";
+
+    @Column(name = "locale", length = LEN_LOCALE, nullable = false)
+    @Builder.Default
+    private String locale = "es-MX";
+
+    @Column(name = "timezone", length = LEN_TIMEZONE, nullable = false)
+    @Builder.Default
+    private String timezone = "America/Monterrey";
+
+    @Column(name = "public_slug", length = LEN_SLUG, unique = true)
+    private String publicSlug;
+
+    /** Whether the tenant-scoped AI assistant is available to operational users. */
+    @Column(name = "ai_enabled", nullable = false)
+    private boolean aiEnabled;
+
+    /** OpenAI-compatible provider model selected by this hotel. */
+    @Column(name = "ai_model", length = LEN_AI_MODEL, nullable = false)
+    @Builder.Default
+    private String aiModel = "qwen3:4b-instruct-2507-q4_K_M";
+
+    /** Optional hotel-specific instructions appended to the assistant policy. */
+    @Column(name = "ai_instructions", length = LEN_AI_INSTRUCTIONS)
+    private String aiInstructions;
+
+    /** AI provider API key encrypted at rest and never exposed by an API response. */
+    @Column(name = "ai_api_key_encrypted")
+    private String aiApiKeyEncrypted;
 
     /**
      * Per-hotel Alloggiati Web portal username. Not a secret on its own (a portal
@@ -167,6 +218,13 @@ public class HotelSettings {
         return isNotBlank(alloggiatiUsername)
                 && isNotBlank(alloggiatiPasswordEncrypted)
                 && isNotBlank(alloggiatiWsKeyEncrypted);
+    }
+
+    /**
+     * @return whether this hotel has an encrypted AI provider key configured
+     */
+    public boolean hasAiApiKey() {
+        return isNotBlank(aiApiKeyEncrypted);
     }
 
     private static boolean isNotBlank(final String value) {

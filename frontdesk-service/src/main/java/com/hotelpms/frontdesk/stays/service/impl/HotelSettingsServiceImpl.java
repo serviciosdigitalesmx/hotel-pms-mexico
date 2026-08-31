@@ -98,6 +98,42 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
             settings.setComune(comune);
             settings.setProvincia(provincia);
         }
+        if (request.city() != null) {
+            settings.setCity(request.city());
+        }
+        if (request.state() != null) {
+            settings.setState(request.state());
+        }
+        if (request.country() != null) {
+            settings.setCountry(request.country());
+        }
+        if (request.postalCode() != null) {
+            settings.setPostalCode(request.postalCode());
+        }
+        if (request.currency() != null) {
+            settings.setCurrency(request.currency().toUpperCase(java.util.Locale.ROOT));
+        }
+        if (request.locale() != null) {
+            settings.setLocale(request.locale());
+        }
+        if (request.timezone() != null) {
+            settings.setTimezone(request.timezone());
+        }
+        if (request.publicSlug() != null) {
+            settings.setPublicSlug(request.publicSlug());
+        }
+        if (request.aiEnabled() != null) {
+            settings.setAiEnabled(request.aiEnabled());
+        }
+        if (request.aiModel() != null && !request.aiModel().isBlank()) {
+            settings.setAiModel(request.aiModel().trim());
+        }
+        if (request.aiApiKey() != null && !request.aiApiKey().isBlank()) {
+            settings.setAiApiKeyEncrypted(alloggiatiCredentialEncryptor.encrypt(request.aiApiKey()));
+        }
+        if (request.aiInstructions() != null) {
+            settings.setAiInstructions(request.aiInstructions());
+        }
         return toResponse(hotelSettingsRepository.save(Objects.requireNonNull(settings)));
     }
 
@@ -148,6 +184,18 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
                 entity.getEmailGreetingText(),
                 entity.getCap(),
                 entity.getComune(),
-                entity.getProvincia());
+                entity.getProvincia(),
+                entity.getCity(),
+                entity.getState(),
+                entity.getCountry(),
+                entity.getPostalCode(),
+                entity.getCurrency(),
+                entity.getLocale(),
+                entity.getTimezone(),
+                entity.getPublicSlug(),
+                entity.isAiEnabled(),
+                entity.getAiModel(),
+                entity.hasAiApiKey(),
+                entity.getAiInstructions());
     }
 }

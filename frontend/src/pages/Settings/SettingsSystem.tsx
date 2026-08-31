@@ -10,7 +10,7 @@ import { SettingsPageHeader } from '../../components/SettingsPageHeader';
 const EMAIL_GREETING_MAX_LENGTH = 300;
 
 // -----------------------------------------------------------------------
-// ToggleRow — reusable switch row (Alloggiati auto-send + email toggles)
+// ToggleRow — reusable switch row for notification settings
 // -----------------------------------------------------------------------
 
 interface ToggleRowProps {
@@ -27,6 +27,7 @@ const ToggleRow = memo(({ icon, label, description, checked, disabled, onToggle 
     type="button"
     role="switch"
     aria-checked={checked}
+    aria-label={label}
     onClick={onToggle}
     disabled={disabled}
     className={[
@@ -124,11 +125,16 @@ export const SettingsSystem = () => {
   const [hotelSettings, setHotelSettings] = useState<HotelSettingsResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [greetingDraft, setGreetingDraft] = useState('');
+  const [aiModelDraft, setAiModelDraft] = useState('qwen3:4b-instruct-2507-q4_K_M');
+  const [aiKeyDraft, setAiKeyDraft] = useState('');
+  const [aiInstructionsDraft, setAiInstructionsDraft] = useState('');
 
   useEffect(() => {
     stayService.getHotelSettings().then((settings) => {
       setHotelSettings(settings);
       setGreetingDraft(settings.emailGreetingText ?? '');
+      setAiModelDraft(settings.aiModel ?? 'qwen3:4b-instruct-2507-q4_K_M');
+      setAiInstructionsDraft(settings.aiInstructions ?? '');
     }).catch(() => undefined);
   }, []);
 
@@ -144,11 +150,6 @@ export const SettingsSystem = () => {
       setSaving(false);
     }
   }, []);
-
-  const handleAlloggiatiToggle = useCallback(async () => {
-    if (!hotelSettings) return;
-    await patch({ alloggiatiAutoSend: !hotelSettings.alloggiatiAutoSend });
-  }, [hotelSettings, patch]);
 
   const handleReservationEmailToggle = useCallback(async () => {
     if (!hotelSettings) return;
@@ -179,20 +180,25 @@ export const SettingsSystem = () => {
     [],
   );
 
+  const handleAiToggle = useCallback(async () => {
+    if (!hotelSettings) return;
+    await patch({ aiEnabled: !hotelSettings.aiEnabled });
+  }, [hotelSettings, patch]);
+
+  const handleAiSave = useCallback(async () => {
+    const updated = await patch({
+      aiModel: aiModelDraft,
+      aiInstructions: aiInstructionsDraft,
+      ...(aiKeyDraft.trim() ? { aiApiKey: aiKeyDraft.trim() } : {}),
+    });
+    setAiKeyDraft('');
+    setAiModelDraft(updated.aiModel);
+    setAiInstructionsDraft(updated.aiInstructions ?? '');
+  }, [aiInstructionsDraft, aiKeyDraft, aiModelDraft, patch]);
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto pb-10">
       <SettingsPageHeader icon="admin_panel_settings" title={t('settings_section_system')} onBack={handleBack} />
-
-      <M3Card className="p-6">
-        <ToggleRow
-          icon="verified_user"
-          label={t('alloggiati_auto_send_label')}
-          description={t('alloggiati_auto_send_desc')}
-          checked={hotelSettings?.alloggiatiAutoSend ?? false}
-          disabled={saving || hotelSettings === null}
-          onToggle={handleAlloggiatiToggle}
-        />
-      </M3Card>
 
       <M3Card className="p-6 space-y-4">
         <h2 className="text-sm font-semibold text-on-surface">{t('settings_section_email_notifications')}</h2>
@@ -257,6 +263,85 @@ export const SettingsSystem = () => {
             {greetingDraft.length}/{EMAIL_GREETING_MAX_LENGTH}
           </p>
         </div>
+      </M3Card>
+
+      <M3Card className="p-6 space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-on-surface">Asistente de inteligencia artificial</h2>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            Proveedor automático: Ollama local o DeepSeek según el modelo. La clave se cifra en el servidor y nunca se muestra de nuevo.
+          </p>
+        </div>
+
+        <ToggleRow
+          icon="auto_awesome"
+          label="Activar asistente"
+          description="Permite consultas y prepara operaciones que siempre requieren confirmación humana."
+          checked={hotelSettings?.aiEnabled ?? false}
+          disabled={
+            saving
+            || hotelSettings === null
+            || (
+              aiModelDraft.trim().startsWith('deepseek-')
+              && !hotelSettings.aiApiKeyConfigured
+            )
+          }
+          onToggle={handleAiToggle}
+        />
+
+        <div>
+          <label htmlFor="ai-model" className="block text-sm font-medium text-on-surface mb-1">
+            Modelo de IA
+          </label>
+          <input
+            id="ai-model"
+            type="text"
+            value={aiModelDraft}
+            onChange={(event) => setAiModelDraft(event.target.value)}
+            maxLength={150}
+            className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="ai-api-key" className="block text-sm font-medium text-on-surface mb-1">
+            Clave API de DeepSeek (solo si se usa DeepSeek)
+          </label>
+          <input
+            id="ai-api-key"
+            type="password"
+            value={aiKeyDraft}
+            onChange={(event) => setAiKeyDraft(event.target.value)}
+            maxLength={200}
+            autoComplete="new-password"
+            placeholder={hotelSettings?.aiApiKeyConfigured ? 'Clave configurada; deja vacío para conservarla' : 'Clave API…'}
+            className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="ai-instructions" className="block text-sm font-medium text-on-surface mb-1">
+            Instrucciones del Hotel Palmas
+          </label>
+          <textarea
+            id="ai-instructions"
+            value={aiInstructionsDraft}
+            onChange={(event) => setAiInstructionsDraft(event.target.value)}
+            maxLength={1000}
+            rows={3}
+            placeholder="Ej. Usa la terminología que emplea recepción y responde de forma breve."
+            className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleAiSave()}
+          disabled={saving || !aiModelDraft.trim()}
+          className="h-10 rounded-shape-full bg-primary px-6 text-sm font-medium text-on-primary disabled:opacity-50"
+        >
+          {saving ? 'Guardando…' : 'Guardar configuración de IA'}
+        </button>
       </M3Card>
     </div>
   );

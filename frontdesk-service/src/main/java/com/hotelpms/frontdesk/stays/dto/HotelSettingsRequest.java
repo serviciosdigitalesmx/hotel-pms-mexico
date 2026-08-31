@@ -44,6 +44,18 @@ import jakarta.validation.constraints.Size;
  *                                        data (optional; required only to export FatturaPA)
  * @param provincia                      Provincia — 2-letter province code, e.g. {@code "RM"}
  *                                        (optional; required only to export FatturaPA)
+ * @param city                           City name (optional)
+ * @param state                          State/region name (optional)
+ * @param country                        Country name (optional)
+ * @param postalCode                     Postal code (optional)
+ * @param currency                       3-letter ISO currency code (optional)
+ * @param locale                         Locale identifier, e.g. {@code "es-MX"} (optional)
+ * @param timezone                       Timezone identifier, e.g. {@code "America/Monterrey"} (optional)
+ * @param publicSlug                     public booking slug for the hotel (optional)
+ * @param aiEnabled                      whether the tenant AI assistant is enabled
+ * @param aiModel                        provider model identifier selected by the hotel
+ * @param aiApiKey                       write-only provider API key; blank means unchanged
+ * @param aiInstructions                 hotel-specific assistant instructions
  */
 public record HotelSettingsRequest(
         Boolean alloggiatiAutoSend,
@@ -63,7 +75,19 @@ public record HotelSettingsRequest(
         @Size(max = MAX_GREETING_LENGTH) String emailGreetingText,
         @Pattern(regexp = "^$|\\d{5}", message = "CAP must be 5 digits") String cap,
         @Size(max = 100) String comune,
-        @Pattern(regexp = "^$|[A-Za-z]{2}", message = "Provincia must be 2 letters") String provincia) {
+        @Pattern(regexp = "^$|[A-Za-z]{2}", message = "Provincia must be 2 letters") String provincia,
+        @Size(max = 100) String city,
+        @Size(max = 100) String state,
+        @Size(max = 100) String country,
+        @Pattern(regexp = "^$|\\d{5}", message = "Postal code must be 5 digits") String postalCode,
+        @Size(max = 3) String currency,
+        @Size(max = MAX_LOCALE_LENGTH) String locale,
+        @Size(max = MAX_TIMEZONE_LENGTH) String timezone,
+        @Size(max = MAX_PUBLIC_SLUG_LENGTH) String publicSlug,
+        Boolean aiEnabled,
+        @Size(max = MAX_AI_MODEL_LENGTH) String aiModel,
+        @Size(max = MAX_CREDENTIAL_LENGTH) String aiApiKey,
+        @Size(max = MAX_AI_INSTRUCTIONS_LENGTH) String aiInstructions) {
 
     /** Maximum length accepted for the hotel logo URL — matches HotelSettings.LEN_LOGO_URL. */
     public static final int MAX_LOGO_URL_LENGTH = 500;
@@ -76,4 +100,49 @@ public record HotelSettingsRequest(
 
     /** Maximum length accepted for the email greeting/signature field. */
     public static final int MAX_GREETING_LENGTH = 300;
+
+    /** Maximum length accepted for the locale field. */
+    public static final int MAX_LOCALE_LENGTH = 20;
+
+    /** Maximum length accepted for the timezone field. */
+    public static final int MAX_TIMEZONE_LENGTH = 50;
+
+    /** Maximum length accepted for the public booking slug. */
+    public static final int MAX_PUBLIC_SLUG_LENGTH = 120;
+
+    /** Maximum length accepted for the AI model identifier. */
+    public static final int MAX_AI_MODEL_LENGTH = 150;
+
+    /** Maximum length accepted for tenant-specific assistant instructions. */
+    public static final int MAX_AI_INSTRUCTIONS_LENGTH = 1000;
+
+    /**
+     * Backward-compatible constructor for existing callers that only update the
+     * original notification and Italian-integration fields.
+     */
+    public HotelSettingsRequest(
+            final Boolean alloggiatiAutoSend,
+            final String hotelName,
+            final String address,
+            final String vatNumber,
+            final String fiscalCode,
+            final String logoUrl,
+            final String alloggiatiUsername,
+            final String alloggiatiPassword,
+            final String alloggiatiWsKey,
+            final Boolean sendReservationConfirmedEmail,
+            final Boolean sendCheckoutEmail,
+            final String emailSubjectReservationConfirmed,
+            final String emailSubjectCheckout,
+            final String emailGreetingText,
+            final String cap,
+            final String comune,
+            final String provincia) {
+        this(alloggiatiAutoSend, hotelName, address, vatNumber, fiscalCode, logoUrl,
+                alloggiatiUsername, alloggiatiPassword, alloggiatiWsKey,
+                sendReservationConfirmedEmail, sendCheckoutEmail,
+                emailSubjectReservationConfirmed, emailSubjectCheckout, emailGreetingText,
+                cap, comune, provincia, null, null, null, null, null, null, null, null,
+                null, null, null, null);
+    }
 }
