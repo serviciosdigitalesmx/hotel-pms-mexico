@@ -331,6 +331,7 @@ services:
       - CONFIG_SERVER_URL=http://config-server:8888
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
       - INTERNAL_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError
       # Service URIs – override with K8s ClusterIP or external URLs
       - GW_AUTH_SERVICE_URI=http://auth-service:8087
@@ -398,6 +399,7 @@ services:
       - CONFIG_SERVER_URL=http://config-server:8888
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
       - INTERNAL_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hotel_auth
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
