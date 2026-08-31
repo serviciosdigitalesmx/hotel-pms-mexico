@@ -565,7 +565,7 @@ public class ReservationServiceImpl implements ReservationService {
                     reservation.getCheckOutDate(),
                     nights,
                     reservation.getId().toString(),
-                    "it",
+                    settings.locale() == null || settings.locale().isBlank() ? "es-MX" : settings.locale(),
                     settings.emailSubjectReservationConfirmed(),
                     settings.emailGreetingText(),
                     settings.logoUrl()));

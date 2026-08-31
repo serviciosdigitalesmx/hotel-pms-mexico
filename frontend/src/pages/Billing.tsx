@@ -8,6 +8,7 @@ import { billingService } from '../services/billingService';
 import { PaymentModal } from './Billing/PaymentModal';
 import { InvoiceDetailModal } from './Billing/InvoiceDetailModal';
 import { useTranslation } from 'react-i18next';
+import { useSettingsStore } from '../store/settingsStore';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -111,6 +112,7 @@ StatusFilterChip.displayName = 'StatusFilterChip';
 
 export const Billing = memo(() => {
   const { t, i18n } = useTranslation('common');
+  const currency = useSettingsStore((state) => state.currency);
   const [results, setResults] = useState<InvoiceSearchResult[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -194,8 +196,8 @@ export const Billing = memo(() => {
 
   const formatCurrency = useCallback(
     (amount: number) =>
-      new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR' }).format(amount),
-    [i18n.language],
+      new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(amount),
+    [currency, i18n.language],
   );
 
   const formatDate = useCallback(

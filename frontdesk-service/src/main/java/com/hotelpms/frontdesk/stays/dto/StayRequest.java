@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.stays.dto;
 
 import com.hotelpms.frontdesk.stays.domain.StayStatus;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ import java.util.UUID;
  * @param expectedCheckOutDate the expected check-out date; required for walk-in
  * @param actualCheckInTime    the actual check-in time
  * @param actualCheckOutTime   the actual check-out time
+ * @param occupantCount        total number of people occupying the room
  * @param guests               the list of guests with Alloggiati fields
  */
 public record StayRequest(
@@ -40,7 +42,26 @@ public record StayRequest(
 
                 LocalDateTime actualCheckInTime,
                 LocalDateTime actualCheckOutTime,
+                @Min(value = 1, message = "Occupant count must be at least 1") Integer occupantCount,
                 List<StayGuestRequest> guests) {
+
+    /**
+     * Backward-compatible constructor for existing internal callers.
+     */
+    public StayRequest(
+            final UUID hotelId,
+            final UUID reservationId,
+            final UUID guestId,
+            final UUID roomId,
+            final StayStatus status,
+            final LocalDate expectedCheckOutDate,
+            final LocalDateTime actualCheckInTime,
+            final LocalDateTime actualCheckOutTime,
+            final List<StayGuestRequest> guests) {
+        this(hotelId, reservationId, guestId, roomId, status, expectedCheckOutDate,
+                actualCheckInTime, actualCheckOutTime, null, guests);
+    }
+
     /**
      * Compact constructor to ensure defensive copying of the guests list.
      */

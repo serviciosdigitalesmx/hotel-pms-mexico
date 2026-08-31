@@ -1,6 +1,9 @@
 {
   "checkin_title": "Check-in Alloggiati",
   "guest_number": "Guest {{number}}",
+  "guest_label": "Guest",
+  "occupant_count": "Number of people",
+  "occupant_count_help": "Only the primary guest's details are required.",
   "guest_badge_primary": "Primary",
   "btn_remove": "Remove",
   "label_first_name": "First Name",

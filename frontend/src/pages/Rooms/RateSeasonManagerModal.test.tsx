@@ -23,6 +23,11 @@ vi.mock('../../store/toastStore', () => ({
     (sel as (s: { addToast: () => void }) => unknown)({ addToast: vi.fn() }),
 }));
 
+vi.mock('../../store/settingsStore', () => ({
+  useSettingsStore: (sel: unknown) =>
+    (sel as (s: { currency: string }) => unknown)({ currency: 'MXN' }),
+}));
+
 vi.mock('focus-trap-react', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -59,7 +64,7 @@ describe('RateSeasonManagerModal', () => {
     vi.mocked(rateSeasonService.listSeasons).mockResolvedValue([SEASON]);
     render(<RateSeasonManagerModal roomType={ROOM_TYPE} onClose={onClose} />);
     await waitFor(() => expect(screen.getByText('High season')).toBeInTheDocument());
-    expect(screen.getByText('€ 150.00')).toBeInTheDocument();
+    expect(screen.getByText('MX$150.00')).toBeInTheDocument();
   });
 
   it('add_rate_season opens the form', async () => {

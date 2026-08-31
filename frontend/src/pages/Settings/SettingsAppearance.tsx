@@ -23,7 +23,7 @@ interface LangOption {
 }
 
 const LANGUAGE_OPTIONS: LangOption[] = [
-  { value: 'it', labelKey: 'lang_italian', flag: '🇮🇹' },
+  { value: 'es', labelKey: 'lang_spanish', flag: '🇲🇽' },
   { value: 'en', labelKey: 'lang_english', flag: '🇬🇧' },
 ];
 
@@ -42,7 +42,8 @@ const LanguageButton = memo(({
   return (
     <button
       type="button"
-      role="radio"
+    role="radio"
+    aria-label={t(lang.labelKey)}
       aria-checked={isActive}
       onClick={handleClick}
       className={[

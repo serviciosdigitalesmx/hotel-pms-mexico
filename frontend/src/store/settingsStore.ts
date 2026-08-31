@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
+import { stayService } from '../services/stayService';
 
 export type FontScale = 'small' | 'normal' | 'large';
 export type ContrastMode = 'normal' | 'high';
@@ -12,6 +13,9 @@ const FONT_SCALE_MAP: Record<FontScale, string> = {
 
 const STORAGE_KEY_CONTRAST = 'hotel-pms-contrast';
 const STORAGE_KEY_FONT = 'hotel-pms-font-scale';
+const DEFAULT_CURRENCY = 'MXN';
+const DEFAULT_LOCALE = 'es-MX';
+const DEFAULT_TIMEZONE = 'America/Monterrey';
 
 const applyContrast = (mode: ContrastMode) => {
   const root = document.documentElement;
@@ -44,9 +48,13 @@ const getInitialFontScale = (): FontScale => {
 interface SettingsState {
   contrast: ContrastMode;
   fontScale: FontScale;
+  currency: string;
+  locale: string;
+  timezone: string;
   setContrast: (mode: ContrastMode) => void;
   setFontScale: (scale: FontScale) => void;
   setLanguage: (lang: string) => void;
+  loadHotelSettings: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>(() => {
@@ -60,6 +68,9 @@ export const useSettingsStore = create<SettingsState>(() => {
   return {
     contrast: initialContrast,
     fontScale: initialFontScale,
+    currency: DEFAULT_CURRENCY,
+    locale: DEFAULT_LOCALE,
+    timezone: DEFAULT_TIMEZONE,
     setContrast: (mode) => {
       applyContrast(mode);
       useSettingsStore.setState({ contrast: mode });
@@ -70,6 +81,16 @@ export const useSettingsStore = create<SettingsState>(() => {
     },
     setLanguage: (lang) => {
       i18n.changeLanguage(lang);
+    },
+    loadHotelSettings: async () => {
+      const settings = await stayService.getHotelSettings();
+      const locale = settings.locale || DEFAULT_LOCALE;
+      useSettingsStore.setState({
+        currency: settings.currency || DEFAULT_CURRENCY,
+        locale,
+        timezone: settings.timezone || DEFAULT_TIMEZONE,
+      });
+      await i18n.changeLanguage(locale.split('-')[0]);
     },
   };
 });

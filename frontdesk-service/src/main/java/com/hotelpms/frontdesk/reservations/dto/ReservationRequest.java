@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -39,15 +38,7 @@ public record ReservationRequest(
 
                 @NotNull(message = "Required") ReservationStatus status,
 
-                @NotEmpty(message = "Required")
-                @Size(max = MAX_LINE_ITEMS, message = "Too many rooms") @Valid List<ReservationLineItemRequest> lineItems) {
-
-        /**
-         * Upper bound on rooms in a single reservation (Finding #18,
-         * security-report.md — LOW) — comfortably covers a large group/event
-         * booking for a PMS-scale hotel.
-         */
-        static final int MAX_LINE_ITEMS = 50;
+                @NotEmpty(message = "Required") @Valid List<ReservationLineItemRequest> lineItems) {
 
         /**
          * Compact constructor.

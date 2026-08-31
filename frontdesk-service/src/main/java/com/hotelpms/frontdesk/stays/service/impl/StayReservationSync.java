@@ -38,7 +38,7 @@ class StayReservationSync {
         final List<Stay> stays = stayRepository.findAllByReservationId(reservationId);
 
         final int actualGuests = stays.stream()
-                .mapToInt(stay -> stay.getGuests() == null ? 0 : stay.getGuests().size())
+                .mapToInt(Stay::getOccupantCount)
                 .sum();
         ReservationStatus status = null;
         if (res.lineItems() != null) {

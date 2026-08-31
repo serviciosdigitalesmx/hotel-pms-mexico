@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { getErrorMessage } from '../utils/errorMessage';
 import { OrderFormModal } from './Restaurant/OrderFormModal';
 import { OrderDetailModal } from './Restaurant/OrderDetailModal';
@@ -133,7 +134,9 @@ export const Restaurant = memo(() => {
   const { t: tMenu } = useTranslation('restaurant');
   const role = useAuthStore((s) => s.user?.role);
   const { addToast } = useToastStore();
+  const currency = useSettingsStore((state) => state.currency);
   const isAdminOrOwner = role === 'ADMIN' || role === 'OWNER';
+  const canCreateOrder = isAdminOrOwner || role === 'RECEPTIONIST';
 
   const [orders, setOrders] = useState<RestaurantOrderResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,8 +241,8 @@ export const Restaurant = memo(() => {
   const handleCloseDetail = useCallback(() => setSelectedOrder(null), []);
 
   const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR' }).format(amount);
-  }, [i18n.language]);
+    return new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(amount);
+  }, [currency, i18n.language]);
 
   const formatDate = useCallback((dateStr?: string) => {
     if (!dateStr) return '-';
@@ -287,7 +290,9 @@ export const Restaurant = memo(() => {
               <MaterialIcon name={sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward'} size={20} />
             </button>
           </div>
-          <M3Button icon="add" onClick={handleOpenOrderModal}>{t('new_order')}</M3Button>
+          {canCreateOrder && (
+            <M3Button icon="add" onClick={handleOpenOrderModal}>{t('new_order')}</M3Button>
+          )}
         </div>
       </div>
 

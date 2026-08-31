@@ -62,11 +62,11 @@ public class QuotationServiceImpl implements QuotationService {
     private static final String ALREADY_ACCEPTED_MSG = "QUOTATION_ALREADY_ACCEPTED";
     private static final String HOTEL_ID_NULL_MSG = "Hotel ID cannot be null";
     private static final String ID_NULL_MSG = "Quotation ID cannot be null";
-    private static final String DEFAULT_CURRENCY = "EUR";
-    private static final String DEFAULT_LOCALE = "it";
+    private static final String DEFAULT_CURRENCY = "MXN";
+    private static final String DEFAULT_LOCALE = "es-MX";
     private static final String NOTIFICATION_SERVICE_UNAVAILABLE_REASON = "NOTIFICATION_SERVICE_UNAVAILABLE";
     private static final String PDF_TEMPLATE = "quotation";
-    private static final String PDF_FILE_PREFIX = "preventivo-";
+    private static final String PDF_FILE_PREFIX = "cotizacion-";
     private static final String PDF_FILE_EXTENSION = ".pdf";
     private static final int DUPLICATE_VALID_DAYS = 7;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -261,9 +261,9 @@ public class QuotationServiceImpl implements QuotationService {
                 quotation.getExpectedGuests(),
                 quotation.getTotalPrice(),
                 quotation.getOptions().size(),
-                DEFAULT_CURRENCY,
+                settingOrDefault(settings.currency(), DEFAULT_CURRENCY),
                 quotation.getValidUntil(),
-                DEFAULT_LOCALE,
+                settingOrDefault(settings.locale(), DEFAULT_LOCALE),
                 settings.emailGreetingText(),
                 settings.logoUrl(),
                 pdf,
@@ -511,7 +511,7 @@ public class QuotationServiceImpl implements QuotationService {
             final Quotation quotation, final GuestResponse guest, final Map<UUID, RoomResponse> roomsById) {
         final HotelSettingsResponse settings = hotelSettingsService.getOrCreate(quotation.getHotelId());
         final Map<String, Object> context = new HashMap<>();
-        context.put("docTitle", "PREVENTIVO");
+        context.put("docTitle", "COTIZACIÓN");
         context.put("hotelName", settings.hotelName() != null ? settings.hotelName() : "Hotel");
         context.put("issueDate", LocalDate.now().format(DATE_FMT));
         context.put("checkInDate", quotation.getCheckInDate().format(DATE_FMT));
@@ -520,14 +520,15 @@ public class QuotationServiceImpl implements QuotationService {
         context.put("guestDisplayName", guest != null
                 ? guest.firstName() + " " + guest.lastName()
                 : quotation.getProspectFirstName() + " " + quotation.getProspectLastName());
-        context.put("options", toOptionRows(quotation.getOptions(), roomsById));
+        final String currency = settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
+        context.put("options", toOptionRows(quotation.getOptions(), roomsById, currency));
         context.put("multipleOptions", quotation.getOptions().size() > 1);
         context.put("validUntil", quotation.getValidUntil().format(DATE_FMT));
         return pdfTemplateRenderer.render(PDF_TEMPLATE, context);
     }
 
     private List<Map<String, Object>> toOptionRows(
-            final List<QuotationOption> options, final Map<UUID, RoomResponse> roomsById) {
+            final List<QuotationOption> options, final Map<UUID, RoomResponse> roomsById, final String currency) {
         final List<Map<String, Object>> rows = new ArrayList<>();
         final List<QuotationOption> sorted = options.stream()
                 .sorted(Comparator.comparingInt(QuotationOption::getPosition))
@@ -535,28 +536,32 @@ public class QuotationServiceImpl implements QuotationService {
         for (final QuotationOption option : sorted) {
             final Map<String, Object> row = new HashMap<>();
             row.put("label", option.getLabel());
-            row.put("rooms", toRoomRows(option.getLineItems(), roomsById));
-            row.put("totalFormatted", formatAmount(option.getTotalPrice()));
+            row.put("rooms", toRoomRows(option.getLineItems(), roomsById, currency));
+            row.put("totalFormatted", formatAmount(option.getTotalPrice(), currency));
             rows.add(row);
         }
         return rows;
     }
 
     private List<Map<String, String>> toRoomRows(
-            final List<QuotationLineItem> lineItems, final Map<UUID, RoomResponse> roomsById) {
+            final List<QuotationLineItem> lineItems, final Map<UUID, RoomResponse> roomsById, final String currency) {
         final List<Map<String, String>> rows = new ArrayList<>();
         for (final QuotationLineItem lineItem : lineItems) {
             final RoomResponse room = roomsById.get(lineItem.getRoomId());
             final Map<String, String> row = new HashMap<>();
             row.put("label", room.roomNumber() + " — " + room.roomType().name());
-            row.put("priceFormatted", formatAmount(lineItem.getPrice()));
+            row.put("priceFormatted", formatAmount(lineItem.getPrice(), currency));
             rows.add(row);
         }
         return rows;
     }
 
-    private static String formatAmount(final BigDecimal amount) {
-        return amount == null ? "EUR 0,00" : String.format("EUR %,.2f", amount);
+    private static String formatAmount(final BigDecimal amount, final String currency) {
+        return amount == null ? currency + " 0.00" : String.format("%s %,.2f", currency, amount);
+    }
+
+    private static String settingOrDefault(final String value, final String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     // ------------------------------------------------------------------

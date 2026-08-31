@@ -76,8 +76,8 @@ class PdfInvoiceServiceImplTest {
     @BeforeEach
     void setUp() {
         final HotelSettingsResponse hotelSettings = new HotelSettingsResponse(
-                HOTEL_ID, "Hotel Bella Vista", "Via Roma 1, Milano",
-                "01234567890", "BLLVST80A01F205X", null, null, null, null);
+                HOTEL_ID, "Hotel Palmas", "Monterrey, Nuevo León",
+                "HPA010101ABC", null, null, null, null, null, "MXN");
         final GuestResponse guest = new GuestResponse(GUEST_ID, "Mario", "Rossi", "mario@example.com",
                 null, null, null, null, null, null, null, null, null);
         when(hotelSettingsClient.getSettings()).thenReturn(hotelSettings);
@@ -112,7 +112,7 @@ class PdfInvoiceServiceImplTest {
         pdfInvoiceService.generateInvoicePdf(INVOICE_ID);
 
         final Map<String, Object> context = captureRenderContext(TEMPLATE_FATTURA);
-        assertThat(context).containsEntry("docTitle", "FATTURA");
+        assertThat(context).containsEntry("docTitle", "FACTURA");
         assertThat(context).containsKey(VAT_BREAKDOWN_KEY);
         assertThat((List<?>) context.get(VAT_BREAKDOWN_KEY)).isNotEmpty();
     }
@@ -130,7 +130,7 @@ class PdfInvoiceServiceImplTest {
         pdfInvoiceService.generateInvoicePdf(INVOICE_ID);
 
         final Map<String, Object> context = captureRenderContext(TEMPLATE_RICEVUTA);
-        assertThat(context).containsEntry("docTitle", "RICEVUTA");
+        assertThat(context).containsEntry("docTitle", "RECIBO");
         assertThat(context).doesNotContainKey(VAT_BREAKDOWN_KEY);
     }
 

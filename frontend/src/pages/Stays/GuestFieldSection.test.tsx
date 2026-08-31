@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { axe } from 'vitest-axe';
 import { GuestFieldSection } from './GuestFieldSection';
@@ -30,7 +30,6 @@ const TIPDOC = [PASOR_TIPDOC];
 const FIANO_COMUNE = { codice: '412058036', descrizione: 'FIANO ROMANO', provincia: 'RM' };
 const GUEST_WITH_DOC = { ...emptyGuest(false), documentType: 'PASOR', documentNumber: 'X123' };
 const GUEST_WITHOUT_DOC_TYPE = { ...emptyGuest(false), travellerType: 'FAMILIARE' as const };
-const GUEST_ITALIAN_BORN = { ...emptyGuest(true), _statoDiNascita: '100000100' };
 
 describe('GuestFieldSection', () => {
   const onChange = vi.fn();
@@ -60,8 +59,8 @@ describe('GuestFieldSection', () => {
     expect(screen.getByLabelText(/label_guest_type/i)).toBeInTheDocument();
   });
 
-  it('shows the primary badge only when the guest is primary', () => {
-    const { rerender } = render(
+  it('shows a plain guest heading without numbering or badges', () => {
+    render(
       <GuestFieldSection
         guest={emptyGuest(true)}
         index={0}
@@ -72,19 +71,7 @@ describe('GuestFieldSection', () => {
         onChange={onChange}
       />,
     );
-    expect(screen.getByText('guest_badge_primary')).toBeInTheDocument();
-
-    rerender(
-      <GuestFieldSection
-        guest={emptyGuest(false)}
-        index={1}
-        canRemove
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
+    expect(screen.getByRole('heading', { name: 'guest_label' })).toBeInTheDocument();
     expect(screen.queryByText('guest_badge_primary')).not.toBeInTheDocument();
   });
 
@@ -182,7 +169,7 @@ describe('GuestFieldSection', () => {
     expect(screen.queryByLabelText(/label_doc_number/i)).not.toBeInTheDocument();
   });
 
-  it('reveals the birth-municipality autocomplete only when born in Italy, and looks it up from the server', async () => {
+  it('stores the selected country directly as place of birth', async () => {
     render(
       <GuestFieldSection
         guest={emptyGuest(true)}
@@ -201,7 +188,10 @@ describe('GuestFieldSection', () => {
     const option = await screen.findByRole('option', { name: /ITALIA/ });
     fireEvent.mouseDown(option);
 
-    expect(onChange).toHaveBeenCalledWith(0, { _statoDiNascita: '100000100', placeOfBirth: '' });
+    expect(onChange).toHaveBeenCalledWith(0, {
+      _statoDiNascita: '100000100', placeOfBirth: '100000100',
+    });
+    expect(screen.queryByLabelText(/label_comune_nascita/i)).not.toBeInTheDocument();
   });
 
   it('sets placeOfBirth directly to the stato codice when born outside Italy', async () => {
@@ -222,44 +212,6 @@ describe('GuestFieldSection', () => {
     fireEvent.mouseDown(option);
 
     expect(onChange).toHaveBeenCalledWith(0, { _statoDiNascita: '109000100', placeOfBirth: '109000100' });
-  });
-
-  it('searches and selects a birth municipality when born in Italy', async () => {
-    render(
-      <GuestFieldSection
-        guest={GUEST_ITALIAN_BORN}
-        index={0}
-        canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    const comune = screen.getByLabelText(/label_comune_nascita/i);
-    fireEvent.change(comune, { target: { value: 'Fiano' } });
-
-    await waitFor(() => expect(stayService.searchLookupComuni).toHaveBeenCalledWith('Fiano'), { timeout: 5000 });
-    const option = await screen.findByRole('option', { name: /FIANO ROMANO/ }, { timeout: 5000 });
-    fireEvent.mouseDown(option);
-
-    expect(onChange).toHaveBeenCalledWith(0, { placeOfBirth: '412058036' });
-  });
-
-  it('toggles the primary-guest checkbox', () => {
-    render(
-      <GuestFieldSection
-        guest={emptyGuest(false)}
-        index={1}
-        canRemove
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    fireEvent.click(screen.getByLabelText(/label_primary_guest/i));
-    expect(onChange).toHaveBeenCalledWith(1, { isPrimaryGuest: true });
   });
 
   it('has no accessibility violations', async () => {

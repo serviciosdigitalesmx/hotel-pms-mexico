@@ -214,7 +214,7 @@ describe('QuotationForm', () => {
     await waitFor(() => expect(inventoryService.getAvailableRooms).toHaveBeenCalledWith('2026-09-01', '2026-09-03'));
 
     fireEvent.click(screen.getByText('Toggle Room r1'));
-    await waitFor(() => expect(screen.getByText('quotation_total:€ 200.00')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('quotation_total:MX$200.00')).toBeInTheDocument());
   });
 
   it('resets resolved prices when getAvailableRooms rejects', async () => {
@@ -227,7 +227,7 @@ describe('QuotationForm', () => {
     await waitFor(() => expect(inventoryService.getAvailableRooms).toHaveBeenCalled());
 
     fireEvent.click(screen.getByText('Toggle Room r1'));
-    await waitFor(() => expect(screen.getByText('quotation_total:€ 0.00')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('quotation_total:MX$0.00')).toBeInTheDocument());
   });
 
   it('shows an error banner when the initial data fails to load', async () => {
@@ -259,7 +259,7 @@ describe('QuotationForm', () => {
       prospectEmail: 'mario@example.com',
       checkInDate: '2026-09-01',
       checkOutDate: '2026-09-03',
-      options: [{ label: 'Opzione 1', roomIds: ['r1'] }],
+      options: [{ label: 'Opción 1', roomIds: ['r1'] }],
     })));
     expect(mockNavigate).toHaveBeenCalledWith('/quotations');
   });
@@ -286,7 +286,7 @@ describe('QuotationForm', () => {
 
     await waitFor(() => expect(quotationService.createQuotation).toHaveBeenCalledWith(expect.objectContaining({
       options: [
-        { label: 'Opzione 1', roomIds: ['r1'] },
+        { label: 'Opción 1', roomIds: ['r1'] },
         { label: 'Suite deluxe', roomIds: ['r1'] },
       ],
     })));
@@ -300,7 +300,7 @@ describe('QuotationForm', () => {
     fireEvent.click(screen.getByText('action_add_option'));
     expect(screen.getByText('Selected:')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/Opzione 1/));
+    fireEvent.click(screen.getByText(/Opción 1/));
     expect(screen.getByText('Selected: r1')).toBeInTheDocument();
   });
 
@@ -353,10 +353,10 @@ describe('QuotationForm', () => {
     await waitFor(() => expect(screen.getByTestId('room-mock')).toBeInTheDocument());
 
     fireEvent.click(screen.getByText('action_add_option'));
-    const removeButtons = screen.getAllByLabelText(/^Rimuovi /);
+    const removeButtons = screen.getAllByLabelText(/^Quitar /);
     expect(removeButtons.length).toBeGreaterThan(0);
     fireEvent.click(removeButtons[0]);
-    expect(screen.queryAllByLabelText(/^Rimuovi /).length).toBe(0);
+    expect(screen.queryAllByLabelText(/^Quitar /).length).toBe(0);
   });
 
   it('falls back to basePrice x nights when a selected room has no resolved price', async () => {
@@ -385,7 +385,7 @@ describe('QuotationForm', () => {
     fireEvent.change(screen.getByLabelText('Mock Check-out'), { target: { value: '2026-09-04' } });
     fireEvent.click(screen.getByText('Toggle Room r1'));
 
-    await waitFor(() => expect(screen.getByText('quotation_total:€ 300.00')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('quotation_total:MX$300.00')).toBeInTheDocument());
   });
 
   it('passes axe accessibility check', async () => {

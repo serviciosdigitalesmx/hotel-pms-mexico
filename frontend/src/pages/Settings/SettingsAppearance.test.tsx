@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'it' } }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'es' } }),
   initReactI18next: { type: '3rdParty', init: vi.fn() },
 }));
 
@@ -50,7 +50,7 @@ describe('SettingsAppearance', () => {
 
   it('marks the active language as checked and calls setLanguage on selection', () => {
     renderPage();
-    expect(screen.getByRole('radio', { name: /lang_italian/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /lang_spanish/ })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('radio', { name: /lang_english/ }));
     expect(setLanguage).toHaveBeenCalledWith('en');
   });

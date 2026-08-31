@@ -11,6 +11,7 @@ import { M3Table, M3TableRow, M3TableCell } from '../components/m3/M3Table';
 import { M3StatusChip } from '../components/m3/M3StatusChip';
 import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../utils/errorMessage';
+import { useSettingsStore } from '../store/settingsStore';
 
 const getStatusTone = (status: InvoiceResponse['status']) => {
   switch (status) {
@@ -58,6 +59,7 @@ export const OwnerDashboard = memo(() => {
   const { t, i18n } = useTranslation('common');
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
+  const currency = useSettingsStore((state) => state.currency);
   const [startDate, setStartDate] = useState(getFirstDayOfMonth());
   const [endDate, setEndDate] = useState(getTodayString());
   const [report, setReport] = useState<OwnerFinancialReportDto | null>(null);
@@ -65,8 +67,8 @@ export const OwnerDashboard = memo(() => {
   const [error, setError] = useState<string | null>(null);
 
   const formatCurrency = useCallback((amount: number) =>
-    new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR' }).format(amount),
-  [i18n.language]);
+    new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(amount),
+  [currency, i18n.language]);
 
   const formatDate = useCallback((dateStr?: string) => {
     if (!dateStr) return '—';

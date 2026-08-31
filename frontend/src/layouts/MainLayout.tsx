@@ -1,16 +1,19 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useEffect, memo } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { ToastContainer } from '../components/Toast';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcon } from '../components/MaterialIcon';
+import { M3Button } from '../components/m3/M3Button';
 import { UserMenu } from '../components/UserMenu';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useSettingsStore } from '../store/settingsStore';
 import * as FocusTrapModule from 'focus-trap-react';
 const FocusTrap = FocusTrapModule.default ?? FocusTrapModule;
 
 const navigation = [
   { nameKey: 'dashboard', href: '/', icon: 'dashboard' },
+  { nameKey: 'assistant', href: '/assistant', icon: 'auto_awesome' },
   { nameKey: 'guests', href: '/guests', icon: 'group' },
   { nameKey: 'reservations', href: '/reservations', icon: 'event' },
   { nameKey: 'quotations', href: '/quotations', icon: 'request_quote' },
@@ -120,6 +123,11 @@ export const MainLayout = () => {
   const { t } = useTranslation('common');
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const loadHotelSettings = useSettingsStore((state) => state.loadHotelSettings);
+
+  useEffect(() => {
+    void loadHotelSettings().catch(() => undefined);
+  }, [loadHotelSettings]);
 
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -130,10 +138,17 @@ export const MainLayout = () => {
   const toggleUserMenu = useCallback(() => setUserMenuOpen((v) => !v), []);
   const closeUserMenu  = useCallback(() => setUserMenuOpen(false), []);
   const openSettings   = useCallback(() => navigate('/settings'), [navigate]);
+  const openCheckIn    = useCallback(() => navigate('/stays/walk-in'), [navigate]);
 
   useEscapeKey(drawerOpen, closeDrawer);
 
   const isOwnerOrAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN';
+  const canCheckIn = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'RECEPTIONIST';
+  const visibleNavigation = user?.role === 'KITCHEN'
+    ? navigation.filter((item) => item.href === '/restaurant')
+    : user?.role === 'HOUSEKEEPER'
+      ? navigation.filter((item) => item.href === '/housekeeping')
+      : navigation.filter((item) => item.nameKey !== 'assistant' || canCheckIn);
   const username       = user?.username ?? t('guest');
   const roleLabel      = user?.role ? t(`role_${user.role.toLowerCase()}`) : t('role_guest');
 
@@ -166,7 +181,7 @@ export const MainLayout = () => {
               </div>
 
               <div className="flex-1 pt-2 pb-4 space-y-0.5">
-                {navigation.map((item) => (
+                {visibleNavigation.map((item) => (
                   <DrawerNavItem
                     key={item.nameKey}
                     item={item}
@@ -202,7 +217,7 @@ export const MainLayout = () => {
         </div>
 
         <nav className="flex flex-col items-center gap-0.5 flex-1 w-full">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <RailNavItem
               key={item.nameKey}
               item={item}
@@ -241,6 +256,12 @@ export const MainLayout = () => {
           </button>
 
           <div className="flex-1" />
+
+          {canCheckIn && (
+            <M3Button icon="login" onClick={openCheckIn} className="mr-3">
+              {t('new_checkin')}
+            </M3Button>
+          )}
 
           {/* Username + role (desktop only) */}
           <div className="hidden sm:flex flex-col items-end mr-2">

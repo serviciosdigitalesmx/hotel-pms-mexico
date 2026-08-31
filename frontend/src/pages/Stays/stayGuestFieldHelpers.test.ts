@@ -39,9 +39,9 @@ describe('validateAlloggiatiGuests', () => {
     expect(validateAlloggiatiGuests([guest], t)).toBe('err_stato_nascita_required');
   });
 
-  it('requires the municipality of birth for an Italian-born guest', () => {
+  it('accepts country-only place of birth', () => {
     const guest = validGuest({ _statoDiNascita: CODICE_ITALIA, placeOfBirth: '' });
-    expect(validateAlloggiatiGuests([guest], t)).toBe('err_comune_nascita_required');
+    expect(validateAlloggiatiGuests([guest], t)).toBeNull();
   });
 
   it('does not require the municipality of birth for a foreign-born guest', () => {

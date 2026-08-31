@@ -89,6 +89,13 @@ public class StayServiceImpl implements StayService {
         newStay.setExpectedCheckOutDate(ctx.checkOutDate());
         newStay.setGuestDisplayName(ctx.guestDisplayName());
         newStay.setRoomNumber(ctx.roomNumber());
+        final int occupantCount = request.occupantCount() == null
+                ? Math.max(1, request.guests() == null ? 0 : request.guests().size())
+                : request.occupantCount();
+        if (occupantCount > ctx.maxOccupancy()) {
+            throw new IllegalArgumentException("ROOM_MAX_OCCUPANCY_EXCEEDED");
+        }
+        newStay.setOccupantCount(occupantCount);
 
         if (newStay.getGuests() != null) {
             newStay.getGuests().forEach(guest -> guest.setStay(newStay));

@@ -9,6 +9,7 @@ import { M3TableActionLink } from '../../components/m3/M3TableActionLink';
 import { useToastStore } from '../../store/toastStore';
 import { RoomTypeFormModal } from './RoomTypeFormModal';
 import { RateSeasonManagerModal } from './RateSeasonManagerModal';
+import { useSettingsStore } from '../../store/settingsStore';
 
 const RoomTypeRow = memo(({ rt, onEdit, onManageSeasons, t }: {
   rt: RoomTypeResponse;
@@ -16,6 +17,8 @@ const RoomTypeRow = memo(({ rt, onEdit, onManageSeasons, t }: {
   onManageSeasons: (rt: RoomTypeResponse) => void;
   t: (k: string) => string;
 }) => {
+  const { i18n } = useTranslation();
+  const currency = useSettingsStore((state) => state.currency);
   const handleEdit = useCallback(() => {
     onEdit(rt);
   }, [onEdit, rt]);
@@ -28,7 +31,9 @@ const RoomTypeRow = memo(({ rt, onEdit, onManageSeasons, t }: {
     <M3TableRow key={rt.id}>
       <M3TableCell className="font-medium">{rt.name}</M3TableCell>
       <M3TableCell className="text-on-surface-variant font-medium">{rt.maxOccupancy}</M3TableCell>
-      <M3TableCell className="text-on-surface-variant font-medium">€ {rt.basePrice.toFixed(2)}</M3TableCell>
+      <M3TableCell className="text-on-surface-variant font-medium">
+        {new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(rt.basePrice)}
+      </M3TableCell>
       <M3TableCell className="text-on-surface-variant max-w-xs truncate" title={rt.description}>{rt.description || '-'}</M3TableCell>
       <M3TableCell className="text-right">
         <M3TableActionLink onClick={handleManageSeasons} className="lg:mr-4">

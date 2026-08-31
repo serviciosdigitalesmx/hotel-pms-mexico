@@ -89,7 +89,7 @@ const MENU_ITEM: MenuItemResponse = {
 describe('Restaurant', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRole = undefined;
+    mockRole = 'RECEPTIONIST';
     vi.mocked(fbService.getMenuItems).mockResolvedValue([]);
   });
 
@@ -243,6 +243,16 @@ describe('Restaurant', () => {
     await waitFor(() => expect(screen.getByText('no_orders')).toBeInTheDocument());
     expect(screen.queryByText('menu_title')).not.toBeInTheDocument();
     expect(fbService.getMenuItems).not.toHaveBeenCalled();
+  });
+
+  it('lets KITCHEN confirm orders without exposing the reception order form', async () => {
+    mockRole = 'KITCHEN';
+    vi.mocked(fbService.getAllOrders).mockResolvedValueOnce([PENDING_ORDER]);
+    render(<Restaurant />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /confirm_order/ })).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /new_order/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('menu_title')).not.toBeInTheDocument();
   });
 
   it('retries loading orders when try_again is clicked', async () => {

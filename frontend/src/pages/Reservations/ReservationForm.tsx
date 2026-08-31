@@ -257,6 +257,9 @@ export const ReservationForm = () => {
           <MaterialIcon name="person" className="text-primary" />
           <h2 className="text-lg font-medium text-on-surface">{t('step_primary_guest')}</h2>
         </div>
+        {!isView && (
+          <p className="text-sm text-on-surface-variant">{t('reservation_guest_inline_help')}</p>
+        )}
         <GuestSearchAndCreate 
           selectedGuest={selectedGuest}
           onSelectGuest={setSelectedGuest}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, addMonths, subMonths, isSameDay } from 'date-fns';
-import { it, enUS } from 'date-fns/locale';
+import { es, it, enUS } from 'date-fns/locale';
 import { rateSeasonService } from '../../services/rateSeasonService';
 import type { RateCalendarResponse } from '../../types/inventory.types';
 import { MaterialIcon } from '../../components/MaterialIcon';
@@ -11,6 +11,7 @@ import { RateCalendarCell } from './RateCalendarCell';
 import { RateBulkApplyDialog } from './RateBulkApplyDialog';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { useSettingsStore } from '../../store/settingsStore';
 
 const SIDEBAR_WIDTH = 192;
 const CELL_WIDTH = 100;
@@ -44,9 +45,18 @@ LegendEntry.displayName = 'LegendEntry';
 
 export const RateCalendar = () => {
   const { t, i18n } = useTranslation(['common']);
-  const locale = i18n.language.startsWith('it') ? it : enUS;
+  const language = i18n?.language ?? 'en';
+  const locale = language.startsWith('es') ? es : language.startsWith('it') ? it : enUS;
   const role = useAuthStore((s) => s.user?.role);
+  const currency = useSettingsStore((state) => state.currency);
   const canApplyPrice = role === 'ADMIN' || role === 'OWNER';
+  const formatCurrency = useCallback(
+    (amount: number) => new Intl.NumberFormat(language, {
+      style: 'currency',
+      currency,
+    }).format(amount),
+    [currency, language],
+  );
 
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [calendar, setCalendar] = useState<RateCalendarResponse | null>(null);
@@ -288,7 +298,7 @@ export const RateCalendar = () => {
                       className="border-b border-outline-variant flex flex-col justify-center px-4 bg-surface-container-low"
                     >
                       <span className="font-display font-bold text-on-surface truncate">{row.roomTypeName}</span>
-                      <span className="text-xs text-on-surface-variant">€ {row.basePrice.toFixed(2)}</span>
+                      <span className="text-xs text-on-surface-variant">{formatCurrency(row.basePrice)}</span>
                     </div>
                   ))}
                 </div>
@@ -307,7 +317,8 @@ export const RateCalendar = () => {
                             && dayIndex >= bounds.dayMin && dayIndex <= bounds.dayMax}
                           isToday={isSameDay(new Date(day.date), new Date())}
                           seasonColor={day.rateSeasonId ? seasonColors.get(day.rateSeasonId) : undefined}
-                          ariaLabel={`${row.roomTypeName}, ${format(new Date(day.date), 'd MMMM', { locale })}, € ${day.price.toFixed(2)}${day.seasonName ? ` — ${day.seasonName}` : ''}`}
+                          priceLabel={formatCurrency(day.price)}
+                          ariaLabel={`${row.roomTypeName}, ${format(new Date(day.date), 'd MMMM', { locale })}, ${formatCurrency(day.price)}${day.seasonName ? ` — ${day.seasonName}` : ''}`}
                           onPointerDown={canApplyPrice ? handlePointerDown : noop}
                           onPointerEnter={canApplyPrice ? handlePointerEnter : noop}
                           onKeyboardSelect={canApplyPrice ? handleKeyboardSelect : noop}

@@ -8,6 +8,7 @@ interface RateCalendarCellProps {
   isSelected: boolean;
   isToday: boolean;
   seasonColor?: string;
+  priceLabel: string;
   ariaLabel: string;
   onPointerDown: (rowIndex: number, dayIndex: number) => void;
   onPointerEnter: (rowIndex: number, dayIndex: number) => void;
@@ -24,7 +25,7 @@ interface RateCalendarCellProps {
  * plain mouse click).
  */
 export const RateCalendarCell = memo(({
-  day, rowIndex, dayIndex, isSelected, isToday, seasonColor, ariaLabel,
+  day, rowIndex, dayIndex, isSelected, isToday, seasonColor, priceLabel, ariaLabel,
   onPointerDown, onPointerEnter, onKeyboardSelect,
 }: RateCalendarCellProps) => {
   const handlePointerDown = useCallback(
@@ -63,7 +64,7 @@ export const RateCalendarCell = memo(({
       }`}
     >
       {hasSeason && <span className="w-2 h-2 rounded-full" style={dotStyle} aria-hidden="true" />}
-      <span className="font-medium text-on-surface">€ {day.price.toFixed(0)}</span>
+      <span className="font-medium text-on-surface">{priceLabel}</span>
     </button>
   );
 });

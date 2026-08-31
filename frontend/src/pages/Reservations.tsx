@@ -46,7 +46,13 @@ const getStatusLabel = (status: string, t: TFunction) =>
 interface ReservationRowProps {
   reservation: ReservationResponse;
   rooms: RoomResponse[];
-  onCheckIn: (reservationId: string, roomId: string, expectedGuests: number, guestId: string) => void;
+  onCheckIn: (
+    reservationId: string,
+    roomId: string,
+    expectedGuests: number,
+    guestId: string,
+    maxOccupancy: number,
+  ) => void;
   onView: (reservationId: string) => void;
   onEdit: (reservationId: string) => void;
   onDelete?: (id: string) => void;
@@ -66,13 +72,16 @@ const ReservationRow = memo(({
   }, [reservation.lineItems, rooms]);
 
   const handleCheckInClick = useCallback(() => {
+    const roomId = reservation.lineItems?.[0]?.roomId || '';
+    const room = rooms.find(candidate => candidate.id === roomId);
     onCheckIn(
-      reservation.id, 
-      reservation.lineItems?.[0]?.roomId || '',
+      reservation.id,
+      roomId,
       reservation.expectedGuests,
-      reservation.guestId
+      reservation.guestId,
+      room?.roomType.maxOccupancy ?? reservation.expectedGuests,
     );
-  }, [onCheckIn, reservation]);
+  }, [onCheckIn, reservation, rooms]);
 
   const handleViewClick = useCallback(() => {
     onView(reservation.id);
@@ -259,9 +268,15 @@ export const Reservations = () => {
     navigate('/reservations/new');
   }, [navigate]);
 
-  const handleCheckIn = useCallback((reservationId: string, roomId: string, expectedGuests: number, guestId: string) => {
+  const handleCheckIn = useCallback((
+    reservationId: string,
+    roomId: string,
+    expectedGuests: number,
+    guestId: string,
+    maxOccupancy: number,
+  ) => {
     navigate(`/stays/check-in/${reservationId}`, {
-      state: { roomId, expectedGuests, guestId }
+      state: { roomId, expectedGuests, guestId, maxOccupancy }
     });
   }, [navigate]);
 

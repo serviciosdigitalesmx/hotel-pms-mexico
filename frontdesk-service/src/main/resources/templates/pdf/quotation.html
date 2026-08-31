@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="it" xmlns:th="http://www.thymeleaf.org">
+<html lang="es-MX" xmlns:th="http://www.thymeleaf.org">
 <head>
 <meta charset="UTF-8"/>
-<title th:text="${docTitle}">Preventivo</title>
+<title th:text="${docTitle}">Cotización</title>
 <style>
     @page { size: A4; margin: 2.2cm 1.8cm; }
     body { font-family: 'Noto Sans', sans-serif; font-size: 9pt; color: #1a1a1a; }
@@ -37,51 +37,51 @@
 
 <div class="header">
     <div class="hotel-name" th:text="${hotelName}">Hotel Name</div>
-    <h1 class="doc-title" th:text="${docTitle}">PREVENTIVO</h1>
+    <h1 class="doc-title" th:text="${docTitle}">COTIZACIÓN</h1>
 </div>
 
 <div class="meta-section">
     <div>
-        <div><span class="meta-label">Data emissione:</span> <span th:text="${issueDate}">01/01/2026</span></div>
+        <div><span class="meta-label">Fecha de emisión:</span> <span th:text="${issueDate}">01/01/2026</span></div>
         <div><span class="meta-label">Check-in:</span> <span th:text="${checkInDate}">01/01/2026</span></div>
         <div><span class="meta-label">Check-out:</span> <span th:text="${checkOutDate}">02/01/2026</span></div>
-        <div th:if="${expectedGuests != null}"><span class="meta-label">Ospiti:</span> <span th:text="${expectedGuests}">2</span></div>
+        <div th:if="${expectedGuests != null}"><span class="meta-label">Huéspedes:</span> <span th:text="${expectedGuests}">2</span></div>
     </div>
     <div>
-        <div><span class="meta-label">Destinatario:</span> <span th:text="${guestDisplayName}">Guest</span></div>
+        <div><span class="meta-label">Destinatario:</span> <span th:text="${guestDisplayName}">Huésped</span></div>
     </div>
 </div>
 
 <div class="option-section" th:each="option : ${options}">
-    <div class="option-title" th:text="${option.label}">Opzione</div>
+    <div class="option-title" th:text="${option.label}">Opción</div>
 
     <table class="rows">
         <thead>
-        <tr><th>Camera</th><th class="amount">Prezzo soggiorno</th></tr>
+        <tr><th>Habitación</th><th class="amount">Precio de estancia</th></tr>
         </thead>
         <tbody>
         <tr th:each="room : ${option.rooms}">
-            <td th:text="${room.label}">Camera</td>
-            <td class="amount" th:text="${room.priceFormatted}">EUR 0,00</td>
+            <td th:text="${room.label}">Habitación</td>
+            <td class="amount" th:text="${room.priceFormatted}">MXN 0.00</td>
         </tr>
         </tbody>
     </table>
 
     <div class="totals">
         <div class="row grand-total">
-            <span class="label">Totale opzione</span>
-            <span class="value" th:text="${option.totalFormatted}">EUR 0,00</span>
+            <span class="label">Total de la opción</span>
+            <span class="value" th:text="${option.totalFormatted}">MXN 0.00</span>
         </div>
     </div>
 </div>
 
 <p class="selection-note" th:if="${multipleOptions}">
-    Questo preventivo propone più opzioni — comunica alla reception quella che preferisci per procedere.
+    Esta cotización ofrece varias opciones. Indica a recepción cuál prefieres para continuar.
 </p>
 
 <p class="validity">
-    Preventivo valido fino al <strong th:text="${validUntil}">01/01/2026</strong> —
-    il prezzo indicato è garantito solo entro tale data.
+    Cotización válida hasta el <strong th:text="${validUntil}">01/01/2026</strong>.
+    El precio indicado se garantiza únicamente hasta esa fecha.
 </p>
 
 </body>

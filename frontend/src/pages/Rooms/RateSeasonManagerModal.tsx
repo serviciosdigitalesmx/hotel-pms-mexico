@@ -9,6 +9,7 @@ import { M3Dialog } from '../../components/m3/M3Dialog';
 import { M3Table, M3TableRow, M3TableCell } from '../../components/m3/M3Table';
 import { M3TableActionLink } from '../../components/m3/M3TableActionLink';
 import { useToastStore } from '../../store/toastStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 interface Props {
   roomType: RoomTypeResponse;
@@ -23,6 +24,8 @@ const SeasonRow = memo(({ season, onEdit, onDelete, t }: {
   onDelete: (season: RateSeasonResponse) => void;
   t: (k: string) => string;
 }) => {
+  const { i18n } = useTranslation();
+  const currency = useSettingsStore((state) => state.currency);
   const handleEdit = useCallback(() => onEdit(season), [onEdit, season]);
   const handleDelete = useCallback(() => onDelete(season), [onDelete, season]);
 
@@ -31,7 +34,9 @@ const SeasonRow = memo(({ season, onEdit, onDelete, t }: {
       <M3TableCell className="font-medium">{season.name || '-'}</M3TableCell>
       <M3TableCell>{season.startDate}</M3TableCell>
       <M3TableCell>{season.endDate}</M3TableCell>
-      <M3TableCell>€ {season.nightlyPrice.toFixed(2)}</M3TableCell>
+      <M3TableCell>
+        {new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(season.nightlyPrice)}
+      </M3TableCell>
       <M3TableCell className="text-right space-x-2">
         <M3TableActionLink onClick={handleEdit}>
           {t('edit')}

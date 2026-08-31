@@ -26,11 +26,18 @@ vi.mock('focus-trap-react', () => ({
 }));
 
 vi.mock('../store/authStore');
+vi.mock('../store/settingsStore', () => ({
+  useSettingsStore: (selector: (state: { loadHotelSettings: () => Promise<void> }) => unknown) =>
+    selector({ loadHotelSettings: vi.fn().mockResolvedValue(undefined) }),
+}));
 
 const ROOT_ENTRY = ['/'];
 
 const RECEPTIONIST: UserPayload = { sub: '1', username: 'alice', role: 'RECEPTIONIST' };
 const ADMIN: UserPayload = { sub: '2', username: 'bob', role: 'ADMIN' };
+const GUEST: UserPayload = { sub: '3', username: 'guest', role: 'GUEST' };
+const KITCHEN: UserPayload = { sub: '4', username: 'cocina', role: 'KITCHEN' };
+const HOUSEKEEPER: UserPayload = { sub: '5', username: 'limpieza', role: 'HOUSEKEEPER' };
 
 const mockAuthStore = (user: UserPayload | null, logout = vi.fn()) => {
   vi.mocked(useAuthStore).mockReturnValue({ user, logout } as unknown as ReturnType<typeof useAuthStore>);
@@ -66,6 +73,34 @@ describe('MainLayout', () => {
     mockAuthStore(RECEPTIONIST);
     renderLayout();
     expect(screen.getByText('alice')).toBeInTheDocument();
+  });
+
+  it('shows the global check-in action to reception roles', () => {
+    mockAuthStore(RECEPTIONIST);
+    renderLayout();
+    expect(screen.getByRole('button', { name: /new_checkin/ })).toBeInTheDocument();
+  });
+
+  it('hides the global check-in action from roles without permission', () => {
+    mockAuthStore(GUEST);
+    renderLayout();
+    expect(screen.queryByRole('button', { name: /new_checkin/ })).not.toBeInTheDocument();
+  });
+
+  it('shows only restaurant navigation to KITCHEN', () => {
+    mockAuthStore(KITCHEN);
+    renderLayout();
+    expect(screen.getAllByText('nav_restaurant').length).toBeGreaterThan(0);
+    expect(screen.queryByText('nav_housekeeping')).not.toBeInTheDocument();
+    expect(screen.queryByText('nav_billing')).not.toBeInTheDocument();
+  });
+
+  it('shows only housekeeping navigation to HOUSEKEEPER', () => {
+    mockAuthStore(HOUSEKEEPER);
+    renderLayout();
+    expect(screen.getAllByText('nav_housekeeping').length).toBeGreaterThan(0);
+    expect(screen.queryByText('nav_restaurant')).not.toBeInTheDocument();
+    expect(screen.queryByText('nav_stays')).not.toBeInTheDocument();
   });
 
   it('hides the owner-only nav item for a RECEPTIONIST', () => {

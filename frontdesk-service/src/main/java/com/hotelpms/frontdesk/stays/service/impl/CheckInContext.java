@@ -9,6 +9,7 @@ import java.time.LocalDate;
  * @param checkOutDate     expected check-out date from the reservation (may be null for walk-ins)
  * @param guestDisplayName primary guest "Cognome Nome" for UI display
  * @param roomNumber       room number for UI display
+ * @param maxOccupancy     maximum room occupancy
  */
-record CheckInContext(LocalDate checkOutDate, String guestDisplayName, String roomNumber) {
+record CheckInContext(LocalDate checkOutDate, String guestDisplayName, String roomNumber, int maxOccupancy) {
 }

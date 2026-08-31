@@ -58,6 +58,7 @@ export function WalkInCheckInForm() {
   const [guestResults, setGuestResults] = useState<GuestResponseDTO[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<GuestResponseDTO | null>(null);
   const [expectedCheckOutDate, setExpectedCheckOutDate] = useState('');
+  const [occupantCount, setOccupantCount] = useState(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -85,7 +86,10 @@ export function WalkInCheckInForm() {
 
   const handleRoomChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedRoomId(e.target.value);
-  }, []);
+    const selectedRoom = rooms.find(room => room.id === e.target.value);
+    const capacity = Math.max(1, selectedRoom?.roomType?.maxOccupancy ?? 1);
+    setOccupantCount(current => Math.min(current, capacity));
+  }, [rooms]);
 
   const handleGuestQueryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -135,8 +139,18 @@ export function WalkInCheckInForm() {
     });
   }, []);
 
-  const addGuest = useCallback(() => setGuests(prev => [...prev, emptyGuest(false)]), []);
-  const removeGuest = useCallback((index: number) => setGuests(prev => prev.filter((_, i) => i !== index)), []);
+  const handleOccupantCountChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setOccupantCount(Number(e.target.value));
+  }, []);
+  const handleGuestRemove = useCallback(() => undefined, []);
+  const maxOccupancy = useMemo(() => {
+    const selectedRoom = rooms.find(room => room.id === selectedRoomId);
+    return Math.max(1, selectedRoom?.roomType?.maxOccupancy ?? 1);
+  }, [rooms, selectedRoomId]);
+  const occupantOptions = useMemo(
+    () => Array.from({ length: maxOccupancy }, (_, index) => index + 1),
+    [maxOccupancy],
+  );
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
@@ -177,6 +191,7 @@ export function WalkInCheckInForm() {
           roomId: selectedRoomId,
           status: 'CHECKED_IN',
           expectedCheckOutDate,
+          occupantCount,
           guests: apiGuests,
         });
         addToast(t('walkin_success'), 'success');
@@ -187,7 +202,7 @@ export function WalkInCheckInForm() {
         setLoading(false);
       }
     },
-    [selectedRoomId, selectedGuest, expectedCheckOutDate, guests, t, navigate, addToast],
+    [selectedRoomId, selectedGuest, expectedCheckOutDate, occupantCount, guests, t, navigate, addToast],
   );
 
   const guestListLabel = useMemo(() => t('walkin_label_guest'), [t]);
@@ -253,27 +268,33 @@ export function WalkInCheckInForm() {
             className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
 
-        {/* Alloggiati guest data */}
-        <div className="space-y-4">
-          {guests.map((guest, index) => (
-            <GuestFieldSection
-              key={guest._id}
-              guest={guest}
-              index={index}
-              canRemove={guests.length > 1}
-              stati={stati}
-              tipdoc={tipdoc}
-              onRemove={removeGuest}
-              onChange={handleGuestChange}
-            />
-          ))}
-          <button
-            type="button"
-            onClick={addGuest}
-            className="rounded-full border border-outline px-4 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant focus:outline-none focus:ring-2 focus:ring-primary"
+        <div>
+          <label htmlFor="walkin-occupant-count" className="block text-sm font-medium text-on-surface mb-1">
+            {t('occupant_count')}
+          </label>
+          <select
+            id="walkin-occupant-count"
+            value={occupantCount}
+            onChange={handleOccupantCountChange}
+            disabled={!selectedRoomId}
+            className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           >
-            {t('btn_add_guest')}
-          </button>
+            {occupantOptions.map(count => <option key={count} value={count}>{count}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-on-surface-variant">{t('occupant_count_help')}</p>
+        </div>
+
+        {/* Primary guest data */}
+        <div className="space-y-4">
+          <GuestFieldSection
+            guest={guests[0]}
+            index={0}
+            canRemove={false}
+            stati={stati}
+            tipdoc={tipdoc}
+            onRemove={handleGuestRemove}
+            onChange={handleGuestChange}
+          />
         </div>
 
         {error && <p role="alert" className="text-sm text-error">{error}</p>}

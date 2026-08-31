@@ -237,7 +237,7 @@ describe('RoomSelection', () => {
         onToggleRoom={noop}
       />,
     );
-    expect(screen.getByText('€90')).toBeInTheDocument();
+    expect(screen.getByText(/(?:€|MX\$)\s?90(?:\.00)?/)).toBeInTheDocument();
   });
 
   it('shows the date-aware resolved total price when available for the room', () => {
@@ -257,7 +257,7 @@ describe('RoomSelection', () => {
         onToggleRoom={noop}
       />,
     );
-    expect(screen.getByText('reservations:price_total_stay')).toBeInTheDocument();
+    expect(screen.getByText(/(?:€|MX\$)\s?360\.00/)).toBeInTheDocument();
   });
 
   it('has no accessibility violations', async () => {

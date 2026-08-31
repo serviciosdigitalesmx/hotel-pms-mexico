@@ -11,6 +11,7 @@ import { M3StatusChip } from '../components/m3/M3StatusChip';
 import { M3Dialog } from '../components/m3/M3Dialog';
 import { useToastStore } from '../store/toastStore';
 import { getErrorMessage } from '../utils/errorMessage';
+import { useSettingsStore } from '../store/settingsStore';
 
 const PAGE_SIZE = 20;
 
@@ -22,17 +23,21 @@ const STATUS_TONE: Record<QuotationStatus, 'success' | 'warning' | 'error' | 'ne
   EXPIRED: 'warning',
 };
 
-const formatTotal = (quotation: QuotationResponse, t: (key: string, opts?: Record<string, unknown>) => string): string => {
+const formatTotal = (
+  quotation: QuotationResponse,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  formatCurrency: (amount: number) => string,
+): string => {
   if (quotation.options.length <= 1) {
-    return `€ ${quotation.totalPrice.toFixed(2)}`;
+    return formatCurrency(quotation.totalPrice);
   }
   const totals = quotation.options.map((o) => o.totalPrice);
   const min = Math.min(...totals);
   const max = Math.max(...totals);
   if (min === max) {
-    return `€ ${min.toFixed(2)}`;
+    return formatCurrency(min);
   }
-  return t('price_range', { min: min.toFixed(2), max: max.toFixed(2) });
+  return t('price_range', { min: formatCurrency(min), max: formatCurrency(max) });
 };
 
 interface QuotationRowProps {
@@ -44,9 +49,12 @@ interface QuotationRowProps {
   onDownload: (id: string) => void;
   sendingId: string | null;
   t: (key: string, opts?: Record<string, unknown>) => string;
+  formatCurrency: (amount: number) => string;
 }
 
-const QuotationRow = memo(({ quotation, onSend, onConvert, onDecline, onDelete, onDownload, sendingId, t }: QuotationRowProps) => {
+const QuotationRow = memo(({
+  quotation, onSend, onConvert, onDecline, onDelete, onDownload, sendingId, t, formatCurrency,
+}: QuotationRowProps) => {
   const handleSend = useCallback(() => onSend(quotation.id), [onSend, quotation.id]);
   const handleConvert = useCallback(() => onConvert(quotation.id), [onConvert, quotation.id]);
   const handleDecline = useCallback(() => onDecline(quotation.id), [onDecline, quotation.id]);
@@ -66,7 +74,9 @@ const QuotationRow = memo(({ quotation, onSend, onConvert, onDecline, onDelete, 
       </M3TableCell>
       <M3TableCell className="text-on-surface-variant">{quotation.checkInDate}</M3TableCell>
       <M3TableCell className="text-on-surface-variant">{quotation.checkOutDate}</M3TableCell>
-      <M3TableCell className="text-on-surface-variant font-medium">{formatTotal(quotation, t)}</M3TableCell>
+      <M3TableCell className="text-on-surface-variant font-medium">
+        {formatTotal(quotation, t, formatCurrency)}
+      </M3TableCell>
       <M3TableCell className="text-on-surface-variant">{quotation.validUntil}</M3TableCell>
       <M3TableCell>
         <div className="flex flex-col items-start gap-1">
@@ -105,7 +115,11 @@ const QuotationRow = memo(({ quotation, onSend, onConvert, onDecline, onDelete, 
 QuotationRow.displayName = 'QuotationRow';
 
 export const Quotations = () => {
-  const { t } = useTranslation(['quotations', 'common']);
+  const { t, i18n } = useTranslation(['quotations', 'common']);
+  const currency = useSettingsStore((state) => state.currency);
+  const formatCurrency = useCallback((amount: number) => new Intl.NumberFormat(i18n.language, {
+    style: 'currency', currency,
+  }).format(amount), [currency, i18n.language]);
   const navigate = useNavigate();
   const addToast = useToastStore((s) => s.addToast);
 
@@ -265,6 +279,7 @@ export const Quotations = () => {
                 onDownload={handleDownload}
                 sendingId={sendingId}
                 t={t}
+                formatCurrency={formatCurrency}
               />
             ))
           )}

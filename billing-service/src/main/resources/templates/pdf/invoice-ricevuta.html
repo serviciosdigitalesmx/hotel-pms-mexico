@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="it">
+<html xmlns:th="http://www.thymeleaf.org" lang="es-MX">
 <head>
     <meta charset="UTF-8"/>
-    <title th:text="'Ricevuta ' + ${invoiceNumber} + ' — ' + ${hotelName}">Ricevuta</title>
-    <meta name="description" th:content="'Ricevuta ' + ${invoiceNumber} + ' emessa da ' + ${hotelName}"/>
-    <meta name="subject" content="Ricevuta"/>
+    <title th:text="'Recibo ' + ${invoiceNumber} + ' — ' + ${hotelName}">Recibo</title>
+    <meta name="description" th:content="'Recibo ' + ${invoiceNumber} + ' emitido por ' + ${hotelName}"/>
+    <meta name="subject" content="Recibo"/>
     <th:block th:replace="~{invoice-fragments :: styles}"></th:block>
 </head>
 <body>
@@ -17,18 +17,17 @@
 <!-- No VAT breakdown for RICEVUTA — non-fiscal receipt. -->
 <div class="totals">
     <div class="row grand-total">
-        <div class="label">TOTALE:</div>
-        <div class="value" th:text="${totalFormatted}">EUR 0,00</div>
+        <div class="label">TOTAL:</div>
+        <div class="value" th:text="${totalFormatted}">MXN 0.00</div>
     </div>
     <div class="row">
-        <div class="label">Da pagare:</div>
-        <div class="value" th:text="${dueFormatted}">EUR 0,00</div>
+        <div class="label">Saldo pendiente:</div>
+        <div class="value" th:text="${dueFormatted}">MXN 0.00</div>
     </div>
 </div>
 
 <p class="non-fiscal-disclaimer">
-    Documento non fiscale — copia di cortesia. Non sostituisce lo scontrino o il documento
-    commerciale previsto dalla normativa vigente.
+    Documento no fiscal, copia informativa. No sustituye el comprobante fiscal correspondiente.
 </p>
 
 </body>

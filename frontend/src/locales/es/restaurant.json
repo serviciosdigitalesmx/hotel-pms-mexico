@@ -1,0 +1,22 @@
+{
+  "menu_title": "Gestión de menú",
+  "menu_add_item": "Agregar artículo",
+  "menu_edit_item": "Editar elemento",
+  "menu_delete_item": "Eliminar elemento",
+  "menu_delete_confirm": "¿Eliminar \"{{name}}\" del menú?",
+  "menu_delete_success": "Elemento eliminado del menú",
+  "menu_delete_error": "No se pudo eliminar el elemento. Por favor inténtalo de nuevo.",
+  "menu_save_success": "Elemento de menú guardado",
+  "menu_save_error": "No se pudo guardar el elemento. Por favor inténtalo de nuevo.",
+  "menu_validation_required": "Nombre, categoría y precio (>0) son obligatorios.",
+  "menu_name": "Nombre",
+  "menu_category": "Categoría",
+  "menu_price": "Precio (MXN $)",
+  "menu_description": "Descripción (opcional)",
+  "menu_available": "Visible en el formulario de pedido",
+  "menu_no_items": "Sin elementos de menú. Haga clic en \"Agregar elemento\" para crear el primero.",
+  "menu_available_yes": "Disponible",
+  "menu_available_no": "Oculto"
+}
+
+

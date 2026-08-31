@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, memo, useCallback } from 'react';
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay, differenceInCalendarDays, addMonths } from 'date-fns';
-import { it, enUS } from 'date-fns/locale';
+import { es, it, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { M3Card } from '../components/m3/M3Card';
 import type { RoomResponse } from '../types/inventory.types';
@@ -99,7 +99,7 @@ const ReservationBar = memo(({
       title={`${reservation.guestFullName} (${reservation.status})`}
     >
       <span className="text-xs font-bold truncate leading-tight">
-        {reservation.guestFullName || 'Guest'}
+        {reservation.guestFullName || 'Huésped'}
       </span>
       <span className="text-[10px] opacity-80 truncate">
         {format(startRaw, 'dd/MM')} - {format(endRaw, 'dd/MM')}
@@ -178,7 +178,7 @@ const PlanningBoard: React.FC<PlanningBoardProps> = memo(({
   onReservationMove,
 }) => {
   const { t, i18n } = useTranslation('common');
-  const locale = i18n.language.startsWith('it') ? it : enUS;
+  const locale = i18n.language.startsWith('es') ? es : i18n.language.startsWith('it') ? it : enUS;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { monthStart, monthEnd, nextMonthStart, days } = useMemo(() => {

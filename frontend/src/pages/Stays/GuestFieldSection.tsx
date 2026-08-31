@@ -34,7 +34,6 @@ export const GuestFieldSection = memo(({
 }: GuestFieldSectionProps) => {
   const { t } = useTranslation('stays');
   const hasDoc = !TYPES_WITHOUT_DOC.includes(guest.travellerType as TravellerType);
-  const isItalianBorn = guest._statoDiNascita === CODICE_ITALIA;
   const isItalianDocIssue = guest._statoRilascioDoc === CODICE_ITALIA;
 
   const handleSimpleChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -57,16 +56,8 @@ export const GuestFieldSection = memo(({
     [index, onChange],
   );
 
-  const handleStatoDiNascitaSelect = useCallback((codice: string) => {
-    if (codice !== CODICE_ITALIA) {
-      onChange(index, { _statoDiNascita: codice, placeOfBirth: codice });
-    } else {
-      onChange(index, { _statoDiNascita: codice, placeOfBirth: '' });
-    }
-  }, [index, onChange]);
-
-  const handleComuneDiNascitaSelect = useCallback(
-    (codice: string) => onChange(index, { placeOfBirth: codice }),
+  const handleStatoDiNascitaSelect = useCallback(
+    (codice: string) => onChange(index, { _statoDiNascita: codice, placeOfBirth: codice }),
     [index, onChange],
   );
 
@@ -83,21 +74,12 @@ export const GuestFieldSection = memo(({
     [index, onChange],
   );
 
-  const handlePrimaryChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    onChange(index, { isPrimaryGuest: e.target.checked });
-  }, [index, onChange]);
-
   return (
     <M3Card className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-display font-medium text-on-surface flex items-center gap-2">
           <MaterialIcon name="person" className="text-primary" />
-          {t('guest_number', { number: index + 1 })}
-          {guest.isPrimaryGuest && (
-            <span className="text-xs bg-primary text-on-primary px-2 py-0.5 rounded-full">
-              {t('guest_badge_primary')}
-            </span>
-          )}
+          {index === 0 ? t('guest_label') : t('guest_number', { number: index + 1 })}
         </h2>
         {canRemove && (
           <M3Button variant="text" icon="close" onClick={handleRemove} type="button">
@@ -174,15 +156,6 @@ export const GuestFieldSection = memo(({
           onChange={handleStatoDiNascitaSelect}
           required
         />
-        {isItalianBorn && (
-          <ComuneAutocomplete
-            id={`comune-nascita-${index}`}
-            label={t('label_comune_nascita')}
-            value={guest.placeOfBirth}
-            onSelect={handleComuneDiNascitaSelect}
-            required
-          />
-        )}
 
         {hasDoc && (
           <>
@@ -232,19 +205,6 @@ export const GuestFieldSection = memo(({
 
         <M3TextField label={t('label_stay_reason')} name="travelPurpose" value={guest.travelPurpose ?? ''} onChange={handleSimpleChange} />
 
-        <div className="md:col-span-2 flex items-center gap-2 mt-2">
-          <input
-            id={`primary-${index}`}
-            type="checkbox"
-            name="isPrimaryGuest"
-            checked={guest.isPrimaryGuest}
-            onChange={handlePrimaryChange}
-            className="w-5 h-5 text-primary rounded focus:ring-primary"
-          />
-          <label htmlFor={`primary-${index}`} className="text-sm font-body text-on-surface cursor-pointer">
-            {t('label_primary_guest')}
-          </label>
-        </div>
       </div>
     </M3Card>
   );

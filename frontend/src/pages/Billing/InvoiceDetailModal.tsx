@@ -1,12 +1,13 @@
-import { useCallback, memo, useState } from 'react';
+import { useCallback, memo } from 'react';
 import { billingService } from '../../services/billingService';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toastStore';
 
 const ICON_STYLE: React.CSSProperties = { fontSize: 18 };
 import { useTranslation } from 'react-i18next';
 import { M3Dialog } from '../../components/m3/M3Dialog';
 import { M3StatusChip } from '../../components/m3/M3StatusChip';
-import type { DocumentType, InvoiceResponse, InvoiceStatus, PaymentMethod, ChargeType, SdiStatus } from '../../types/billing.types';
+import type { InvoiceResponse, InvoiceStatus, PaymentMethod, ChargeType } from '../../types/billing.types';
 
 interface Props {
   invoice: InvoiceResponse;
@@ -34,72 +35,44 @@ const chargeTypeIcon: Record<ChargeType, string> = {
   EXTRA: 'add_circle',
 };
 
-const sdiStatusTone = (s: SdiStatus) => {
-  if (s === 'ACCEPTED') return 'success' as const;
-  if (s === 'REJECTED') return 'error' as const;
-  if (s === 'SENT') return 'warning' as const;
-  return 'neutral' as const;
-};
-
 export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) => {
   const { t, i18n } = useTranslation(['billing', 'common']);
-  const addToast = useToastStore((s) => s.addToast);
-  const [switchingType, setSwitchingType] = useState(false);
-  const [validatingXml, setValidatingXml] = useState(false);
+  const currency = useSettingsStore((state) => state.currency);
+  const addToast = useToastStore((state) => state.addToast);
 
   const handleDownloadPdf = useCallback(() => {
     billingService.downloadPdf(invoice.id);
   }, [invoice.id]);
 
-  // The actual download (below) fires via a hidden iframe (see billingService), which has
-  // no way to observe an HTTP error response — a legitimate rejection (e.g. incomplete
-  // guest address) would otherwise fail completely silently. Validate first, over a real
-  // XHR that can surface the error as a toast, and only trigger the iframe on success.
-  const handleDownloadFatturaPAXml = useCallback(async () => {
-    setValidatingXml(true);
+  const handleDocumentTypeChange = useCallback(async () => {
+    const documentType = invoice.documentType === 'FATTURA' ? 'RICEVUTA' : 'FATTURA';
+    try {
+      const updated = await billingService.updateDocumentType(invoice.id, documentType);
+      onUpdated?.(updated);
+      addToast('document_type_updated', 'success');
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      addToast(detail || 'document_type_update_failed', 'error');
+    }
+  }, [addToast, invoice.documentType, invoice.id, onUpdated]);
+
+  const handleDownloadFatturaPA = useCallback(async () => {
     try {
       await billingService.validateFatturaPAXml(invoice.id);
       billingService.downloadFatturaPAXml(invoice.id);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } }; message?: string };
-      addToast(e.response?.data?.detail ?? e.message ?? t('toast_error', { ns: 'common' }), 'error');
-    } finally {
-      setValidatingXml(false);
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      addToast(detail || 'fattura_pa_download_failed', 'error');
     }
-  }, [invoice.id, addToast, t]);
-
-  const handleDownloadFatturaPAXmlVoid = useCallback(
-    () => { void handleDownloadFatturaPAXml(); },
-    [handleDownloadFatturaPAXml],
-  );
-
-  const handleToggleDocumentType = useCallback(async () => {
-    const next: DocumentType = invoice.documentType === 'FATTURA' ? 'RICEVUTA' : 'FATTURA';
-    setSwitchingType(true);
-    try {
-      const updated = await billingService.updateDocumentType(invoice.id, next);
-      onUpdated?.(updated);
-      addToast(t('document_type_updated', { ns: 'billing' }), 'success');
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } }; message?: string };
-      addToast(e.response?.data?.detail ?? e.message ?? t('toast_error', { ns: 'common' }), 'error');
-    } finally {
-      setSwitchingType(false);
-    }
-  }, [invoice.id, invoice.documentType, onUpdated, addToast, t]);
-
-  const handleToggleDocumentTypeVoid = useCallback(
-    () => { void handleToggleDocumentType(); },
-    [handleToggleDocumentType],
-  );
+  }, [addToast, invoice.id]);
 
   const formatCurrency = useCallback(
     (val: number) =>
       new Intl.NumberFormat(i18n.language, {
         style: 'currency',
-        currency: 'EUR',
+        currency,
       }).format(val),
-    [i18n.language],
+    [currency, i18n.language],
   );
 
   const formatDateTime = useCallback(
@@ -120,47 +93,6 @@ export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) 
       onClose={onClose}
     >
       <div className="space-y-6 text-sm font-body">
-        {/* Document type toggle */}
-        {invoice.status !== 'CANCELLED' && (
-          <div className="flex items-center justify-between px-3 py-2 rounded-shape-xs bg-surface-container border border-outline-variant/40">
-            <span className="text-xs font-medium text-on-surface-variant uppercase tracking-wide">
-              {t(`document_type_${invoice.documentType?.toLowerCase() ?? 'fattura'}`, { ns: 'billing' })}
-            </span>
-            <button
-              type="button"
-              onClick={handleToggleDocumentTypeVoid}
-              disabled={switchingType}
-              className="text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded min-h-[40px] px-2"
-            >
-              {invoice.documentType === 'FATTURA'
-                ? t('switch_to_ricevuta', { ns: 'billing' })
-                : t('switch_to_fattura', { ns: 'billing' })}
-            </button>
-          </div>
-        )}
-        {/* SDI status + XML download (FATTURA only, non-CANCELLED) */}
-        {invoice.status !== 'CANCELLED' && invoice.documentType === 'FATTURA' && (
-          <div className="flex items-center justify-between px-3 py-2 rounded-shape-xs bg-surface-container border border-outline-variant/40">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-on-surface-variant uppercase tracking-wide">
-                {t('sdi_status_label', { ns: 'billing' })}
-              </span>
-              <M3StatusChip
-                label={t(`sdi_status_${invoice.sdiStatus.toLowerCase()}`, { ns: 'billing' })}
-                tone={sdiStatusTone(invoice.sdiStatus)}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleDownloadFatturaPAXmlVoid}
-              disabled={validatingXml}
-              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded min-h-[40px] px-2"
-            >
-              <span className="material-symbols-outlined" style={ICON_STYLE} aria-hidden="true">download</span>
-              {t('download_fattura_pa', { ns: 'billing' })}
-            </button>
-          </div>
-        )}
         {/* Header summary */}
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
           <div>
@@ -254,6 +186,31 @@ export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) 
           )}
         </section>
       </div>
+
+      {invoice.status !== 'CANCELLED' && (
+        <section aria-labelledby="document-type-heading" className="border-t border-outline-variant pt-4 mt-4">
+          <h3 id="document-type-heading" className="text-xs font-medium text-on-surface-variant uppercase tracking-wide mb-2">
+            {t('document_type', { ns: 'billing' })}
+          </h3>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-on-surface">{t(`document_type_${invoice.documentType.toLowerCase()}`, { ns: 'billing' })}</span>
+            <button type="button" onClick={handleDocumentTypeChange} className="text-primary text-sm font-medium">
+              {t(`switch_to_${invoice.documentType === 'FATTURA' ? 'ricevuta' : 'fattura'}`, { ns: 'billing' })}
+            </button>
+          </div>
+          {invoice.documentType === 'FATTURA' && (
+            <div className="flex items-center justify-between gap-4 mt-3">
+              <div className="text-on-surface-variant">
+                <span>{t('sdi_status_label', { ns: 'billing' })}</span>:{' '}
+                <span>{t(`sdi_status_${invoice.sdiStatus.toLowerCase()}`, { ns: 'billing' })}</span>
+              </div>
+              <button type="button" onClick={handleDownloadFatturaPA} className="text-primary text-sm font-medium">
+                {t('download_fattura_pa', { ns: 'billing' })}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* PDF download action */}
       <div className="flex justify-end pt-2 border-t border-outline-variant mt-4">

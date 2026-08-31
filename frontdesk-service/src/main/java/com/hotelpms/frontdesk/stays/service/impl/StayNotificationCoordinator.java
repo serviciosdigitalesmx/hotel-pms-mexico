@@ -32,8 +32,9 @@ import java.util.List;
 class StayNotificationCoordinator {
 
     private static final String NOTIFICATION_SERVICE_UNAVAILABLE_REASON = "NOTIFICATION_SERVICE_UNAVAILABLE";
-    private static final String DEFAULT_CURRENCY = "EUR";
-    private static final String INVOICE_FILE_PREFIX = "fattura-";
+    private static final String DEFAULT_CURRENCY = "MXN";
+    private static final String DEFAULT_LOCALE = "es-MX";
+    private static final String INVOICE_FILE_PREFIX = "factura-";
     private static final String INVOICE_FILE_EXTENSION = ".pdf";
 
     private final NotificationClient notificationClient;
@@ -67,11 +68,12 @@ class StayNotificationCoordinator {
                                 .map((ChargeLineDto c) -> new NotificationChargeLineDto(c.description(), c.amount()))
                                 .toList()
                         : List.of();
-                currency = detail.currency() != null ? detail.currency() : DEFAULT_CURRENCY;
+                currency = detail.currency() != null
+                        ? detail.currency() : settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
                 invoicePdf = billingClient.getInvoicePdf(invoice.id());
             } else {
                 lines = List.of();
-                currency = DEFAULT_CURRENCY;
+                currency = settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
                 invoicePdf = null;
             }
             final String invoiceFileName = invoicePdf == null
@@ -87,7 +89,7 @@ class StayNotificationCoordinator {
                     lines,
                     invoice.totalAmount(),
                     currency,
-                    "it",
+                    settingOrDefault(settings.locale(), DEFAULT_LOCALE),
                     settings.emailSubjectCheckout(),
                     settings.emailGreetingText(),
                     settings.logoUrl(),
@@ -102,5 +104,9 @@ class StayNotificationCoordinator {
             stay.setCheckoutEmailFailureReason(StayFailureReason.truncate(ex.getMessage()));
             stayRepository.save(stay);
         }
+    }
+
+    private static String settingOrDefault(final String value, final String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

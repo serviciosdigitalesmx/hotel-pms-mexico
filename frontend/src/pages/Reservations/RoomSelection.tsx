@@ -4,6 +4,7 @@ import { M3TextField } from '../../components/m3/M3TextField';
 import { useTranslation } from 'react-i18next';
 import type { RoomResponse } from '../../types/inventory.types';
 import type { ReservationResponse } from '../../types/reservation.types';
+import { useSettingsStore } from '../../store/settingsStore';
 
 interface RoomButtonProps {
   room: RoomResponse;
@@ -15,7 +16,9 @@ interface RoomButtonProps {
 }
 
 const RoomButton = memo(({ room, isSelected, isOccupied, readOnly, resolvedTotalPrice, onToggle }: RoomButtonProps) => {
-  const { t } = useTranslation(['reservations', 'common']);
+  const { t, i18n } = useTranslation(['reservations', 'common']);
+  const currency = useSettingsStore((state) => state.currency);
+  const displayPrice = resolvedTotalPrice ?? room.roomType?.basePrice;
 
   const handleClick = useCallback(() => {
     if (!readOnly && !isOccupied) {
@@ -48,9 +51,9 @@ const RoomButton = memo(({ room, isSelected, isOccupied, readOnly, resolvedTotal
       </div>
       <span className="text-xs text-on-surface-variant">{room.roomType?.name || room.type}</span>
       <span className={`text-sm font-medium mt-1 ${isOccupied ? 'text-on-surface-variant' : ''}`}>
-        {resolvedTotalPrice !== undefined
-          ? t('reservations:price_total_stay', { amount: resolvedTotalPrice })
-          : `€${room.roomType?.basePrice}`}
+        {displayPrice === undefined
+          ? '—'
+          : new Intl.NumberFormat(i18n?.language ?? 'en', { style: 'currency', currency }).format(displayPrice)}
       </span>
       {isOccupied && (
         <span className="text-xs text-on-surface-variant italic">{t('common:room_occupied')}</span>

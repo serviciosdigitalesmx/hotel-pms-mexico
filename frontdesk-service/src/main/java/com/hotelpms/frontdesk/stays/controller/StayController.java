@@ -51,6 +51,7 @@ public class StayController {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
+    private static final String ROLE_CHECK_IN = "hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')";
 
     private final StayService stayService;
     private final AlloggiatiReportService alloggiatiReportService;
@@ -66,6 +67,7 @@ public class StayController {
      * @return the created stay response
      */
     @PostMapping
+    @PreAuthorize(ROLE_CHECK_IN)
     @ResponseStatus(HttpStatus.CREATED)
     public StayResponse checkIn(@NonNull @Valid @RequestBody final StayRequest request) {
         final UUID hotelId = Objects.requireNonNull(extractHotelId());
@@ -78,6 +80,7 @@ public class StayController {
                 request.expectedCheckOutDate(),
                 request.actualCheckInTime(),
                 request.actualCheckOutTime(),
+                request.occupantCount(),
                 request.guests());
         return stayService.checkIn(enriched);
     }

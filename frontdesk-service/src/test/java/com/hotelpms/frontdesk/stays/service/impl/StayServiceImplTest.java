@@ -259,7 +259,32 @@ class StayServiceImplTest {
         verify(roomService, times(1)).updateRoomStatus(room, null, RoomStatus.OCCUPIED);
         verify(stayRepository, times(1)).save(Objects.requireNonNull(unmappedStay));
         assertEquals(StayStatus.CHECKED_IN, unmappedStay.getStatus());
+        assertEquals(1, unmappedStay.getOccupantCount());
         assertNotNull(unmappedStay.getActualCheckInTime());
+    }
+
+    @Test
+    void shouldRejectOccupantCountAboveRoomCapacity() {
+        final UUID guest = Objects.requireNonNull(guestId);
+        final UUID reservation = Objects.requireNonNull(reservationId);
+        final UUID room = Objects.requireNonNull(roomId);
+        final StayRequest request = new StayRequest(hotelId, reservation, guest, room,
+                StayStatus.EXPECTED, null, null, null, 3, new ArrayList<>());
+
+        when(guestClient.getGuestById(guest))
+                .thenReturn(new GuestResponse(guest, GUEST_FIRST_NAME, GUEST_LAST_NAME, GUEST_EMAIL));
+        when(reservationService.getReservationById(reservation))
+                .thenReturn(reservationResponse(ReservationStatus.CONFIRMED, null));
+        when(roomService.getRoomById(room, hotelId)).thenReturn(room());
+        when(stayMapper.toEntity(request)).thenReturn(new Stay());
+
+        final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> stayService.checkIn(request));
+
+        assertEquals("ROOM_MAX_OCCUPANCY_EXCEEDED", exception.getMessage());
+        verify(stayRepository, never()).save(anyNonNull(Stay.class));
+        verify(roomService, never()).updateRoomStatus(
+                ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 
     @Test
@@ -393,6 +418,7 @@ class StayServiceImplTest {
         existingGuests.add(new StayGuest());
         existingGuests.add(new StayGuest());
         existingStay.setGuests(existingGuests);
+        existingStay.setOccupantCount(2);
         when(stayRepository.findAllByReservationId(reservation)).thenReturn(List.of(existingStay));
 
         // Act
@@ -565,7 +591,7 @@ class StayServiceImplTest {
         // Assert
         verify(notificationClient).sendCheckout(captor.capture());
         assertNotNull(captor.getValue().invoicePdf());
-        assertEquals("fattura-" + invoiceId + ".pdf", captor.getValue().invoiceFileName());
+        assertEquals("factura-" + invoiceId + ".pdf", captor.getValue().invoiceFileName());
     }
 
     @Test

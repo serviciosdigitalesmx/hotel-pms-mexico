@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Calendar, dateFnsLocalizer, type Event, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addMonths, subMonths, startOfMonth } from 'date-fns';
-import { enUS, it } from 'date-fns/locale';
+import { enUS, es, it } from 'date-fns/locale';
 import { reservationService } from '../services/reservationService';
 import { useTranslation } from 'react-i18next';
 import { useToastStore } from '../store/toastStore';
@@ -16,7 +16,7 @@ import { getErrorMessage } from '../utils/errorMessage';
 
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-const locales = { 'en-US': enUS, 'it-IT': it, en: enUS, it: it };
+const locales = { 'es-MX': es, es, 'en-US': enUS, en: enUS, 'it-IT': it, it };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
 
@@ -28,7 +28,7 @@ interface ReservationEvent extends Event {
 
 
 const mapToEvent = (reservation: ReservationResponse): ReservationEvent => ({
-  title: `${reservation.guestFullName || `Guest ${reservation.guestId.slice(0, 8)}`} (${reservation.status})`,
+  title: `${reservation.guestFullName || `Huésped ${reservation.guestId.slice(0, 8)}`} (${reservation.status})`,
   start: new Date(reservation.checkInDate),
   end: new Date(reservation.checkOutDate),
   resource: reservation,
@@ -134,7 +134,7 @@ export const CalendarPlanning = () => {
           // instead of carrying the old room's price along.
           lineItems: updatedReservation.lineItems.map(li => ({ roomId: li.roomId }))
         });
-        addToast(t('room_moved_success', { name: updatedReservation.guestFullName || `Guest ${reservation.guestId.substring(0, 8)}` }), 'success');
+        addToast(t('room_moved_success', { name: updatedReservation.guestFullName || `Huésped ${reservation.guestId.substring(0, 8)}` }), 'success');
       } catch {
         setReservations((prev) =>
           prev.map((r) => (r.id === reservationId ? reservation : r)),
@@ -186,7 +186,8 @@ export const CalendarPlanning = () => {
   }, []);
 
   const currentYear = format(currentDate, 'yyyy');
-  const monthName = format(currentDate, 'MMMM', { locale: i18n.language.startsWith('it') ? it : enUS });
+  const monthLocale = i18n.language.startsWith('es') ? es : i18n.language.startsWith('it') ? it : enUS;
+  const monthName = format(currentDate, 'MMMM', { locale: monthLocale });
   const monthValue = format(currentDate, 'yyyy-MM');
 
   return (

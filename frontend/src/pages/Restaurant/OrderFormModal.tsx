@@ -6,6 +6,7 @@ import { MaterialIcon } from '../../components/MaterialIcon';
 import { fbService } from '../../services/fbService';
 import { stayService } from '../../services/stayService';
 import { useToastStore } from '../../store/toastStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { getErrorMessage } from '../../utils/errorMessage';
 import type { MenuItemResponse } from '../../types/fb.types';
 import type { StayResponse } from '../../types/stay.types';
@@ -78,6 +79,7 @@ MenuItemRow.displayName = 'MenuItemRow';
 export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
   const { t, i18n } = useTranslation('common');
   const addToast = useToastStore((s) => s.addToast);
+  const currency = useSettingsStore((state) => state.currency);
 
   const [stayId, setStayId] = useState('');
   const [activeStays, setActiveStays] = useState<StayResponse[]>([]);
@@ -106,8 +108,8 @@ export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
 
   const formatCurrency = useCallback(
     (val: number) =>
-      new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR' }).format(val),
-    [i18n.language],
+      new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(val),
+    [currency, i18n.language],
   );
 
   const handleStayIdChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {

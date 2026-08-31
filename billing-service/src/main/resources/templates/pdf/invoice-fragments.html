@@ -47,32 +47,30 @@
         <img th:if="${logoDataUri != null}" th:src="${logoDataUri}" th:alt="'Logo ' + ${hotelName}" class="logo"/>
         <div class="hotel-name" th:text="${hotelName}">Hotel Name</div>
         <div class="hotel-details" th:if="${hotelAddress != null}" th:text="${hotelAddress}">Address</div>
-        <div class="hotel-details" th:if="${hotelVat != null}" th:text="'P.IVA: ' + ${hotelVat}">P.IVA</div>
-        <div class="hotel-details" th:if="${hotelFiscalCode != null}" th:text="'C.F.: ' + ${hotelFiscalCode}">C.F.</div>
+        <div class="hotel-details" th:if="${hotelVat != null}" th:text="'RFC: ' + ${hotelVat}">RFC</div>
     </div>
-    <h1 class="doc-title" th:text="${docTitle} + ' N. ' + ${invoiceNumber}">FATTURA N. 2026/0001</h1>
+    <h1 class="doc-title" th:text="${docTitle} + ' N. ' + ${invoiceNumber}">FACTURA N. 2026/0001</h1>
 </div>
 
 <div class="meta-section" th:fragment="meta">
     <div>
-        <div><span class="meta-label">N. Documento:</span> <span th:text="${invoiceNumber}">INV-001</span></div>
-        <div><span class="meta-label">Data:</span> <span th:text="${issueDate}">01/01/2026</span></div>
-        <div><span class="meta-label">Stato:</span> <span th:text="${status}">ISSUED</span></div>
+        <div><span class="meta-label">N. de documento:</span> <span th:text="${invoiceNumber}">INV-001</span></div>
+        <div><span class="meta-label">Fecha:</span> <span th:text="${issueDate}">01/01/2026</span></div>
+        <div><span class="meta-label">Estado:</span> <span th:text="${status}">ISSUED</span></div>
     </div>
     <div>
-        <div><span class="meta-label">Intestatario:</span> <span th:text="${guestDisplayName}">Guest</span></div>
+        <div><span class="meta-label">Huésped:</span> <span th:text="${guestDisplayName}">Huésped</span></div>
         <div th:if="${guestPersonalName != null}" th:text="${guestPersonalName}">Personal name</div>
-        <div th:if="${guestFiscalCode != null}" th:text="'C.F.: ' + ${guestFiscalCode}">C.F.</div>
-        <div th:if="${guestVat != null}" th:text="'P.IVA: ' + ${guestVat}">P.IVA</div>
-        <div th:if="${guestPec != null}" th:text="'PEC: ' + ${guestPec}">PEC</div>
+        <div th:if="${guestFiscalCode != null}" th:text="'Identificador fiscal: ' + ${guestFiscalCode}">Identificador fiscal</div>
+        <div th:if="${guestVat != null}" th:text="'RFC: ' + ${guestVat}">RFC</div>
     </div>
 </div>
 
 <th:block th:fragment="chargesTable">
     <table class="rows">
-        <caption>ADDEBITI</caption>
+        <caption>CARGOS</caption>
         <thead>
-        <tr><th>Tipo</th><th>Descrizione</th><th class="amount">%IVA</th><th class="amount">Importo</th></tr>
+        <tr><th>Tipo</th><th>Descripción</th><th class="amount">% IVA</th><th class="amount">Importe</th></tr>
         </thead>
         <tbody>
         <tr th:each="charge : ${charges}">
@@ -81,16 +79,16 @@
             <td class="amount" th:text="${charge.vatLabel}">10%</td>
             <td class="amount" th:text="${charge.amountFormatted}">EUR 0,00</td>
         </tr>
-        <tr th:if="${#lists.isEmpty(charges)}"><td colspan="4" class="empty-row">Nessun addebito</td></tr>
+        <tr th:if="${#lists.isEmpty(charges)}"><td colspan="4" class="empty-row">Sin cargos</td></tr>
         </tbody>
     </table>
 </th:block>
 
 <th:block th:fragment="paymentsTable">
     <table class="rows">
-        <caption>PAGAMENTI</caption>
+        <caption>PAGOS</caption>
         <thead>
-        <tr><th>Metodo</th><th>Data</th><th>Riferimento</th><th class="amount">Importo</th></tr>
+        <tr><th>Método</th><th>Fecha</th><th>Referencia</th><th class="amount">Importe</th></tr>
         </thead>
         <tbody>
         <tr th:each="payment : ${payments}">
@@ -99,7 +97,7 @@
             <td th:text="${payment.reference}">---</td>
             <td class="amount" th:text="${payment.amountFormatted}">EUR 0,00</td>
         </tr>
-        <tr th:if="${#lists.isEmpty(payments)}"><td colspan="4" class="empty-row">Nessun pagamento</td></tr>
+        <tr th:if="${#lists.isEmpty(payments)}"><td colspan="4" class="empty-row">Sin pagos</td></tr>
         </tbody>
     </table>
 </th:block>

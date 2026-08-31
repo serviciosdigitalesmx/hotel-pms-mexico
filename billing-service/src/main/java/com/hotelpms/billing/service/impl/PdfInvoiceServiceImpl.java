@@ -59,6 +59,7 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
     private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private static final String EMPTY_VALUE = "---";
+    private static final String DEFAULT_CURRENCY = "MXN";
 
     private final InvoiceService invoiceService;
     private final HotelSettingsClient hotelSettingsClient;
@@ -94,7 +95,8 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
         context.put("hotelAddress", blankToNull(hotel.address()));
         context.put("hotelVat", blankToNull(hotel.vatNumber()));
         context.put("hotelFiscalCode", blankToNull(hotel.fiscalCode()));
-        context.put("docTitle", docType == DocumentType.FATTURA ? "FATTURA" : "RICEVUTA");
+        context.put("docTitle", docType == DocumentType.FATTURA ? "FACTURA" : "RECIBO");
+        final String currency = blankToNull(hotel.currency()) != null ? hotel.currency() : DEFAULT_CURRENCY;
 
         context.put("invoiceNumber", invoice.invoiceNumber());
         context.put("issueDate", invoice.issueDate() != null ? invoice.issueDate().format(DATE_FMT) : EMPTY_VALUE);
@@ -109,16 +111,16 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
         context.put("guestPec", blankToNull(guest.pecEmail()));
 
         vatBreakdownCalculator.assertReconciles(invoice.totalAmount(), invoice.charges());
-        context.put("charges", toChargeRows(invoice.charges()));
-        context.put("payments", toPaymentRows(invoice.payments()));
+        context.put("charges", toChargeRows(invoice.charges(), currency));
+        context.put("payments", toPaymentRows(invoice.payments(), currency));
 
         final BigDecimal paid = invoice.payments().stream()
                 .map((@NonNull PaymentResponse pr) -> pr.amount())
                 .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b));
-        context.put("totalFormatted", formatAmount(invoice.totalAmount()));
-        context.put("dueFormatted", formatAmount(invoice.totalAmount().subtract(paid)));
+        context.put("totalFormatted", formatAmount(invoice.totalAmount(), currency));
+        context.put("dueFormatted", formatAmount(invoice.totalAmount().subtract(paid), currency));
         if (docType == DocumentType.FATTURA) {
-            context.put("vatBreakdown", toVatRows(invoice.charges()));
+            context.put("vatBreakdown", toVatRows(invoice.charges(), currency));
         }
         return context;
     }
@@ -146,20 +148,20 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
         }
     }
 
-    private List<Map<String, String>> toChargeRows(final List<ChargeResponse> charges) {
+    private List<Map<String, String>> toChargeRows(final List<ChargeResponse> charges, final String currency) {
         final List<Map<String, String>> rows = new ArrayList<>();
         for (final ChargeResponse charge : charges) {
             final Map<String, String> row = new HashMap<>();
             row.put("typeLabel", formatChargeType(charge.type().name()));
             row.put("description", charge.description() != null ? charge.description() : EMPTY_VALUE);
             row.put("vatLabel", charge.vatRate() != null ? vatRateToLabel(charge.vatRate()) : EMPTY_VALUE);
-            row.put("amountFormatted", formatAmount(charge.amount()));
+            row.put("amountFormatted", formatAmount(charge.amount(), currency));
             rows.add(row);
         }
         return rows;
     }
 
-    private List<Map<String, String>> toPaymentRows(final List<PaymentResponse> payments) {
+    private List<Map<String, String>> toPaymentRows(final List<PaymentResponse> payments, final String currency) {
         final List<Map<String, String>> rows = new ArrayList<>();
         for (final PaymentResponse payment : payments) {
             final Map<String, String> row = new HashMap<>();
@@ -167,20 +169,20 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
             row.put("dateFormatted",
                     payment.paymentDate() != null ? payment.paymentDate().format(DATETIME_FMT) : EMPTY_VALUE);
             row.put("reference", payment.transactionReference() != null ? payment.transactionReference() : EMPTY_VALUE);
-            row.put("amountFormatted", formatAmount(payment.amount()));
+            row.put("amountFormatted", formatAmount(payment.amount(), currency));
             rows.add(row);
         }
         return rows;
     }
 
-    private List<Map<String, String>> toVatRows(final List<ChargeResponse> charges) {
+    private List<Map<String, String>> toVatRows(final List<ChargeResponse> charges, final String currency) {
         final Map<BigDecimal, VatBreakdownCalculator.VatLine> breakdown = vatBreakdownCalculator.groupByRate(charges);
         final List<Map<String, String>> rows = new ArrayList<>();
         for (final Map.Entry<BigDecimal, VatBreakdownCalculator.VatLine> entry : breakdown.entrySet()) {
             final Map<String, String> row = new HashMap<>();
             row.put("rateLabel", vatRateToLabel(entry.getKey()));
-            row.put("taxableFormatted", formatAmount(entry.getValue().taxable()));
-            row.put("vatFormatted", formatAmount(entry.getValue().vat()));
+            row.put("taxableFormatted", formatAmount(entry.getValue().taxable(), currency));
+            row.put("vatFormatted", formatAmount(entry.getValue().vat(), currency));
             rows.add(row);
         }
         return rows;
@@ -190,16 +192,16 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
         return rate.movePointRight(2).stripTrailingZeros().toPlainString() + "%";
     }
 
-    private String formatAmount(final BigDecimal amount) {
+    private String formatAmount(final BigDecimal amount, final String currency) {
         if (amount == null) {
-            return "EUR 0,00";
+            return currency + " 0.00";
         }
-        return String.format("EUR %,.2f", amount);
+        return String.format("%s %,.2f", currency, amount);
     }
 
     private String formatChargeType(final String type) {
         return switch (type) {
-            case "ROOM_NIGHT" -> "Camera";
+            case "ROOM_NIGHT" -> "Habitación";
             case "FB_ORDER" -> "F&B";
             case "EXTRA" -> "Extra";
             default -> type;
@@ -208,11 +210,11 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
 
     private String formatPaymentMethod(final String method) {
         return switch (method) {
-            case "CASH" -> "Contanti";
-            case "CREDIT_CARD" -> "Carta credito";
-            case "DEBIT_CARD" -> "Carta debito";
-            case "BANK_TRANSFER" -> "Bonifico";
-            case "CHECK" -> "Assegno";
+            case "CASH" -> "Efectivo";
+            case "CREDIT_CARD" -> "Tarjeta de crédito";
+            case "DEBIT_CARD" -> "Tarjeta de débito";
+            case "BANK_TRANSFER" -> "Transferencia bancaria";
+            case "CHECK" -> "Cheque";
             default -> method;
         };
     }

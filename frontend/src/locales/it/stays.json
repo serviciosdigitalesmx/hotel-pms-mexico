@@ -1,6 +1,9 @@
 {
   "checkin_title": "Check-in Alloggiati",
   "guest_number": "Ospite {{number}}",
+  "guest_label": "Ospite",
+  "occupant_count": "Numero di persone",
+  "occupant_count_help": "Sono richiesti solo i dati dell'ospite principale.",
   "guest_badge_primary": "Principale",
   "btn_remove": "Rimuovi",
   "label_first_name": "Nome",

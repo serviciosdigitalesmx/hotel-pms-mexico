@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +34,7 @@ interface CheckInState {
   guestId: string;
   roomId: string;
   expectedGuests: number;
+  maxOccupancy: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,8 +55,12 @@ export const CheckInForm = memo(() => {
   const [tipdoc, setTipdoc] = useState<AlloggiatiTipdoc[]>([]);
 
   const initialCount = state?.expectedGuests && state.expectedGuests > 0 ? state.expectedGuests : 1;
-  const [guests, setGuests] = useState<IdentifiableGuest[]>(
-    Array.from({ length: initialCount }, (_, i) => emptyGuest(i === 0))
+  const maxOccupancy = Math.max(1, state?.maxOccupancy || initialCount);
+  const [occupantCount, setOccupantCount] = useState(Math.min(initialCount, maxOccupancy));
+  const [guests, setGuests] = useState<IdentifiableGuest[]>([emptyGuest(true)]);
+  const occupantOptions = useMemo(
+    () => Array.from({ length: maxOccupancy }, (_, index) => index + 1),
+    [maxOccupancy],
   );
 
   useEffect(() => {
@@ -113,8 +118,10 @@ export const CheckInForm = memo(() => {
     });
   }, []);
 
-  const addGuest = useCallback(() => setGuests(prev => [...prev, emptyGuest(false)]), []);
-  const removeGuest = useCallback((index: number) => setGuests(prev => prev.filter((_, i) => i !== index)), []);
+  const handleOccupantCountChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setOccupantCount(Number(e.target.value));
+  }, []);
+  const handleGuestRemove = useCallback(() => undefined, []);
   const handleBack = useCallback(() => navigate(-1), [navigate]);
 
   const handleSubmit = useCallback(async (e: FormEvent) => {
@@ -158,6 +165,7 @@ export const CheckInForm = memo(() => {
         guestId: state.guestId,
         roomId: state.roomId,
         status: 'CHECKED_IN',
+        occupantCount,
         guests: apiGuests,
       };
 
@@ -169,7 +177,7 @@ export const CheckInForm = memo(() => {
     } finally {
       setLoading(false);
     }
-  }, [reservationId, state, guests, navigate, t]);
+  }, [reservationId, state, guests, occupantCount, navigate, t]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -197,23 +205,33 @@ export const CheckInForm = memo(() => {
       )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
-        {guests.map((guest, index) => (
-          <GuestFieldSection
-            key={guest._id}
-            guest={guest}
-            index={index}
-            canRemove={guests.length > 1}
-            stati={stati}
-            tipdoc={tipdoc}
-            onRemove={removeGuest}
-            onChange={handleGuestChange}
-          />
-        ))}
+        <div>
+          <label htmlFor="occupant-count" className="block text-sm font-medium text-on-surface mb-1">
+            {t('occupant_count')}
+          </label>
+          <select
+            id="occupant-count"
+            value={occupantCount}
+            onChange={handleOccupantCountChange}
+            className="w-full rounded-shape-xs border border-outline bg-surface px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {occupantOptions.map(count => <option key={count} value={count}>{count}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-on-surface-variant">{t('occupant_count_help')}</p>
+        </div>
+
+        <GuestFieldSection
+          guest={guests[0]}
+          index={0}
+          canRemove={false}
+          stati={stati}
+          tipdoc={tipdoc}
+          onRemove={handleGuestRemove}
+          onChange={handleGuestChange}
+        />
 
         <div className="flex gap-4 items-center justify-between border-t border-outline-variant pt-6">
-          <M3Button variant="outlined" icon="person_add" onClick={addGuest} type="button">
-            {t('btn_add_guest')}
-          </M3Button>
+          <span />
           <M3Button variant="filled" icon="how_to_reg" type="submit" disabled={loading}>
             {loading ? t('btn_processing') : t('btn_complete_checkin')}
           </M3Button>

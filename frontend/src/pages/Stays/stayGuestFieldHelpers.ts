@@ -46,14 +46,10 @@ const buildAlloggiatiGuestsSchema = (t: GuestErrorTranslator) =>
     guests.forEach((g, idx) => {
       const number = idx + 1;
       const hasDoc = !TYPES_WITHOUT_DOC.includes(g.travellerType as TravellerType);
-      const isItalianBorn = g._statoDiNascita === CODICE_ITALIA;
       const isItalianDocIssue = g._statoRilascioDoc === CODICE_ITALIA;
 
       if (!g._statoDiNascita) {
         ctx.addIssue({ code: 'custom', path: [idx, '_statoDiNascita'], message: t('err_stato_nascita_required', { number }) });
-      }
-      if (isItalianBorn && !g.placeOfBirth) {
-        ctx.addIssue({ code: 'custom', path: [idx, 'placeOfBirth'], message: t('err_comune_nascita_required', { number }) });
       }
       if (hasDoc) {
         if (!g._statoRilascioDoc) {

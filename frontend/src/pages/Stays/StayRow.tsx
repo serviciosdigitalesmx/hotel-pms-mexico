@@ -66,7 +66,7 @@ export const StayRow = memo(({
       <M3TableCell>
         <div className="font-medium flex items-center gap-1.5 text-on-surface">
           <MaterialIcon name="group" size={18} />
-          <span>{stay.guests?.length || 0}</span>
+          <span>{stay.occupantCount ?? stay.guests?.length ?? 1}</span>
         </div>
       </M3TableCell>
       <M3TableCell>
@@ -77,18 +77,11 @@ export const StayRow = memo(({
       </M3TableCell>
       <M3TableCell>
         <div className="flex flex-col items-start gap-1">
-          <span title={stay.alloggiatiSendFailed ? stay.alloggiatiFailureReason ?? undefined : undefined}>
-            <M3StatusChip
-              label={
-                stay.alloggiatiSent
-                  ? t('alloggiati_sent')
-                  : stay.alloggiatiSendFailed
-                    ? t('alloggiati_failed')
-                    : t('alloggiati_not_sent')
-              }
-              tone={stay.alloggiatiSent ? 'success' : stay.alloggiatiSendFailed ? 'error' : 'neutral'}
-            />
-          </span>
+          {stay.alloggiatiSendFailed && (
+            <span className="inline-flex items-center gap-1" title={stay.alloggiatiFailureReason ?? undefined}>
+              <M3StatusChip label={t('alloggiati_failed')} tone="error" />
+            </span>
+          )}
           {stay.invoiceCreationFailed && (
             <span className="inline-flex items-center gap-1" title={stay.invoiceCreationFailureReason ?? undefined}>
               <M3StatusChip label={t('invoice_creation_failed')} tone="error" />

@@ -17,6 +17,7 @@ import type { QuotationOptionRequest, QuotationRequest } from '../../types/quota
 import { RoomSelection } from '../Reservations/RoomSelection';
 import { getErrorMessage } from '../../utils/errorMessage';
 import { useToastStore } from '../../store/toastStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 const DEFAULT_VALID_DAYS = 7;
 const MAX_OPTIONS = 5;
@@ -27,7 +28,7 @@ interface OptionDraft {
   selectedRoomIds: string[];
 }
 
-const defaultOptionLabel = (index: number) => `Opzione ${index + 1}`;
+const defaultOptionLabel = (index: number) => `Opción ${index + 1}`;
 
 const GuestSuggestionRow = memo(({ guest, onSelect }: { guest: GuestResponseDTO; onSelect: (guest: GuestResponseDTO) => void }) => {
   const handleClick = useCallback(() => onSelect(guest), [onSelect, guest]);
@@ -55,6 +56,8 @@ const OptionTab = memo(({ option, index, isActive, canRemove, total, onSelect, o
   onSelect: (index: number) => void;
   onRemove: (index: number) => void;
 }) => {
+  const { i18n } = useTranslation();
+  const currency = useSettingsStore((state) => state.currency);
   const handleSelect = useCallback(() => onSelect(index), [onSelect, index]);
   const handleRemove = useCallback(() => onRemove(index), [onRemove, index]);
   return (
@@ -65,13 +68,15 @@ const OptionTab = memo(({ option, index, isActive, canRemove, total, onSelect, o
         aria-pressed={isActive}
         className={`px-4 py-2 text-sm font-medium font-body rounded-shape-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isActive ? 'text-on-primary-container' : 'text-on-surface-variant'}`}
       >
-        {option.label || defaultOptionLabel(index)} · € {total.toFixed(2)}
+        {option.label || defaultOptionLabel(index)} · {new Intl.NumberFormat(i18n.language, {
+          style: 'currency', currency,
+        }).format(total)}
       </button>
       {canRemove && (
         <button
           type="button"
           onClick={handleRemove}
-          aria-label={`Rimuovi ${option.label || defaultOptionLabel(index)}`}
+          aria-label={`Quitar ${option.label || defaultOptionLabel(index)}`}
           className="pr-3 pl-1 text-on-surface-variant hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-shape-full"
         >
           <MaterialIcon name="close" size={16} />
@@ -89,7 +94,8 @@ const todayPlusDays = (days: number): string => {
 };
 
 export const QuotationForm = () => {
-  const { t } = useTranslation(['quotations', 'guests', 'common']);
+  const { t, i18n } = useTranslation(['quotations', 'guests', 'common']);
+  const currency = useSettingsStore((state) => state.currency);
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditMode = !!id;
@@ -501,7 +507,9 @@ export const QuotationForm = () => {
         />
         {activeOption.selectedRoomIds.length > 0 && (
           <p className="text-sm font-medium text-on-surface">
-            {t('quotation_total', { amount: `€ ${optionTotal(activeOption).toFixed(2)}` })}
+            {t('quotation_total', { amount: new Intl.NumberFormat(i18n.language, {
+              style: 'currency', currency,
+            }).format(optionTotal(activeOption)) })}
           </p>
         )}
       </M3Card>

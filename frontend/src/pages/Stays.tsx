@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { stayService } from '../services/stayService';
-import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
+import { useAuthStore } from '../store/authStore';
 import type { StayResponse, StayStatus } from '../types/stay.types';
 import { MaterialIcon } from '../components/MaterialIcon';
 import { M3Button } from '../components/m3/M3Button';
@@ -11,8 +11,8 @@ import { useTranslation } from 'react-i18next';
 
 import { StayRow } from './Stays/StayRow';
 import { StayStatusChip } from './Stays/StayStatusChip';
-import { getStatusTone } from './Stays/stayStatusTone';
 import { AlloggiatiReportSection } from './Stays/AlloggiatiReportSection';
+import { getStatusTone } from './Stays/stayStatusTone';
 import { getErrorMessage } from '../utils/errorMessage';
 
 type StaySortField = 'actualCheckInTime' | 'expectedCheckOutDate' | 'status';
@@ -96,7 +96,7 @@ export const Stays = memo(() => {
       setTotalPages(data.totalPages);
     } catch (err: unknown) {
       const message = getErrorMessage(err, t('failed_load_stays'));
-      setError(message);
+      setError(message === 'alloggiati_failed' ? t('alloggiati_failed') : message);
     } finally {
       setLoading(false);
     }
@@ -169,7 +169,7 @@ export const Stays = memo(() => {
     t('expected_checkout_col'),
     t('guests'),
     t('status'),
-    t('alloggiati_column'),
+    t('operational_alerts'),
     <span key="sr" className="sr-only">{t('actions')}</span>
   ], [t]);
 
@@ -188,7 +188,7 @@ export const Stays = memo(() => {
             {t('new_checkin', 'New Check-in')}
           </M3Button>
           <M3Button icon="person_add" variant="outlined" onClick={handleWalkIn}>
-            {t('walkin_title', 'Walk-in')}
+            {t('stays:walkin_title', 'Check-in sin reservación')}
           </M3Button>
         </div>
       </div>
@@ -238,6 +238,8 @@ export const Stays = memo(() => {
           </button>
         </div>
       </div>
+
+      <AlloggiatiReportSection isAdminOrOwner={isAdminOrOwner} />
 
       {loading ? (
         <div className="flex justify-center items-center h-64 bg-surface rounded-shape-md shadow-elevation-1">
@@ -305,8 +307,6 @@ export const Stays = memo(() => {
           </M3Button>
         </nav>
       )}
-
-      <AlloggiatiReportSection isAdminOrOwner={isAdminOrOwner} />
     </div>
   );
 });

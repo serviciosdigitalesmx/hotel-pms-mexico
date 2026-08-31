@@ -18,6 +18,11 @@ vi.mock('../../store/toastStore', () => ({
     (sel as (s: { addToast: () => void }) => unknown)({ addToast: vi.fn() }),
 }));
 
+vi.mock('../../store/settingsStore', () => ({
+  useSettingsStore: (sel: unknown) =>
+    (sel as (s: { currency: string }) => unknown)({ currency: 'MXN' }),
+}));
+
 vi.mock('./RoomTypeFormModal', () => ({
   RoomTypeFormModal: () => null,
 }));
@@ -47,7 +52,7 @@ describe('RoomTypeList', () => {
     vi.mocked(inventoryService.getAllRoomTypes).mockResolvedValue([ROOM_TYPE]);
     render(<RoomTypeList />);
     await waitFor(() => expect(screen.getByText('Single')).toBeInTheDocument());
-    expect(screen.getByText('€ 50.00')).toBeInTheDocument();
+    expect(screen.getByText('MX$50.00')).toBeInTheDocument();
   });
 
   it('renders empty state when no room types', async () => {

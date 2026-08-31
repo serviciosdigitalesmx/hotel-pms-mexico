@@ -203,6 +203,14 @@ public class Stay {
     private LocalDate expectedCheckOutDate;
 
     /**
+     * Total number of people occupying the room. Detailed personal data is
+     * stored only for guests that the operator explicitly identifies.
+     */
+    @Column(name = "occupant_count", nullable = false)
+    @Builder.Default
+    private int occupantCount = 1;
+
+    /**
      * The list of guests staying in this room.
      */
     @OneToMany(mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)

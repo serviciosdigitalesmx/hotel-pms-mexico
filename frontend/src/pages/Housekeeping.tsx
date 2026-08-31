@@ -7,6 +7,7 @@ import { M3Button } from '../components/m3/M3Button';
 import { M3StatusChip } from '../components/m3/M3StatusChip';
 import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../utils/errorMessage';
+import { useSettingsStore } from '../store/settingsStore';
 
 const STATUS_KEYS: Record<RoomStatus, string> = {
   CLEAN: 'room_status_clean',
@@ -48,12 +49,13 @@ const RoomCard = memo(({
   onStatusChange: (id: string, status: RoomStatus) => Promise<void>;
 }) => {
   const { t, i18n } = useTranslation('common');
+  const currency = useSettingsStore((state) => state.currency);
   const [updating, setUpdating] = useState<RoomStatus | null>(null);
 
   const formatCurrency = useCallback((amount: number | null | undefined) => {
     if (amount == null) return '—';
-    return new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR' }).format(amount);
-  }, [i18n.language]);
+    return new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(amount);
+  }, [currency, i18n.language]);
 
   const handleStatusButton = useCallback(async (newStatus: RoomStatus) => {
     if (newStatus === room.status) return;

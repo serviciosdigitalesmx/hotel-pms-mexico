@@ -70,7 +70,12 @@ describe('WalkInCheckInForm', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(stayService.getAvailableRooms).mockResolvedValue([
-      { id: 'r1', roomNumber: '101', status: 'AVAILABLE', roomType: { name: 'Standard' } },
+      {
+        id: 'r1',
+        roomNumber: '101',
+        status: 'AVAILABLE',
+        roomType: { name: 'Standard', maxOccupancy: 3 },
+      },
     ]);
     vi.mocked(stayService.getLookupStati).mockResolvedValue([]);
     vi.mocked(stayService.getLookupTipdoc).mockResolvedValue([]);
@@ -86,7 +91,8 @@ describe('WalkInCheckInForm', () => {
 
   it('shows Alloggiati guest section on initial render', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.getByText('guest_number')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('guest_label')).toBeInTheDocument());
+    expect(screen.getByLabelText('occupant_count')).toBeDisabled();
   });
 
   it('debounces guest search — one request for a fast multi-character type, not one per keystroke', async () => {
@@ -224,32 +230,18 @@ describe('WalkInCheckInForm', () => {
     expect(stayService.createStay).not.toHaveBeenCalled();
   });
 
-  it('blocks submit when removing the primary guest leaves no primary set', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
-    const { container } = renderComponent();
+  it('limits the occupant selector to the selected room capacity', async () => {
+    renderComponent();
     await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
 
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
-    const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
-    await user.type(guestInput, 'Ma');
-    await waitFor(() => expect(screen.getByText(/Mario/)).toBeInTheDocument(), { timeout: 5000 });
-    await user.click(screen.getByRole('button', { name: /Mario/ }));
-    await user.type(screen.getByLabelText(/walkin_label_checkout_date/i), '2026-12-31');
+    const occupantCount = screen.getByLabelText('occupant_count');
+    await user.selectOptions(occupantCount, '3');
 
-    // Add a second guest, then remove the original primary one — leaves zero primaries.
-    await user.click(screen.getByRole('button', { name: 'btn_add_guest' }));
-    const removeButtons = screen.getAllByRole('button', { name: 'btn_remove' });
-    await user.click(removeButtons[0]);
-
-    fireEvent.submit(container.querySelector('form')!);
-
-    await waitFor(() => {
-      expect(screen.getByText('err_primary_guest_required')).toBeInTheDocument();
-    });
-    expect(stayService.createStay).not.toHaveBeenCalled();
+    expect(occupantCount).toHaveValue('3');
+    expect(screen.getAllByRole('option', { name: /^[1-3]$/ })).toHaveLength(3);
+    expect(screen.getAllByText('guest_label')).toHaveLength(1);
   });
 
   it('submits successfully once all Alloggiati fields are filled, then navigates to /stays', async () => {
@@ -301,7 +293,6 @@ describe('WalkInCheckInForm', () => {
 
     await selectStato('label_citizenship');
     await selectStato('label_stato_nascita');
-    await selectComune('label_comune_nascita');
     fireEvent.change(screen.getByLabelText(/^label_doc_type/, { selector: 'select' }), { target: { value: 'PASOR' } });
     fireEvent.change(screen.getByLabelText('label_doc_number'), { target: { value: 'AB123456' } });
     await selectStato('label_stato_rilascio_doc');
@@ -315,10 +306,11 @@ describe('WalkInCheckInForm', () => {
         roomId: 'r1',
         status: 'CHECKED_IN',
         expectedCheckOutDate: '2026-12-31',
+        occupantCount: 1,
         guests: [expect.objectContaining({
           firstName: 'Mario',
           lastName: 'Rossi',
-          placeOfBirth: FIANO_COMUNE.codice,
+          placeOfBirth: ITALIA_STATO.codice,
           documentType: 'PASOR',
           documentNumber: 'AB123456',
           documentPlaceOfIssue: FIANO_COMUNE.codice,
@@ -385,7 +377,6 @@ describe('WalkInCheckInForm', () => {
 
     await selectStato('label_citizenship');
     await selectStato('label_stato_nascita');
-    await selectComune('label_comune_nascita');
     fireEvent.change(screen.getByLabelText(/^label_doc_type/, { selector: 'select' }), { target: { value: 'PASOR' } });
     fireEvent.change(screen.getByLabelText('label_doc_number'), { target: { value: 'AB123456' } });
     await selectStato('label_stato_rilascio_doc');
@@ -396,19 +387,17 @@ describe('WalkInCheckInForm', () => {
     expect(await screen.findByText('err_checkin_failed', {}, { timeout: 5000 })).toBeInTheDocument();
   }, 15000);
 
-  it('adds and removes additional guest sections', async () => {
+  it('keeps a single primary guest section when occupant count changes', async () => {
     renderComponent();
-    await waitFor(() => expect(screen.getByText('guest_number')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('guest_label')).toBeInTheDocument());
     const user = userEvent.setup();
 
-    expect(screen.getAllByText('guest_number')).toHaveLength(1);
+    await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
+    await user.selectOptions(screen.getByLabelText('occupant_count'), '2');
 
-    await user.click(screen.getByRole('button', { name: 'btn_add_guest' }));
-    expect(screen.getAllByText('guest_number')).toHaveLength(2);
-
-    const removeBtns = screen.getAllByRole('button', { name: 'btn_remove' });
-    await user.click(removeBtns[1]);
-    expect(screen.getAllByText('guest_number')).toHaveLength(1);
+    expect(screen.getByLabelText('occupant_count')).toHaveValue('2');
+    expect(screen.getAllByText('guest_label')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'btn_add_guest' })).not.toBeInTheDocument();
   });
 
   it('should have no accessibility violations', async () => {

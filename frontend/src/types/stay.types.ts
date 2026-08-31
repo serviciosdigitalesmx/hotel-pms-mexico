@@ -4,7 +4,7 @@ export interface AvailableRoom {
   id: string;
   roomNumber: string;
   status: string;
-  roomType?: { name: string; basePrice?: number } | null;
+  roomType?: { name: string; basePrice?: number; maxOccupancy?: number } | null;
 }
 
 export type TravellerType =
@@ -84,6 +84,7 @@ export interface StayRequest {
   expectedCheckOutDate?: string;
   actualCheckInTime?: string;
   actualCheckOutTime?: string;
+  occupantCount: number;
   guests: StayGuestRequest[];
 }
 
@@ -109,6 +110,8 @@ export interface StayResponse {
   roomNumber?: string | null;
   /** Expected check-out date sourced from the reservation (or walk-in request) at check-in; null for legacy stays. */
   expectedCheckOutDate?: string | null;
+  /** Total room occupants; companion personal data is optional. */
+  occupantCount?: number;
   /** Whether the most recent billing-invoice-creation attempt at check-in failed. */
   invoiceCreationFailed: boolean;
   /** Error message from the most recent failed invoice-creation attempt; null once resolved. */
@@ -155,6 +158,19 @@ export interface HotelSettingsRequest {
   comune?: string;
   /** Provincia — 2-letter province code, e.g. "RM". */
   provincia?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  currency?: string;
+  locale?: string;
+  timezone?: string;
+  publicSlug?: string;
+  aiEnabled?: boolean;
+  aiModel?: string;
+  /** Write-only DeepSeek API key. Blank/undefined preserves the stored key. */
+  aiApiKey?: string;
+  aiInstructions?: string;
 }
 
 export interface HotelSettingsResponse {
@@ -175,4 +191,16 @@ export interface HotelSettingsResponse {
   cap?: string | null;
   comune?: string | null;
   provincia?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postalCode?: string | null;
+  currency?: string | null;
+  locale?: string | null;
+  timezone?: string | null;
+  publicSlug?: string | null;
+  aiEnabled: boolean;
+  aiModel: string;
+  aiApiKeyConfigured: boolean;
+  aiInstructions?: string | null;
 }

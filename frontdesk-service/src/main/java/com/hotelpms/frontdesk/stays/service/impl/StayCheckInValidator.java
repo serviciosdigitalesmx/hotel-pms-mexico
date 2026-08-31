@@ -72,7 +72,8 @@ class StayCheckInValidator {
         final RoomResponse room = roomService.getRoomById(roomId, hotelId);
 
         final String displayName = guest.lastName() + " " + guest.firstName();
-        return new CheckInContext(reservation.checkOutDate(), displayName, room.roomNumber());
+        return new CheckInContext(reservation.checkOutDate(), displayName, room.roomNumber(),
+                room.roomType().maxOccupancy());
     }
 
     /**
@@ -98,6 +99,7 @@ class StayCheckInValidator {
         log.debug("[STAY] WALK_IN validating room={}", roomId);
         final RoomResponse room = roomService.getRoomById(roomId, hotelId);
         final String displayName = guest.lastName() + " " + guest.firstName();
-        return new CheckInContext(expectedCheckOutDate, displayName, room.roomNumber());
+        return new CheckInContext(expectedCheckOutDate, displayName, room.roomNumber(),
+                room.roomType().maxOccupancy());
     }
 }

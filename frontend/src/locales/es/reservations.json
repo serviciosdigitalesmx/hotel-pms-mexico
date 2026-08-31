@@ -1,0 +1,7 @@
+{
+  "room_prefix": "Habitación",
+  "no_rooms_available": "No se han cargado habitaciones disponibles.",
+  "price_total_stay": "MXN ${{amount}} total"
+}
+
+

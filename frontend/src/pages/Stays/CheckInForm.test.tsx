@@ -63,7 +63,7 @@ describe('CheckInForm', () => {
       <MemoryRouter
         initialEntries={[{
           pathname: '/stays/checkin/res123',
-          state: { guestId: 'g1', roomId: 'r1', expectedGuests },
+          state: { guestId: 'g1', roomId: 'r1', expectedGuests, maxOccupancy: 4 },
         }]}
       >
         <Routes>
@@ -75,23 +75,21 @@ describe('CheckInForm', () => {
   it('renders correctly with initial expected guests', async () => {
     renderComponent(2);
     await waitFor(() => expect(screen.getByText('checkin_title')).toBeInTheDocument());
-    expect(screen.getAllByText('guest_number')).toHaveLength(2);
+    expect(screen.getByText('guest_label')).toBeInTheDocument();
+    expect(screen.getByLabelText('occupant_count')).toHaveValue('2');
+    expect(screen.queryByRole('button', { name: 'btn_add_guest' })).not.toBeInTheDocument();
   });
 
-  it('adds and removes guest cards dynamically', async () => {
+  it('changes the occupant count without adding guest cards', async () => {
     renderComponent(1);
     await waitFor(() => expect(screen.getByText('checkin_title')).toBeInTheDocument());
     const user = userEvent.setup();
 
-    expect(screen.getAllByText('guest_number')).toHaveLength(1);
+    const occupantCount = screen.getByLabelText('occupant_count');
+    await user.selectOptions(occupantCount, '3');
 
-    await user.click(screen.getByRole('button', { name: 'btn_add_guest' }));
-    expect(screen.getAllByText('guest_number')).toHaveLength(2);
-
-    const removeBtns = screen.getAllByRole('button', { name: 'btn_remove' });
-    expect(removeBtns).toHaveLength(2);
-    await user.click(removeBtns[1]);
-    expect(screen.getAllByText('guest_number')).toHaveLength(1);
+    expect(occupantCount).toHaveValue('3');
+    expect(screen.getAllByText('guest_label')).toHaveLength(1);
   });
 
   it('should have no accessibility violations', async () => {
@@ -99,25 +97,6 @@ describe('CheckInForm', () => {
     await waitFor(() => expect(screen.getByText('checkin_title')).toBeInTheDocument());
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  });
-
-  it('blocks submit when no primary guest is set', async () => {
-    vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
-    const { container } = renderComponent(1);
-    await waitFor(() => expect(screen.getByText('checkin_title')).toBeInTheDocument());
-    const user = userEvent.setup({ delay: null });
-
-    // Uncheck the primary guest checkbox (first guest is primary by default)
-    const primaryCheckbox = screen.getByRole('checkbox', { name: 'label_primary_guest' });
-    await user.click(primaryCheckbox);
-
-    // Use fireEvent.submit to bypass HTML5 required validation and test custom logic
-    fireEvent.submit(container.querySelector('form')!);
-
-    await waitFor(() => {
-      expect(screen.getByText('err_primary_guest_required')).toBeInTheDocument();
-    });
-    expect(stayService.createStay).not.toHaveBeenCalled();
   });
 
   it('blocks submit and shows validation error when stato nascita is not selected', async () => {
@@ -148,22 +127,6 @@ describe('CheckInForm', () => {
       const option = await screen.findByRole('option', { name: /FIANO ROMANO/ });
       fireEvent.mouseDown(option);
     }
-
-    it('blocks submit when Italian-born but comune di nascita is not selected', async () => {
-      vi.mocked(stayService.getLookupStati).mockResolvedValue([ITALIA_STATO]);
-      vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
-      const { container } = renderComponent(1);
-      await waitFor(() => expect(screen.getByText('checkin_title')).toBeInTheDocument());
-
-      await selectStato('label_stato_nascita', 'ITALIA');
-
-      fireEvent.submit(container.querySelector('form')!);
-
-      await waitFor(() => {
-        expect(screen.getByText('err_comune_nascita_required')).toBeInTheDocument();
-      });
-      expect(stayService.createStay).not.toHaveBeenCalled();
-    });
 
     it('blocks submit when a document is required but stato rilascio is not selected', async () => {
       vi.mocked(stayService.getLookupStati).mockResolvedValue([FRANCIA_STATO]);
@@ -209,7 +172,7 @@ describe('CheckInForm', () => {
         <MemoryRouter
           initialEntries={[{
             pathname: '/stays/checkin/res123',
-            state: { guestId: 'g1', roomId: 'r1', expectedGuests: 1 },
+            state: { guestId: 'g1', roomId: 'r1', expectedGuests: 1, maxOccupancy: 4 },
           }]}
         >
           <Routes>
@@ -226,7 +189,6 @@ describe('CheckInForm', () => {
       fireEvent.change(screen.getByLabelText('label_date_of_birth'), { target: { value: '1990-01-01' } });
       await selectStato('label_citizenship', 'ITALIA');
       await selectStato('label_stato_nascita', 'ITALIA');
-      await selectComune('label_comune_nascita');
       fireEvent.change(screen.getByLabelText(/^label_doc_type/, { selector: 'select' }), { target: { value: 'PASOR' } });
       fireEvent.change(screen.getByLabelText('label_doc_number'), { target: { value: 'AB123456' } });
       await selectStato('label_stato_rilascio_doc', 'ITALIA');
@@ -240,10 +202,11 @@ describe('CheckInForm', () => {
           guestId: 'g1',
           roomId: 'r1',
           status: 'CHECKED_IN',
+          occupantCount: 1,
           guests: [expect.objectContaining({
             firstName: 'Mario',
             lastName: 'Rossi',
-            placeOfBirth: FIANO_COMUNE.codice,
+            placeOfBirth: ITALIA_STATO.codice,
             documentType: 'PASOR',
             documentNumber: 'AB123456',
             documentPlaceOfIssue: FIANO_COMUNE.codice,

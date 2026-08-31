@@ -29,6 +29,7 @@ import java.util.UUID;
  * @param roomNumber              denormalized room number, null for legacy stays
  * @param expectedCheckOutDate    expected check-out date sourced from the reservation (or the
  *                                walk-in request) at check-in time; null for legacy stays
+ * @param occupantCount                 total number of people occupying the room
  * @param invoiceCreationFailed         whether the most recent invoice-creation attempt at check-in failed
  * @param invoiceCreationFailureReason  the reason from the most recent failed attempt, or null
  * @param checkoutEmailFailed           whether the most recent checkout email attempt failed
@@ -53,10 +54,45 @@ public record StayResponse(
                 String guestDisplayName,
                 String roomNumber,
                 LocalDate expectedCheckOutDate,
+                int occupantCount,
                 boolean invoiceCreationFailed,
                 String invoiceCreationFailureReason,
                 boolean checkoutEmailFailed,
                 String checkoutEmailFailureReason) {
+
+    /**
+     * Backward-compatible constructor for existing callers and tests.
+     */
+    public StayResponse(
+            final UUID id,
+            final UUID hotelId,
+            final UUID reservationId,
+            final UUID guestId,
+            final UUID roomId,
+            final StayStatus status,
+            final LocalDateTime actualCheckInTime,
+            final LocalDateTime actualCheckOutTime,
+            final LocalDateTime createdAt,
+            final LocalDateTime updatedAt,
+            final UUID invoiceId,
+            final boolean alloggiatiSent,
+            final boolean alloggiatiSendFailed,
+            final String alloggiatiFailureReason,
+            final List<StayGuestResponse> guests,
+            final String guestDisplayName,
+            final String roomNumber,
+            final LocalDate expectedCheckOutDate,
+            final boolean invoiceCreationFailed,
+            final String invoiceCreationFailureReason,
+            final boolean checkoutEmailFailed,
+            final String checkoutEmailFailureReason) {
+        this(id, hotelId, reservationId, guestId, roomId, status, actualCheckInTime,
+                actualCheckOutTime, createdAt, updatedAt, invoiceId, alloggiatiSent,
+                alloggiatiSendFailed, alloggiatiFailureReason, guests, guestDisplayName,
+                roomNumber, expectedCheckOutDate, 1, invoiceCreationFailed,
+                invoiceCreationFailureReason, checkoutEmailFailed, checkoutEmailFailureReason);
+    }
+
     /**
      * Compact constructor to ensure defensive copying of the guests list.
      */

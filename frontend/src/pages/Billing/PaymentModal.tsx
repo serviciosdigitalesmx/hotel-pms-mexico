@@ -5,6 +5,7 @@ import { M3Button } from '../../components/m3/M3Button';
 import { M3TextField } from '../../components/m3/M3TextField';
 import { billingService } from '../../services/billingService';
 import { useToastStore } from '../../store/toastStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { getErrorMessage } from '../../utils/errorMessage';
 import type { InvoiceResponse, PaymentMethod } from '../../types/billing.types';
 
@@ -25,6 +26,7 @@ const PAYMENT_METHODS: PaymentMethod[] = [
 export const PaymentModal = memo(({ invoice, onClose, onPaid }: Props) => {
   const { t, i18n } = useTranslation(['billing', 'common']);
   const addToast = useToastStore((s) => s.addToast);
+  const currency = useSettingsStore((state) => state.currency);
 
   const [amount, setAmount] = useState(String(invoice.totalAmount));
   const [method, setMethod] = useState<PaymentMethod>('CASH');
@@ -36,9 +38,9 @@ export const PaymentModal = memo(({ invoice, onClose, onPaid }: Props) => {
     (val: number) =>
       new Intl.NumberFormat(i18n.language, {
         style: 'currency',
-        currency: 'EUR',
+        currency,
       }).format(val),
-    [i18n.language],
+    [currency, i18n.language],
   );
 
   const handleAmountChange = useCallback((val: string) => {

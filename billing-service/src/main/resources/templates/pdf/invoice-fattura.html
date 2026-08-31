@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="it">
+<html xmlns:th="http://www.thymeleaf.org" lang="es-MX">
 <head>
     <meta charset="UTF-8"/>
-    <title th:text="'Fattura ' + ${invoiceNumber} + ' — ' + ${hotelName}">Fattura</title>
-    <meta name="description" th:content="'Fattura ' + ${invoiceNumber} + ' emessa da ' + ${hotelName}"/>
-    <meta name="subject" content="Fattura"/>
+    <title th:text="'Factura ' + ${invoiceNumber} + ' — ' + ${hotelName}">Factura</title>
+    <meta name="description" th:content="'Factura ' + ${invoiceNumber} + ' emitida por ' + ${hotelName}"/>
+    <meta name="subject" content="Factura"/>
     <th:block th:replace="~{invoice-fragments :: styles}"></th:block>
 </head>
 <body>
@@ -17,21 +17,21 @@
 <div class="totals">
     <th:block th:each="vat : ${vatBreakdown}">
         <div class="row">
-            <div class="label" th:text="'Imponibile ' + ${vat.rateLabel} + ':'">Imponibile 10%:</div>
-            <div class="value" th:text="${vat.taxableFormatted}">EUR 0,00</div>
+            <div class="label" th:text="'Base gravable ' + ${vat.rateLabel} + ':'">Base gravable 16%:</div>
+            <div class="value" th:text="${vat.taxableFormatted}">MXN 0.00</div>
         </div>
         <div class="row">
             <div class="label" th:text="'IVA ' + ${vat.rateLabel} + ':'">IVA 10%:</div>
-            <div class="value" th:text="${vat.vatFormatted}">EUR 0,00</div>
+            <div class="value" th:text="${vat.vatFormatted}">MXN 0.00</div>
         </div>
     </th:block>
     <div class="row grand-total">
-        <div class="label">TOTALE:</div>
-        <div class="value" th:text="${totalFormatted}">EUR 0,00</div>
+        <div class="label">TOTAL:</div>
+        <div class="value" th:text="${totalFormatted}">MXN 0.00</div>
     </div>
     <div class="row">
-        <div class="label">Da pagare:</div>
-        <div class="value" th:text="${dueFormatted}">EUR 0,00</div>
+        <div class="label">Saldo pendiente:</div>
+        <div class="value" th:text="${dueFormatted}">MXN 0.00</div>
     </div>
 </div>
 

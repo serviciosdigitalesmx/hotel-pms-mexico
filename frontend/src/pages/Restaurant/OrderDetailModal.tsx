@@ -4,6 +4,7 @@ import { M3Dialog } from '../../components/m3/M3Dialog';
 import { M3Button } from '../../components/m3/M3Button';
 import { M3StatusChip } from '../../components/m3/M3StatusChip';
 import type { RestaurantOrderResponse, OrderStatus } from '../../types/fb.types';
+import { useSettingsStore } from '../../store/settingsStore';
 
 interface Props {
   order: RestaurantOrderResponse;
@@ -22,11 +23,12 @@ const getStatusTone = (status: OrderStatus | string) => {
 
 export const OrderDetailModal = memo(({ order, onClose }: Props) => {
   const { t, i18n } = useTranslation('common');
+  const currency = useSettingsStore((state) => state.currency);
 
   const formatCurrency = useCallback(
     (val: number) =>
-      new Intl.NumberFormat(i18n.language, { style: 'currency', currency: 'EUR' }).format(val),
-    [i18n.language],
+      new Intl.NumberFormat(i18n.language, { style: 'currency', currency }).format(val),
+    [currency, i18n.language],
   );
 
   const formatDate = useCallback(
