@@ -8,7 +8,7 @@ import reactPerf from "eslint-plugin-react-perf";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", "coverage"]),
+  globalIgnores(["dist", "coverage", "*.tsbuildinfo", "e2e-live/**"]),
   jsxA11y.flatConfigs.strict,
   {
     files: ["**/*.{ts,tsx}"],

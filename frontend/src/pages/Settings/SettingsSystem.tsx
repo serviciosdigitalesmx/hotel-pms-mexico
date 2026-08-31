@@ -196,6 +196,22 @@ export const SettingsSystem = () => {
     setAiInstructionsDraft(updated.aiInstructions ?? '');
   }, [aiInstructionsDraft, aiKeyDraft, aiModelDraft, patch]);
 
+  const handleAiModelChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setAiModelDraft(event.target.value);
+  }, []);
+
+  const handleAiKeyChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setAiKeyDraft(event.target.value);
+  }, []);
+
+  const handleAiInstructionsChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    setAiInstructionsDraft(event.target.value);
+  }, []);
+
+  const handleAiSaveClick = useCallback(() => {
+    void handleAiSave();
+  }, [handleAiSave]);
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto pb-10">
       <SettingsPageHeader icon="admin_panel_settings" title={t('settings_section_system')} onBack={handleBack} />
@@ -297,7 +313,7 @@ export const SettingsSystem = () => {
             id="ai-model"
             type="text"
             value={aiModelDraft}
-            onChange={(event) => setAiModelDraft(event.target.value)}
+            onChange={handleAiModelChange}
             maxLength={150}
             className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
           />
@@ -311,7 +327,7 @@ export const SettingsSystem = () => {
             id="ai-api-key"
             type="password"
             value={aiKeyDraft}
-            onChange={(event) => setAiKeyDraft(event.target.value)}
+            onChange={handleAiKeyChange}
             maxLength={200}
             autoComplete="new-password"
             placeholder={hotelSettings?.aiApiKeyConfigured ? 'Clave configurada; deja vacío para conservarla' : 'Clave API…'}
@@ -326,7 +342,7 @@ export const SettingsSystem = () => {
           <textarea
             id="ai-instructions"
             value={aiInstructionsDraft}
-            onChange={(event) => setAiInstructionsDraft(event.target.value)}
+            onChange={handleAiInstructionsChange}
             maxLength={1000}
             rows={3}
             placeholder="Ej. Usa la terminología que emplea recepción y responde de forma breve."
@@ -336,7 +352,7 @@ export const SettingsSystem = () => {
 
         <button
           type="button"
-          onClick={() => void handleAiSave()}
+          onClick={handleAiSaveClick}
           disabled={saving || !aiModelDraft.trim()}
           className="h-10 rounded-shape-full bg-primary px-6 text-sm font-medium text-on-primary disabled:opacity-50"
         >

@@ -180,7 +180,19 @@ export function HotelProfile() {
     } finally {
       setSaving(false);
     }
-  }, [form, profileSchema, addToast, t]);
+  }, [form, profileSchema, addToast, t, alloggiatiCredentialsConfigured]);
+
+  const toggleAlloggiatiPassword = useCallback(() => {
+    setShowAlloggiatiPassword((visible) => !visible);
+  }, []);
+
+  const toggleAlloggiatiWsKey = useCallback(() => {
+    setShowAlloggiatiWsKey((visible) => !visible);
+  }, []);
+
+  const handleSaveClick = useCallback(() => {
+    void handleSave();
+  }, [handleSave]);
 
   if (loading) {
     return (
@@ -346,7 +358,7 @@ export function HotelProfile() {
               type={showAlloggiatiPassword ? 'text' : 'password'}
               autoComplete="new-password"
             />
-            <button type="button" aria-label="show_password" onClick={() => setShowAlloggiatiPassword((visible) => !visible)} className="absolute right-2 top-7">
+            <button type="button" aria-label="show_password" onClick={toggleAlloggiatiPassword} className="absolute right-2 top-7">
               <MaterialIcon name={showAlloggiatiPassword ? 'visibility_off' : 'visibility'} size={20} />
             </button>
           </div>
@@ -360,7 +372,7 @@ export function HotelProfile() {
               type={showAlloggiatiWsKey ? 'text' : 'password'}
               autoComplete="new-password"
             />
-            <button type="button" aria-label="show_password" onClick={() => setShowAlloggiatiWsKey((visible) => !visible)} className="absolute right-2 top-7">
+            <button type="button" aria-label="show_password" onClick={toggleAlloggiatiWsKey} className="absolute right-2 top-7">
               <MaterialIcon name={showAlloggiatiWsKey ? 'visibility_off' : 'visibility'} size={20} />
             </button>
           </div>
@@ -371,7 +383,7 @@ export function HotelProfile() {
       </M3Card>
 
       <div className="flex justify-end">
-        <M3Button icon="save" onClick={() => void handleSave()} disabled={saving}>
+        <M3Button icon="save" onClick={handleSaveClick} disabled={saving}>
           {saving ? t('btn_saving') : t('btn_save_profile')}
         </M3Button>
       </div>
