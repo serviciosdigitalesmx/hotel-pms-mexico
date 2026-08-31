@@ -284,6 +284,7 @@ services:
     ports:
       - "8888:8888"
     environment:
+      - INTERNAL_REDIS_PASSWORD=${REDIS_PASSWORD}
       - SPRING_PROFILES_ACTIVE=native
       # T-CFG-03: credentials required by consumer microservices
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}

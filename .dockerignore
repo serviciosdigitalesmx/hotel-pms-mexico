@@ -11,3 +11,9 @@ frontend/
 docs/
 backup/
 .git/
+.add/
+.ralph-add/
+argos
+argos-local
+*.backup-*
+*.env.backup-*
