@@ -51,18 +51,9 @@ public interface UserManagementService {
     UserResponse activateUser(UUID hotelId, UUID targetUserId);
 
     /**
-     * Resets a user's password to the supplied value and forces a password change
-     * on next login by setting {@code mustChangePassword=true}.
-     * Increments {@code tokenVersion} to invalidate all existing sessions.
-     *
-     * @param hotelId      the requesting admin's hotel (multi-tenant check)
-     * @param targetUserId the user whose password is reset
-     * @param newPassword  the new plain-text password (will be encoded)
-     */
-    /**
      * Permanently removes a previously deactivated user.
      *
-     * Active users must be deactivated first.
+     * <p>Active users must be deactivated first.</p>
      *
      * @param hotelId       requesting administrator hotel
      * @param targetUserId  user to permanently delete
@@ -73,5 +64,12 @@ public interface UserManagementService {
             UUID targetUserId,
             String requestingUser);
 
+    /**
+     * Resets a user's password and forces a password change on next login.
+     *
+     * @param hotelId the requesting admin's hotel
+     * @param targetUserId the user whose password is reset
+     * @param newPassword the new plain-text password
+     */
     void resetPassword(UUID hotelId, UUID targetUserId, String newPassword);
 }

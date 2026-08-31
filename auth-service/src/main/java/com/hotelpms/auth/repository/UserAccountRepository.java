@@ -64,8 +64,11 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     /**
      * Returns every account for the hotel, including inactive accounts.
      *
-     * Native SQL is required because UserAccount has
-     * @SQLRestriction("active = true").
+     * <p>Native SQL is required because UserAccount has
+     * {@code @SQLRestriction("active = true")}.</p>
+     *
+     * @param hotelId the hotel UUID
+     * @return all active and inactive accounts for the hotel
      */
     @Query(value = """
             SELECT *
@@ -78,6 +81,9 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
     /**
      * Global username uniqueness check including inactive accounts.
+     *
+     * @param username the username to check
+     * @return whether the username exists
      */
     @TenantScopeExempt(reason = "Username uniqueness is global and must include inactive accounts.")
     @Query(value = """
@@ -92,6 +98,9 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
     /**
      * Global e-mail uniqueness check including inactive accounts.
+     *
+     * @param email the e-mail to check
+     * @return whether the e-mail exists
      */
     @TenantScopeExempt(reason = "Email uniqueness is global and must include inactive accounts.")
     @Query(value = """
@@ -135,8 +144,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     /**
      * Physically deletes an INACTIVE account from the given hotel.
      *
-     * This intentionally bypasses UserAccount @SQLDelete, which otherwise
-     * converts repository deletes into soft deletes.
+     * <p>This intentionally bypasses UserAccount {@code @SQLDelete}, which
+     * otherwise converts repository deletes into soft deletes.</p>
+     *
+     * @param id the user UUID
+     * @param hotelId the hotel UUID
+     * @return number of deleted rows
      */
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)

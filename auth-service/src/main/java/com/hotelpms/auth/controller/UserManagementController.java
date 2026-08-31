@@ -111,8 +111,12 @@ public class UserManagementController {
     /**
      * Permanently deletes a previously deactivated user.
      *
-     * Active accounts cannot be permanently deleted: they must first be
-     * explicitly deactivated.
+     * <p>Active accounts cannot be permanently deleted: they must first be
+     * explicitly deactivated.</p>
+     *
+     * @param hotelId the hotel UUID from the gateway-injected header
+     * @param userId the target user's UUID
+     * @param auth the authenticated administrator
      */
     @DeleteMapping("/{userId}")
     @PreAuthorize(ROLE_ADMIN_OWNER)
