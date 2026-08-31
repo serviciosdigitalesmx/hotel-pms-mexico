@@ -93,6 +93,43 @@ groups:
             Circuit breaker '{{ $labels.name }}' is OPEN on {{ $labels.job }}.
             All downstream calls through this breaker are currently failing fast.
 
+      - alert: AiProviderHighErrorRate
+        expr: |
+          (
+            sum(rate(resilience4j_circuitbreaker_calls_total{name="aiProvider",kind="failed"}[5m]))
+            /
+            sum(rate(resilience4j_circuitbreaker_calls_total{name="aiProvider"}[5m]))
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High AI provider error rate on {{ $labels.job }}"
+          description: >
+            More than 20% of AI provider calls have failed for 5+ minutes.
+
+      - alert: AiProviderFallbackSpike
+        expr: |
+          sum(rate(resilience4j_circuitbreaker_calls_total{name="aiProvider",kind="failed"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI provider fallback executions spiking on {{ $labels.job }}"
+          description: >
+            AI provider failures are triggering deterministic fallback at a sustained rate.
+
+      - alert: AiProviderRateLimiterExhausted
+        expr: |
+          resilience4j_ratelimiter_available_permissions{name="aiProvider"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI provider rate limiter exhausted on {{ $labels.job }}"
+          description: >
+            The AI provider rate limiter has no available permissions for more than 1 minute.
+
   # ----------------------------------------------------------------
   # Database — HikariCP connection pool
   # ----------------------------------------------------------------

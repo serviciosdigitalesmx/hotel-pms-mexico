@@ -6,14 +6,13 @@ import { M3Button } from '../../components/m3/M3Button';
 import { M3Dialog } from '../../components/m3/M3Dialog';
 import { PasswordVisibilityToggle } from '../../components/m3/PasswordVisibilityToggle';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { isPasswordValid } from '../../utils/passwordPolicy';
 
 interface ResetPasswordModalProps {
   user: UserResponse;
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const PW_REGEX = /^(?=.*[A-Z].*[A-Z])(?=.*[0-9].*[0-9])(?=.*[^A-Za-z0-9].*[^A-Za-z0-9]).{16,}$/;
 
 export const ResetPasswordModal = memo(({ user, onClose, onSuccess }: ResetPasswordModalProps) => {
   const { t } = useTranslation('admin');
@@ -32,8 +31,8 @@ export const ResetPasswordModal = memo(({ user, onClose, onSuccess }: ResetPassw
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (newPw.length < 16) { setError(t('err_password_too_short')); return; }
-    if (!PW_REGEX.test(newPw)) { setError(t('err_password_too_weak')); return; }
+    if (newPw.length < 8) { setError(t('err_password_too_short')); return; }
+    if (!isPasswordValid(newPw)) { setError(t('err_password_too_weak')); return; }
     if (newPw !== confirmPw) { setError(t('err_passwords_mismatch')); return; }
     setLoading(true);
     try {

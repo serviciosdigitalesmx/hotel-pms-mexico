@@ -10,11 +10,11 @@ import jakarta.validation.constraints.Pattern;
  * stolen access token from silently replacing the victim's credentials.</p>
  *
  * @param currentPassword the user's existing password for identity re-verification
- * @param newPassword     the replacement password (≥16 chars, 2 uppercase, 2 digits, 2 special)
+ * @param newPassword     the replacement password (at least 8 chars, 1 uppercase, 1 digit)
  */
 public record ChangePasswordRequest(
         @NotBlank String currentPassword,
         @NotBlank @Pattern(
-                regexp = "^(?=.*[A-Z].*[A-Z])(?=.*[0-9].*[0-9])(?=.*[^A-Za-z0-9].*[^A-Za-z0-9]).{16,}$",
+                regexp = "^(?=.*[A-Z])(?=.*[0-9]).{8,}$",
                 message = "PASSWORD_TOO_WEAK") String newPassword) {
 }

@@ -62,6 +62,49 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     List<UserAccount> findAllByHotelId(UUID hotelId);
 
     /**
+     * Returns every account for the hotel, including inactive accounts.
+     *
+     * Native SQL is required because UserAccount has
+     * @SQLRestriction("active = true").
+     */
+    @Query(value = """
+            SELECT *
+            FROM user_account
+            WHERE hotel_id = :hotelId
+            ORDER BY active DESC, username ASC
+            """, nativeQuery = true)
+    List<UserAccount> findAllByHotelIdIncludingInactive(
+            @Param("hotelId") UUID hotelId);
+
+    /**
+     * Global username uniqueness check including inactive accounts.
+     */
+    @TenantScopeExempt(reason = "Username uniqueness is global and must include inactive accounts.")
+    @Query(value = """
+            SELECT EXISTS(
+                SELECT 1
+                FROM user_account
+                WHERE username = :username
+            )
+            """, nativeQuery = true)
+    boolean existsByUsernameIncludingInactive(
+            @Param("username") String username);
+
+    /**
+     * Global e-mail uniqueness check including inactive accounts.
+     */
+    @TenantScopeExempt(reason = "Email uniqueness is global and must include inactive accounts.")
+    @Query(value = """
+            SELECT EXISTS(
+                SELECT 1
+                FROM user_account
+                WHERE email = :email
+            )
+            """, nativeQuery = true)
+    boolean existsByEmailIncludingInactive(
+            @Param("email") String email);
+
+    /**
      * Finds an active user by id scoped to a hotel (prevents cross-tenant access).
      *
      * @param id      the user UUID
@@ -88,6 +131,24 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
      */
     @Query(value = "SELECT * FROM user_account WHERE id = :id AND hotel_id = :hotelId", nativeQuery = true)
     Optional<UserAccount> findByIdAndHotelIdIncludingInactive(@Param("id") UUID id, @Param("hotelId") UUID hotelId);
+
+    /**
+     * Physically deletes an INACTIVE account from the given hotel.
+     *
+     * This intentionally bypasses UserAccount @SQLDelete, which otherwise
+     * converts repository deletes into soft deletes.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            DELETE FROM user_account
+            WHERE id = :id
+              AND hotel_id = :hotelId
+              AND active = false
+            """, nativeQuery = true)
+    int hardDeleteInactiveByIdAndHotelId(
+            @Param("id") UUID id,
+            @Param("hotelId") UUID hotelId);
 
     /**
      * Atomically increments the failed-login counter and sets the lock expiry.

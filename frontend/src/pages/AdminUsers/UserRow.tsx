@@ -7,13 +7,15 @@ interface UserRowProps {
   user: UserResponse;
   onToggle: (u: UserResponse) => void;
   onResetPassword: (u: UserResponse) => void;
+  onDelete: (u: UserResponse) => void;
   currentUsername: string | undefined;
 }
 
-export const UserRow = memo(({ user, onToggle, onResetPassword, currentUsername }: UserRowProps) => {
+export const UserRow = memo(({ user, onToggle, onResetPassword, onDelete, currentUsername }: UserRowProps) => {
   const { t } = useTranslation('admin');
   const handleToggle = useCallback(() => onToggle(user), [onToggle, user]);
   const handleReset = useCallback(() => onResetPassword(user), [onResetPassword, user]);
+  const handleDelete = useCallback(() => onDelete(user), [onDelete, user]);
 
   return (
     <tr className="hover:bg-surface-variant/40 transition-colors">
@@ -51,6 +53,18 @@ export const UserRow = memo(({ user, onToggle, onResetPassword, currentUsername 
               className="inline-flex items-center justify-center min-h-[40px] text-xs rounded-full border border-outline px-3 py-1 hover:bg-surface-variant focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label={`${t('btn_reset_password')} ${user.username}`}>
               {t('btn_reset_password')}
+            </button>
+          )}
+
+          {!user.active && user.username !== currentUsername && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full text-error hover:bg-error-container focus:outline-none focus:ring-2 focus:ring-error"
+              aria-label={`${t('btn_delete_permanently')} ${user.username}`}
+              title={t('btn_delete_permanently')}
+            >
+              <MaterialIcon name="delete_forever" size={20} />
             </button>
           )}
         </div>

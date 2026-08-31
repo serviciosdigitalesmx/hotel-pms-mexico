@@ -59,5 +59,19 @@ public interface UserManagementService {
      * @param targetUserId the user whose password is reset
      * @param newPassword  the new plain-text password (will be encoded)
      */
+    /**
+     * Permanently removes a previously deactivated user.
+     *
+     * Active users must be deactivated first.
+     *
+     * @param hotelId       requesting administrator hotel
+     * @param targetUserId  user to permanently delete
+     * @param requestingUser authenticated username performing the operation
+     */
+    void deleteUserPermanently(
+            UUID hotelId,
+            UUID targetUserId,
+            String requestingUser);
+
     void resetPassword(UUID hotelId, UUID targetUserId, String newPassword);
 }

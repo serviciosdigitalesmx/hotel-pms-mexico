@@ -84,7 +84,7 @@ class UserManagementServiceImplTest {
 
     @Test
     void listUsersShouldReturnMappedResponse() {
-        when(userRepository.findAllByHotelId(HOTEL_ID)).thenReturn(List.of(activeUser));
+        when(userRepository.findAllByHotelIdIncludingInactive(HOTEL_ID)).thenReturn(List.of(activeUser));
 
         final List<UserResponse> result = userManagementService.listUsers(HOTEL_ID);
 
@@ -92,12 +92,12 @@ class UserManagementServiceImplTest {
         assertEquals(USERNAME, result.get(0).username());
         assertEquals(EMAIL, result.get(0).email());
         assertTrue(result.get(0).mustChangePassword());
-        verify(userRepository).findAllByHotelId(HOTEL_ID);
+        verify(userRepository).findAllByHotelIdIncludingInactive(HOTEL_ID);
     }
 
     @Test
     void listUsersShouldReturnEmptyListWhenNoUsers() {
-        when(userRepository.findAllByHotelId(HOTEL_ID)).thenReturn(List.of());
+        when(userRepository.findAllByHotelIdIncludingInactive(HOTEL_ID)).thenReturn(List.of());
 
         final List<UserResponse> result = userManagementService.listUsers(HOTEL_ID);
 
@@ -107,8 +107,8 @@ class UserManagementServiceImplTest {
     @Test
     void createUserShouldPersistAndReturnMustChangePasswordTrue() {
         final CreateUserRequest request = new CreateUserRequest(USERNAME, PASSWORD, EMAIL, Role.RECEPTIONIST);
-        when(userRepository.existsByUsername(USERNAME)).thenReturn(false);
-        when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
+        when(userRepository.existsByUsernameIncludingInactive(USERNAME)).thenReturn(false);
+        when(userRepository.existsByEmailIncludingInactive(EMAIL)).thenReturn(false);
         when(passwordEncoder.encode(PASSWORD)).thenReturn(HASHED_PW);
         when(userRepository.save(any(UserAccount.class))).thenReturn(activeUser);
 
@@ -123,7 +123,7 @@ class UserManagementServiceImplTest {
     @Test
     void createUserShouldThrowWhenUsernameAlreadyExists() {
         final CreateUserRequest request = new CreateUserRequest(USERNAME, PASSWORD, EMAIL, Role.RECEPTIONIST);
-        when(userRepository.existsByUsername(USERNAME)).thenReturn(true);
+        when(userRepository.existsByUsernameIncludingInactive(USERNAME)).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class,
                 () -> userManagementService.createUser(HOTEL_ID, request));
@@ -133,8 +133,8 @@ class UserManagementServiceImplTest {
     @Test
     void createUserShouldThrowWhenEmailAlreadyExists() {
         final CreateUserRequest request = new CreateUserRequest(USERNAME, PASSWORD, EMAIL, Role.RECEPTIONIST);
-        when(userRepository.existsByUsername(USERNAME)).thenReturn(false);
-        when(userRepository.existsByEmail(EMAIL)).thenReturn(true);
+        when(userRepository.existsByUsernameIncludingInactive(USERNAME)).thenReturn(false);
+        when(userRepository.existsByEmailIncludingInactive(EMAIL)).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class,
                 () -> userManagementService.createUser(HOTEL_ID, request));

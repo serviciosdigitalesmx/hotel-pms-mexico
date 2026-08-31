@@ -33,13 +33,16 @@ const baseSettings: HotelSettingsResponse = {
   alloggiatiAutoSend: false,
   hotelName: 'Hotel Test',
   address: 'Via Roma 1',
-  vatNumber: '12345678901',
+  vatNumber: 'ABC123456EF7',
   fiscalCode: 'ABCDEF12G34H567I',
   logoUrl: '',
   alloggiatiUsername: null,
   alloggiatiCredentialsConfigured: false,
   sendReservationConfirmedEmail: true,
   sendCheckoutEmail: true,
+  aiEnabled: false,
+  aiModel: 'qwen3:4b-instruct-2507-q4_K_M',
+  aiApiKeyConfigured: false,
 };
 
 const renderComponent = () =>

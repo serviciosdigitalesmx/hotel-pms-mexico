@@ -31,6 +31,18 @@ import java.util.UUID;
  * @param cap                             CAP — Italian 5-digit postal code, or {@code null} if unset
  * @param comune                          Comune — municipality name, or {@code null} if unset
  * @param provincia                       Provincia — 2-letter province code, or {@code null} if unset
+ * @param city                            city or municipality used for the hotel profile
+ * @param state                           state or province used for the hotel profile
+ * @param country                         country used for the hotel profile
+ * @param postalCode                      postal code used for the hotel profile
+ * @param currency                        ISO 4217 currency code for the hotel
+ * @param locale                          locale used for formatting and translations
+ * @param timezone                        IANA timezone used for hotel operations
+ * @param publicSlug                      public booking slug for the hotel
+ * @param aiEnabled                       whether the tenant AI assistant is enabled
+ * @param aiModel                         provider model identifier selected by the hotel
+ * @param aiApiKeyConfigured              whether an encrypted provider key exists
+ * @param aiInstructions                  hotel-specific assistant instructions
  */
 public record HotelSettingsResponse(
         UUID hotelId,
@@ -49,5 +61,64 @@ public record HotelSettingsResponse(
         String emailGreetingText,
         String cap,
         String comune,
-        String provincia) {
+        String provincia,
+        String city,
+        String state,
+        String country,
+        String postalCode,
+        String currency,
+        String locale,
+        String timezone,
+        String publicSlug,
+        boolean aiEnabled,
+        String aiModel,
+        boolean aiApiKeyConfigured,
+        String aiInstructions) {
+
+    /**
+     * Backward-compatible constructor for callers that do not provide the new profile fields.
+     *
+     * @param hotelId hotel identifier
+     * @param alloggiatiAutoSend whether automatic reporting is enabled
+     * @param hotelName display name of the hotel
+     * @param address hotel address
+     * @param vatNumber tax identifier
+     * @param fiscalCode fiscal identifier
+     * @param logoUrl logo URL
+     * @param alloggiatiUsername reporting username
+     * @param alloggiatiCredentialsConfigured whether reporting credentials are configured
+     * @param sendReservationConfirmedEmail whether reservation emails are enabled
+     * @param sendCheckoutEmail whether checkout emails are enabled
+     * @param emailSubjectReservationConfirmed reservation email subject
+     * @param emailSubjectCheckout checkout email subject
+     * @param emailGreetingText email greeting text
+     * @param cap postal code
+     * @param comune municipality
+     * @param provincia province code
+     */
+    public HotelSettingsResponse(
+            final UUID hotelId,
+            final boolean alloggiatiAutoSend,
+            final String hotelName,
+            final String address,
+            final String vatNumber,
+            final String fiscalCode,
+            final String logoUrl,
+            final String alloggiatiUsername,
+            final boolean alloggiatiCredentialsConfigured,
+            final boolean sendReservationConfirmedEmail,
+            final boolean sendCheckoutEmail,
+            final String emailSubjectReservationConfirmed,
+            final String emailSubjectCheckout,
+            final String emailGreetingText,
+            final String cap,
+            final String comune,
+            final String provincia) {
+        this(hotelId, alloggiatiAutoSend, hotelName, address, vatNumber, fiscalCode, logoUrl,
+                alloggiatiUsername, alloggiatiCredentialsConfigured, sendReservationConfirmedEmail,
+                sendCheckoutEmail, emailSubjectReservationConfirmed, emailSubjectCheckout,
+                emailGreetingText, cap, comune, provincia, null, null, null, null,
+                "MXN", "es-MX", "America/Monterrey", null,
+                false, "qwen3:4b-instruct-2507-q4_K_M", false, null);
+    }
 }

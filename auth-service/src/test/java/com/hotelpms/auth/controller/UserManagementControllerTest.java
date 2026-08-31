@@ -47,12 +47,12 @@ class UserManagementControllerTest {
     private static final String PATH_DEACTIVATE = "/{userId}/deactivate";
     private static final String PATH_ACTIVATE = "/{userId}/activate";
     private static final String PATH_RESET_PW = "/{userId}/reset-password";
-    private static final String STRONG_RESET_PASSWORD = "NewPassReset@@22";
+    private static final String STRONG_RESET_PASSWORD = "Reset123";
     private static final String MSG_USER_NOT_FOUND = "USER_NOT_FOUND";
     private static final String HEADER_HOTEL = "X-Auth-Hotel";
     private static final String ADMIN_USERNAME = "adminuser";
     private static final String NEW_USERNAME = "newuser";
-    private static final String STRONG_PASSWORD = "TestPassword@@22";
+    private static final String STRONG_PASSWORD = "Admin123";
     private static final String USER_EMAIL = "user@example.com";
     private static final UUID HOTEL_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -117,6 +117,34 @@ class UserManagementControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value(NEW_USERNAME))
                 .andExpect(jsonPath("$.mustChangePassword").value(true));
+    }
+
+    @Test
+    void shouldCreateKitchenUserReturn201() throws Exception {
+        final CreateUserRequest request = new CreateUserRequest(
+                NEW_USERNAME, STRONG_PASSWORD, USER_EMAIL, Role.KITCHEN);
+        when(userManagementService.createUser(eq(HOTEL_ID), any(CreateUserRequest.class)))
+                .thenReturn(userResponse);
+
+        mockMvc.perform(post(BASE_URL)
+                        .header(HEADER_HOTEL, HOTEL_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void shouldCreateHousekeeperUserReturn201() throws Exception {
+        final CreateUserRequest request = new CreateUserRequest(
+                NEW_USERNAME, STRONG_PASSWORD, USER_EMAIL, Role.HOUSEKEEPER);
+        when(userManagementService.createUser(eq(HOTEL_ID), any(CreateUserRequest.class)))
+                .thenReturn(userResponse);
+
+        mockMvc.perform(post(BASE_URL)
+                        .header(HEADER_HOTEL, HOTEL_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
     }
 
     @Test

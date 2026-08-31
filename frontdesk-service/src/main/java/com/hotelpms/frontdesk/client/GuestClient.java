@@ -107,6 +107,18 @@ public interface GuestClient {
     GuestSearchPageResponse searchGuests(@RequestParam("query") String query, @RequestParam("size") int size);
 
     /**
+     * Searches guests without the empty-result circuit-breaker fallback.
+     * Conversational flows must distinguish a real zero-match result from an
+     * unavailable guest-service, so failures intentionally propagate.
+     *
+     * @param query the search term
+     * @param size maximum matches
+     * @return the real guest-service response
+     */
+    @GetMapping("/api/v1/guests/search")
+    GuestSearchPageResponse searchGuestsStrict(@RequestParam("query") String query, @RequestParam("size") int size);
+
+    /**
      * Fallback for {@link #searchGuests(String, int)} if guest-service is unavailable:
      * no matches, rather than failing the whole reservation search.
      *

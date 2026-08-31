@@ -11,6 +11,6 @@ import jakarta.validation.constraints.Pattern;
  */
 public record ResetPasswordRequest(
         @NotBlank @Pattern(
-                regexp = "^(?=.*[A-Z].*[A-Z])(?=.*[0-9].*[0-9])(?=.*[^A-Za-z0-9].*[^A-Za-z0-9]).{16,}$",
+                regexp = "^(?=.*[A-Z])(?=.*[0-9]).{8,}$",
                 message = "PASSWORD_TOO_WEAK") String newPassword) {
 }

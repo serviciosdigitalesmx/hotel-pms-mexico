@@ -19,13 +19,12 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
-    void handlesAccountLockedExceptionAs401SameAsBadCredentials() {
+    void handlesAccountLockedExceptionAs429() {
         final ProblemDetail result = handler.handleAccountLockedException(
                 new AccountLockedException("too many attempts"));
 
-        assertThat(result.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
-        assertThat(result.getTitle()).isEqualTo("Authentication Failed");
-        assertThat(result.getDetail()).isEqualTo("INVALID_CREDENTIALS");
+        assertThat(result.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(result.getTitle()).isEqualTo("Account Temporarily Locked");
     }
 
     @Test

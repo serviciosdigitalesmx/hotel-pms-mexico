@@ -6,13 +6,10 @@ import type { HotelSettingsResponse, HotelSettingsRequest } from '../types/stay.
 import { MaterialIcon } from '../components/MaterialIcon';
 import { M3Button } from '../components/m3/M3Button';
 import { M3Card } from '../components/m3/M3Card';
-import { PasswordVisibilityToggle } from '../components/m3/PasswordVisibilityToggle';
-import { StructuredAddressFields } from '../components/StructuredAddressFields';
 import { useToastStore } from '../store/toastStore';
 import { getErrorMessage } from '../utils/errorMessage';
 
-const VAT_NUMBER_REGEX = /^\d{11}$/;
-const FISCAL_CODE_REGEX = /^(\d{11}|[A-Za-z]{6}\d{2}[A-Za-z]\d{2}[A-Za-z]\d{3}[A-Za-z])$/;
+const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i;
 
 // -----------------------------------------------------------------------
 // ProfileField — reusable labelled input
@@ -26,17 +23,13 @@ interface ProfileFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
   error?: string;
-  type?: 'text' | 'password';
+  type?: 'text' | 'url' | 'password';
   autoComplete?: string;
 }
 
 const ProfileField = memo(({
   id, label, value, placeholder, onChange, required, error, type = 'text', autoComplete,
 }: ProfileFieldProps) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const toggleShowPassword = useCallback(() => setShowPassword((prev) => !prev), []);
-  const isPasswordField = type === 'password';
-
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-on-surface mb-1">
@@ -45,23 +38,16 @@ const ProfileField = memo(({
       <div className="relative">
         <input
           id={id}
-          type={isPasswordField && showPassword ? 'text' : type}
+          type={type}
           value={value}
           placeholder={placeholder}
           onChange={onChange}
           autoComplete={autoComplete}
           className={`w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface
-            focus:outline-none focus:ring-2 focus:ring-primary ${isPasswordField ? 'pr-12' : ''}`}
+            focus:outline-none focus:ring-2 focus:ring-primary`}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
         />
-        {isPasswordField && (
-          <PasswordVisibilityToggle
-            visible={showPassword}
-            onToggle={toggleShowPassword}
-            className="absolute right-1 top-1/2 -translate-y-1/2"
-          />
-        )}
       </div>
       {error && (
         <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-error">{error}</p>
@@ -86,22 +72,28 @@ export function HotelProfile() {
     vatNumber: '',
     fiscalCode: '',
     logoUrl: '',
+    city: '',
+    state: '',
+    country: 'México',
+    postalCode: '',
+    currency: 'MXN',
+    locale: 'es-MX',
+    timezone: 'America/Monterrey',
+    publicSlug: '',
     alloggiatiUsername: '',
     alloggiatiPassword: '',
     alloggiatiWsKey: '',
-    cap: '',
-    comune: '',
-    provincia: '',
   });
-  const [credentialsConfigured, setCredentialsConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [alloggiatiCredentialsConfigured, setAlloggiatiCredentialsConfigured] = useState(false);
+  const [showAlloggiatiPassword, setShowAlloggiatiPassword] = useState(false);
+  const [showAlloggiatiWsKey, setShowAlloggiatiWsKey] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const profileSchema = useMemo(() => z.object({
-    vatNumber: z.union([z.string().regex(VAT_NUMBER_REGEX, t('common:err_invalid_vat')), z.literal('')]),
-    fiscalCode: z.union([z.string().regex(FISCAL_CODE_REGEX, t('common:err_invalid_fiscal_code')), z.literal('')]),
+    vatNumber: z.union([z.string().regex(RFC_REGEX, t('common:err_invalid_vat')), z.literal('')]),
     logoUrl: z.union([z.string().url(t('common:err_invalid_url')), z.literal('')]),
   }), [t]);
   const handleLogoError = useCallback(() => {
@@ -119,16 +111,19 @@ export function HotelProfile() {
           vatNumber: s.vatNumber ?? '',
           fiscalCode: s.fiscalCode ?? '',
           logoUrl: s.logoUrl ?? '',
-          // Password/WsKey are write-only — the API never returns them, so the
-          // fields always start blank regardless of whether credentials exist.
+          city: s.city ?? '',
+          state: s.state ?? '',
+          country: s.country ?? 'México',
+          postalCode: s.postalCode ?? '',
+          currency: s.currency ?? 'MXN',
+          locale: s.locale ?? 'es-MX',
+          timezone: s.timezone ?? 'America/Monterrey',
+          publicSlug: s.publicSlug ?? '',
           alloggiatiUsername: s.alloggiatiUsername ?? '',
           alloggiatiPassword: '',
           alloggiatiWsKey: '',
-          cap: s.cap ?? '',
-          comune: s.comune ?? '',
-          provincia: s.provincia ?? '',
         });
-        setCredentialsConfigured(s.alloggiatiCredentialsConfigured);
+        setAlloggiatiCredentialsConfigured(s.alloggiatiCredentialsConfigured);
       })
       .catch(() => addToast(t('err_profile_save'), 'error'))
       .finally(() => setLoading(false));
@@ -141,22 +136,10 @@ export function HotelProfile() {
     [],
   );
 
-  const handleToggle = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((prev) => ({ ...prev, alloggiatiAutoSend: e.target.checked })),
-    [],
-  );
-
-  const handleCapChange = useCallback(
-    (value: string) => setForm((prev) => ({ ...prev, cap: value })),
-    [],
-  );
-  const handleComuneChange = useCallback(
-    (value: string) => setForm((prev) => ({ ...prev, comune: value })),
-    [],
-  );
-  const handleProvinciaChange = useCallback(
-    (value: string) => setForm((prev) => ({ ...prev, provincia: value })),
+  const handleCheckboxChange = useCallback(
+    (field: keyof HotelSettingsRequest) =>
+      (e: React.ChangeEvent<HTMLInputElement>) =>
+        setForm((prev) => ({ ...prev, [field]: e.target.checked })),
     [],
   );
 
@@ -165,7 +148,6 @@ export function HotelProfile() {
 
     const result = profileSchema.safeParse({
       vatNumber: (form.vatNumber ?? '').trim(),
-      fiscalCode: (form.fiscalCode ?? '').trim(),
       logoUrl: (form.logoUrl ?? '').trim(),
     });
     if (!result.success) {
@@ -180,12 +162,21 @@ export function HotelProfile() {
 
     setSaving(true);
     try {
-      const updated = await stayService.updateHotelSettings({ ...form, ...result.data });
+      await stayService.updateHotelSettings({ ...form, ...result.data });
       setForm((prev) => ({ ...prev, alloggiatiPassword: '', alloggiatiWsKey: '' }));
-      setCredentialsConfigured(updated.alloggiatiCredentialsConfigured);
+      setAlloggiatiCredentialsConfigured(
+        Boolean(form.alloggiatiUsername?.trim() || form.alloggiatiPassword?.trim() || form.alloggiatiWsKey?.trim())
+          || alloggiatiCredentialsConfigured,
+      );
       addToast(t('toast_profile_saved'), 'success');
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, t('err_profile_save')), 'error');
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      addToast(
+        typeof detail === 'string' && detail.trim() !== ''
+          ? detail
+          : getErrorMessage(err, t('err_profile_save')),
+        'error',
+      );
     } finally {
       setSaving(false);
     }
@@ -239,32 +230,73 @@ export function HotelProfile() {
           onChange={handleChange('address')}
         />
 
-        <StructuredAddressFields
-          idPrefix="profile"
-          cap={form.cap ?? ''}
-          comune={form.comune ?? ''}
-          provincia={form.provincia ?? ''}
-          onCapChange={handleCapChange}
-          onComuneChange={handleComuneChange}
-          onProvinciaChange={handleProvinciaChange}
+        <div className="grid grid-cols-2 gap-4">
+          <ProfileField
+            id="profile-city"
+            label={t('label_city')}
+            value={form.city ?? ''}
+            onChange={handleChange('city')}
+          />
+          <ProfileField
+            id="profile-state"
+            label={t('label_state')}
+            value={form.state ?? ''}
+            onChange={handleChange('state')}
+          />
+          <ProfileField
+            id="profile-postal-code"
+            label={t('label_postal_code')}
+            value={form.postalCode ?? ''}
+            onChange={handleChange('postalCode')}
+          />
+          <ProfileField
+            id="profile-country"
+            label={t('label_country')}
+            value={form.country ?? ''}
+            onChange={handleChange('country')}
+          />
+        </div>
+
+        <ProfileField
+          id="profile-rfc"
+          label={t('label_vat_number')}
+          value={form.vatNumber ?? ''}
+          placeholder={t('placeholder_vat_number')}
+          onChange={handleChange('vatNumber')}
+          error={fieldErrors.vatNumber}
+        />
+
+        <ProfileField
+          id="profile-fiscal-code"
+          label={t('label_fiscal_code')}
+          value={form.fiscalCode ?? ''}
+          onChange={handleChange('fiscalCode')}
         />
 
         <div className="grid grid-cols-2 gap-4">
           <ProfileField
-            id="profile-vat"
-            label={t('label_vat_number')}
-            value={form.vatNumber ?? ''}
-            placeholder={t('placeholder_vat_number')}
-            onChange={handleChange('vatNumber')}
-            error={fieldErrors.vatNumber}
+            id="profile-currency"
+            label={t('label_currency')}
+            value={form.currency ?? ''}
+            onChange={handleChange('currency')}
           />
           <ProfileField
-            id="profile-cf"
-            label={t('label_fiscal_code')}
-            value={form.fiscalCode ?? ''}
-            placeholder={t('placeholder_fiscal_code')}
-            onChange={handleChange('fiscalCode')}
-            error={fieldErrors.fiscalCode}
+            id="profile-locale"
+            label={t('label_locale')}
+            value={form.locale ?? ''}
+            onChange={handleChange('locale')}
+          />
+          <ProfileField
+            id="profile-timezone"
+            label={t('label_timezone')}
+            value={form.timezone ?? ''}
+            onChange={handleChange('timezone')}
+          />
+          <ProfileField
+            id="profile-public-slug"
+            label={t('label_public_slug')}
+            value={form.publicSlug ?? ''}
+            onChange={handleChange('publicSlug')}
           />
         </div>
 
@@ -275,76 +307,71 @@ export function HotelProfile() {
           placeholder={t('placeholder_logo_url')}
           onChange={handleChange('logoUrl')}
           error={fieldErrors.logoUrl}
+          type="url"
         />
 
-        <div className="flex items-start gap-3 pt-2 border-t border-outline-variant">
-          <input
-            id="profile-alloggiati-auto-send"
-            type="checkbox"
-            checked={form.alloggiatiAutoSend}
-            onChange={handleToggle}
-            className="mt-0.5 h-4 w-4 rounded border-outline text-primary focus:ring-2 focus:ring-primary"
+        <section className="space-y-3" aria-labelledby="alloggiati-credentials-title">
+          <h2 id="alloggiati-credentials-title" className="text-lg font-medium text-on-surface">
+            {t('section_title_alloggiati_credentials')}
+          </h2>
+          <p className="text-sm text-on-surface-variant">{t('hint_alloggiati_credentials')}</p>
+          <label className="flex items-start gap-3 text-sm text-on-surface">
+            <input
+              type="checkbox"
+              checked={Boolean(form.alloggiatiAutoSend)}
+              onChange={handleCheckboxChange('alloggiatiAutoSend')}
+              aria-label={t('label_alloggiati_auto_send')}
+              className="mt-1"
+            />
+            <span>
+              <span className="block font-medium">{t('label_alloggiati_auto_send')}</span>
+              <span className="block text-on-surface-variant">{t('hint_alloggiati_auto_send')}</span>
+            </span>
+          </label>
+          <ProfileField
+            id="profile-alloggiati-username"
+            label={t('label_alloggiati_username')}
+            value={form.alloggiatiUsername ?? ''}
+            placeholder={t('placeholder_alloggiati_username')}
+            onChange={handleChange('alloggiatiUsername')}
+            autoComplete="username"
           />
-          <div>
-            <label htmlFor="profile-alloggiati-auto-send" className="text-sm font-medium text-on-surface">
-              {t('label_alloggiati_auto_send')}
-            </label>
-            <p className="text-xs text-on-surface-variant mt-0.5">{t('hint_alloggiati_auto_send')}</p>
+          <div className="relative">
+            <ProfileField
+              id="profile-alloggiati-password"
+              label={t('label_alloggiati_password')}
+              value={form.alloggiatiPassword ?? ''}
+              placeholder={t(alloggiatiCredentialsConfigured ? 'placeholder_alloggiati_credential_configured' : 'placeholder_alloggiati_credential_unconfigured')}
+              onChange={handleChange('alloggiatiPassword')}
+              type={showAlloggiatiPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+            />
+            <button type="button" aria-label="show_password" onClick={() => setShowAlloggiatiPassword((visible) => !visible)} className="absolute right-2 top-7">
+              <MaterialIcon name={showAlloggiatiPassword ? 'visibility_off' : 'visibility'} size={20} />
+            </button>
           </div>
-        </div>
-      </M3Card>
-
-      <M3Card className="p-6 space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-on-surface">{t('section_title_alloggiati_credentials')}</h2>
-          <p className="text-xs text-on-surface-variant mt-0.5">{t('hint_alloggiati_credentials')}</p>
-        </div>
-
-        <p
-          className={`text-sm font-medium ${credentialsConfigured ? 'text-primary' : 'text-on-surface-variant'}`}
-        >
-          {credentialsConfigured
-            ? t('status_alloggiati_credentials_configured')
-            : t('status_alloggiati_credentials_not_configured')}
-        </p>
-
-        <ProfileField
-          id="profile-alloggiati-username"
-          label={t('label_alloggiati_username')}
-          value={form.alloggiatiUsername ?? ''}
-          placeholder={t('placeholder_alloggiati_username')}
-          onChange={handleChange('alloggiatiUsername')}
-          autoComplete="off"
-        />
-
-        <div className="grid grid-cols-2 gap-4">
-          <ProfileField
-            id="profile-alloggiati-password"
-            label={t('label_alloggiati_password')}
-            value={form.alloggiatiPassword ?? ''}
-            placeholder={credentialsConfigured
-              ? t('placeholder_alloggiati_credential_configured')
-              : t('placeholder_alloggiati_credential_unconfigured')}
-            onChange={handleChange('alloggiatiPassword')}
-            type="password"
-            autoComplete="new-password"
-          />
-          <ProfileField
-            id="profile-alloggiati-ws-key"
-            label={t('label_alloggiati_ws_key')}
-            value={form.alloggiatiWsKey ?? ''}
-            placeholder={credentialsConfigured
-              ? t('placeholder_alloggiati_credential_configured')
-              : t('placeholder_alloggiati_credential_unconfigured')}
-            onChange={handleChange('alloggiatiWsKey')}
-            type="password"
-            autoComplete="new-password"
-          />
-        </div>
+          <div className="relative">
+            <ProfileField
+              id="profile-alloggiati-ws-key"
+              label={t('label_alloggiati_ws_key')}
+              value={form.alloggiatiWsKey ?? ''}
+              placeholder={t(alloggiatiCredentialsConfigured ? 'placeholder_alloggiati_credential_configured' : 'placeholder_alloggiati_credential_unconfigured')}
+              onChange={handleChange('alloggiatiWsKey')}
+              type={showAlloggiatiWsKey ? 'text' : 'password'}
+              autoComplete="new-password"
+            />
+            <button type="button" aria-label="show_password" onClick={() => setShowAlloggiatiWsKey((visible) => !visible)} className="absolute right-2 top-7">
+              <MaterialIcon name={showAlloggiatiWsKey ? 'visibility_off' : 'visibility'} size={20} />
+            </button>
+          </div>
+          <p className="text-sm text-on-surface-variant">
+            {t(alloggiatiCredentialsConfigured ? 'status_alloggiati_credentials_configured' : 'status_alloggiati_credentials_not_configured')}
+          </p>
+        </section>
       </M3Card>
 
       <div className="flex justify-end">
-        <M3Button icon="save" onClick={handleSave} disabled={saving}>
+        <M3Button icon="save" onClick={() => void handleSave()} disabled={saving}>
           {saving ? t('btn_saving') : t('btn_save_profile')}
         </M3Button>
       </div>

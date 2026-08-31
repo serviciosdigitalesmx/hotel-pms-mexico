@@ -13,6 +13,8 @@
   "label_password": "Temporary Password",
   "label_role": "Role",
   "role_receptionist": "Receptionist",
+  "role_kitchen": "Kitchen",
+  "role_housekeeper": "Housekeeping",
   "role_owner": "Owner",
   "role_admin": "Administrator",
   "col_username": "Username",
@@ -59,14 +61,20 @@
   "placeholder_alloggiati_credential_unconfigured": "Not configured — global one will be used",
   "status_alloggiati_credentials_configured": "Hotel-specific credentials configured",
   "status_alloggiati_credentials_not_configured": "No hotel-specific credentials — using the installation's global ones",
-
   "btn_reset_password": "Reset password",
   "modal_reset_title": "Reset password for {{username}}",
   "label_new_password": "New password",
   "label_confirm_password": "Confirm password",
   "err_passwords_mismatch": "Passwords do not match",
-  "err_password_too_short": "Password must be at least 16 characters",
-  "err_password_too_weak": "Password must have 2 uppercase, 2 digits, 2 special characters",
+  "err_password_too_short": "Password must be at least 8 characters",
+  "err_password_too_weak": "Password must include at least 1 uppercase letter and 1 number",
   "err_reset_failed": "Failed to reset password",
-  "toast_reset_success": "Password reset. User must change it on next login."
+  "toast_reset_success": "Password reset. User must change it on next login.",
+  "btn_delete_permanently": "Delete permanently",
+  "modal_delete_title": "Delete user",
+  "modal_delete_user": "You are about to delete {{username}}",
+  "modal_delete_warning": "This permanently removes the account and cannot be undone.",
+  "toast_deleted": "User {{username}} permanently deleted",
+  "err_delete_failed": "Could not delete user",
+  "deleting": "Deleting..."
 }

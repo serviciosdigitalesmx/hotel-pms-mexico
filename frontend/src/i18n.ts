@@ -18,6 +18,22 @@ import housekeepingEn from './locales/en/housekeeping.json';
 import dashboardEn from './locales/en/dashboard.json';
 import adminEn from './locales/en/admin.json';
 
+import commonEs from './locales/es/common.json';
+import authEs from './locales/es/auth.json';
+import errorsEs from './locales/es/errors.json';
+import settingsEs from './locales/es/settings.json';
+import guestsEs from './locales/es/guests.json';
+import staysEs from './locales/es/stays.json';
+import roomsEs from './locales/es/rooms.json';
+import reservationsEs from './locales/es/reservations.json';
+import quotationsEs from './locales/es/quotations.json';
+import calendarEs from './locales/es/calendar.json';
+import billingEs from './locales/es/billing.json';
+import restaurantEs from './locales/es/restaurant.json';
+import housekeepingEs from './locales/es/housekeeping.json';
+import dashboardEs from './locales/es/dashboard.json';
+import adminEs from './locales/es/admin.json';
+
 import commonIt from './locales/it/common.json';
 import authIt from './locales/it/auth.json';
 import errorsIt from './locales/it/errors.json';
@@ -35,6 +51,23 @@ import dashboardIt from './locales/it/dashboard.json';
 import adminIt from './locales/it/admin.json';
 
 const resources = {
+  es: {
+    common: commonEs,
+    auth: authEs,
+    errors: errorsEs,
+    settings: settingsEs,
+    guests: guestsEs,
+    stays: staysEs,
+    rooms: roomsEs,
+    reservations: reservationsEs,
+    quotations: quotationsEs,
+    calendar: calendarEs,
+    billing: billingEs,
+    restaurant: restaurantEs,
+    housekeeping: housekeepingEs,
+    dashboard: dashboardEs,
+    admin: adminEs,
+  },
   en: {
     common: commonEn,
     auth: authEn,
@@ -76,7 +109,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
+    lng: 'es',
+    fallbackLng: 'es',
     defaultNS: 'common',
     fallbackNS: 'common',
     interpolation: {

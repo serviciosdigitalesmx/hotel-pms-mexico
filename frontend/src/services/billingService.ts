@@ -19,6 +19,25 @@ export const billingService = {
     return response.data;
   },
 
+  getInvoiceByStayId: async (stayId: string): Promise<InvoiceResponse | null> => {
+    const response = await api.get<SpringPage<InvoiceResponse>>(`${BASE_PATH}?size=500`);
+    return response.data.content.find((invoice) => invoice.stayId === stayId) ?? null;
+  },
+
+  addCharge: async (stayId: string, data: {
+    type: 'FB_ORDER' | 'ROOM_NIGHT' | 'EXTRA';
+    description?: string;
+    amount: number;
+    vatRate?: number;
+    referenceId?: string;
+  }): Promise<import('../types/billing.types').ChargeResponse> => {
+    const response = await api.post<import('../types/billing.types').ChargeResponse>(
+      `${BASE_PATH}/stay/${stayId}/charges`,
+      data,
+    );
+    return response.data;
+  },
+
   processPayment: async (invoiceId: string, data: PaymentRequest): Promise<PaymentResponse> => {
     const response = await api.post<PaymentResponse>(`${BASE_PATH}/${invoiceId}/payments`, data);
     return response.data;

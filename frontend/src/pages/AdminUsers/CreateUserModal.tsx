@@ -6,6 +6,7 @@ import { M3Button } from '../../components/m3/M3Button';
 import { M3Dialog } from '../../components/m3/M3Dialog';
 import { PasswordVisibilityToggle } from '../../components/m3/PasswordVisibilityToggle';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { isPasswordValid } from '../../utils/passwordPolicy';
 import type { Role } from '../../types/auth.types';
 
 interface CreateUserModalProps {
@@ -38,6 +39,14 @@ export const CreateUserModal = memo(({ onClose, onCreated }: CreateUserModalProp
     setError('');
     if (!form.username || !form.password || !form.email) {
       setError(t('err_all_fields_required'));
+      return;
+    }
+    if (form.password.length < 8) {
+      setError(t('err_password_too_short'));
+      return;
+    }
+    if (!isPasswordValid(form.password)) {
+      setError(t('err_password_too_weak'));
       return;
     }
     setLoading(true);
@@ -100,6 +109,8 @@ export const CreateUserModal = memo(({ onClose, onCreated }: CreateUserModalProp
           <select id="new-role" value={form.role} onChange={handleRole}
             className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
             <option value="RECEPTIONIST">{t('role_receptionist')}</option>
+            <option value="KITCHEN">{t('role_kitchen')}</option>
+            <option value="HOUSEKEEPER">{t('role_housekeeper')}</option>
             <option value="OWNER">{t('role_owner')}</option>
             <option value="ADMIN">{t('role_admin')}</option>
           </select>

@@ -111,6 +111,31 @@ resilience4j:
         # RetryableException) still hit the fallback.
         ignoreExceptions:
           - feign.FeignException$FeignClientException
+      aiProvider:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 1
+        ignoreExceptions:
+          - com.hotelpms.frontdesk.assistant.PermanentAiProviderException
+  retry:
+    instances:
+      aiProvider:
+        maxAttempts: 3
+        waitDuration: 250ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - com.hotelpms.frontdesk.assistant.RetryableAiProviderException
+  ratelimiter:
+    instances:
+      aiProvider:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
 
 logging:
   pattern:

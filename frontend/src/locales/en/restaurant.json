@@ -11,7 +11,7 @@
   "menu_validation_required": "Name, category and price (> 0) are required.",
   "menu_name": "Name",
   "menu_category": "Category",
-  "menu_price": "Price (€)",
+  "menu_price": "Price (MXN $)",
   "menu_description": "Description (optional)",
   "menu_available": "Visible in order form",
   "menu_no_items": "No menu items. Click \"Add item\" to create the first one.",

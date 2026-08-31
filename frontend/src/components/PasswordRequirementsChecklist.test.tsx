@@ -9,12 +9,12 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('PasswordRequirementsChecklist', () => {
-  it('renders all four requirements', () => {
+  it('renders all three requirements', () => {
     render(<PasswordRequirementsChecklist password="" />);
     expect(screen.getByText('password_req_length')).toBeInTheDocument();
     expect(screen.getByText('password_req_uppercase')).toBeInTheDocument();
     expect(screen.getByText('password_req_digits')).toBeInTheDocument();
-    expect(screen.getByText('password_req_special')).toBeInTheDocument();
+    expect(screen.queryByText('password_req_special')).not.toBeInTheDocument();
   });
 
   it('marks no requirement as met for an empty password', () => {
@@ -24,19 +24,17 @@ describe('PasswordRequirementsChecklist', () => {
   });
 
   it('marks only the length requirement as met for a long but otherwise weak password', () => {
-    render(<PasswordRequirementsChecklist password="aaaaaaaaaaaaaaaa" />);
+    render(<PasswordRequirementsChecklist password="aaaaaaaa" />);
     expect(screen.getByText('password_req_length').closest('li')).toHaveClass('text-tertiary');
     expect(screen.getByText('password_req_uppercase').closest('li')).toHaveClass('text-on-surface-variant');
     expect(screen.getByText('password_req_digits').closest('li')).toHaveClass('text-on-surface-variant');
-    expect(screen.getByText('password_req_special').closest('li')).toHaveClass('text-on-surface-variant');
   });
 
   it('marks all requirements as met for a password satisfying the full policy', () => {
-    render(<PasswordRequirementsChecklist password="HotelPms@@2026xx" />);
+    render(<PasswordRequirementsChecklist password="Admin123" />);
     expect(screen.getByText('password_req_length').closest('li')).toHaveClass('text-tertiary');
     expect(screen.getByText('password_req_uppercase').closest('li')).toHaveClass('text-tertiary');
     expect(screen.getByText('password_req_digits').closest('li')).toHaveClass('text-tertiary');
-    expect(screen.getByText('password_req_special').closest('li')).toHaveClass('text-tertiary');
   });
 
   it('should have no accessibility violations', async () => {

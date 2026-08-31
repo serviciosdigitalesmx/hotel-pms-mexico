@@ -518,6 +518,60 @@ class AuthenticationFilterTest {
                                         .verifyComplete();
                         verify(chainMock).filter(any());
                 }
+
+                @Test
+                @DisplayName("KITCHEN can manage restaurant orders")
+                void kitchenCanAccessRestaurantOrders() {
+                        when(chainMock.filter(any())).thenReturn(Mono.empty());
+                        final String token = buildJwt(ONE_HOUR_MS, "kitchen1", "KITCHEN");
+                        final MockServerWebExchange exchange = MockServerWebExchange.from(
+                                        MockServerHttpRequest.post("/api/v1/fb/orders/order-id/confirm")
+                                                        .cookie(new HttpCookie("jwt", token)).build());
+
+                        StepVerifier.create(authenticationFilter.apply(config).filter(exchange, chainMock))
+                                        .verifyComplete();
+                        verify(chainMock).filter(any());
+                }
+
+                @Test
+                @DisplayName("KITCHEN is blocked from reservations")
+                void kitchenBlockedFromReservations() {
+                        final String token = buildJwt(ONE_HOUR_MS, "kitchen1", "KITCHEN");
+                        final MockServerWebExchange exchange = MockServerWebExchange.from(
+                                        MockServerHttpRequest.get("/api/v1/reservations")
+                                                        .cookie(new HttpCookie("jwt", token)).build());
+
+                        StepVerifier.create(authenticationFilter.apply(config).filter(exchange, chainMock))
+                                        .verifyComplete();
+                        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                }
+
+                @Test
+                @DisplayName("HOUSEKEEPER can read rooms and update housekeeping status")
+                void housekeeperCanUpdateRoomStatus() {
+                        when(chainMock.filter(any())).thenReturn(Mono.empty());
+                        final String token = buildJwt(ONE_HOUR_MS, "cleaner1", "HOUSEKEEPER");
+                        final MockServerWebExchange exchange = MockServerWebExchange.from(
+                                        MockServerHttpRequest.patch("/api/v1/rooms/room-id/status")
+                                                        .cookie(new HttpCookie("jwt", token)).build());
+
+                        StepVerifier.create(authenticationFilter.apply(config).filter(exchange, chainMock))
+                                        .verifyComplete();
+                        verify(chainMock).filter(any());
+                }
+
+                @Test
+                @DisplayName("HOUSEKEEPER is blocked from restaurant orders")
+                void housekeeperBlockedFromRestaurantOrders() {
+                        final String token = buildJwt(ONE_HOUR_MS, "cleaner1", "HOUSEKEEPER");
+                        final MockServerWebExchange exchange = MockServerWebExchange.from(
+                                        MockServerHttpRequest.get("/api/v1/fb/orders")
+                                                        .cookie(new HttpCookie("jwt", token)).build());
+
+                        StepVerifier.create(authenticationFilter.apply(config).filter(exchange, chainMock))
+                                        .verifyComplete();
+                        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                }
         }
 
         @Nested

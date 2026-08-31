@@ -24,6 +24,10 @@ export const userService = {
     return response.data;
   },
 
+  deleteUser: async (userId: string): Promise<void> => {
+    await api.delete(`${BASE_PATH}/${userId}`);
+  },
+
   resetUserPassword: async (userId: string, newPassword: string): Promise<void> => {
     await api.patch(`${BASE_PATH}/${userId}/reset-password`, { newPassword });
   },

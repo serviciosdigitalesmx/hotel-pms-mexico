@@ -127,7 +127,7 @@ public class RoomController {
      * @return the updated response
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST', 'HOUSEKEEPER')")
     public ResponseEntity<RoomResponse> updateRoomStatus(@NonNull @PathVariable final UUID id,
             @NonNull @Valid @RequestBody final RoomStatusRequest request) {
         return ResponseEntity.ok(roomService.updateHousekeepingStatus(id, resolveHotelId(), request.status()));

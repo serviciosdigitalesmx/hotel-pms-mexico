@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -105,6 +106,26 @@ public class UserManagementController {
             @NonNull @PathVariable final UUID userId) {
         return ResponseEntity.ok(
                 userManagementService.activateUser(UUID.fromString(hotelId), userId));
+    }
+
+    /**
+     * Permanently deletes a previously deactivated user.
+     *
+     * Active accounts cannot be permanently deleted: they must first be
+     * explicitly deactivated.
+     */
+    @DeleteMapping("/{userId}")
+    @PreAuthorize(ROLE_ADMIN_OWNER)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUser(
+            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+            @NonNull @PathVariable final UUID userId,
+            @NonNull final Authentication auth) {
+
+        userManagementService.deleteUserPermanently(
+                UUID.fromString(hotelId),
+                userId,
+                auth.getName());
     }
 
     /**

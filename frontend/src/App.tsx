@@ -35,8 +35,19 @@ const SettingsPassword = lazy(() => import('./pages/Settings/SettingsPassword').
 const SettingsAccessibility = lazy(() => import('./pages/Settings/SettingsAccessibility').then((m) => ({ default: m.SettingsAccessibility })));
 const SettingsAppearance = lazy(() => import('./pages/Settings/SettingsAppearance').then((m) => ({ default: m.SettingsAppearance })));
 const SettingsSystem = lazy(() => import('./pages/Settings/SettingsSystem').then((m) => ({ default: m.SettingsSystem })));
+const Assistant = lazy(() => import('./pages/Assistant').then((m) => ({ default: m.Assistant })));
 
 const OWNER_ADMIN_ROLES = ['OWNER', 'ADMIN'] as const;
+const CHECK_IN_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST'] as const;
+const RESTAURANT_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST', 'KITCHEN'] as const;
+const HOUSEKEEPING_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST', 'HOUSEKEEPER'] as const;
+
+const OperationalHome = () => {
+  const role = useAuthStore((state) => state.user?.role);
+  if (role === 'KITCHEN') return <Navigate to="/restaurant" replace />;
+  if (role === 'HOUSEKEEPER') return <Navigate to="/housekeeping" replace />;
+  return <Dashboard />;
+};
 
 function App() {
   const { t } = useTranslation('common');
@@ -84,7 +95,7 @@ function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<OperationalHome />} />
               <Route path="/guests" element={<Guests />} />
               <Route path="/reservations" element={<Reservations />} />
               <Route path="/reservations/new" element={<ReservationForm />} />
@@ -95,12 +106,21 @@ function App() {
               <Route path="/quotations/:id" element={<QuotationDetail />} />
               <Route path="/quotations/:id/edit" element={<QuotationForm />} />
               <Route path="/stays" element={<Stays />} />
-              <Route path="/stays/check-in/:reservationId" element={<CheckInForm />} />
-              <Route path="/stays/walk-in" element={<WalkInCheckInForm />} />
+              <Route element={<ProtectedRoute allowedRoles={CHECK_IN_ROLES} />}>
+                <Route path="/stays/check-in/:reservationId" element={<CheckInForm />} />
+                <Route path="/stays/walk-in" element={<WalkInCheckInForm />} />
+              </Route>
               <Route path="/billing" element={<Billing />} />
-              <Route path="/restaurant" element={<Restaurant />} />
+              <Route element={<ProtectedRoute allowedRoles={RESTAURANT_ROLES} />}>
+                <Route path="/restaurant" element={<Restaurant />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={CHECK_IN_ROLES} />}>
+                <Route path="/assistant" element={<Assistant />} />
+              </Route>
               <Route path="/calendar" element={<CalendarPlanning />} />
-              <Route path="/housekeeping" element={<Housekeeping />} />
+              <Route element={<ProtectedRoute allowedRoles={HOUSEKEEPING_ROLES} />}>
+                <Route path="/housekeeping" element={<Housekeeping />} />
+              </Route>
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/rates" element={<RateCalendar />} />
               <Route path="/settings" element={<Settings />} />

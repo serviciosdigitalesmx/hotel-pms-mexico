@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utils/errorMessage';
 import { CreateUserModal } from './AdminUsers/CreateUserModal';
 import { ResetPasswordModal } from './AdminUsers/ResetPasswordModal';
 import { UserRow } from './AdminUsers/UserRow';
+import { DeleteUserModal } from './AdminUsers/DeleteUserModal';
 
 export function AdminUsers() {
   const { t } = useTranslation('admin');
@@ -19,11 +20,14 @@ export function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [resetTarget, setResetTarget] = useState<UserResponse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserResponse | null>(null);
 
   const openCreate = useCallback(() => setShowCreate(true), []);
   const closeCreate = useCallback(() => setShowCreate(false), []);
   const openReset = useCallback((u: UserResponse) => setResetTarget(u), []);
   const closeReset = useCallback(() => setResetTarget(null), []);
+  const openDelete = useCallback((u: UserResponse) => setDeleteTarget(u), []);
+  const closeDelete = useCallback(() => setDeleteTarget(null), []);
 
   const load = useCallback(() => {
     userService
@@ -50,6 +54,18 @@ export function AdminUsers() {
     closeReset();
     addToast(t('toast_reset_success'), 'success');
   }, [closeReset, addToast, t]);
+
+  const handleDeleted = useCallback(
+    (deleted: UserResponse) => {
+      setUsers((prev) => prev.filter((u) => u.id !== deleted.id));
+      closeDelete();
+      addToast(
+        t('toast_deleted', { username: deleted.username }),
+        'success',
+      );
+    },
+    [closeDelete, addToast, t],
+  );
 
   const handleToggle = useCallback(
     async (u: UserResponse) => {
@@ -109,6 +125,7 @@ export function AdminUsers() {
                   user={u}
                   onToggle={handleToggle}
                   onResetPassword={openReset}
+                  onDelete={openDelete}
                   currentUsername={currentUser?.username}
                 />
               ))}
@@ -128,6 +145,14 @@ export function AdminUsers() {
           user={resetTarget}
           onClose={closeReset}
           onSuccess={handleResetSuccess}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteUserModal
+          user={deleteTarget}
+          onClose={closeDelete}
+          onDeleted={handleDeleted}
         />
       )}
     </main>

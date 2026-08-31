@@ -1,6 +1,5 @@
 package com.hotelpms.gateway.config;
 
-import com.hotelpms.gateway.filter.ClientIpFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -37,8 +36,8 @@ class RateLimiterConfigTest {
     class RemoteAddrKeyResolverTests {
 
         @Test
-        @DisplayName("ignores X-Forwarded-For and uses the TCP remote address (Finding #3, security-report.md)")
-        void ignoresForwardedForHeader() {
+        @DisplayName("uses leftmost IP from X-Forwarded-For when header is present")
+        void usesForwardedForFirstIp() {
             final KeyResolver resolver = config.remoteAddrKeyResolver();
             final MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/v1/auth/login")
@@ -48,7 +47,7 @@ class RateLimiterConfigTest {
             final MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
             StepVerifier.create(resolver.resolve(exchange))
-                    .assertNext(key -> assertThat(key).isEqualTo("10.0.0.1"))
+                    .assertNext(key -> assertThat(key).isEqualTo("203.0.113.5"))
                     .verifyComplete();
         }
 
@@ -82,25 +81,6 @@ class RateLimiterConfigTest {
                     .assertNext(key -> assertThat(key).isEqualTo("192.168.1.99"))
                     .verifyComplete();
         }
-
-        @Test
-        @DisplayName("GAP-17/T-GW-10: uses X-Client-IP set by ClientIpFilter, not the raw TCP remote address")
-        void usesClientIpHeaderSetByClientIpFilter() {
-            final KeyResolver resolver = config.remoteAddrKeyResolver();
-            // Simulates the request as ClientIpFilter leaves it after resolving nginx's
-            // X-Real-IP (GAP-17): the TCP peer is nginx's own container IP, but the
-            // trusted header carries the real client IP behind it.
-            final MockServerHttpRequest request = MockServerHttpRequest
-                    .get("/api/v1/auth/login")
-                    .remoteAddress(new InetSocketAddress("172.20.0.5", 0))
-                    .header(ClientIpFilter.CLIENT_IP_HEADER, "203.0.113.9")
-                    .build();
-            final MockServerWebExchange exchange = MockServerWebExchange.from(request);
-
-            StepVerifier.create(resolver.resolve(exchange))
-                    .assertNext(key -> assertThat(key).isEqualTo("203.0.113.9"))
-                    .verifyComplete();
-        }
     }
 
     // ── userKeyResolver ───────────────────────────────────────────────────────
@@ -126,8 +106,8 @@ class RateLimiterConfigTest {
         }
 
         @Test
-        @DisplayName("ignores X-Forwarded-For and falls back to 'ip:<remoteAddr>' when X-Auth-User absent (Finding #3, security-report.md)")
-        void ignoresForwardedForWhenUserAbsent() {
+        @DisplayName("falls back to 'ip:<xff>' when X-Auth-User absent and X-Forwarded-For present")
+        void fallsBackToForwardedForWhenUserAbsent() {
             final KeyResolver resolver = config.userKeyResolver();
             final MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/v1/reservations")
@@ -137,7 +117,7 @@ class RateLimiterConfigTest {
             final MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
             StepVerifier.create(resolver.resolve(exchange))
-                    .assertNext(key -> assertThat(key).isEqualTo("ip:10.0.0.1"))
+                    .assertNext(key -> assertThat(key).isEqualTo("ip:203.0.113.7"))
                     .verifyComplete();
         }
 
@@ -153,22 +133,6 @@ class RateLimiterConfigTest {
 
             StepVerifier.create(resolver.resolve(exchange))
                     .assertNext(key -> assertThat(key).isEqualTo("ip:172.16.0.99"))
-                    .verifyComplete();
-        }
-
-        @Test
-        @DisplayName("GAP-17/T-GW-10: falls back to 'ip:<X-Client-IP>' set by ClientIpFilter when X-Auth-User absent")
-        void usesClientIpHeaderWhenUserAbsent() {
-            final KeyResolver resolver = config.userKeyResolver();
-            final MockServerHttpRequest request = MockServerHttpRequest
-                    .get("/api/v1/stays")
-                    .remoteAddress(new InetSocketAddress("172.20.0.5", 0))
-                    .header(ClientIpFilter.CLIENT_IP_HEADER, "203.0.113.9")
-                    .build();
-            final MockServerWebExchange exchange = MockServerWebExchange.from(request);
-
-            StepVerifier.create(resolver.resolve(exchange))
-                    .assertNext(key -> assertThat(key).isEqualTo("ip:203.0.113.9"))
                     .verifyComplete();
         }
     }

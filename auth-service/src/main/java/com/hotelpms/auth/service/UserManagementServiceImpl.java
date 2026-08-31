@@ -36,7 +36,7 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Override
     @Transactional(readOnly = true)
     public List<UserResponse> listUsers(final UUID hotelId) {
-        return userRepository.findAllByHotelId(hotelId)
+        return userRepository.findAllByHotelIdIncludingInactive(hotelId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -46,10 +46,10 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Override
     @Transactional
     public UserResponse createUser(final UUID hotelId, final CreateUserRequest request) {
-        if (userRepository.existsByUsername(request.username())) {
+        if (userRepository.existsByUsernameIncludingInactive(request.username())) {
             throw new DuplicateResourceException("USERNAME_ALREADY_EXISTS");
         }
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmailIncludingInactive(request.email())) {
             throw new DuplicateResourceException("EMAIL_ALREADY_EXISTS");
         }
 
@@ -97,6 +97,41 @@ public class UserManagementServiceImpl implements UserManagementService {
         userRepository.save(target);
         log.info("[AUTH] USER_ACTIVATED | userId={}", targetUserId);
         return toResponse(target);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public void deleteUserPermanently(
+            final UUID hotelId,
+            final UUID targetUserId,
+            final String requestingUser) {
+
+        final UserAccount target =
+                userRepository.findByIdAndHotelIdIncludingInactive(targetUserId, hotelId)
+                        .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+
+        if (target.getUsername().equals(requestingUser)) {
+            throw new IllegalStateException("CANNOT_DELETE_SELF");
+        }
+
+        if (target.isActive()) {
+            throw new IllegalStateException("USER_MUST_BE_DEACTIVATED_FIRST");
+        }
+
+        final int deleted =
+                userRepository.hardDeleteInactiveByIdAndHotelId(targetUserId, hotelId);
+
+        if (deleted != 1) {
+            throw new IllegalStateException("USER_DELETE_FAILED");
+        }
+
+        log.info(
+                "[AUTH] USER_PERMANENTLY_DELETED | userId={} | username={} | by={} | hotelId={}",
+                targetUserId,
+                target.getUsername(),
+                requestingUser,
+                hotelId);
     }
 
     /** {@inheritDoc} */

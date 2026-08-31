@@ -21,6 +21,11 @@ export const fbService = {
     return response.data.content;
   },
 
+  getOrdersByStayId: async (stayId: string): Promise<RestaurantOrderResponse[]> => {
+    const response = await api.get<RestaurantOrderResponse[]>(`${BASE_PATH}/stay/${stayId}`);
+    return response.data;
+  },
+
   confirmOrder: async (id: string): Promise<RestaurantOrderResponse> => {
     const response = await api.post<RestaurantOrderResponse>(`${BASE_PATH}/${id}/confirm`);
     return response.data;

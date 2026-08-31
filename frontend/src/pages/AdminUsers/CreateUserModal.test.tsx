@@ -49,6 +49,25 @@ describe('CreateUserModal', () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
   });
 
+  it.each([
+    ['KITCHEN', 'role_kitchen'],
+    ['HOUSEKEEPER', 'role_housekeeper'],
+  ] as const)('creates a user with the %s role', async (role, label) => {
+    const created = { id: 'u1', username: 'staff', email: 'staff@hotel.com', role, active: true, mustChangePassword: true, createdAt: '' };
+    vi.mocked(userService.createUser).mockResolvedValue(created as never);
+    render(<CreateUserModal onClose={onClose} onCreated={onCreated} />);
+
+    fireEvent.change(screen.getByLabelText('label_username'), { target: { value: 'staff' } });
+    fireEvent.change(screen.getByLabelText('label_email'), { target: { value: 'staff@hotel.com' } });
+    fireEvent.change(screen.getByLabelText('label_password'), { target: { value: 'Admin123' } });
+    fireEvent.change(screen.getByLabelText('label_role'), { target: { value: role } });
+
+    expect(screen.getByRole('option', { name: label })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('btn_create'));
+
+    await waitFor(() => expect(userService.createUser).toHaveBeenCalledWith(expect.objectContaining({ role })));
+  });
+
   it('passes axe accessibility check', async () => {
     const { container } = render(<CreateUserModal onClose={onClose} onCreated={onCreated} />);
     expect(await axe(container)).toHaveNoViolations();

@@ -68,7 +68,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     // -----------------------------------------------------------------------
 
     /** Roles allowed to perform any authenticated operation. */
-    private static final Set<String> OPERATIONAL_ROLES = Set.of("ADMIN", "OWNER", "RECEPTIONIST");
+    private static final Set<String> OPERATIONAL_ROLES =
+            Set.of("ADMIN", "OWNER", "RECEPTIONIST", "KITCHEN", "HOUSEKEEPER");
 
     /** Roles allowed to perform administrative write operations. */
     private static final Set<String> ADMIN_OWNER_ROLES = Set.of("ADMIN", "OWNER");
@@ -266,6 +267,9 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      *   <li>GUEST — no access to any authenticated API.</li>
      *   <li>RECEPTIONIST — cannot perform write operations on room-types or financial
      *       reports, cannot create/delete rooms, cannot access user management.</li>
+     *   <li>KITCHEN — limited to restaurant orders and reading hotel settings.</li>
+     *   <li>HOUSEKEEPER — limited to reading rooms, updating housekeeping status,
+     *       and reading hotel settings.</li>
      *   <li>ADMIN / OWNER — full access.</li>
      * </ul>
      *
@@ -280,6 +284,14 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         }
         if (ADMIN_OWNER_ROLES.contains(role)) {
             return true;
+        }
+        if ("KITCHEN".equals(role)) {
+            return path.startsWith("/api/v1/fb/orders")
+                    || isHotelSettingsRead(path, method);
+        }
+        if ("HOUSEKEEPER".equals(role)) {
+            return isHousekeepingRoomAccess(path, method)
+                    || isHotelSettingsRead(path, method);
         }
         // RECEPTIONIST checks
         if (path.startsWith(USERS_PATH_PREFIX)) {
@@ -299,6 +311,19 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             }
         }
         return true;
+    }
+
+    private static boolean isHotelSettingsRead(final String path, final HttpMethod method) {
+        return "/api/v1/stays/settings".equals(path) && method == HttpMethod.GET;
+    }
+
+    private static boolean isHousekeepingRoomAccess(final String path, final HttpMethod method) {
+        if (method == HttpMethod.GET && path.startsWith("/api/v1/rooms")) {
+            return true;
+        }
+        return method == HttpMethod.PATCH
+                && path.startsWith("/api/v1/rooms/")
+                && path.endsWith("/status");
     }
 
     private Mono<Void> onError(final ServerWebExchange exchange, final String err, final HttpStatus httpStatus) {

@@ -1,13 +1,43 @@
 package com.hotelpms.frontdesk.client.dto;
 
 /**
- * Minimal request body to create a guest profile from a quotation prospect at
- * conversion time. guest-service's {@code GuestRequest} accepts more optional
- * fields — only the ones a quotation prospect actually carries are sent.
+ * Guest creation contract used by frontdesk-service.
  *
- * @param firstName the prospect's first name
- * @param lastName  the prospect's last name
- * @param email     the prospect's email
+ * CFDI fields are optional for normal hotel operation.
  */
-public record GuestCreateRequest(String firstName, String lastName, String email) {
+public record GuestCreateRequest(
+        String firstName,
+        String lastName,
+        String email,
+        String phone,
+        String address,
+        String city,
+        String country,
+        String rfc,
+        String fiscalName,
+        String fiscalPostalCode,
+        String fiscalRegime,
+        String cfdiUse,
+        String billingEmail) {
+
+    public GuestCreateRequest(
+            final String firstName,
+            final String lastName,
+            final String email) {
+
+        this(
+                firstName,
+                lastName,
+                email,
+                null,
+                null,
+                null,
+                "MX",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
 }

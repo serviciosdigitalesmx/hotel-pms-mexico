@@ -23,6 +23,7 @@ const renderRow = (props: Partial<React.ComponentProps<typeof UserRow>> = {}) =>
           user={USER_ACTIVE}
           onToggle={vi.fn()}
           onResetPassword={vi.fn()}
+          onDelete={vi.fn()}
           currentUsername="admin"
           {...props}
         />
