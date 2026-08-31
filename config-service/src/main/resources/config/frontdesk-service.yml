@@ -13,6 +13,7 @@ spring:
       # key namespace (internal-auth:nonce:*).
       host: ${INTERNAL_REDIS_HOST:redis}
       port: ${INTERNAL_REDIS_PORT:6379}
+      password: ${INTERNAL_REDIS_PASSWORD}
   cloud:
     discovery:
       client:

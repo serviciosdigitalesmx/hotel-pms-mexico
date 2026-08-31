@@ -56,15 +56,6 @@ export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) 
     }
   }, [addToast, invoice.documentType, invoice.id, onUpdated]);
 
-  const handleDownloadFatturaPA = useCallback(async () => {
-    try {
-      await billingService.validateFatturaPAXml(invoice.id);
-      billingService.downloadFatturaPAXml(invoice.id);
-    } catch (error) {
-      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      addToast(detail || 'fattura_pa_download_failed', 'error');
-    }
-  }, [addToast, invoice.id]);
 
   const formatCurrency = useCallback(
     (val: number) =>
@@ -198,17 +189,6 @@ export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) 
               {t(`switch_to_${invoice.documentType === 'FATTURA' ? 'ricevuta' : 'fattura'}`, { ns: 'billing' })}
             </button>
           </div>
-          {invoice.documentType === 'FATTURA' && (
-            <div className="flex items-center justify-between gap-4 mt-3">
-              <div className="text-on-surface-variant">
-                <span>{t('sdi_status_label', { ns: 'billing' })}</span>:{' '}
-                <span>{t(`sdi_status_${invoice.sdiStatus.toLowerCase()}`, { ns: 'billing' })}</span>
-              </div>
-              <button type="button" onClick={handleDownloadFatturaPA} className="text-primary text-sm font-medium">
-                {t('download_fattura_pa', { ns: 'billing' })}
-              </button>
-            </div>
-          )}
         </section>
       )}
 

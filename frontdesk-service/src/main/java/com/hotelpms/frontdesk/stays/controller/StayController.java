@@ -1,21 +1,20 @@
 package com.hotelpms.frontdesk.stays.controller;
 
+import com.hotelpms.frontdesk.stays.dto.GuestLastStayResponse;
 import com.hotelpms.frontdesk.stays.dto.AlloggiatiFailureSummaryResponse;
 import com.hotelpms.frontdesk.stays.dto.AlloggiatiRowDto;
-import com.hotelpms.frontdesk.stays.dto.GuestLastStayResponse;
 import com.hotelpms.frontdesk.stays.dto.StayRequest;
 import com.hotelpms.frontdesk.stays.dto.StayResponse;
 import com.hotelpms.frontdesk.stays.dto.StaySummaryResponse;
+import com.hotelpms.frontdesk.stays.service.StayService;
 import com.hotelpms.frontdesk.stays.service.AlloggiatiReportService;
 import com.hotelpms.frontdesk.stays.service.AlloggiatiWebSenderService;
-import com.hotelpms.frontdesk.stays.service.StayService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -32,13 +31,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.util.List;
 import java.util.Objects;
+import java.util.List;
+import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -160,7 +160,7 @@ public class StayController {
      * @param date the check-in date in YYYY-MM-DD format
      * @return the downloadable fixed-width text report
      */
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     @GetMapping("/reports/alloggiati")
     @SuppressWarnings("PMD.LooseCoupling")
     public ResponseEntity<byte[]> downloadAlloggiatiReport(
@@ -186,7 +186,7 @@ public class StayController {
      * @param date the check-in date in YYYY-MM-DD format
      * @return the downloadable JSON array of guest arrival records
      */
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     @GetMapping("/reports/alloggiati/json")
     @SuppressWarnings("PMD.LooseCoupling")
     public ResponseEntity<List<AlloggiatiRowDto>> downloadAlloggiatiJson(
@@ -208,7 +208,7 @@ public class StayController {
      * @param date the check-in date in YYYY-MM-DD format
      * @return 200 OK on successful transmission
      */
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     @PostMapping("/reports/alloggiati/submit")
     public ResponseEntity<Void> submitAlloggiatiReport(
             @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate date) {
@@ -224,7 +224,7 @@ public class StayController {
      *
      * @return the failure summary
      */
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     @GetMapping("/reports/alloggiati/failures/summary")
     public ResponseEntity<AlloggiatiFailureSummaryResponse> getAlloggiatiFailureSummary() {
         return ResponseEntity.ok(stayService.getAlloggiatiFailureSummary(Objects.requireNonNull(extractHotelId())));

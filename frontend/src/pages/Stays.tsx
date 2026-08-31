@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { stayService } from '../services/stayService';
 import { useToastStore } from '../store/toastStore';
-import { useAuthStore } from '../store/authStore';
 import type { StayResponse, StayStatus } from '../types/stay.types';
 import { MaterialIcon } from '../components/MaterialIcon';
 import { M3Button } from '../components/m3/M3Button';
@@ -11,7 +10,6 @@ import { useTranslation } from 'react-i18next';
 
 import { StayRow } from './Stays/StayRow';
 import { StayStatusChip } from './Stays/StayStatusChip';
-import { AlloggiatiReportSection } from './Stays/AlloggiatiReportSection';
 import { getStatusTone } from './Stays/stayStatusTone';
 import { getErrorMessage } from '../utils/errorMessage';
 
@@ -43,8 +41,6 @@ export const Stays = memo(() => {
   const [sortField, setSortField] = useState<StaySortField>(() => navState?.sortField ?? 'actualCheckInTime');
   const [sortDir, setSortDir] = useState<SortDir>(() => navState?.sortDir ?? 'desc');
   const addToast = useToastStore((s) => s.addToast);
-  const role = useAuthStore((s) => s.user?.role);
-  const isAdminOrOwner = role === 'ADMIN' || role === 'OWNER';
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -239,7 +235,6 @@ export const Stays = memo(() => {
         </div>
       </div>
 
-      <AlloggiatiReportSection isAdminOrOwner={isAdminOrOwner} />
 
       {loading ? (
         <div className="flex justify-center items-center h-64 bg-surface rounded-shape-md shadow-elevation-1">

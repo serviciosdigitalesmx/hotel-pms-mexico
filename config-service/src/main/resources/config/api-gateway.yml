@@ -6,6 +6,7 @@ spring:
     redis:
       host: "${GW_REDIS_HOST:redis}"
       port: 6379
+      password: "${INTERNAL_REDIS_PASSWORD}"
   cloud:
     gateway:
       globalcors:

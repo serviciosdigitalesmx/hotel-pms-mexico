@@ -62,8 +62,8 @@ public class InvoiceController {
     private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
 
     private final InvoiceService invoiceService;
-    private final PdfInvoiceService pdfInvoiceService;
     private final FatturaPAService fatturaPAService;
+    private final PdfInvoiceService pdfInvoiceService;
 
     /**
      * Retrieves an invoice by its ID.
@@ -244,7 +244,7 @@ public class InvoiceController {
      * @return UTF-8 encoded XML bytes with {@code Content-Disposition: attachment} header
      */
     @GetMapping(value = "/{id}/fatturaPA", produces = "application/xml;charset=UTF-8")
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     public ResponseEntity<byte[]> getFatturaPAXml(@NonNull @PathVariable final UUID id) {
         log.info("REST request to generate FatturaPA XML for invoice {}", id);
         final byte[] xml = fatturaPAService.generateXml(id);
@@ -269,7 +269,7 @@ public class InvoiceController {
      * @return 200 with no body if generation would succeed
      */
     @GetMapping("/{id}/fatturaPA/validate")
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     public ResponseEntity<Void> validateFatturaPAXml(@NonNull @PathVariable final UUID id) {
         fatturaPAService.validateXmlGeneration(id);
         return ResponseEntity.ok().build();
@@ -284,7 +284,7 @@ public class InvoiceController {
      * @return the updated invoice response
      */
     @PatchMapping("/{id}/sdi-status")
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     public ResponseEntity<InvoiceResponse> updateSdiStatus(
             @NonNull @PathVariable final UUID id,
             @NonNull @Valid @RequestBody final SdiStatusRequest request) {
@@ -310,7 +310,7 @@ public class InvoiceController {
      * @return ZIP bytes with {@code Content-Disposition: attachment} header
      */
     @GetMapping(value = "/export", produces = "application/zip")
-    @PreAuthorize(ROLE_ADMIN_OR_OWNER)
+    @PreAuthorize("denyAll()")
     public ResponseEntity<byte[]> exportBatch(
             @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate from,
             @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate to,
