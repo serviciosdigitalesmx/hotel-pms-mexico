@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+# Reversible Native Image variant for guest-service.
+# The JVM image remains guest-service/Dockerfile.
+FROM ghcr.io/graalvm/native-image-community:24.0.2 AS builder
+ARG NATIVE_QUICK_BUILD=false
+WORKDIR /workspace
+RUN microdnf install -y findutils \
+    && microdnf clean all
+COPY . .
+RUN --mount=type=cache,target=/root/.gradle \
+    chmod +x ./gradlew \
+    && sed -i 's#configserver:${CONFIG_SERVER_URL:#optional:configserver:${CONFIG_SERVER_URL:#' guest-service/src/main/resources/application.yml \
+    && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \
+    && SPRING_PROFILES_ACTIVE=guest-service \
+      SPRING_CONFIG_ADDITIONAL_LOCATION=file:/workspace/config-service/src/main/resources/config/guest-service.yml \
+      CONFIG_SERVER_PASSWORD=build-only \
+      INTERNAL_HMAC_SECRET=build-only \
+      INTERNAL_REDIS_PASSWORD=build-only \
+      SPRING_DATA_REDIS_PASSWORD=build-only \
+      SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/hotel_guest \
+      SPRING_DATASOURCE_USERNAME=build-only \
+      SPRING_DATASOURCE_PASSWORD=build-only \
+      ./gradlew :guest-service:nativeCompile -PnativeQuickBuild=${NATIVE_QUICK_BUILD} --no-daemon --stacktrace --max-workers=2
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system spring \
+    && useradd --system --gid spring --no-create-home spring
+USER spring:spring
+WORKDIR /app
+COPY --from=builder /workspace/guest-service/build/native/nativeCompile/guest-service app
+EXPOSE 8083
+ENTRYPOINT ["/app/app"]
