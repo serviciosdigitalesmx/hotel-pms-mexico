@@ -1,0 +1,52 @@
+name: Guest Service Native Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_quick_build:
+        description: "Use GraalVM quick build (-Ob)"
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "guest-service/**"
+      - "config-service/**"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/guest-native.yml"
+
+jobs:
+  native-build:
+    name: Build guest-service Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Native image
+        run: |
+          docker buildx build \
+            --progress=plain \
+            --build-arg NATIVE_QUICK_BUILD=${{ inputs.native_quick_build || 'true' }} \
+            --tag hotel-pms/guest-service-native:ci \
+            --file guest-service/Dockerfile.native \
+            --load .
+
+      - name: Verify image
+        run: docker image inspect hotel-pms/guest-service-native:ci
+
+      - name: Export image metadata
+        run: |
+          docker image inspect hotel-pms/guest-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
