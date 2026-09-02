@@ -3,6 +3,8 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
+    // Opt-in Native Image toolchain; the existing JVM Dockerfile remains unchanged.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -16,6 +18,21 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.guest.GuestServiceApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                // Iteration build: validate reachability/runtime before the final -O2 image.
+                buildArgs.add("-Ob")
+            }
+            // Reuse the validated notification-service build envelope.
+            buildArgs.add("-J-Xmx4600m")
+            buildArgs.add("--parallelism=4")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 configurations {
@@ -106,4 +123,24 @@ dependencyManagement {
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("net.bytebuddy.experimental", "true")
+}
+
+// Spring AOT sources are generated framework code. Keep QA and JVM tests on
+// the project's handwritten sources; processTestAot would also try to resolve
+// Config Server while assembling the ordinary JVM regression suite.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }
