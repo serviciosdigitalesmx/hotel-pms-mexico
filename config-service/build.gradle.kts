@@ -50,6 +50,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=org.apache.sshd")
             buildArgs.add("--initialize-at-build-time=java.util.function.Supplier")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
+            buildArgs.add("--initialize-at-build-time=ch.qos.logback")
         }
     }
 }
