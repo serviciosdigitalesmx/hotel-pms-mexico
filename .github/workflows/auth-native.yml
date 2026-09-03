@@ -80,6 +80,7 @@ jobs:
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/auth-service-jvm:ci --file auth-service/Dockerfile .
           docker run --detach --name auth-native-config \
+            --restart unless-stopped \
             --publish 8888:8888 --publish 8090:8090 \
             --env CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
             --env CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
@@ -113,6 +114,7 @@ jobs:
                 http://127.0.0.1:8888/auth-service/default >/dev/null; then
               echo "Config Server container stopped after readiness" >&2
               docker logs auth-native-config >&2 || true
+              docker inspect auth-native-config >&2 || true
               docker ps -a >&2 || true
               exit 1
             fi
@@ -122,7 +124,13 @@ jobs:
           SPRING_PROFILES_ACTIVE=auth-service \
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
+            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2 \
+            || {
+              echo "Config Server state after processAot failure" >&2
+              docker logs auth-native-config >&2 || true
+              docker inspect auth-native-config >&2 || true
+              exit 1
+            }
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
