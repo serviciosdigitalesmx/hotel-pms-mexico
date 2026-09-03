@@ -30,11 +30,19 @@ wait_for_health() {
   local label="$1"
   local url="$2"
   local attempts="${3:-90}"
-  local response
+  local container="${4:-}"
+  local response container_state
   for ((i = 1; i <= attempts; i++)); do
     response="$(curl --silent --show-error --max-time 3 "${url}" 2>/dev/null || true)"
     if jq -e '.status == "UP"' >/dev/null 2>&1 <<<"${response}"; then
       return 0
+    fi
+    if [[ -n "${container}" ]]; then
+      container_state="$(docker inspect --format '{{.State.Status}}' "${container}" 2>/dev/null || true)"
+      if [[ "${container_state}" == "exited" || "${container_state}" == "dead" ]]; then
+        echo "${label} container stopped before becoming UP" >&2
+        return 1
+      fi
     fi
     sleep 2
   done
@@ -77,7 +85,7 @@ docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
   --env "CONFIG_SERVER_PASSWORD=${CI_CONFIG_PASSWORD}" \
   --env 'JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
   hotel-pms/config-service:ci >/dev/null
-wait_for_health config-service http://127.0.0.1:18091/actuator/health 90
+wait_for_health config-service http://127.0.0.1:18091/actuator/health 90 "${CONFIG_CONTAINER}"
 curl --silent --show-error --fail --user "configuser:${CI_CONFIG_PASSWORD}" \
   http://127.0.0.1:18888/guest-service/default \
   | jq -e '.name == "guest-service"' >/dev/null
@@ -91,13 +99,24 @@ docker run --detach --name "${POSTGRES_CONTAINER}" --network "${NETWORK_NAME}" \
 docker run --detach --name "${REDIS_CONTAINER}" --network "${NETWORK_NAME}" \
   redis:8.8.1-alpine redis-server --requirepass "${CI_REDIS_PASSWORD}" >/dev/null
 
+postgres_ready_streak=0
 for _ in {1..60}; do
-  if docker exec "${POSTGRES_CONTAINER}" pg_isready --username postgres >/dev/null 2>&1; then
-    break
+  if docker exec "${POSTGRES_CONTAINER}" pg_isready --username postgres >/dev/null 2>&1 \
+      && docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname postgres \
+        --tuples-only --no-align --command 'select 1;' 2>/dev/null | grep -qx 1; then
+    postgres_ready_streak="$((postgres_ready_streak + 1))"
+    if [[ "${postgres_ready_streak}" -ge 2 ]]; then
+      break
+    fi
+  else
+    postgres_ready_streak=0
   fi
   sleep 2
 done
-docker exec "${POSTGRES_CONTAINER}" pg_isready --username postgres >/dev/null
+if [[ "${postgres_ready_streak}" -lt 2 ]]; then
+  echo "PostgreSQL did not remain ready for two consecutive checks" >&2
+  exit 1
+fi
 
 for database in hotel_guest hotel_frontdesk hotel_billing; do
   docker exec "${POSTGRES_CONTAINER}" createdb --username postgres "${database}"
@@ -150,8 +169,8 @@ docker run --detach --name "${BILLING_CONTAINER}" --network "${NETWORK_NAME}" \
   --env 'JAVA_TOOL_OPTIONS=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError' \
   hotel-pms/billing-service:ci >/dev/null
 
-wait_for_health frontdesk-service http://127.0.0.1:18092/actuator/health 120
-wait_for_health billing-service http://127.0.0.1:18093/actuator/health 120
+wait_for_health frontdesk-service http://127.0.0.1:18092/actuator/health 120 "${FRONTDESK_CONTAINER}"
+wait_for_health billing-service http://127.0.0.1:18093/actuator/health 120 "${BILLING_CONTAINER}"
 
 echo "Starting guest-service Native Image"
 startup_started_ms="$(date +%s%3N)"
@@ -171,7 +190,7 @@ docker run --detach --name "${GUEST_CONTAINER}" --network "${NETWORK_NAME}" \
   --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
   hotel-pms/guest-service-native:ci >/dev/null
 
-wait_for_health guest-service-native http://127.0.0.1:18090/actuator/health 120
+wait_for_health guest-service-native http://127.0.0.1:18090/actuator/health 120 "${GUEST_CONTAINER}"
 startup_ready_ms="$(date +%s%3N)"
 startup_ms="$((startup_ready_ms - startup_started_ms))"
 
