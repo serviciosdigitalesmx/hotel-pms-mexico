@@ -81,6 +81,18 @@ signed_request() {
   curl "${curl_args[@]}" "${url}"
 }
 
+unsigned_request_status() {
+  local output_file="$1" url="$2" status curl_rc
+  set +e
+  status="$(curl --silent --show-error --max-time 10 --output "${output_file}" \
+    --write-out '%{http_code}' "${url}" 2>"${output_file}.stderr")"
+  curl_rc=$?
+  set -e
+  printf 'curl_rc=%s http_status=%s url=%s\n' "${curl_rc}" "${status:-000}" "${url}" \
+    | tee "${output_file}.meta" >&2
+  printf '%s\n' "${status:-000}"
+}
+
 echo "Starting real Config Server"
 docker network create "${NETWORK_NAME}" >/dev/null
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -214,10 +226,10 @@ stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
 invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
 jq -e '.status == "CHECKED_IN" and .roomNumber != null' "${RESULT_DIR}/checkin.json" >/dev/null
 
-guest_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/guest-missing-hmac.json" \
-  --write-out '%{http_code}' "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
-billing_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/billing-missing-hmac.json" \
-  --write-out '%{http_code}' "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}")"
+guest_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/guest-missing-hmac.json" \
+  "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
+billing_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/billing-missing-hmac.json" \
+  "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}")"
 [[ "${guest_missing_hmac_code}" == 401 && "${billing_missing_hmac_code}" == 401 ]]
 
 cross_tenant_code="$(signed_request GET "http://127.0.0.1:18081/api/v1/reservations/${reservation_id}" \
