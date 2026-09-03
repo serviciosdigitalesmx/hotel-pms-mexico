@@ -44,7 +44,6 @@ graalvmNative {
             // implementation classes cannot remain in the runtime-init heap.
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpVersionSelector.${'$'}NamedVersionSelector")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd")
