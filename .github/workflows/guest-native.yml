@@ -13,7 +13,14 @@ on:
       - main
     paths:
       - "guest-service/**"
+      - "guest-service/Dockerfile.native.dockerignore"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
       - "config-service/**"
+      - "frontdesk-service/**"
+      - "billing-service/**"
+      - "scripts/ci/verify-guest-native-runtime.sh"
+      - ".dockerignore"
       - "gradle/**"
       - "gradlew"
       - "build.gradle.kts"
@@ -21,16 +28,66 @@ on:
       - ".github/workflows/guest-native.yml"
 
 jobs:
-  native-build:
-    name: Build guest-service Native Image
+  native-build-and-runtime:
+    name: Build and validate guest-service Native Image
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
       contents: read
       actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build real JVM integration dependencies
+        run: |
+          chmod +x ./gradlew
+          ./gradlew \
+            :config-service:bootJar \
+            :frontdesk-service:bootJar \
+            :billing-service:bootJar \
+            --no-daemon --stacktrace --max-workers=2
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
+          docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
+
+      - name: Start real Config Server for AOT
+        run: |
+          docker network create guest-native-ci
+          docker run --detach \
+            --name guest-native-config \
+            --network guest-native-ci \
+            --publish 18888:8888 \
+            --publish 18091:8090 \
+            --env CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+            hotel-pms/config-service:ci
+          for attempt in {1..90}; do
+            health="$(curl --silent --max-time 3 http://127.0.0.1:18091/actuator/health 2>/dev/null || true)"
+            if jq -e '.status == "UP"' >/dev/null 2>&1 <<<"${health}"; then
+              break
+            fi
+            sleep 2
+          done
+          curl --silent --show-error --fail http://127.0.0.1:18091/actuator/health \
+            | jq -e '.status == "UP"'
+          curl --silent --show-error --fail \
+            --user "configuser:${CI_CONFIG_PASSWORD}" \
+            http://127.0.0.1:18888/guest-service/default \
+            | jq -e '.name == "guest-service"'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,16 +97,52 @@ jobs:
         with:
           context: .
           file: guest-service/Dockerfile.native
+          network: host
           load: true
           push: false
           tags: hotel-pms/guest-service-native:ci
           build-args: |
             NATIVE_QUICK_BUILD=${{ inputs.native_quick_build || 'true' }}
+            CONFIG_SERVER_URL=http://127.0.0.1:18888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Verify image
-        run: docker image inspect hotel-pms/guest-service-native:ci
+      - name: Verify image metadata
+        run: |
+          docker image inspect hotel-pms/guest-service-native:ci
+          docker image inspect hotel-pms/guest-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
 
-      - name: Export image metadata
-        run: docker image inspect hotel-pms/guest-service-native:ci --format 'image_size_bytes={{.Size}}'
+      - name: Run Native runtime and integration gate
+        run: bash scripts/ci/verify-guest-native-runtime.sh
+
+      - name: Publish runtime metrics
+        if: always()
+        run: |
+          if [[ -f build/guest-native-runtime/metrics.txt ]]; then
+            cat build/guest-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-native-runtime-evidence
+          path: build/guest-native-runtime
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            guest-service-native \
+            guest-native-billing \
+            guest-native-frontdesk \
+            guest-native-redis \
+            guest-native-postgres \
+            guest-native-config 2>/dev/null || true
+          docker network rm guest-native-ci 2>/dev/null || true

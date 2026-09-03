@@ -1,18 +1,29 @@
-# Keep source available for the opt-in Native Image builder; exclude generated
-# output instead. JVM service images still copy only their pre-built JARs.
-**/build/
+# Keep source available for the opt-in Native Image builder. The dedicated
+# guest-service/Dockerfile.native.dockerignore keeps its context minimal.
+# JVM service images still receive their pre-built build/libs JARs.
 .gradle/
-.env
-.env.*
-**/.env
-**/.env.*
+*/build/classes/
+*/build/generated/
+*/build/generated-sources/
+*/build/tmp/
+*/build/resources/
+*/build/reports/
+*/build/test-results/
+*/build/native/
+/build/
 frontend/
 docs/
 backup/
 .git/
+.github/
 .add/
 .ralph-add/
+scripts/ci/
 argos
 argos-local
 *.backup-*
 *.env.backup-*
+.env
+.env.*
+**/.env
+**/.env.*
