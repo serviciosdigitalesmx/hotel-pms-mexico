@@ -32,18 +32,6 @@ graalvmNative {
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
-            // Config Server brings JGit/SSHD transitively for its optional Git
-            // backend; this service uses only the classpath native repository.
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.file.root.RootedFileSystemProvider")
-            buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
-            buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.LoggerContext")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpErrorDataHandler")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpVersionSelector\$NamedVersionSelector")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer\$1")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory,java.util.function.Supplier")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.PropertyResolver\$1")
         }
     }
 }
@@ -67,7 +55,17 @@ ext {
 }
 
 dependencies {
-    implementation("org.springframework.cloud:spring-cloud-config-server")
+    // This service uses the classpath native repository only. Config Server's
+    // optional Git backend pulls JGit/SSHD and prevents GraalVM image creation;
+    // remove those unused backends without changing the native/JVM contract.
+    implementation("org.springframework.cloud:spring-cloud-config-server") {
+        exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit")
+        exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit.http.apache")
+        exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit.ssh.apache")
+        exclude(group = "org.apache.sshd", module = "sshd-osgi")
+        exclude(group = "org.apache.sshd", module = "sshd-sftp")
+        exclude(group = "net.i2p.crypto", module = "eddsa")
+    }
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
