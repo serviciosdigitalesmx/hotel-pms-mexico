@@ -1,0 +1,166 @@
+name: Auth Service Native Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_quick_build:
+        description: "Use GraalVM quick build (-Ob); disable for the final -O2 gate"
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "auth-service/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "config-service/**"
+      - "scripts/ci/verify-auth-native-runtime.sh"
+      - ".dockerignore"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/auth-native.yml"
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate auth-service Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+      CI_JWT_SECRET: TmF0aXZlQXV0aC1jaS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-auth-native-jvm21-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-auth-native-jvm21-
+
+      - name: Run cheap AOT and JVM regression gates
+        env:
+          SPRING_CONFIG_IMPORT: optional:configserver:http://127.0.0.1:8888
+          SPRING_PROFILES_ACTIVE: auth-service
+          CONFIG_SERVER_PASSWORD: ${{ env.CI_CONFIG_PASSWORD }}
+          INTERNAL_HMAC_SECRET: ${{ env.CI_HMAC_SECRET }}
+          INTERNAL_REDIS_PASSWORD: ${{ env.CI_REDIS_PASSWORD }}
+          SPRING_DATA_REDIS_PASSWORD: ${{ env.CI_REDIS_PASSWORD }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/hotel_auth
+          SPRING_DATASOURCE_USERNAME: native-ci
+          SPRING_DATASOURCE_PASSWORD: native-ci
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :config-service:bootJar :auth-service:test --no-daemon --stacktrace --max-workers=2
+          SPRING_PROFILES_ACTIVE=native CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+            java -jar config-service/build/libs/*-SNAPSHOT.jar >/tmp/auth-native-config.log 2>&1 &
+          config_pid=$!
+          trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
+          config_ready=false
+          for _ in {1..120}; do
+            if curl --silent --fail --max-time 3 http://127.0.0.1:8090/actuator/health >/dev/null; then
+              config_ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "${config_ready}" != true ]]; then
+            echo "Config Server did not become ready on management port 8090" >&2
+            cat /tmp/auth-native-config.log >&2 || true
+            ps -ef | grep -E 'config-service|java' || true
+            exit 1
+          fi
+          CONFIG_SERVER_URL=http://127.0.0.1:8888 \
+            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
+
+      - name: Build JVM fallback and Config Server images
+        run: |
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/auth-service-jvm:ci --file auth-service/Dockerfile .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Each ubuntu-latest runner invokes one nativeCompile/native-image only.
+      # Pull requests use -Ob; the manually dispatched false mode is the final -O2 gate.
+      - name: Build Auth Native Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: auth-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/auth-service-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=${{ github.event_name != 'workflow_dispatch' || inputs.native_quick_build }}
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+            JWT_SECRET=${{ env.CI_JWT_SECRET }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Native image metadata
+        run: |
+          docker image inspect hotel-pms/auth-service-native:ci
+          docker image inspect hotel-pms/auth-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
+
+      - name: Run Native runtime and integration gate
+        env:
+          CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
+        run: bash scripts/ci/verify-auth-native-runtime.sh
+
+      - name: Publish runtime metrics
+        if: always()
+        run: |
+          if [[ -f build/auth-native-runtime/metrics.txt ]]; then
+            cat build/auth-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          if [[ -f build/auth-native-runtime/failure-class.txt ]]; then
+            echo "Failure classification: $(<build/auth-native-runtime/failure-class.txt)" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-native-runtime-evidence
+          path: build/auth-native-runtime
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            auth-service-native \
+            auth-service-jvm \
+            auth-native-redis \
+            auth-native-postgres \
+            auth-native-config 2>/dev/null || true
+          docker network rm auth-native-ci 2>/dev/null || true
