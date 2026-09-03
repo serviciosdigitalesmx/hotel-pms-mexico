@@ -29,6 +29,14 @@ graalvmNative {
             } else {
                 buildArgs.add("-O2")
             }
+            // PDFBox reaches the JDK's headless AWT implementation. Keep the
+            // AWT initialization path consistent between image generation and
+            // the Linux runtime container.
+            buildArgs.add("-Djava.awt.headless=true")
+            // AWT's JNI libraries are emitted beside the native executable;
+            // this mode keeps that supported dynamic-library layout while
+            // avoiding a libc-dependent executable at link time.
+            buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")

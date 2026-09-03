@@ -64,8 +64,8 @@ RUN apt-get update \
     && useradd --system --gid spring --no-create-home spring
 USER spring:spring
 WORKDIR /app
-ENV LD_LIBRARY_PATH=/app
-ENV JAVA_TOOL_OPTIONS=-Djava.awt.headless=true
+ENV LD_LIBRARY_PATH=/app:/usr/lib64:/lib64:/lib:/usr/lib
+ENV JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Djava.library.path=/app"
 COPY --from=builder /workspace/billing-service/build/native/nativeCompile/billing-service app
 COPY --from=builder /workspace/billing-service/build/native/nativeCompile/lib*.so ./
 EXPOSE 8085 8090
