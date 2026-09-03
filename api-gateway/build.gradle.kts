@@ -2,7 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
-    // Opt-in Native Image toolchain; api-gateway/Dockerfile remains the JVM fallback.
+    // Opt-in Native Image support. The existing JVM bootJar/Dockerfile path is unchanged.
     id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
@@ -22,13 +22,13 @@ springBoot {
 graalvmNative {
     binaries {
         named("main") {
-            // The workflow uses -Ob for the inexpensive reachability gate and
-            // -O2 for the final optimized gate. Keep exactly one optimization
-            // flag per native image invocation.
-            val nativeQuickBuild = providers.gradleProperty("nativeQuickBuild")
-                .map(String::toBoolean)
-                .orElse(false)
-            buildArgs.add(nativeQuickBuild.map { quick -> if (quick) "-Ob" else "-O2" })
+            // Pull requests use -Ob for a cheap reachability/runtime check;
+            // the manual final gate passes nativeQuickBuild=false and uses -O2.
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                buildArgs.add("-Ob")
+            } else {
+                buildArgs.add("-O2")
+            }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
@@ -93,15 +93,20 @@ tasks.withType<Test> {
     systemProperty("net.bytebuddy.experimental", "true")
 }
 
-// Spring AOT test sources are not part of the cheap JVM/native runtime gates.
-// Disabling only these generated-test tasks avoids an unnecessary second AOT
-// path while leaving the ordinary gateway tests and processAot enabled.
+// Framework-generated AOT test tasks are not part of the cheap JVM regression
+// gate and would try to resolve Config Server while assembling unit tests.
 tasks.matching {
     it.name in setOf(
         "processTestAot",
         "compileAotTestJava",
         "processAotTestResources",
-        "aotTestClasses"
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
     )
 }.configureEach {
     enabled = false

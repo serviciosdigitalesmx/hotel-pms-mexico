@@ -1,22 +1,16 @@
-# Keep source and the Gradle multi-project build available to nativeCompile.
-*/build/*
+# Used instead of the repository .dockerignore for the native gateway build.
+# Keep only Gradle inputs, gateway source, and the real Config Server JAR used
+# during AOT.
+*
+!gradlew
+!gradle/
+!gradle/**
+!settings.gradle.kts
+!build.gradle.kts
+!api-gateway/
+!api-gateway/**
+api-gateway/build/
+!config-service/
 !config-service/build/
 !config-service/build/libs/
-!config-service/build/libs/*-SNAPSHOT.jar
-.gradle/
-.git/
-.github/
-.add/
-.ralph-add/
-frontend/
-docs/
-backup/
-scripts/ci/
-argos
-argos-local
-.env
-.env.*
-**/.env
-**/.env.*
-*.backup-*
-*.env.backup-*
+!config-service/build/libs/*.jar
