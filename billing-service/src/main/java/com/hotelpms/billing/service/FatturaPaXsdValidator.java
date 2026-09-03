@@ -9,7 +9,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import javax.xml.XMLConstants;
-import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
@@ -53,21 +52,19 @@ public class FatturaPaXsdValidator {
         try {
             final SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             factory.setResourceResolver(resourceResolver());
-            try (InputStream fatturaXsd = new ClassPathResource(FATTURAPA_XSD).getInputStream();
-                    InputStream xmldsigXsd = new ClassPathResource(XMLDSIG_XSD).getInputStream()) {
+            try (InputStream fatturaXsd = new ClassPathResource(FATTURAPA_XSD).getInputStream()) {
                 final StreamSource fatturaSource = new StreamSource(fatturaXsd);
-                final StreamSource xmldsigSource = new StreamSource(xmldsigXsd);
                 // Keep a deterministic classpath base for the import when the
                 // application is packaged as a Native Image. Without it the
                 // XML parser can discard the resolver's bundled stream and
                 // attempt to resolve the official remote URL instead.
                 fatturaSource.setSystemId(FATTURAPA_XSD);
-                xmldsigSource.setSystemId(XMLDSIG_XSD);
-                // Register the imported namespace first. The Native Image XML
-                // schema compiler is order-sensitive here: when FatturaPA is
-                // presented first, it can lose the imported global declaration
-                // even though the resolver returns the bundled XML-DSig stream.
-                this.schema = factory.newSchema(new Source[]{xmldsigSource, fatturaSource});
+                // Resolve the XML-DSig import only through LSInput#getByteStream.
+                // Native Image embeds the XSD as a resource rather than a file;
+                // giving the resolver a relative systemId makes Xerces attempt
+                // to open that path from the container filesystem and lose the
+                // imported ds:Signature declaration.
+                this.schema = factory.newSchema(fatturaSource);
             }
         } catch (final IOException | SAXException ex) {
             // Fails application startup rather than at first invoice export — a broken
@@ -124,7 +121,7 @@ public class FatturaPaXsdValidator {
             // The byte stream is bundled; expose that same local identifier as
             // the system ID so Xerces does not fall back to the remote import
             // URL in a Native Image.
-            return new ClassPathResourceLsInput(publicId, XMLDSIG_XSD, baseURI);
+            return new ClassPathResourceLsInput(publicId, baseURI);
         };
     }
 
@@ -134,12 +131,10 @@ public class FatturaPaXsdValidator {
      */
     private static final class ClassPathResourceLsInput implements LSInput {
         private final String publicId;
-        private final String systemId;
         private final String baseUri;
 
-        ClassPathResourceLsInput(final String publicId, final String systemId, final String baseUri) {
+        ClassPathResourceLsInput(final String publicId, final String baseUri) {
             this.publicId = publicId;
-            this.systemId = systemId;
             this.baseUri = baseUri;
         }
 
@@ -159,7 +154,9 @@ public class FatturaPaXsdValidator {
 
         @Override
         public String getSystemId() {
-            return systemId;
+            // Do not expose a file-like path. Native Image must consume the
+            // embedded resource through getByteStream() below.
+            return null;
         }
 
         @Override
