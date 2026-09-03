@@ -81,6 +81,12 @@ signed_request() {
   curl "${curl_args[@]}" "${url}"
 }
 
+count_nonce_keys() {
+  docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
+    --scan --pattern 'internal-auth:nonce:*' 2>/dev/null \
+    | awk 'NF { count++ } END { print count + 0 }'
+}
+
 echo "Starting real Config Server"
 docker network create "${NETWORK_NAME}" >/dev/null
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -206,8 +212,7 @@ reservation_code="$(signed_request POST http://127.0.0.1:18081/api/v1/reservatio
 [[ "${reservation_code}" == 201 ]]
 reservation_id="$(jq -er '.id' "${RESULT_DIR}/reservation.json")"
 
-nonce_before="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
-  --scan --pattern 'internal-auth:nonce:*' 2>/dev/null | wc -l | tr -d ' ')"
+nonce_before="$(count_nonce_keys)"
 stay_payload="{\"hotelId\":\"${hotel_a}\",\"reservationId\":\"${reservation_id}\",\"guestId\":\"${guest_id}\",\"roomId\":\"${room_id}\",\"status\":\"EXPECTED\",\"occupantCount\":1,\"guests\":[{\"firstName\":\"Native\",\"lastName\":\"Frontdesk\",\"gender\":\"M\",\"dateOfBirth\":\"1990-01-01\",\"placeOfBirth\":\"Monterrey\",\"citizenship\":\"MX\",\"documentType\":\"PASSPORT\",\"documentNumber\":\"NATIVE123\",\"documentPlaceOfIssue\":\"MX\",\"isPrimaryGuest\":true,\"travellerType\":\"OSPITE_SINGOLO\",\"travelPurpose\":\"BUSINESS\"}]}"
 checkin_code="$(signed_request POST http://127.0.0.1:18081/api/v1/stays "${hotel_a}" \
   "$(openssl rand -hex 16)" "${RESULT_DIR}/checkin.json" "${stay_payload}")"
@@ -216,9 +221,10 @@ stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
 invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
 jq -e '.status == "CHECKED_IN" and .roomNumber != null' "${RESULT_DIR}/checkin.json" >/dev/null
 
-nonce_after="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
-  --scan --pattern 'internal-auth:nonce:*' 2>/dev/null | wc -l | tr -d ' ')"
+nonce_after="$(count_nonce_keys)"
 feign_nonce_delta=$((nonce_after - nonce_before))
+printf 'before=%s\nafter=%s\ndelta=%s\n' "${nonce_before}" "${nonce_after}" "${feign_nonce_delta}" \
+  | tee "${RESULT_DIR}/feign-nonce-count.txt"
 [[ "${feign_nonce_delta}" -ge 2 ]]
 
 cross_tenant_code="$(signed_request GET "http://127.0.0.1:18081/api/v1/reservations/${reservation_id}" \
