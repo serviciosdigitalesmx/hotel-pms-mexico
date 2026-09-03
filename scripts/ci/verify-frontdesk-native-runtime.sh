@@ -223,10 +223,13 @@ reservation_id="$(jq -er '.id' "${RESULT_DIR}/reservation.json")"
 stay_payload="{\"hotelId\":\"${hotel_a}\",\"reservationId\":\"${reservation_id}\",\"guestId\":\"${guest_id}\",\"roomId\":\"${room_id}\",\"status\":\"EXPECTED\",\"occupantCount\":1,\"guests\":[{\"firstName\":\"Native\",\"lastName\":\"Frontdesk\",\"gender\":\"M\",\"dateOfBirth\":\"1990-01-01\",\"placeOfBirth\":\"Monterrey\",\"citizenship\":\"MX\",\"documentType\":\"PASSPORT\",\"documentNumber\":\"NATIVE123\",\"documentPlaceOfIssue\":\"MX\",\"isPrimaryGuest\":true,\"travellerType\":\"OSPITE_SINGOLO\",\"travelPurpose\":\"BUSINESS\"}]}"
 checkin_code="$(signed_request POST http://127.0.0.1:18081/api/v1/stays "${hotel_a}" \
   "$(openssl rand -hex 16)" "${RESULT_DIR}/checkin.json" "${stay_payload}")"
+echo "check-in HTTP status=${checkin_code}"
 [[ "${checkin_code}" == 200 ]]
 stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
 invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
+echo "check-in identifiers extracted"
 jq -e '.status == "CHECKED_IN" and .roomNumber != null' "${RESULT_DIR}/checkin.json" >/dev/null
+echo "check-in response validation passed"
 
 echo "Probing guest-service rejection without internal HMAC"
 guest_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/guest-missing-hmac.json" \
