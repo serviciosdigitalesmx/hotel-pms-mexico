@@ -3,6 +3,8 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
+    // Opt-in Native Image build; config-service/Dockerfile remains the JVM fallback.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -16,6 +18,21 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.config.ConfigServiceApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            // Quick reachability gate is selected only by the CI quick job.
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                buildArgs.add("-Ob")
+            } else {
+                buildArgs.add("-O2")
+            }
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
+        }
+    }
 }
 
 configurations {
@@ -40,6 +57,7 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-config-server")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     compileOnly("org.projectlombok:lombok:1.18.38")
     annotationProcessor("org.projectlombok:lombok:1.18.38")
     
@@ -69,4 +87,23 @@ dependencyManagement {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// AOT tests are generated framework code. Keep the cheap JVM regression suite
+// and QA focused on handwritten sources; nativeCompile still runs processAot.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }
