@@ -30,7 +30,7 @@ introducen artificialmente en Config Server.
   invocación de `nativeCompile`/`native-image` por ejecución. El gate de PR usa
   `-Ob`; el gate final se solicita manualmente con `optimized` (`-O2`).
 - La compatibilidad Native conserva el repositorio classpath `native` y marca
-  únicamente los dos proveedores SSHD transitivos que GraalVM encontró en el
+  únicamente las clases transitivas de SSHD/Logback que GraalVM encontró en el
   image heap; no activa ni introduce un backend Git.
 - La caché es únicamente `actions/cache@v4` para `~/.gradle/caches`,
   `~/.gradle/wrapper` y `~/.m2/repository`; BuildKit usa además la caché GHA
