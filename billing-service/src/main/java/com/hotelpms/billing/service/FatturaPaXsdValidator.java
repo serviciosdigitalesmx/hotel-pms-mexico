@@ -63,11 +63,11 @@ public class FatturaPaXsdValidator {
                 // attempt to resolve the official remote URL instead.
                 fatturaSource.setSystemId(FATTURAPA_XSD);
                 xmldsigSource.setSystemId(XMLDSIG_XSD);
-                // Supply the imported XML-DSig schema as a second local source as
-                // well as through the resolver. Xerces in Native Image can retain
-                // the resolver callback but lose the imported global declarations;
-                // the source array makes the namespace declarations explicit.
-                this.schema = factory.newSchema(new Source[]{fatturaSource, xmldsigSource});
+                // Register the imported namespace first. The Native Image XML
+                // schema compiler is order-sensitive here: when FatturaPA is
+                // presented first, it can lose the imported global declaration
+                // even though the resolver returns the bundled XML-DSig stream.
+                this.schema = factory.newSchema(new Source[]{xmldsigSource, fatturaSource});
             }
         } catch (final IOException | SAXException ex) {
             // Fails application startup rather than at first invoice export — a broken
