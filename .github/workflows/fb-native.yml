@@ -55,8 +55,6 @@ jobs:
             ${{ runner.os }}-fb-native-jvm21-
 
       - name: Cheap AOT and JVM tests
-        env:
-          INTERNAL_HMAC_SECRET: ${{ env.CI_HMAC_SECRET }}
         run: |
           chmod +x ./gradlew
           mkdir -p build
@@ -86,6 +84,7 @@ jobs:
           CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
           APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081 \
           APPLICATION_CONFIG_BILLING_SERVICE_URL=http://127.0.0.1:8085 \
+          INTERNAL_HMAC_SECRET=test-hmac-secret-minimum-32-characters-for-unit-tests \
           ./gradlew :fb-service:processAot \
             --no-daemon --stacktrace --max-workers=2
 
