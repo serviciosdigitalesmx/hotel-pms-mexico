@@ -41,10 +41,10 @@ jobs:
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Build all modules (PMD + Checkstyle + JUnit + JaCoCo)
-          # Native-enabled modules wire processAot into the standard lifecycle.
-          # Keep this JVM quality gate independent from Config Server; each
-          # Native workflow runs its own explicit AOT preflight with dependencies.
-          run: ./gradlew build --no-daemon -x processAot -x processAotTest
+        # Native-enabled modules wire processAot into the standard lifecycle.
+        # Keep this JVM quality gate independent from Config Server; each
+        # Native workflow runs its own explicit AOT preflight with dependencies.
+        run: ./gradlew build --no-daemon -x processAot -x processAotTest
 
       - name: Upload test and quality reports
         if: always()
