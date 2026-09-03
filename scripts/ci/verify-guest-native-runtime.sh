@@ -70,6 +70,18 @@ signed_request() {
   curl "${curl_args[@]}" "${url}"
 }
 
+echo "Starting real runtime Config Server"
+docker network create "${NETWORK_NAME}" >/dev/null
+docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
+  --publish 18888:8888 --publish 18091:8090 \
+  --env "CONFIG_SERVER_PASSWORD=${CI_CONFIG_PASSWORD}" \
+  --env 'JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
+  hotel-pms/config-service:ci >/dev/null
+wait_for_health config-service http://127.0.0.1:18091/actuator/health 90
+curl --silent --show-error --fail --user "configuser:${CI_CONFIG_PASSWORD}" \
+  http://127.0.0.1:18888/guest-service/default \
+  | jq -e '.name == "guest-service"' >/dev/null
+
 echo "Starting PostgreSQL and Redis"
 docker run --detach --name "${POSTGRES_CONTAINER}" --network "${NETWORK_NAME}" \
   --env POSTGRES_USER=postgres \

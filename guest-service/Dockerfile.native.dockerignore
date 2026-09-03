@@ -1,6 +1,8 @@
 # Native build context: retain all source modules required by the Gradle
 # multi-project build and exclude outputs or unrelated runtime assets.
-**/build/
+*/build/*
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
 .gradle/
 .git/
 .github/

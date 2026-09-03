@@ -65,30 +65,6 @@ jobs:
           docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
           docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
 
-      - name: Start real Config Server for AOT
-        run: |
-          docker network create guest-native-ci
-          docker run --detach \
-            --name guest-native-config \
-            --network guest-native-ci \
-            --publish 18888:8888 \
-            --publish 18091:8090 \
-            --env CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
-            hotel-pms/config-service:ci
-          for attempt in {1..90}; do
-            health="$(curl --silent --max-time 3 http://127.0.0.1:18091/actuator/health 2>/dev/null || true)"
-            if jq -e '.status == "UP"' >/dev/null 2>&1 <<<"${health}"; then
-              break
-            fi
-            sleep 2
-          done
-          curl --silent --show-error --fail http://127.0.0.1:18091/actuator/health \
-            | jq -e '.status == "UP"'
-          curl --silent --show-error --fail \
-            --user "configuser:${CI_CONFIG_PASSWORD}" \
-            http://127.0.0.1:18888/guest-service/default \
-            | jq -e '.name == "guest-service"'
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -97,13 +73,12 @@ jobs:
         with:
           context: .
           file: guest-service/Dockerfile.native
-          network: host
           load: true
           push: false
           tags: hotel-pms/guest-service-native:ci
           build-args: |
             NATIVE_QUICK_BUILD=${{ inputs.native_quick_build || 'true' }}
-            CONFIG_SERVER_URL=http://127.0.0.1:18888
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
             CONFIG_SERVER_USERNAME=configuser
             CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
             INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
