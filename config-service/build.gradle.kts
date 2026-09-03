@@ -31,6 +31,7 @@ graalvmNative {
             }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
             buildArgs.add("--initialize-at-build-time=java.util.function.Supplier")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback")
