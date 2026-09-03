@@ -5,8 +5,10 @@ import eslint from '@nabla/vite-plugin-eslint'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), eslint()],
+export default defineConfig(({ mode }) => ({
+  // The ESLint Vite watcher keeps the dev server alive after Vitest completes.
+  // Keep it enabled for dev/build, but not for the isolated test server.
+  plugins: [react(), ...(mode === 'test' ? [] : [eslint()])],
   test: {
     globals: true,
     environment: 'jsdom',
@@ -66,4 +68,4 @@ export default defineConfig({
       }
     }
   }
-})
+}))
