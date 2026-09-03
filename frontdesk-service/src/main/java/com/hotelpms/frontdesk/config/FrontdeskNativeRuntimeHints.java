@@ -47,6 +47,10 @@ public final class FrontdeskNativeRuntimeHints implements RuntimeHintsRegistrar 
     }
 
     private static void registerFeignProxy(final RuntimeHints hints, final Class<?> clientInterface) {
+        hints.reflection().registerType(
+                clientInterface,
+                MemberCategory.INVOKE_PUBLIC_METHODS,
+                MemberCategory.INVOKE_DECLARED_METHODS);
         hints.proxies().registerJdkProxy(
                 clientInterface,
                 SpringProxy.class,
