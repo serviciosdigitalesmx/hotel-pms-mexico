@@ -82,6 +82,7 @@ jobs:
           docker run --detach --name auth-native-config \
             --restart unless-stopped \
             --publish 8888:8888 --publish 8090:8090 \
+            --env SPRING_PROFILES_ACTIVE=native \
             --env CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
             --env CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
             hotel-pms/config-service:ci >/tmp/auth-native-config-container-id
