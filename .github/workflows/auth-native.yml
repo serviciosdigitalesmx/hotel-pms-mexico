@@ -120,7 +120,6 @@ jobs:
             fi
             sleep 1
           done
-          CONFIG_SERVER_IMPORT="optional:configserver:${CONFIG_SERVER_URL}" \
           SPRING_PROFILES_ACTIVE=auth-service \
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
