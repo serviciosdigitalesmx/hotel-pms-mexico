@@ -9,7 +9,7 @@ ARG CONFIG_SERVER_PASSWORD=native-ci-config
 ARG INTERNAL_HMAC_SECRET=native-ci-hmac-secret
 ARG INTERNAL_REDIS_PASSWORD=native-ci-redis
 WORKDIR /workspace
-RUN microdnf install -y curl findutils \
+RUN microdnf install -y curl findutils freetype fontconfig libX11 libXext libXi libXrender libXtst \
     && microdnf clean all
 COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
 COPY . .
