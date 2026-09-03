@@ -1,0 +1,211 @@
+name: F&B Service Native Image
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "fb-service/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "config-service/**"
+      - "frontdesk-service/**"
+      - "billing-service/**"
+      - "scripts/ci/verify-fb-native-runtime.sh"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/fb-native.yml"
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate fb-service Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-fb-native-jvm21-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-fb-native-jvm21-
+
+      - name: Cheap AOT and JVM tests
+        env:
+          INTERNAL_HMAC_SECRET: ${{ env.CI_HMAC_SECRET }}
+        run: |
+          chmod +x ./gradlew
+          mkdir -p build
+          ./gradlew :config-service:bootJar :fb-service:test \
+            -x :fb-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
+          CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+            java -jar config-service/build/libs/*-SNAPSHOT.jar \
+            > build/fb-config-aot.log 2>&1 &
+          config_pid=$!
+          trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
+          config_ready=false
+          for _ in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:8090/actuator/health \
+                | grep -q '"status":"UP"'; then
+              config_ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "${config_ready}" != true ]]; then
+            tail -80 build/fb-config-aot.log
+            exit 1
+          fi
+          CONFIG_SERVER_URL=http://127.0.0.1:8888 \
+          CONFIG_SERVER_USERNAME=configuser \
+          CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+          APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081 \
+          APPLICATION_CONFIG_BILLING_SERVICE_URL=http://127.0.0.1:8085 \
+          ./gradlew :fb-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
+
+      - name: Build real JVM integration dependencies
+        run: |
+          ./gradlew \
+            :config-service:bootJar \
+            :frontdesk-service:bootJar \
+            :billing-service:bootJar \
+            :fb-service:bootJar \
+            -x :fb-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
+          docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
+          docker build --tag hotel-pms/fb-service-jvm:ci --file fb-service/Dockerfile .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Native image (quick -Ob)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: fb-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/fb-service-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=true
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+            APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081
+            APPLICATION_CONFIG_BILLING_SERVICE_URL=http://127.0.0.1:8085
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify quick image metadata
+        run: |
+          docker image inspect hotel-pms/fb-service-native:ci
+          docker image inspect hotel-pms/fb-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
+
+      - name: Run quick Native runtime and integration gate
+        env:
+          CI_NATIVE_BUILD_MODE: quick-Ob
+          FB_IMAGE: hotel-pms/fb-service-native:ci
+          NATIVE_METRICS_DIR: build/fb-native-runtime-quick
+        run: bash scripts/ci/verify-fb-native-runtime.sh
+
+      - name: Clean quick integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            fb-native-service fb-jvm-service fb-native-billing fb-native-frontdesk \
+            fb-native-redis fb-native-postgres fb-native-config 2>/dev/null || true
+          docker network rm fb-native-ci 2>/dev/null || true
+
+      - name: Build Native image (final -O2)
+        if: success()
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: fb-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/fb-service-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=false
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+            APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081
+            APPLICATION_CONFIG_BILLING_SERVICE_URL=http://127.0.0.1:8085
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify final image metadata
+        if: success()
+        run: |
+          docker image inspect hotel-pms/fb-service-native:ci
+          docker image inspect hotel-pms/fb-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
+
+      - name: Run final Native runtime and integration gate
+        if: success()
+        env:
+          CI_NATIVE_BUILD_MODE: optimized-O2
+          FB_IMAGE: hotel-pms/fb-service-native:ci
+          NATIVE_METRICS_DIR: build/fb-native-runtime-final
+        run: bash scripts/ci/verify-fb-native-runtime.sh
+
+      - name: Publish Native/JVM metrics
+        if: always()
+        run: |
+          for metrics in build/fb-native-runtime-quick/metrics.txt build/fb-native-runtime-final/metrics.txt; do
+            if [[ -f "${metrics}" ]]; then
+              cat "${metrics}" >> "${GITHUB_STEP_SUMMARY}"
+            fi
+          done
+
+      - name: Upload Native runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fb-native-runtime-evidence
+          path: |
+            build/fb-native-runtime-quick
+            build/fb-native-runtime-final
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            fb-native-service fb-jvm-service fb-native-billing fb-native-frontdesk \
+            fb-native-redis fb-native-postgres fb-native-config 2>/dev/null || true
+          docker network rm fb-native-ci 2>/dev/null || true
