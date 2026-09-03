@@ -120,6 +120,8 @@ docker run --detach --name "${FRONTDESK_CONTAINER}" --network "${NETWORK_NAME}" 
   --env SPRING_DATASOURCE_URL=jdbc:postgresql://billing-native-postgres:5432/hotel_frontdesk \
   --env SPRING_DATASOURCE_USERNAME=postgres --env SPRING_DATASOURCE_PASSWORD="${CI_POSTGRES_PASSWORD}" \
   --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" --env ALLOGGIATI_DRY_RUN=true \
+  --env ALLOGGIATI_USERNAME=ci_placeholder_user --env ALLOGGIATI_PASSWORD=ci_placeholder_password \
+  --env ALLOGGIATI_WS_KEY=ci_placeholder_wskey \
   --env ALLOGGIATI_CREDENTIALS_ENCRYPTION_KEY=ci_placeholder_encryption_key \
   --env ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT=deadbeefdeadbeefdeadbeefdeadbeef \
   --env 'JAVA_TOOL_OPTIONS=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError' \
