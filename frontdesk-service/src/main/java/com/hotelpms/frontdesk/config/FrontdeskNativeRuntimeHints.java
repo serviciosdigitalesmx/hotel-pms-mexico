@@ -5,6 +5,7 @@ import com.hotelpms.frontdesk.assistant.RetryableAiProviderException;
 import com.hotelpms.frontdesk.client.BillingClient;
 import com.hotelpms.frontdesk.client.GuestClient;
 import com.hotelpms.frontdesk.client.NotificationClient;
+import com.hotelpms.frontdesk.reservations.validation.DateRangeValidator;
 import org.springframework.aop.SpringProxy;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
@@ -33,6 +34,8 @@ public final class FrontdeskNativeRuntimeHints implements RuntimeHintsRegistrar 
         hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
         hints.reflection().registerType(PermanentAiProviderException.class);
         hints.reflection().registerType(RetryableAiProviderException.class);
+        hints.reflection().registerType(DateRangeValidator.class,
+                MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
 
         registerFeignProxy(hints, BillingClient.class);
