@@ -8,6 +8,7 @@ RUN microdnf install -y findutils \
     && microdnf clean all
 COPY . .
 RUN sed -i '/spring.config.import:/d' config-service/src/main/resources/config/guest-service.yml
+RUN sed -i '/^[[:space:]]*import:/d' guest-service/src/main/resources/application.yml
 RUN --mount=type=cache,target=/root/.gradle \
     chmod +x ./gradlew \
     && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \
