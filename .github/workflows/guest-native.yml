@@ -52,6 +52,4 @@ jobs:
         run: docker image inspect hotel-pms/guest-service-native:ci
 
       - name: Export image metadata
-        run: |
-          docker image inspect hotel-pms/guest-service-native:ci
-            --format 'image_size_bytes={{.Size}}'
+        run: docker image inspect hotel-pms/guest-service-native:ci --format 'image_size_bytes={{.Size}}'
