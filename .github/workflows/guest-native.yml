@@ -50,8 +50,21 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-jvm21-dependencies-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-jvm21-dependencies-
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
 
       - name: Build real JVM integration dependencies
         run: |
@@ -60,10 +73,12 @@ jobs:
             :config-service:bootJar \
             :frontdesk-service:bootJar \
             :billing-service:bootJar \
+            :guest-service:bootJar \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
           docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
+          docker build --tag hotel-pms/guest-service-jvm:ci --file guest-service/Dockerfile .
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -115,6 +130,7 @@ jobs:
         run: |
           docker rm --force \
             guest-service-native \
+            guest-service-jvm \
             guest-native-billing \
             guest-native-frontdesk \
             guest-native-redis \

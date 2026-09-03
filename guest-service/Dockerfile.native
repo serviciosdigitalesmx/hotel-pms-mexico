@@ -49,6 +49,7 @@ SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/hotel_guest \
 SPRING_DATASOURCE_USERNAME=native-ci \
 SPRING_DATASOURCE_PASSWORD=native-ci \
 ./gradlew :guest-service:nativeCompile \
+    -Pnative=true \
     -PnativeQuickBuild="${NATIVE_QUICK_BUILD}" \
     --no-daemon --stacktrace --max-workers=2
 EOF

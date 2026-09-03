@@ -9,6 +9,7 @@ CONFIG_CONTAINER="guest-native-config"
 FRONTDESK_CONTAINER="guest-native-frontdesk"
 BILLING_CONTAINER="guest-native-billing"
 GUEST_CONTAINER="guest-service-native"
+JVM_GUEST_CONTAINER="guest-service-jvm"
 
 : "${CI_POSTGRES_PASSWORD:?CI_POSTGRES_PASSWORD is required}"
 : "${CI_REDIS_PASSWORD:?CI_REDIS_PASSWORD is required}"
@@ -20,7 +21,8 @@ mkdir -p "${RESULT_DIR}"
 collect_evidence() {
   docker ps -a > "${RESULT_DIR}/docker-ps.txt" 2>&1 || true
   for container in "${CONFIG_CONTAINER}" "${POSTGRES_CONTAINER}" "${REDIS_CONTAINER}" \
-      "${FRONTDESK_CONTAINER}" "${BILLING_CONTAINER}" "${GUEST_CONTAINER}"; do
+      "${FRONTDESK_CONTAINER}" "${BILLING_CONTAINER}" "${GUEST_CONTAINER}" \
+      "${JVM_GUEST_CONTAINER}"; do
     docker logs "${container}" > "${RESULT_DIR}/${container}.log" 2>&1 || true
   done
 }
@@ -118,7 +120,7 @@ if [[ "${postgres_ready_streak}" -lt 2 ]]; then
   exit 1
 fi
 
-for database in hotel_guest hotel_frontdesk hotel_billing; do
+for database in hotel_guest hotel_guest_jvm hotel_frontdesk hotel_billing; do
   docker exec "${POSTGRES_CONTAINER}" createdb --username postgres "${database}"
 done
 
@@ -258,9 +260,10 @@ docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
   | sort > "${RESULT_DIR}/redis-nonces-after-export.txt"
 printf 'Feign nonce evidence: before=%s after=%s delta=%s\n' \
   "${nonce_count_before}" "${nonce_count_after}" "${feign_nonce_delta}"
+native_feign_status=PASS
 if [[ "${feign_nonce_delta}" -lt 3 ]]; then
-  echo "Expected the inbound export plus both Feign calls to claim at least 3 fresh nonces" >&2
-  exit 1
+  native_feign_status=FAIL
+  echo "Native export did not prove both signed Feign calls; continuing with the JVM control" >&2
 fi
 
 flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname hotel_guest \
@@ -282,23 +285,154 @@ done
 loaded_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${GUEST_CONTAINER}")"
 image_size_bytes="$(docker image inspect hotel-pms/guest-service-native:ci --format '{{.Size}}')"
 
+docker stop "${GUEST_CONTAINER}" >/dev/null
+
+echo "Starting guest-service JVM control"
+jvm_startup_started_ms="$(date +%s%3N)"
+docker run --detach --name "${JVM_GUEST_CONTAINER}" --network "${NETWORK_NAME}" \
+  --publish 28083:8083 --publish 28090:8090 \
+  --env SPRING_PROFILES_ACTIVE=guest-service \
+  --env CONFIG_SERVER_URL=http://guest-native-config:8888 \
+  --env CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+  --env INTERNAL_REDIS_HOST=guest-native-redis \
+  --env INTERNAL_REDIS_PASSWORD="${CI_REDIS_PASSWORD}" \
+  --env SPRING_DATA_REDIS_PASSWORD="${CI_REDIS_PASSWORD}" \
+  --env SPRING_DATASOURCE_URL=jdbc:postgresql://guest-native-postgres:5432/hotel_guest_jvm \
+  --env SPRING_DATASOURCE_USERNAME=postgres \
+  --env "SPRING_DATASOURCE_PASSWORD=${CI_POSTGRES_PASSWORD}" \
+  --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://guest-native-frontdesk:8081 \
+  --env APPLICATION_CONFIG_BILLING_SERVICE_URL=http://guest-native-billing:8085 \
+  --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
+  --env 'JAVA_TOOL_OPTIONS=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError' \
+  hotel-pms/guest-service-jvm:ci >/dev/null
+
+wait_for_health guest-service-jvm http://127.0.0.1:28090/actuator/health 120 "${JVM_GUEST_CONTAINER}"
+jvm_startup_ready_ms="$(date +%s%3N)"
+jvm_startup_ms="$((jvm_startup_ready_ms - jvm_startup_started_ms))"
+jvm_health_body="$(curl --silent --show-error --fail http://127.0.0.1:28090/actuator/health)"
+jq -e '.status == "UP"' >/dev/null <<<"${jvm_health_body}"
+printf '%s\n' "${jvm_health_body}" > "${RESULT_DIR}/jvm-health.json"
+jvm_idle_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_GUEST_CONTAINER}")"
+
+jvm_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/jvm-missing-hmac.json" \
+  --write-out '%{http_code}' http://127.0.0.1:28083/api/v1/guests)"
+[[ "${jvm_missing_hmac_code}" == "401" ]]
+
+jvm_guest_payload='{"firstName":"JVM","lastName":"Control","email":"jvm-control@example.test"}'
+jvm_create_code="$(signed_request POST http://127.0.0.1:28083/api/v1/guests \
+  "${hotel_a}" "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-guest-create.json" "${jvm_guest_payload}")"
+[[ "${jvm_create_code}" == "201" ]]
+jvm_guest_id="$(jq -er '.id' "${RESULT_DIR}/jvm-guest-create.json")"
+
+jvm_same_tenant_code="$(signed_request GET "http://127.0.0.1:28083/api/v1/guests/${jvm_guest_id}" \
+  "${hotel_a}" "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-same-tenant.json")"
+[[ "${jvm_same_tenant_code}" == "200" ]]
+jvm_cross_tenant_code="$(signed_request GET "http://127.0.0.1:28083/api/v1/guests/${jvm_guest_id}" \
+  "${hotel_b}" "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-cross-tenant.json")"
+[[ "${jvm_cross_tenant_code}" == "404" ]]
+jvm_list_code="$(signed_request GET http://127.0.0.1:28083/api/v1/guests \
+  "${hotel_a}" "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-guest-list.json")"
+[[ "${jvm_list_code}" == "200" ]]
+
+jvm_replay_nonce="$(openssl rand -hex 16)"
+jvm_replay_timestamp="$(date +%s%3N)"
+jvm_replay_signature="$(printf '%s' "ci-admin:ADMIN:${hotel_a}:${jvm_replay_timestamp}:${jvm_replay_nonce}" \
+  | openssl dgst -sha256 -hmac "${CI_HMAC_SECRET}" -r | awk '{print $1}')"
+jvm_replay_headers=(
+  --header 'X-Auth-User: ci-admin'
+  --header 'X-Auth-Role: ADMIN'
+  --header "X-Auth-Hotel: ${hotel_a}"
+  --header "X-Auth-Timestamp: ${jvm_replay_timestamp}"
+  --header "X-Auth-Nonce: ${jvm_replay_nonce}"
+  --header "X-Internal-Signature: ${jvm_replay_signature}"
+)
+jvm_first_replay_code="$(curl --silent --output "${RESULT_DIR}/jvm-replay-first.json" \
+  --write-out '%{http_code}' "${jvm_replay_headers[@]}" \
+  "http://127.0.0.1:28083/api/v1/guests/${jvm_guest_id}")"
+jvm_second_replay_code="$(curl --silent --output "${RESULT_DIR}/jvm-replay-second.json" \
+  --write-out '%{http_code}' "${jvm_replay_headers[@]}" \
+  "http://127.0.0.1:28083/api/v1/guests/${jvm_guest_id}")"
+[[ "${jvm_first_replay_code}" == "200" && "${jvm_second_replay_code}" == "401" ]]
+jvm_redis_nonce_exists="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
+  exists "internal-auth:nonce:${jvm_replay_nonce}" 2>/dev/null)"
+[[ "${jvm_redis_nonce_exists}" == "1" ]]
+
+jvm_nonce_count_before="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
+  --scan --pattern 'internal-auth:nonce:*' 2>/dev/null | wc -l | tr -d ' ')"
+jvm_export_code="$(signed_request GET "http://127.0.0.1:28083/api/v1/guests/${jvm_guest_id}/export" \
+  "${hotel_a}" "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-guest-export.json")"
+[[ "${jvm_export_code}" == "200" ]]
+jvm_nonce_count_after="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
+  --scan --pattern 'internal-auth:nonce:*' 2>/dev/null | wc -l | tr -d ' ')"
+jvm_feign_nonce_delta="$((jvm_nonce_count_after - jvm_nonce_count_before))"
+printf 'JVM Feign nonce evidence: before=%s after=%s delta=%s\n' \
+  "${jvm_nonce_count_before}" "${jvm_nonce_count_after}" "${jvm_feign_nonce_delta}"
+jvm_feign_status=PASS
+if [[ "${jvm_feign_nonce_delta}" -lt 3 ]]; then
+  jvm_feign_status=FAIL
+fi
+
+jvm_flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres \
+  --dbname hotel_guest_jvm --tuples-only --no-align --command \
+  'select max(version::integer) from flyway_schema_history where success = true;')"
+[[ "${jvm_flyway_latest}" == "10" ]]
+jvm_persisted_rows="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres \
+  --dbname hotel_guest_jvm --tuples-only --no-align --command \
+  "select count(*) from guests where id = '${jvm_guest_id}' and hotel_id = '${hotel_a}';")"
+[[ "${jvm_persisted_rows}" == "1" ]]
+
+for _ in {1..15}; do
+  curl --silent --show-error --fail http://127.0.0.1:28090/actuator/health \
+    | jq -e '.status == "UP"' >/dev/null
+  sleep 1
+done
+jvm_loaded_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_GUEST_CONTAINER}")"
+jvm_image_size_bytes="$(docker image inspect hotel-pms/guest-service-jvm:ci --format '{{.Size}}')"
+
 cat > "${RESULT_DIR}/metrics.txt" <<METRICS
-startup_ms=${startup_ms}
-idle_memory=${idle_memory}
-loaded_memory=${loaded_memory}
-image_size_bytes=${image_size_bytes}
-health_status=UP
-postgresql=PASS
-flyway_latest_version=${flyway_latest}
-redis=PASS
-hmac_missing_headers=401
-hmac_replay_first=${first_replay_code}
-hmac_replay_second=${second_replay_code}
-feign_accepted_nonce_delta=${feign_nonce_delta}
-tenant_same_hotel=${same_tenant_code}
-tenant_cross_hotel=${cross_tenant_code}
-paginated_list=${list_code}
-stability_health_checks=15/15
+native_startup_ms=${startup_ms}
+native_idle_memory=${idle_memory}
+native_loaded_memory=${loaded_memory}
+native_image_size_bytes=${image_size_bytes}
+native_health_status=UP
+native_postgresql=PASS
+native_flyway_latest_version=${flyway_latest}
+native_redis=PASS
+native_hmac_missing_headers=401
+native_hmac_replay_first=${first_replay_code}
+native_hmac_replay_second=${second_replay_code}
+native_feign_accepted_nonce_delta=${feign_nonce_delta}
+native_feign_status=${native_feign_status}
+native_tenant_same_hotel=${same_tenant_code}
+native_tenant_cross_hotel=${cross_tenant_code}
+native_paginated_list=${list_code}
+native_stability_health_checks=15/15
+jvm_startup_ms=${jvm_startup_ms}
+jvm_idle_memory=${jvm_idle_memory}
+jvm_loaded_memory=${jvm_loaded_memory}
+jvm_image_size_bytes=${jvm_image_size_bytes}
+jvm_health_status=UP
+jvm_postgresql=PASS
+jvm_flyway_latest_version=${jvm_flyway_latest}
+jvm_redis=PASS
+jvm_hmac_missing_headers=${jvm_missing_hmac_code}
+jvm_hmac_replay_first=${jvm_first_replay_code}
+jvm_hmac_replay_second=${jvm_second_replay_code}
+jvm_feign_accepted_nonce_delta=${jvm_feign_nonce_delta}
+jvm_feign_status=${jvm_feign_status}
+jvm_tenant_same_hotel=${jvm_same_tenant_code}
+jvm_tenant_cross_hotel=${jvm_cross_tenant_code}
+jvm_paginated_list=${jvm_list_code}
+jvm_stability_health_checks=15/15
 METRICS
 
 cat "${RESULT_DIR}/metrics.txt"
+
+if [[ "${native_feign_status}" != PASS ]]; then
+  echo "Native Feign integration did not claim both downstream HMAC nonces" >&2
+  exit 1
+fi
+if [[ "${jvm_feign_status}" != PASS ]]; then
+  echo "JVM control also failed the Feign HMAC integration check" >&2
+  exit 1
+fi
