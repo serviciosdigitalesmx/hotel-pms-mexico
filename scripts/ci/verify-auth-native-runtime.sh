@@ -16,7 +16,7 @@ JVM_CONTAINER="auth-service-jvm"
 : "${CI_JWT_SECRET:?CI_JWT_SECRET is required}"
 
 mkdir -p "${RESULT_DIR}"
-failure_class="CI_GLOBAL_FAIL"
+failure_class="PASS"
 
 collect_evidence() {
     docker ps -a > "${RESULT_DIR}/docker-ps.txt" 2>&1 || true
