@@ -120,8 +120,8 @@ jobs:
             CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
             INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
             INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
-            APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081
-            APPLICATION_CONFIG_BILLING_SERVICE_URL=http://127.0.0.1:8085
+            APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://frontdesk-service:8081
+            APPLICATION_CONFIG_BILLING_SERVICE_URL=http://billing-service:8085
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -162,8 +162,8 @@ jobs:
             CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
             INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
             INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
-            APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081
-            APPLICATION_CONFIG_BILLING_SERVICE_URL=http://127.0.0.1:8085
+            APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://frontdesk-service:8081
+            APPLICATION_CONFIG_BILLING_SERVICE_URL=http://billing-service:8085
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
