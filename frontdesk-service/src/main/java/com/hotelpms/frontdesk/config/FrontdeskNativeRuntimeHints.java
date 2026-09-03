@@ -1,5 +1,7 @@
 package com.hotelpms.frontdesk.config;
 
+import com.hotelpms.frontdesk.assistant.PermanentAiProviderException;
+import com.hotelpms.frontdesk.assistant.RetryableAiProviderException;
 import com.hotelpms.frontdesk.client.BillingClient;
 import com.hotelpms.frontdesk.client.GuestClient;
 import com.hotelpms.frontdesk.client.NotificationClient;
@@ -29,6 +31,8 @@ public final class FrontdeskNativeRuntimeHints implements RuntimeHintsRegistrar 
     @Override
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
+        hints.reflection().registerType(PermanentAiProviderException.class);
+        hints.reflection().registerType(RetryableAiProviderException.class);
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
 
         registerFeignProxy(hints, BillingClient.class);
