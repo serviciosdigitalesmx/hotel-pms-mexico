@@ -74,7 +74,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: native-ci
         run: |
           chmod +x ./gradlew
-          ./gradlew :config-service:bootJar :auth-service:test --no-daemon --stacktrace --max-workers=2
+          ./gradlew :config-service:bootJar :auth-service:bootJar :auth-service:test --no-daemon --stacktrace --max-workers=2
           SPRING_PROFILES_ACTIVE=native CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
             java -jar config-service/build/libs/*-SNAPSHOT.jar >/tmp/auth-native-config.log 2>&1 &
           config_pid=$!
