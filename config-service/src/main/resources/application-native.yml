@@ -1,0 +1,7 @@
+# Spring Cloud Config Server's refresh-scope proxy is not AOT code-generatable
+# in the pinned Spring Cloud Config Server version. Config Server serves the
+# immutable classpath native repository, so refresh scope is not required.
+spring:
+  cloud:
+    refresh:
+      enabled: false

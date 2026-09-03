@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1.7
+# Reversible Native Image variant for config-service.
+# The JVM image remains config-service/Dockerfile.
+FROM ghcr.io/graalvm/native-image-community:24.0.2 AS builder
+ARG NATIVE_BUILD_MODE=optimized
+WORKDIR /workspace
+RUN microdnf install -y findutils \
+    && microdnf clean all
+COPY . .
+RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+set -eu
+chmod +x ./gradlew
+# GraalVM 24 supplies the compiler JDK; this changes only the ephemeral
+# builder copy and leaves the repository's Java 21 JVM contract untouched.
+find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +
+SPRING_PROFILES_ACTIVE=native \
+CONFIG_SERVER_PASSWORD=build-only \
+./gradlew :config-service:nativeCompile \
+    -PnativeBuildMode="${NATIVE_BUILD_MODE}" \
+    --no-daemon --stacktrace --max-workers=2
+EOF
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system spring \
+    && useradd --system --gid spring --no-create-home spring
+USER spring:spring
+WORKDIR /app
+COPY --from=builder /workspace/config-service/build/native/nativeCompile/config-service app
+EXPOSE 8888 8090
+ENTRYPOINT ["/app/app"]
