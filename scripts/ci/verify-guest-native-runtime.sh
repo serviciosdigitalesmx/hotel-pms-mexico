@@ -220,6 +220,10 @@ cross_tenant_code="$(signed_request GET "http://127.0.0.1:18083/api/v1/guests/${
   "${hotel_b}" "$(openssl rand -hex 16)" "${RESULT_DIR}/cross-tenant.json")"
 [[ "${cross_tenant_code}" == "404" ]]
 
+list_code="$(signed_request GET http://127.0.0.1:18083/api/v1/guests \
+  "${hotel_a}" "$(openssl rand -hex 16)" "${RESULT_DIR}/guest-list.json")"
+[[ "${list_code}" == "200" ]]
+
 replay_nonce="$(openssl rand -hex 16)"
 replay_timestamp="$(date +%s%3N)"
 replay_signature="$(printf '%s' "ci-admin:ADMIN:${hotel_a}:${replay_timestamp}:${replay_nonce}" \
@@ -233,9 +237,9 @@ replay_headers=(
   --header "X-Internal-Signature: ${replay_signature}"
 )
 first_replay_code="$(curl --silent --output "${RESULT_DIR}/replay-first.json" --write-out '%{http_code}' \
-  "${replay_headers[@]}" http://127.0.0.1:18083/api/v1/guests)"
+  "${replay_headers[@]}" "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
 second_replay_code="$(curl --silent --output "${RESULT_DIR}/replay-second.json" --write-out '%{http_code}' \
-  "${replay_headers[@]}" http://127.0.0.1:18083/api/v1/guests)"
+  "${replay_headers[@]}" "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
 [[ "${first_replay_code}" == "200" && "${second_replay_code}" == "401" ]]
 redis_nonce_exists="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
   exists "internal-auth:nonce:${replay_nonce}" 2>/dev/null)"
@@ -285,6 +289,7 @@ hmac_replay_second=${second_replay_code}
 feign_accepted_nonce_delta=${feign_nonce_delta}
 tenant_same_hotel=${same_tenant_code}
 tenant_cross_hotel=${cross_tenant_code}
+paginated_list=${list_code}
 stability_health_checks=15/15
 METRICS
 
