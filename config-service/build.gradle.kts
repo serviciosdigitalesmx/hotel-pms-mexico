@@ -47,6 +47,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd")
             buildArgs.add("--initialize-at-build-time=java.util.function.Supplier")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
         }
