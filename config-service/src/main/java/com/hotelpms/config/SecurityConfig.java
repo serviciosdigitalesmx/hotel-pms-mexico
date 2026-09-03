@@ -38,7 +38,9 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health/**").permitAll()
+                // The management port is internal-only in Compose; health and
+                // Prometheus probes must be scrapeable without config credentials.
+                .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
                 .anyRequest().authenticated())
             .httpBasic(withDefaults());
         return http.build();
