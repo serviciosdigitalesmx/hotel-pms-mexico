@@ -60,7 +60,7 @@ jobs:
       - name: Cheap JVM tests and Config Server JAR
         run: |
           chmod +x ./gradlew
-          ./gradlew :api-gateway:test :internal-auth-lib:test :config-service:bootJar \
+          ./gradlew :api-gateway:test :api-gateway:bootJar :internal-auth-lib:test :config-service:bootJar \
             --no-daemon --stacktrace --max-workers=2
 
       - name: Cheap processAot preflight against the real Config Server
