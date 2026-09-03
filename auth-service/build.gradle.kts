@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.JavaExec
+
 plugins {
     java
     id("org.springframework.boot") version "3.5.16"
@@ -167,4 +169,12 @@ tasks.matching {
     )
 }.configureEach {
     enabled = false
+}
+
+// The cheap CI AOT gate can tolerate a transient Config Server outage while
+// the Native Docker build and runtime gates keep the production import strict.
+tasks.named<JavaExec>("processAot") {
+    providers.gradleProperty("aotConfigImport").orNull?.let {
+        systemProperty("spring.config.import", it)
+    }
 }
