@@ -136,6 +136,7 @@ docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" ping 2>
 
 echo "Starting real JVM downstream services"
 docker run --detach --name "${FRONTDESK_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias frontdesk-service \
   --publish 18092:8090 \
   --env SPRING_PROFILES_ACTIVE=frontdesk-service \
   --env CONFIG_SERVER_URL=http://guest-native-config:8888 \
@@ -157,6 +158,7 @@ docker run --detach --name "${FRONTDESK_CONTAINER}" --network "${NETWORK_NAME}" 
   hotel-pms/frontdesk-service:ci >/dev/null
 
 docker run --detach --name "${BILLING_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias billing-service \
   --publish 18093:8090 \
   --env SPRING_PROFILES_ACTIVE=billing-service \
   --env CONFIG_SERVER_URL=http://guest-native-config:8888 \
@@ -187,12 +189,9 @@ docker run --detach --name "${GUEST_CONTAINER}" --network "${NETWORK_NAME}" \
   --env SPRING_DATASOURCE_URL=jdbc:postgresql://guest-native-postgres:5432/hotel_guest \
   --env SPRING_DATASOURCE_USERNAME=postgres \
   --env "SPRING_DATASOURCE_PASSWORD=${CI_POSTGRES_PASSWORD}" \
-  --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://guest-native-frontdesk:8081 \
-  --env APPLICATION_CONFIG_BILLING_SERVICE_URL=http://guest-native-billing:8085 \
+  --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://frontdesk-service:8081 \
+  --env APPLICATION_CONFIG_BILLING_SERVICE_URL=http://billing-service:8085 \
   --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
-  --env SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_DEFAULT_LOGGERLEVEL=BASIC \
-  --env LOGGING_LEVEL_COM_HOTELPMS_GUEST_CLIENT=DEBUG \
-  --env LOGGING_LEVEL_IO_GITHUB_RESILIENCE4J=DEBUG \
   hotel-pms/guest-service-native:ci >/dev/null
 
 wait_for_health guest-service-native http://127.0.0.1:18090/actuator/health 120 "${GUEST_CONTAINER}"
@@ -303,8 +302,8 @@ docker run --detach --name "${JVM_GUEST_CONTAINER}" --network "${NETWORK_NAME}" 
   --env SPRING_DATASOURCE_URL=jdbc:postgresql://guest-native-postgres:5432/hotel_guest_jvm \
   --env SPRING_DATASOURCE_USERNAME=postgres \
   --env "SPRING_DATASOURCE_PASSWORD=${CI_POSTGRES_PASSWORD}" \
-  --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://guest-native-frontdesk:8081 \
-  --env APPLICATION_CONFIG_BILLING_SERVICE_URL=http://guest-native-billing:8085 \
+  --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://frontdesk-service:8081 \
+  --env APPLICATION_CONFIG_BILLING_SERVICE_URL=http://billing-service:8085 \
   --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
   --env 'JAVA_TOOL_OPTIONS=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError' \
   hotel-pms/guest-service-jvm:ci >/dev/null
