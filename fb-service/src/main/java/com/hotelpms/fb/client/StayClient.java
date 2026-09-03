@@ -13,7 +13,9 @@ import java.util.UUID;
  * (formerly stay-service, see ADR-001 in backup/DECISIONS.md).
  */
 @FunctionalInterface
-@FeignClient(name = "frontdesk-service-stays", url = "${application.config.frontdesk-service-url}")
+@FeignClient(
+        name = "frontdesk-service-stays",
+        url = "${APPLICATION_CONFIG_FRONTDESK_SERVICE_URL:http://frontdesk-service:8081}")
 public interface StayClient {
 
     /**
