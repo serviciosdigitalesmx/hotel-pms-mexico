@@ -78,7 +78,7 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :config-service:bootJar :auth-service:bootJar :auth-service:test --no-daemon --stacktrace --max-workers=2
           SPRING_PROFILES_ACTIVE=native CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-            java -jar config-service/build/libs/*-SNAPSHOT.jar >/tmp/auth-native-config.log 2>&1 &
+            nohup java -jar config-service/build/libs/*-SNAPSHOT.jar >/tmp/auth-native-config.log 2>&1 &
           config_pid=$!
           trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
           config_ready=false
@@ -98,7 +98,16 @@ jobs:
             sleep 2
           done
           if [[ "${config_ready}" != true ]]; then
-            echo "Config Server did not become ready on management port 8090" >&2
+            echo "Config Server did not become ready on ports 8888/8090" >&2
+            cat /tmp/auth-native-config.log >&2 || true
+            ps -ef | grep -E 'config-service|java' || true
+            exit 1
+          fi
+          if ! kill -0 "${config_pid}" 2>/dev/null \
+            || ! curl --silent --fail --max-time 3 \
+              --user "${CONFIG_SERVER_USERNAME}:${CONFIG_SERVER_PASSWORD}" \
+              http://127.0.0.1:8888/auth-service/default >/dev/null; then
+            echo "Config Server stopped after readiness" >&2
             cat /tmp/auth-native-config.log >&2 || true
             ps -ef | grep -E 'config-service|java' || true
             exit 1
