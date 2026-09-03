@@ -1,0 +1,23 @@
+# Native build context: retain the Gradle multi-project sources and the real
+# Config Server jar, while excluding generated output and unrelated assets.
+*/build/*
+!config-service/build/
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
+.gradle/
+.git/
+.github/
+.add/
+.ralph-add/
+scripts/ci/
+frontend/
+docs/
+backup/
+argos
+argos-local
+.env
+.env.*
+**/.env
+**/.env.*
+*.backup-*
+*.env.backup-*

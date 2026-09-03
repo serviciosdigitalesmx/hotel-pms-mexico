@@ -1,0 +1,145 @@
+name: Frontdesk Service Native Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_quick_build:
+        description: "Use GraalVM quick build (-Ob); false runs the final optimized build"
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontdesk-service/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "pdf-template-engine/**"
+      - "config-service/**"
+      - "billing-service/**"
+      - "guest-service/**"
+      - "scripts/ci/verify-frontdesk-native-runtime.sh"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/frontdesk-native.yml"
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate frontdesk-service Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21 for JVM fallback and controls
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-frontdesk-native-jvm21-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-frontdesk-native-jvm21-
+
+      - name: Build JVM fallback and downstream controls
+        run: |
+          chmod +x ./gradlew
+          ./gradlew \
+            :config-service:bootJar \
+            :frontdesk-service:bootJar \
+            :billing-service:bootJar \
+            :guest-service:bootJar \
+            -x :frontdesk-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/frontdesk-service-jvm:ci --file frontdesk-service/Dockerfile .
+          docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
+          docker build --tag hotel-pms/guest-service:ci --file guest-service/Dockerfile .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Exactly one native-image invocation is performed by this runner. PRs
+      # run the cheap -Ob gate; dispatch with false for the final -O2 gate.
+      - name: Build Native image
+        id: native_build
+        continue-on-error: true
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontdesk-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/frontdesk-service-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=${{ github.event_name != 'workflow_dispatch' || inputs.native_quick_build }}
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Classify Native build result
+        if: steps.native_build.outcome == 'failure'
+        run: |
+          echo "NATIVE_GATE_FAIL: frontdesk Native Image build step failed" | tee -a "${GITHUB_STEP_SUMMARY}"
+          exit 1
+
+      - name: Verify image metadata
+        if: steps.native_build.outcome == 'success'
+        run: |
+          docker image inspect hotel-pms/frontdesk-service-native:ci
+          docker image inspect hotel-pms/frontdesk-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
+
+      - name: Run Native runtime and integration gate
+        if: steps.native_build.outcome == 'success'
+        env:
+          CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
+        run: bash scripts/ci/verify-frontdesk-native-runtime.sh
+
+      - name: Publish runtime metrics
+        if: always()
+        run: |
+          if [[ -f build/frontdesk-native-runtime/metrics.txt ]]; then
+            cat build/frontdesk-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontdesk-native-runtime-evidence
+          path: build/frontdesk-native-runtime
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            frontdesk-service-native frontdesk-service-jvm \
+            frontdesk-native-guest frontdesk-native-billing \
+            frontdesk-native-redis frontdesk-native-postgres \
+            frontdesk-native-config 2>/dev/null || true
+          docker network rm frontdesk-native-ci 2>/dev/null || true

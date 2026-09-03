@@ -3,6 +3,8 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
+    // Opt-in Native Image support. The JVM bootJar and Dockerfile remain the default path.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -16,6 +18,23 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.frontdesk.FrontdeskApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                // Fast reachability gate; the dispatch workflow runs the final optimized gate separately.
+                buildArgs.add("-Ob")
+            } else {
+                // Explicit final optimization so the optimized gate is visible in CI evidence.
+                buildArgs.add("-O2")
+            }
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 configurations {
@@ -135,4 +154,23 @@ tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
     extraArgs.addAll(
         listOf("-exclude", "${project.projectDir}/config/spotbugs/exclude.xml")
     )
+}
+
+// AOT test sources are framework-generated and are not part of the JVM regression
+// suite. Disabling their QA avoids resolving the remote Config Server twice.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }
