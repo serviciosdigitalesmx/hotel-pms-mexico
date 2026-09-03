@@ -60,6 +60,8 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-config-server") {
         // Native uses the classpath-backed repository; JGit SSH is optional and
         // otherwise starts an SSH client during image generation.
+        exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit")
+        exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit.http.apache")
         exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit.ssh.apache")
         exclude(group = "org.apache.sshd", module = "sshd-osgi")
         exclude(group = "org.apache.sshd", module = "sshd-sftp")
