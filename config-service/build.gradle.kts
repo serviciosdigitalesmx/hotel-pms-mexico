@@ -39,7 +39,10 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpErrorDataHandler")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer.${'$'}1")
+            // The anonymous initializer is materialized by the JDK ServiceLoader;
+            // initialize the SFTP provider package together so its generated
+            // implementation classes cannot remain in the runtime-init heap.
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpVersionSelector.${'$'}NamedVersionSelector")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory")
