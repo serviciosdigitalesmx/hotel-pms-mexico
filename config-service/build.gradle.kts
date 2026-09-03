@@ -20,8 +20,6 @@ springBoot {
     mainClass.set("com.hotelpms.config.ConfigServiceApplication")
 }
 
-val nativeImageBuild = providers.gradleProperty("nativeImageBuild").isPresent
-
 graalvmNative {
     binaries {
         named("main") {
@@ -33,6 +31,17 @@ graalvmNative {
             }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
+            // ConfigServerRuntimeHints retains JGit SSH classes even though
+            // the native profile uses the classpath repository. Graal's JDK
+            // ServiceLoader otherwise places optional SSH/SFTP objects in the
+            // image heap with runtime initialization.
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.file.root.RootedFileSystemProvider")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpErrorDataHandler")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpVersionSelector.${'$'}NamedVersionSelector")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
+            buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
         }
     }
 }
@@ -56,14 +65,7 @@ ext {
 }
 
 dependencies {
-    implementation("org.springframework.cloud:spring-cloud-config-server") {
-        // The native profile uses the classpath NativeEnvironmentRepository,
-        // not the optional JGit SSH backend. Keep SSH/Git support in the JVM
-        // fallback while removing its ServiceLoader providers from Native.
-        if (nativeImageBuild) {
-            exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit.ssh.apache")
-        }
-    }
+    implementation("org.springframework.cloud:spring-cloud-config-server")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
