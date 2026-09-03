@@ -57,12 +57,16 @@ EOF
 
 FROM debian:bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates wget libfontconfig1 libfreetype6 libx11-6 libxext6 libxi6 libxrender1 libxtst6 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system spring \
     && useradd --system --gid spring --no-create-home spring
 USER spring:spring
 WORKDIR /app
+ENV LD_LIBRARY_PATH=/app
+ENV JAVA_TOOL_OPTIONS=-Djava.awt.headless=true
 COPY --from=builder /workspace/billing-service/build/native/nativeCompile/billing-service app
+COPY --from=builder /workspace/billing-service/build/native/nativeCompile/lib*.so ./
 EXPOSE 8085 8090
 ENTRYPOINT ["/app/app"]
