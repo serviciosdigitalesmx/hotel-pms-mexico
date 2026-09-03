@@ -125,6 +125,7 @@ jobs:
           SPRING_PROFILES_ACTIVE=auth-service \
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+          JAVA_TOOL_OPTIONS="-Dspring.config.import=optional:configserver:${CONFIG_SERVER_URL}" \
             ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2 \
             || {
               echo "Config Server state after processAot failure" >&2
