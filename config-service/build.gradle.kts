@@ -32,6 +32,10 @@ graalvmNative {
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
+            // Config Server brings JGit/SSHD transitively for its optional Git
+            // backend; this service uses only the classpath native repository.
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.file.root.RootedFileSystemProvider")
         }
     }
 }
