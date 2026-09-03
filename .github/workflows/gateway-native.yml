@@ -68,6 +68,8 @@ jobs:
             :auth-service:bootJar \
             :frontdesk-service:bootJar \
             :api-gateway:bootJar \
+            -x :api-gateway:processAot \
+            -x :api-gateway:processAotTest \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/auth-service:ci --file auth-service/Dockerfile .
