@@ -82,13 +82,17 @@ signed_request() {
 }
 
 unsigned_request_status() {
-  local output_file="$1" url="$2" status curl_rc
-  curl_rc=0
-  status="$(curl --silent --show-error --max-time 10 --output "${output_file}" \
-    --write-out '%{http_code}' "${url}" 2>"${output_file}.stderr")" || curl_rc=$?
-  printf 'curl_rc=%s http_status=%s url=%s\n' "${curl_rc}" "${status:-000}" "${url}" \
+  local output_file="$1" url="$2" http_status curl_rc
+  : > "${output_file}"
+  if http_status="$(curl --silent --show-error --max-time 10 --output "${output_file}" \
+    --write-out '%{http_code}' "${url}" 2>"${output_file}.stderr")"; then
+    curl_rc=0
+  else
+    curl_rc=$?
+  fi
+  printf 'curl_rc=%s http_status=%s url=%s\n' "${curl_rc}" "${http_status:-000}" "${url}" \
     | tee "${output_file}.meta" >&2
-  printf '%s\n' "${status:-000}"
+  printf '%s\n' "${http_status:-000}"
 }
 
 echo "Starting real Config Server"
