@@ -73,6 +73,8 @@ check_config_contract() {
     "${RESULT_DIR}/${prefix}-readiness.json"
   assert_http 200 "http://127.0.0.1:${management_port}/actuator/prometheus" \
     "${RESULT_DIR}/${prefix}-prometheus.txt"
+  assert_http 401 "http://127.0.0.1:${management_port}/actuator/info" \
+    "${RESULT_DIR}/${prefix}-info-unauthenticated.json"
   assert_http 401 "http://127.0.0.1:${main_port}/auth-service/default" \
     "${RESULT_DIR}/${prefix}-unauthenticated.json"
   assert_http 401 "http://127.0.0.1:${main_port}/auth-service/default" \
@@ -127,6 +129,7 @@ native_health_status=UP
 native_liveness=200
 native_readiness=200
 native_prometheus=200
+native_info_unauthenticated=401
 native_config_unauthenticated=401
 native_config_wrong_password=401
 native_config_authenticated=200
@@ -137,6 +140,7 @@ jvm_health_status=UP
 jvm_liveness=200
 jvm_readiness=200
 jvm_prometheus=200
+jvm_info_unauthenticated=401
 jvm_config_unauthenticated=401
 jvm_config_wrong_password=401
 jvm_config_authenticated=200
