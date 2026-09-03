@@ -10,7 +10,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.gradle \
     chmod +x ./gradlew \
     && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \
-    && SPRING_CONFIG_IMPORT=optional:configserver:http://localhost:8888 \
+    && SPRING_CONFIG_IMPORT=optional:file:/workspace/config-service/src/main/resources/config/guest-service.yml \
       SPRING_PROFILES_ACTIVE=guest-service \
       SPRING_CONFIG_ADDITIONAL_LOCATION=file:/workspace/config-service/src/main/resources/config/guest-service.yml \
       CONFIG_SERVER_PASSWORD=build-only \
