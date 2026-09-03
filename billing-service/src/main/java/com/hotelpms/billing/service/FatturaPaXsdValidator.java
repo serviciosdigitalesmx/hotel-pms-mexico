@@ -9,6 +9,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import javax.xml.XMLConstants;
+import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
@@ -52,14 +53,21 @@ public class FatturaPaXsdValidator {
         try {
             final SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             factory.setResourceResolver(resourceResolver());
-            try (InputStream xsd = new ClassPathResource(FATTURAPA_XSD).getInputStream()) {
-                final StreamSource source = new StreamSource(xsd);
+            try (InputStream fatturaXsd = new ClassPathResource(FATTURAPA_XSD).getInputStream();
+                    InputStream xmldsigXsd = new ClassPathResource(XMLDSIG_XSD).getInputStream()) {
+                final StreamSource fatturaSource = new StreamSource(fatturaXsd);
+                final StreamSource xmldsigSource = new StreamSource(xmldsigXsd);
                 // Keep a deterministic classpath base for the import when the
                 // application is packaged as a Native Image. Without it the
                 // XML parser can discard the resolver's bundled stream and
                 // attempt to resolve the official remote URL instead.
-                source.setSystemId(FATTURAPA_XSD);
-                this.schema = factory.newSchema(source);
+                fatturaSource.setSystemId(FATTURAPA_XSD);
+                xmldsigSource.setSystemId(XMLDSIG_XSD);
+                // Supply the imported XML-DSig schema as a second local source as
+                // well as through the resolver. Xerces in Native Image can retain
+                // the resolver callback but lose the imported global declarations;
+                // the source array makes the namespace declarations explicit.
+                this.schema = factory.newSchema(new Source[]{fatturaSource, xmldsigSource});
             }
         } catch (final IOException | SAXException ex) {
             // Fails application startup rather than at first invoice export — a broken
