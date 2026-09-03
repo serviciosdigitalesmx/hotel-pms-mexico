@@ -40,7 +40,6 @@ const renderDashboard = () => render(<MemoryRouter><Dashboard /></MemoryRouter>)
 
 describe('Dashboard Component', () => {
   beforeEach(() => {
-    vi.mocked(stayService.getAlloggiatiFailureSummary).mockReset();
     useDashboardStore.setState({
       stats: MOCK_STATS_ADMIN,
       isLoading: false,
