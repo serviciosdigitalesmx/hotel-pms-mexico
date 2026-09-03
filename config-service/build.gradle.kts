@@ -52,6 +52,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback")
             buildArgs.add("--initialize-at-build-time=net.i2p.crypto.eddsa")
+            buildArgs.add("--initialize-at-build-time=org.bouncycastle.jce.provider")
         }
     }
 }
