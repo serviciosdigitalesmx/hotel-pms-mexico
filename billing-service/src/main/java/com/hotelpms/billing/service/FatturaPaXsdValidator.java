@@ -111,7 +111,14 @@ public class FatturaPaXsdValidator {
 
     private static LSResourceResolver resourceResolver() {
         return (type, namespaceURI, publicId, systemId, baseURI) -> {
-            if (!XMLDSIG_NAMESPACE.equals(namespaceURI)) {
+            // Xerces normally supplies the imported namespace here. The Native
+            // runtime can leave namespaceURI null while preserving the remote
+            // schemaLocation, so accept either stable identity of this one
+            // bundled import. Without the systemId fallback the resolver is
+            // skipped and the schema compiler reports ds:Signature as missing.
+            final boolean isXmlDsigImport = XMLDSIG_NAMESPACE.equals(namespaceURI)
+                    || (systemId != null && systemId.contains("xmldsig-core-schema.xsd"));
+            if (!isXmlDsigImport) {
                 return null;
             }
             // The byte stream is bundled; expose that same local identifier as
