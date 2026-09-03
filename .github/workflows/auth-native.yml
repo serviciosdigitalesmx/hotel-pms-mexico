@@ -77,8 +77,11 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :config-service:bootJar :auth-service:bootJar :auth-service:test --no-daemon --stacktrace --max-workers=2
-          SPRING_PROFILES_ACTIVE=native CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-            nohup java -jar config-service/build/libs/*-SNAPSHOT.jar >/tmp/auth-native-config.log 2>&1 &
+          SPRING_PROFILES_ACTIVE=native \
+          CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
+          CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+            setsid java -jar config-service/build/libs/*-SNAPSHOT.jar \
+              </dev/null >/tmp/auth-native-config.log 2>&1 &
           config_pid=$!
           trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
           config_ready=false
@@ -103,16 +106,23 @@ jobs:
             ps -ef | grep -E 'config-service|java' || true
             exit 1
           fi
-          if ! kill -0 "${config_pid}" 2>/dev/null \
-            || ! curl --silent --fail --max-time 3 \
-              --user "${CONFIG_SERVER_USERNAME}:${CONFIG_SERVER_PASSWORD}" \
-              http://127.0.0.1:8888/auth-service/default >/dev/null; then
-            echo "Config Server stopped after readiness" >&2
-            cat /tmp/auth-native-config.log >&2 || true
-            ps -ef | grep -E 'config-service|java' || true
-            exit 1
-          fi
-          ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
+          for _ in {1..10}; do
+            if ! kill -0 "${config_pid}" 2>/dev/null \
+              || ! curl --silent --fail --max-time 3 \
+                --user "${CONFIG_SERVER_USERNAME}:${CONFIG_SERVER_PASSWORD}" \
+                http://127.0.0.1:8888/auth-service/default >/dev/null; then
+              echo "Config Server stopped after readiness" >&2
+              cat /tmp/auth-native-config.log >&2 || true
+              ps -ef | grep -E 'config-service|java' || true
+              exit 1
+            fi
+            sleep 1
+          done
+          SPRING_CONFIG_IMPORT="configserver:${CONFIG_SERVER_URL}" \
+          SPRING_PROFILES_ACTIVE=auth-service \
+          CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
+          CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
 
       - name: Build JVM fallback and Config Server images
         run: |
