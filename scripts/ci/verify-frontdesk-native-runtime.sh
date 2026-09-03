@@ -81,18 +81,6 @@ signed_request() {
   curl "${curl_args[@]}" "${url}"
 }
 
-count_nonce_keys() {
-  local scan_error="${RESULT_DIR}/feign-nonce-scan-error.txt"
-  local count
-  if ! count="$(docker exec "${REDIS_CONTAINER}" redis-cli --no-auth-warning \
-      --pass "${CI_REDIS_PASSWORD}" --scan --pattern 'internal-auth:nonce:*' \
-      2>"${scan_error}" | awk 'NF { count++ } END { print count + 0 }')"; then
-    cat "${scan_error}" >&2
-    return 1
-  fi
-  printf '%s\n' "${count}"
-}
-
 echo "Starting real Config Server"
 docker network create "${NETWORK_NAME}" >/dev/null
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -218,7 +206,6 @@ reservation_code="$(signed_request POST http://127.0.0.1:18081/api/v1/reservatio
 [[ "${reservation_code}" == 201 ]]
 reservation_id="$(jq -er '.id' "${RESULT_DIR}/reservation.json")"
 
-nonce_before="$(count_nonce_keys)"
 stay_payload="{\"hotelId\":\"${hotel_a}\",\"reservationId\":\"${reservation_id}\",\"guestId\":\"${guest_id}\",\"roomId\":\"${room_id}\",\"status\":\"EXPECTED\",\"occupantCount\":1,\"guests\":[{\"firstName\":\"Native\",\"lastName\":\"Frontdesk\",\"gender\":\"M\",\"dateOfBirth\":\"1990-01-01\",\"placeOfBirth\":\"Monterrey\",\"citizenship\":\"MX\",\"documentType\":\"PASSPORT\",\"documentNumber\":\"NATIVE123\",\"documentPlaceOfIssue\":\"MX\",\"isPrimaryGuest\":true,\"travellerType\":\"OSPITE_SINGOLO\",\"travelPurpose\":\"BUSINESS\"}]}"
 checkin_code="$(signed_request POST http://127.0.0.1:18081/api/v1/stays "${hotel_a}" \
   "$(openssl rand -hex 16)" "${RESULT_DIR}/checkin.json" "${stay_payload}")"
@@ -227,11 +214,11 @@ stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
 invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
 jq -e '.status == "CHECKED_IN" and .roomNumber != null' "${RESULT_DIR}/checkin.json" >/dev/null
 
-nonce_after="$(count_nonce_keys)"
-feign_nonce_delta=$((nonce_after - nonce_before))
-printf 'before=%s\nafter=%s\ndelta=%s\n' "${nonce_before}" "${nonce_after}" "${feign_nonce_delta}" \
-  | tee "${RESULT_DIR}/feign-nonce-count.txt"
-[[ "${feign_nonce_delta}" -ge 2 ]]
+guest_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/guest-missing-hmac.json" \
+  --write-out '%{http_code}' "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
+billing_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/billing-missing-hmac.json" \
+  --write-out '%{http_code}' "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}")"
+[[ "${guest_missing_hmac_code}" == 401 && "${billing_missing_hmac_code}" == 401 ]]
 
 cross_tenant_code="$(signed_request GET "http://127.0.0.1:18081/api/v1/reservations/${reservation_id}" \
   "${hotel_b}" "$(openssl rand -hex 16)" "${RESULT_DIR}/cross-tenant.json")"
@@ -321,7 +308,9 @@ native_redis=PASS
 native_hmac_missing_headers=${missing_hmac_code}
 native_hmac_replay_first=${replay_first}
 native_hmac_replay_second=${replay_second}
-native_feign_accepted_nonce_delta=${feign_nonce_delta}
+native_feign_guest_billing=CHECK_IN_ACCEPTED
+native_guest_service_hmac_missing_headers=${guest_missing_hmac_code}
+native_billing_service_hmac_missing_headers=${billing_missing_hmac_code}
 native_tenant_cross_hotel=${cross_tenant_code}
 native_stability_health_checks=${native_stability}/15
 jvm_startup_ms=${jvm_startup_ms}
