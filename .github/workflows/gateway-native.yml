@@ -1,0 +1,163 @@
+name: API Gateway Native Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_quick_build:
+        description: "Use GraalVM quick build (-Ob); disable for the final optimized gate (-O2)"
+        required: false
+        default: false
+        type: boolean
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "api-gateway/**"
+      - "config-service/**"
+      - "auth-service/**"
+      - "frontdesk-service/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "scripts/ci/verify-gateway-native-runtime.sh"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/gateway-native.yml"
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate api-gateway Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+      CI_JWT_SECRET: bXktMzItYnl0ZS1zZWNyZXQta2V5LWZvci1jaS1yZXBsYWNlbWVudC0xMjM0NQ==
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-gateway-jvm21-dependencies-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-gateway-jvm21-dependencies-
+
+      - name: Build JVM gateway and real integration services
+        run: |
+          chmod +x ./gradlew
+          ./gradlew \
+            :config-service:bootJar \
+            :auth-service:bootJar \
+            :frontdesk-service:bootJar \
+            :api-gateway:bootJar \
+            --no-daemon --stacktrace --max-workers=2
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/auth-service:ci --file auth-service/Dockerfile .
+          docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
+          docker build --tag hotel-pms/api-gateway-jvm:ci --file api-gateway/Dockerfile .
+
+      - name: Run cheap JVM tests and AOT preflight
+        run: |
+          ./gradlew :api-gateway:test --no-daemon --stacktrace --max-workers=2
+          docker network create gateway-native-aot
+          trap 'docker rm --force gateway-native-aot-config 2>/dev/null || true; docker network rm gateway-native-aot 2>/dev/null || true' EXIT
+          docker run --detach --name gateway-native-aot-config --network gateway-native-aot \
+            --publish 18888:8888 --publish 18990:8090 \
+            --env CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+            --env JWT_SECRET="${CI_JWT_SECRET}" \
+            --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
+            hotel-pms/config-service:ci >/dev/null
+          for _ in {1..90}; do
+            curl --silent --fail http://127.0.0.1:18990/actuator/health >/dev/null && break
+            sleep 2
+          done
+          curl --silent --fail http://127.0.0.1:18990/actuator/health >/dev/null
+          CONFIG_SERVER_URL=http://127.0.0.1:18888 \
+          CONFIG_SERVER_USERNAME=configuser \
+          CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+          INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
+          JWT_SECRET="${CI_JWT_SECRET}" \
+          SPRING_PROFILES_ACTIVE=api-gateway \
+          ./gradlew :api-gateway:processAot --no-daemon --stacktrace --max-workers=2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build one Native Image
+        id: native_image
+        continue-on-error: true
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api-gateway/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/api-gateway-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=${{ github.event_name == 'pull_request' || inputs.native_quick_build }}
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+            JWT_SECRET=${{ env.CI_JWT_SECRET }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Classify Native build result
+        if: steps.native_image.outcome == 'failure'
+        run: |
+          echo "NATIVE_GATE_FAIL: docker/build-push-action failed while building the single api-gateway Native Image" | tee -a "${GITHUB_STEP_SUMMARY}"
+          exit 1
+
+      - name: Verify image metadata
+        run: |
+          docker image inspect hotel-pms/api-gateway-native:ci
+          docker image inspect hotel-pms/api-gateway-native:ci --format 'image_size_bytes={{.Size}}'
+
+      - name: Run Native and JVM runtime gate
+        env:
+          CI_NATIVE_BUILD_MODE: ${{ (github.event_name == 'pull_request' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
+        run: bash scripts/ci/verify-gateway-native-runtime.sh
+
+      - name: Publish runtime metrics
+        if: always()
+        run: |
+          if [[ -f build/gateway-native-runtime/metrics.txt ]]; then
+            cat build/gateway-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-native-runtime-evidence
+          path: build/gateway-native-runtime
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            api-gateway-native api-gateway-jvm gateway-native-auth \
+            gateway-native-frontdesk gateway-native-redis gateway-native-postgres \
+            gateway-native-config 2>/dev/null || true
+          docker network rm gateway-native-ci 2>/dev/null || true

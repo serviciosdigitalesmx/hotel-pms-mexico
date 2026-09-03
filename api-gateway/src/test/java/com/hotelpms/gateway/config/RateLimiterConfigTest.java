@@ -17,8 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for {@link RateLimiterConfig}.
  *
  * <p>Verifies that both {@code remoteAddrKeyResolver} and {@code userKeyResolver}
- * produce the correct bucket key under each code path — proxy header present,
- * proxy header absent, and user header present.  No Spring context is loaded.
+ * produce the correct bucket key under each code path — trusted gateway header,
+ * untrusted proxy header, and user header present. No Spring context is loaded.
  */
 class RateLimiterConfigTest {
 
@@ -36,13 +36,13 @@ class RateLimiterConfigTest {
     class RemoteAddrKeyResolverTests {
 
         @Test
-        @DisplayName("uses leftmost IP from X-Forwarded-For when header is present")
-        void usesForwardedForFirstIp() {
+        @DisplayName("uses the gateway-injected X-Client-IP when it is present")
+        void usesTrustedClientIpHeader() {
             final KeyResolver resolver = config.remoteAddrKeyResolver();
             final MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/v1/auth/login")
                     .remoteAddress(new InetSocketAddress("10.0.0.1", 0))
-                    .header("X-Forwarded-For", "203.0.113.5, 10.0.0.1")
+                    .header("X-Client-IP", "203.0.113.5")
                     .build();
             final MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
@@ -52,12 +52,13 @@ class RateLimiterConfigTest {
         }
 
         @Test
-        @DisplayName("falls back to RemoteAddress when X-Forwarded-For is absent")
-        void fallsBackToRemoteAddressWhenHeaderAbsent() {
+        @DisplayName("ignores client-supplied X-Forwarded-For and uses RemoteAddress")
+        void ignoresForwardedFor() {
             final KeyResolver resolver = config.remoteAddrKeyResolver();
             final MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/v1/auth/login")
                     .remoteAddress(new InetSocketAddress("192.168.1.42", 0))
+                    .header("X-Forwarded-For", "203.0.113.5, 10.0.0.1")
                     .build();
             final MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
@@ -67,13 +68,13 @@ class RateLimiterConfigTest {
         }
 
         @Test
-        @DisplayName("falls back to RemoteAddress when X-Forwarded-For is blank")
-        void fallsBackToRemoteAddressWhenHeaderBlank() {
+        @DisplayName("falls back to RemoteAddress when the trusted header is blank")
+        void fallsBackToRemoteAddressWhenTrustedHeaderBlank() {
             final KeyResolver resolver = config.remoteAddrKeyResolver();
             final MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/v1/auth/login")
                     .remoteAddress(new InetSocketAddress("192.168.1.99", 0))
-                    .header("X-Forwarded-For", "   ")
+                    .header("X-Client-IP", "   ")
                     .build();
             final MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
@@ -106,13 +107,14 @@ class RateLimiterConfigTest {
         }
 
         @Test
-        @DisplayName("falls back to 'ip:<xff>' when X-Auth-User absent and X-Forwarded-For present")
-        void fallsBackToForwardedForWhenUserAbsent() {
+        @DisplayName("uses trusted client IP when X-Auth-User is absent")
+        void fallsBackToTrustedClientIpWhenUserAbsent() {
             final KeyResolver resolver = config.userKeyResolver();
             final MockServerHttpRequest request = MockServerHttpRequest
                     .get("/api/v1/reservations")
                     .remoteAddress(new InetSocketAddress("10.0.0.1", 0))
-                    .header("X-Forwarded-For", "203.0.113.7, 10.0.0.1")
+                    .header("X-Forwarded-For", "198.51.100.4")
+                    .header("X-Client-IP", "203.0.113.7")
                     .build();
             final MockServerWebExchange exchange = MockServerWebExchange.from(request);
 

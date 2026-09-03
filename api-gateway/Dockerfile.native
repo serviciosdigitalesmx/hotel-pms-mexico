@@ -7,24 +7,28 @@ ARG CONFIG_SERVER_USERNAME=configuser
 ARG CONFIG_SERVER_PASSWORD=native-ci-config
 ARG INTERNAL_HMAC_SECRET=native-ci-hmac-secret-with-sufficient-length
 ARG INTERNAL_REDIS_PASSWORD=native-ci-redis
-ARG JWT_SECRET=ZmFrZS1qd3Qtc2VjcmV0LXN1ZmZpY2llbnQtbGVuZ3Ro
+ARG JWT_SECRET=bXktMzItYnl0ZS1zZWNyZXQta2V5LWZvci1jaS1yZXBsYWNlbWVudC0xMjM0NQ==
+
 WORKDIR /workspace
 RUN microdnf install -y curl findutils \
     && microdnf clean all
+
 COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
-COPY . .
+COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradle ./gradle
+COPY api-gateway ./api-gateway
 
 RUN --mount=type=cache,target=/root/.gradle <<'EOF'
 set -eu
 chmod +x ./gradlew
-# GraalVM 24 is the builder toolchain. The repository keeps Java 21 as the
-# JVM contract; this substitution is confined to the disposable build stage.
-find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +
+# GraalVM 24 is the builder JDK. Align the module toolchain only inside this
+# ephemeral image; the repository and the JVM fallback remain Java 21.
+find api-gateway -name build.gradle.kts -exec \
+    sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +
 
-nohup env \
-    CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-    JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
-    java -jar /tmp/config-server.jar >/tmp/config-server.log 2>&1 &
+CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
+java -jar /tmp/config-server.jar >/tmp/config-server.log 2>&1 &
 config_pid=$!
 trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
 
@@ -41,10 +45,8 @@ if [ "${config_ready}" != true ]; then
     cat /tmp/config-server.log
     exit 1
 fi
-kill -0 "${config_pid}"
-
-SPRING_PROFILES_ACTIVE=dev \
-SPRING_CONFIG_IMPORT="configserver:${CONFIG_SERVER_URL}" \
+SPRING_PROFILES_ACTIVE=api-gateway \
+CONFIG_SERVER_URL="${CONFIG_SERVER_URL}" \
 CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
 CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
 INTERNAL_HMAC_SECRET="${INTERNAL_HMAC_SECRET}" \
