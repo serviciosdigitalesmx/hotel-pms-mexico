@@ -2,6 +2,8 @@ package com.hotelpms.fb.config;
 
 import com.hotelpms.fb.client.BillingClient;
 import com.hotelpms.fb.client.StayClient;
+import com.hotelpms.fb.client.dto.ChargeResponse;
+import com.hotelpms.fb.client.dto.StayResponse;
 import org.springframework.aop.SpringProxy;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
@@ -26,6 +28,8 @@ public final class FbNativeRuntimeHints implements RuntimeHintsRegistrar {
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
+        BINDING_HINTS.registerReflectionHints(hints.reflection(), ChargeResponse.class);
+        BINDING_HINTS.registerReflectionHints(hints.reflection(), StayResponse.class);
         registerFeignProxy(hints, BillingClient.class);
         registerFeignProxy(hints, StayClient.class);
     }
