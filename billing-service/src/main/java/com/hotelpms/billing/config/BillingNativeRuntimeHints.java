@@ -2,6 +2,7 @@ package com.hotelpms.billing.config;
 
 import com.hotelpms.billing.client.GuestClient;
 import com.hotelpms.billing.client.HotelSettingsClient;
+import org.apache.xmpbox.type.TextType;
 import org.springframework.aop.SpringProxy;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
@@ -29,6 +30,8 @@ public final class BillingNativeRuntimeHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
+        // XMPBox creates PDF metadata properties by their public constructor.
+        hints.reflection().registerType(TextType.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
         registerFeignProxy(hints, GuestClient.class);
         registerFeignProxy(hints, HotelSettingsClient.class);
