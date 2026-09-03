@@ -31,6 +31,11 @@ graalvmNative {
             }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
+            // Config Server carries JGit's optional SSH/SFTP providers. JDK
+            // ServiceLoader materializes them in the image heap, so initialize
+            // these stateless providers during the native build.
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.file.root.RootedFileSystemProvider")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
         }
     }
 }
