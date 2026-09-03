@@ -37,9 +37,11 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.file.root.RootedFileSystemProvider")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
+            buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.LoggerContext")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpErrorDataHandler")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpVersionSelector\$NamedVersionSelector")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer\$1")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
         }
     }
 }
