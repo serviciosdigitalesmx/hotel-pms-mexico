@@ -39,6 +39,40 @@ if [ "${config_ready}" != true ]; then
     exit 1
 fi
 
+# PDFBox reaches java.desktop through AWT. Collect the JDK's JNI/reflective
+# registrations from a minimal headless smoke test in the same GraalVM/JDK
+# builder used by nativeCompile, then feed that directory to Native Image.
+# This keeps the JVM image unchanged and avoids hand-maintaining broad AWT
+# metadata in the application sources.
+mkdir -p /tmp/awt-native-image-config
+cat >/tmp/AwtReachabilitySmoke.java <<'JAVA'
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import javax.imageio.ImageIO;
+
+public final class AwtReachabilitySmoke {
+    private AwtReachabilitySmoke() {
+    }
+
+    public static void main(final String[] args) throws Exception {
+        final BufferedImage image = new BufferedImage(4, 4, BufferedImage.TYPE_INT_ARGB);
+        final Graphics2D graphics = image.createGraphics();
+        graphics.fillRect(0, 0, 4, 4);
+        graphics.dispose();
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        if (!ImageIO.write(image, "png", output) || output.size() <= 8) {
+            throw new IllegalStateException("AWT smoke test produced no PNG");
+        }
+    }
+}
+JAVA
+javac /tmp/AwtReachabilitySmoke.java
+java -Djava.awt.headless=true \
+    -agentlib:native-image-agent=config-output-dir=/tmp/awt-native-image-config \
+    -cp /tmp AwtReachabilitySmoke
+find /tmp/awt-native-image-config -maxdepth 1 -type f -print
+
 SPRING_PROFILES_ACTIVE=billing-service \
 CONFIG_SERVER_URL="${CONFIG_SERVER_URL}" \
 CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
@@ -52,6 +86,7 @@ SPRING_DATASOURCE_PASSWORD=native-ci \
 ./gradlew :billing-service:nativeCompile \
     -Pnative=true \
     -PnativeQuickBuild="${NATIVE_QUICK_BUILD}" \
+    -PnativeAwtConfigDir=/tmp/awt-native-image-config \
     --no-daemon --stacktrace --max-workers=2
 EOF
 

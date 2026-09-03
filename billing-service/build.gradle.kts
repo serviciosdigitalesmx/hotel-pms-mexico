@@ -37,6 +37,9 @@ graalvmNative {
             // this mode keeps that supported dynamic-library layout while
             // avoiding a libc-dependent executable at link time.
             buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
+            providers.gradleProperty("nativeAwtConfigDir").orNull?.takeIf { it.isNotBlank() }?.let {
+                buildArgs.add("-H:ConfigurationFileDirectories=$it")
+            }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
