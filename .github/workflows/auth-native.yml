@@ -77,18 +77,18 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :config-service:bootJar :auth-service:bootJar :auth-service:test --no-daemon --stacktrace --max-workers=2
-          SPRING_PROFILES_ACTIVE=native \
-          CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
-          CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-            setsid java -jar config-service/build/libs/*-SNAPSHOT.jar \
-              </dev/null >/tmp/auth-native-config.log 2>&1 &
-          config_pid=$!
-          trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/auth-service-jvm:ci --file auth-service/Dockerfile .
+          docker run --detach --name auth-native-config \
+            --publish 8888:8888 --publish 8090:8090 \
+            --env CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
+            --env CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+            hotel-pms/config-service:ci >/tmp/auth-native-config-container-id
           config_ready=false
           for _ in {1..120}; do
-            if ! kill -0 "${config_pid}" 2>/dev/null; then
-              echo "Config Server exited before readiness" >&2
-              cat /tmp/auth-native-config.log >&2 || true
+            if ! docker ps --format '{{.Names}}' | grep -qx auth-native-config; then
+              echo "Config Server container exited before readiness" >&2
+              docker logs auth-native-config >&2 || true
               exit 1
             fi
             if curl --silent --fail --max-time 3 http://127.0.0.1:8090/actuator/health >/dev/null \
@@ -102,18 +102,18 @@ jobs:
           done
           if [[ "${config_ready}" != true ]]; then
             echo "Config Server did not become ready on ports 8888/8090" >&2
-            cat /tmp/auth-native-config.log >&2 || true
-            ps -ef | grep -E 'config-service|java' || true
+            docker logs auth-native-config >&2 || true
+            docker ps -a >&2 || true
             exit 1
           fi
           for _ in {1..10}; do
-            if ! kill -0 "${config_pid}" 2>/dev/null \
+            if ! docker ps --format '{{.Names}}' | grep -qx auth-native-config \
               || ! curl --silent --fail --max-time 3 \
                 --user "${CONFIG_SERVER_USERNAME}:${CONFIG_SERVER_PASSWORD}" \
                 http://127.0.0.1:8888/auth-service/default >/dev/null; then
-              echo "Config Server stopped after readiness" >&2
-              cat /tmp/auth-native-config.log >&2 || true
-              ps -ef | grep -E 'config-service|java' || true
+              echo "Config Server container stopped after readiness" >&2
+              docker logs auth-native-config >&2 || true
+              docker ps -a >&2 || true
               exit 1
             fi
             sleep 1
@@ -123,11 +123,6 @@ jobs:
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
             ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
-
-      - name: Build JVM fallback and Config Server images
-        run: |
-          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
-          docker build --tag hotel-pms/auth-service-jvm:ci --file auth-service/Dockerfile .
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
