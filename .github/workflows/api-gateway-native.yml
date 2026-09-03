@@ -72,7 +72,8 @@ jobs:
         run: |
           set -eu
           config_jar="$(find config-service/build/libs -name '*-SNAPSHOT.jar' -print -quit)"
-          CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+          nohup env \
+            CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
             JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
             java -jar "${config_jar}" >config-server-native-preflight.log 2>&1 &
           config_pid=$!
@@ -89,8 +90,9 @@ jobs:
             cat config-server-native-preflight.log
             exit 1
           fi
+          kill -0 "${config_pid}"
           SPRING_PROFILES_ACTIVE=dev \
-          CONFIG_SERVER_URL=http://127.0.0.1:8888 \
+          SPRING_CONFIG_IMPORT=configserver:http://127.0.0.1:8888 \
           CONFIG_SERVER_USERNAME=configuser \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
           INTERNAL_HMAC_SECRET="${INTERNAL_HMAC_SECRET}" \

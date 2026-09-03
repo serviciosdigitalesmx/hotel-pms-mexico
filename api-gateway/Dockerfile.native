@@ -21,9 +21,10 @@ chmod +x ./gradlew
 # JVM contract; this substitution is confined to the disposable build stage.
 find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +
 
-CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
-java -jar /tmp/config-server.jar >/tmp/config-server.log 2>&1 &
+nohup env \
+    CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+    JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
+    java -jar /tmp/config-server.jar >/tmp/config-server.log 2>&1 &
 config_pid=$!
 trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
 
@@ -40,9 +41,10 @@ if [ "${config_ready}" != true ]; then
     cat /tmp/config-server.log
     exit 1
 fi
+kill -0 "${config_pid}"
 
 SPRING_PROFILES_ACTIVE=dev \
-CONFIG_SERVER_URL="${CONFIG_SERVER_URL}" \
+SPRING_CONFIG_IMPORT="configserver:${CONFIG_SERVER_URL}" \
 CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
 CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
 INTERNAL_HMAC_SECRET="${INTERNAL_HMAC_SECRET}" \
