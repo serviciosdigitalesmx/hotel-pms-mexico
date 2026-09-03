@@ -31,30 +31,9 @@ graalvmNative {
             }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
-            // ConfigServerRuntimeHints retains JGit SSH classes even though
-            // the native profile uses the classpath repository. Graal's JDK
-            // ServiceLoader otherwise places optional SSH/SFTP objects in the
-            // image heap with runtime initialization.
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.file.root.RootedFileSystemProvider")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemProvider")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpErrorDataHandler")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer")
-            // The anonymous initializer is materialized by the JDK ServiceLoader;
-            // initialize the SFTP provider package together so its generated
-            // implementation classes cannot remain in the runtime-init heap.
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.SftpVersionSelector.${'$'}NamedVersionSelector")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common")
-            buildArgs.add("--initialize-at-build-time=org.apache.sshd")
-            // SshClient starts a timer thread during build-time initialization;
-            // keep the client lifecycle runtime-only for Native correctness.
-            buildArgs.add("--initialize-at-run-time=org.apache.sshd.client.SshClient")
             buildArgs.add("--initialize-at-build-time=java.util.function.Supplier")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback")
-            buildArgs.add("--initialize-at-build-time=net.i2p.crypto.eddsa")
-            buildArgs.add("--initialize-at-build-time=org.bouncycastle.jce.provider")
         }
     }
 }
@@ -78,7 +57,14 @@ ext {
 }
 
 dependencies {
-    implementation("org.springframework.cloud:spring-cloud-config-server")
+    implementation("org.springframework.cloud:spring-cloud-config-server") {
+        // Native uses the classpath-backed repository; JGit SSH is optional and
+        // otherwise starts an SSH client during image generation.
+        exclude(group = "org.eclipse.jgit", module = "org.eclipse.jgit.ssh.apache")
+        exclude(group = "org.apache.sshd", module = "sshd-osgi")
+        exclude(group = "org.apache.sshd", module = "sshd-sftp")
+        exclude(group = "net.i2p.crypto", module = "eddsa")
+    }
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
