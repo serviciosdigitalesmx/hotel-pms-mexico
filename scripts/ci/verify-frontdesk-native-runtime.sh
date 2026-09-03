@@ -228,10 +228,13 @@ stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
 invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
 jq -e '.status == "CHECKED_IN" and .roomNumber != null' "${RESULT_DIR}/checkin.json" >/dev/null
 
+echo "Probing guest-service rejection without internal HMAC"
 guest_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/guest-missing-hmac.json" \
   "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
+echo "guest-service missing HMAC status=${guest_missing_hmac_code}"
 billing_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/billing-missing-hmac.json" \
   "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}")"
+echo "billing-service missing HMAC status=${billing_missing_hmac_code}"
 [[ "${guest_missing_hmac_code}" == 401 && "${billing_missing_hmac_code}" == 401 ]]
 
 cross_tenant_code="$(signed_request GET "http://127.0.0.1:18081/api/v1/reservations/${reservation_id}" \
