@@ -32,8 +32,9 @@ public final class BillingNativeRuntimeHints implements RuntimeHintsRegistrar {
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
         registerFeignProxy(hints, GuestClient.class);
         registerFeignProxy(hints, HotelSettingsClient.class);
-        hints.resources().registerPattern("templates/pdf/.*");
-        hints.resources().registerPattern("xsd/.*");
+        // ResourceHint patterns use Spring's path wildcards, not regexes.
+        hints.resources().registerPattern("templates/pdf/**");
+        hints.resources().registerPattern("xsd/**");
     }
 
     private static void registerFeignProxy(final RuntimeHints hints, final Class<?> clientInterface) {
