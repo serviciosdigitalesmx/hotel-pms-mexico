@@ -62,7 +62,6 @@ jobs:
 
       - name: Run cheap AOT and JVM regression gates
         env:
-          SPRING_CONFIG_IMPORT: optional:configserver:http://127.0.0.1:8888
           SPRING_PROFILES_ACTIVE: auth-service
           CONFIG_SERVER_URL: http://127.0.0.1:8888
           CONFIG_SERVER_USERNAME: configuser
@@ -121,13 +120,11 @@ jobs:
             fi
             sleep 1
           done
-          SPRING_CONFIG_IMPORT="optional:configserver:${CONFIG_SERVER_URL}" \
+          CONFIG_SERVER_IMPORT="optional:configserver:${CONFIG_SERVER_URL}" \
           SPRING_PROFILES_ACTIVE=auth-service \
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-          JAVA_TOOL_OPTIONS="-Dspring.config.import=optional:configserver:${CONFIG_SERVER_URL}" \
             ./gradlew :auth-service:processAot \
-              -PaotConfigImport="optional:configserver:${CONFIG_SERVER_URL}" \
               --no-daemon --stacktrace --max-workers=2 \
             || {
               echo "Config Server state after processAot failure" >&2

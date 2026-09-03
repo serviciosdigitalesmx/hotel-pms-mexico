@@ -2,7 +2,7 @@ spring:
   application:
     name: auth-service
   config:
-    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+    import: "${CONFIG_SERVER_IMPORT:configserver:${CONFIG_SERVER_URL:http://localhost:8888}}"
   cloud:
     config:
       username: ${CONFIG_SERVER_USERNAME:configuser}
