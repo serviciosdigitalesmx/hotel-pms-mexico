@@ -28,8 +28,8 @@ graalvmNative {
                 buildArgs.add("-Ob")
             }
             // Reuse the validated notification-service build envelope.
-            buildArgs.add("-J-Xmx4600m")
-            buildArgs.add("--parallelism=4")
+            buildArgs.add("-J-Xmx10g")
+            buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
         }
     }
