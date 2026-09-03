@@ -43,6 +43,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.sftp.client.fs.SftpFileSystemClientSessionInitializer\$1")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.client.SshClient")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory,java.util.function.Supplier")
+            buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.PropertyResolver\$1")
         }
     }
 }
