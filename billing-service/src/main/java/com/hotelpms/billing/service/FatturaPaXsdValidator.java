@@ -53,7 +53,13 @@ public class FatturaPaXsdValidator {
             final SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             factory.setResourceResolver(resourceResolver());
             try (InputStream xsd = new ClassPathResource(FATTURAPA_XSD).getInputStream()) {
-                this.schema = factory.newSchema(new StreamSource(xsd));
+                final StreamSource source = new StreamSource(xsd);
+                // Keep a deterministic classpath base for the import when the
+                // application is packaged as a Native Image. Without it the
+                // XML parser can discard the resolver's bundled stream and
+                // attempt to resolve the official remote URL instead.
+                source.setSystemId(FATTURAPA_XSD);
+                this.schema = factory.newSchema(source);
             }
         } catch (final IOException | SAXException ex) {
             // Fails application startup rather than at first invoice export — a broken
@@ -100,7 +106,10 @@ public class FatturaPaXsdValidator {
             if (!XMLDSIG_NAMESPACE.equals(namespaceURI)) {
                 return null;
             }
-            return new ClassPathResourceLsInput(publicId, systemId, baseURI);
+            // The byte stream is bundled; expose that same local identifier as
+            // the system ID so Xerces does not fall back to the remote import
+            // URL in a Native Image.
+            return new ClassPathResourceLsInput(publicId, XMLDSIG_XSD, baseURI);
         };
     }
 
