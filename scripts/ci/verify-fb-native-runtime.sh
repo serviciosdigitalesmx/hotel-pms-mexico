@@ -202,8 +202,8 @@ STAY_ID="$(new_id)"
 echo 'Seeding a real CHECKED_IN stay in frontdesk PostgreSQL'
 docker exec -i "${POSTGRES_CONTAINER}" psql --username postgres --dbname hotel_frontdesk \
   --set ON_ERROR_STOP=1 <<SQL
-INSERT INTO room_types (id, name, description, max_occupancy, base_price, active, created_at, updated_at)
-VALUES ('${ROOM_TYPE_ID}', 'Native CI Room Type', 'Native integration fixture', 2, 100.00, true, now(), now());
+INSERT INTO room_types (id, hotel_id, name, description, max_occupancy, base_price, active, created_at, updated_at)
+VALUES ('${ROOM_TYPE_ID}', '${HOTEL_A}', 'Native CI Room Type', 'Native integration fixture', 2, 100.00, true, now(), now());
 INSERT INTO rooms (id, hotel_id, room_number, room_type_id, status, active, created_at, updated_at)
 VALUES ('${ROOM_ID}', '${HOTEL_A}', 'NATIVE-${ROOM_ID:0:8}', '${ROOM_TYPE_ID}', 'OCCUPIED', true, now(), now());
 INSERT INTO reservations (id, version, hotel_id, guest_id, expected_guests, actual_guests,
