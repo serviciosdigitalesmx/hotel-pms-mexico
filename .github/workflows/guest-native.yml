@@ -42,10 +42,10 @@ jobs:
       CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -93,7 +93,7 @@ jobs:
           push: false
           tags: hotel-pms/guest-service-native:ci
           build-args: |
-            NATIVE_QUICK_BUILD=${{ inputs.native_quick_build || 'true' }}
+            NATIVE_QUICK_BUILD=${{ github.event_name != 'workflow_dispatch' || inputs.native_quick_build }}
             CONFIG_SERVER_URL=http://127.0.0.1:8888
             CONFIG_SERVER_USERNAME=configuser
             CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
@@ -109,6 +109,8 @@ jobs:
             --format 'image_size_bytes={{.Size}}'
 
       - name: Run Native runtime and integration gate
+        env:
+          CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
         run: bash scripts/ci/verify-guest-native-runtime.sh
 
       - name: Publish runtime metrics

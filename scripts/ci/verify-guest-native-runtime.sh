@@ -392,6 +392,7 @@ jvm_loaded_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc
 jvm_image_size_bytes="$(docker image inspect hotel-pms/guest-service-jvm:ci --format '{{.Size}}')"
 
 cat > "${RESULT_DIR}/metrics.txt" <<METRICS
+native_build_mode=${CI_NATIVE_BUILD_MODE:-unknown}
 native_startup_ms=${startup_ms}
 native_idle_memory=${idle_memory}
 native_loaded_memory=${loaded_memory}
