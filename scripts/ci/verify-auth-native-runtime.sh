@@ -204,6 +204,10 @@ run_basic_flow() {
 }
 
 echo "Starting Config Server"
+for container in "${CONFIG_CONTAINER}" "${POSTGRES_CONTAINER}" "${REDIS_CONTAINER}" \
+    "${NATIVE_CONTAINER}" "${JVM_CONTAINER}"; do
+    docker rm -f "${container}" >/dev/null 2>&1 || true
+done
 docker network create "${NETWORK_NAME}" >/dev/null || global_fail "could not create Docker network"
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
     --publish 18888:8888 --publish 18091:8090 \
