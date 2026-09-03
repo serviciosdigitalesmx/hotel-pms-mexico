@@ -82,9 +82,15 @@ signed_request() {
 }
 
 count_nonce_keys() {
-  docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
-    --scan --pattern 'internal-auth:nonce:*' 2>/dev/null \
-    | awk 'NF { count++ } END { print count + 0 }'
+  local scan_error="${RESULT_DIR}/feign-nonce-scan-error.txt"
+  local count
+  if ! count="$(docker exec "${REDIS_CONTAINER}" redis-cli --no-auth-warning \
+      --pass "${CI_REDIS_PASSWORD}" --scan --pattern 'internal-auth:nonce:*' \
+      2>"${scan_error}" | awk 'NF { count++ } END { print count + 0 }')"; then
+    cat "${scan_error}" >&2
+    return 1
+  fi
+  printf '%s\n' "${count}"
 }
 
 echo "Starting real Config Server"
