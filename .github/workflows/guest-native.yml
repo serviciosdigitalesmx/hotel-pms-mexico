@@ -74,6 +74,7 @@ jobs:
             :frontdesk-service:bootJar \
             :billing-service:bootJar \
             :guest-service:bootJar \
+            -x :guest-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
