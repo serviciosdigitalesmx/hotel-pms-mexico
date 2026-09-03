@@ -16,6 +16,9 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
  */
 public final class GatewayNativeRuntimeHints implements RuntimeHintsRegistrar {
 
+    private static final String REQUEST_RATE_LIMITER_SCRIPT =
+            "META-INF/scripts/request_rate_limiter.lua";
+
     @Override
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         hints.reflection().registerType(
@@ -24,5 +27,7 @@ public final class GatewayNativeRuntimeHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(
                 PublicBookingFilter.Config.class,
                 MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
+        // RedisRateLimiter loads this dependency resource at runtime.
+        hints.resources().registerPattern(REQUEST_RATE_LIMITER_SCRIPT);
     }
 }
