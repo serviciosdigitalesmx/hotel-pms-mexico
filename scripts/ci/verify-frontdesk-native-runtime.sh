@@ -236,7 +236,7 @@ stay_payload="{\"hotelId\":\"${hotel_a}\",\"reservationId\":\"${reservation_id}\
 checkin_code="$(signed_request POST http://127.0.0.1:18081/api/v1/stays "${hotel_a}" \
   "$(openssl rand -hex 16)" "${RESULT_DIR}/checkin.json" "${stay_payload}")"
 echo "check-in HTTP status=${checkin_code}"
-[[ "${checkin_code}" == 200 ]]
+[[ "${checkin_code}" == 201 ]]
 stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
 invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
 echo "check-in identifiers extracted"
