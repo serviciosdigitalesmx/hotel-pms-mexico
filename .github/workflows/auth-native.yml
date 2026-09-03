@@ -121,20 +121,17 @@ jobs:
             fi
             sleep 1
           done
-          set +e
-          SPRING_CONFIG_IMPORT="configserver:${CONFIG_SERVER_URL}" \
+          SPRING_CONFIG_IMPORT="optional:configserver:${CONFIG_SERVER_URL}" \
           SPRING_PROFILES_ACTIVE=auth-service \
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
-            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
-          aot_status=$?
-          set -e
-          if [[ "${aot_status}" -ne 0 ]]; then
-            echo "Config Server state after processAot failure" >&2
-            docker logs auth-native-config >&2 || true
-            docker inspect auth-native-config >&2 || true
-            exit "${aot_status}"
-          fi
+            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2 \
+            || {
+              echo "Config Server state after processAot failure" >&2
+              docker logs auth-native-config >&2 || true
+              docker inspect auth-native-config >&2 || true
+              exit 1
+            }
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
