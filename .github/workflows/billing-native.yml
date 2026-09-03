@@ -1,0 +1,173 @@
+name: Billing Service Native Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_build_mode:
+        description: "Native gate mode"
+        required: false
+        default: quick-Ob
+        type: choice
+        options:
+          - quick-Ob
+          - optimized-O2
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "billing-service/**"
+      - "guest-service/**"
+      - "frontdesk-service/**"
+      - "config-service/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "pdf-template-engine/**"
+      - "scripts/ci/verify-billing-native-runtime.sh"
+      - ".dockerignore"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/billing-native.yml"
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate billing-service Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+      NATIVE_BUILD_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.native_build_mode || 'quick-Ob' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-billing-native-jvm21-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-billing-native-jvm21-
+
+      - name: Run billing JVM tests and Spring AOT preflight
+        id: jvm_preflight
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :billing-service:test --no-daemon --stacktrace --max-workers=2
+          SPRING_CLOUD_CONFIG_ENABLED=false \
+          SPRING_CONFIG_IMPORT=optional:configserver: \
+          SPRING_PROFILES_ACTIVE=billing-service \
+          APPLICATION_CONFIG_GUEST_SERVICE_URL=http://127.0.0.1:8083 \
+          APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://127.0.0.1:8081 \
+          INTERNAL_HMAC_SECRET=native-ci-hmac-secret-with-sufficient-length \
+          SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/hotel_billing \
+          SPRING_DATASOURCE_USERNAME=native-ci \
+          SPRING_DATASOURCE_PASSWORD=native-ci \
+          ./gradlew :billing-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
+
+      - name: Build real JVM integration images
+        run: |
+          ./gradlew \
+            :config-service:bootJar \
+            :guest-service:bootJar \
+            :frontdesk-service:bootJar \
+            :billing-service:bootJar \
+            --no-daemon --stacktrace --max-workers=2
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/guest-service-jvm:ci --file guest-service/Dockerfile .
+          docker build --tag hotel-pms/frontdesk-service-jvm:ci --file frontdesk-service/Dockerfile .
+          docker build --tag hotel-pms/billing-service-jvm:ci --file billing-service/Dockerfile .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build one Native Image
+        id: native_image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: billing-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/billing-service-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=${{ env.NATIVE_BUILD_MODE == 'quick-Ob' }}
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image metadata
+        id: native_metadata
+        run: |
+          docker image inspect hotel-pms/billing-service-native:ci
+          docker image inspect hotel-pms/billing-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
+
+      - name: Run Native runtime and billing integration gate
+        id: native_gate
+        env:
+          CI_NATIVE_BUILD_MODE: ${{ env.NATIVE_BUILD_MODE }}
+        run: bash scripts/ci/verify-billing-native-runtime.sh
+
+      - name: Classify gate failure
+        if: failure()
+        run: |
+          mkdir -p build/billing-native-runtime
+          if [[ "${{ steps.native_image.outcome }}" == failure || \
+                "${{ steps.native_metadata.outcome }}" == failure || \
+                "${{ steps.native_gate.outcome }}" == failure ]]; then
+            echo NATIVE_GATE_FAIL | tee build/billing-native-runtime/failure-classification.txt
+            echo "NATIVE_GATE_FAIL: Native image build, metadata, or runtime gate failed" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo CI_GLOBAL_OR_PREEXISTING_FAIL | tee build/billing-native-runtime/failure-classification.txt
+            echo "CI_GLOBAL_OR_PREEXISTING_FAIL: failure occurred before the Native gate" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Publish runtime metrics
+        if: always()
+        run: |
+          if [[ -f build/billing-native-runtime/metrics.txt ]]; then
+            cat build/billing-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: billing-native-runtime-evidence
+          path: build/billing-native-runtime
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            billing-native \
+            billing-jvm-control \
+            billing-native-guest \
+            billing-native-frontdesk \
+            billing-native-redis \
+            billing-native-postgres \
+            billing-native-config 2>/dev/null || true
+          docker network rm billing-native-ci 2>/dev/null || true
