@@ -10,6 +10,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.gradle \
     chmod +x ./gradlew \
     && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \
+    && SPRING_CONFIG_IMPORT=optional:configserver:http://localhost:8888 \
     && SPRING_PROFILES_ACTIVE=guest-service \
       SPRING_CONFIG_ADDITIONAL_LOCATION=file:/workspace/config-service/src/main/resources/config/guest-service.yml \
       CONFIG_SERVER_PASSWORD=build-only \
@@ -19,7 +20,7 @@ RUN --mount=type=cache,target=/root/.gradle \
       SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/hotel_guest \
       SPRING_DATASOURCE_USERNAME=build-only \
       SPRING_DATASOURCE_PASSWORD=build-only \
-      ./gradlew :guest-service:nativeCompile -PnativeQuickBuild=${NATIVE_QUICK_BUILD} --no-daemon --stacktrace --max-workers=2
+      ./gradlew :guest-service:nativeCompile -PnativeQuickBuild=true --no-daemon --stacktrace --max-workers=2
 
 FROM debian:bookworm-slim
 RUN apt-get update \
