@@ -64,6 +64,8 @@ jobs:
         env:
           SPRING_CONFIG_IMPORT: optional:configserver:http://127.0.0.1:8888
           SPRING_PROFILES_ACTIVE: auth-service
+          CONFIG_SERVER_URL: http://127.0.0.1:8888
+          CONFIG_SERVER_USERNAME: configuser
           CONFIG_SERVER_PASSWORD: ${{ env.CI_CONFIG_PASSWORD }}
           INTERNAL_HMAC_SECRET: ${{ env.CI_HMAC_SECRET }}
           INTERNAL_REDIS_PASSWORD: ${{ env.CI_REDIS_PASSWORD }}
@@ -81,7 +83,15 @@ jobs:
           trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
           config_ready=false
           for _ in {1..120}; do
-            if curl --silent --fail --max-time 3 http://127.0.0.1:8090/actuator/health >/dev/null; then
+            if ! kill -0 "${config_pid}" 2>/dev/null; then
+              echo "Config Server exited before readiness" >&2
+              cat /tmp/auth-native-config.log >&2 || true
+              exit 1
+            fi
+            if curl --silent --fail --max-time 3 http://127.0.0.1:8090/actuator/health >/dev/null \
+              && curl --silent --fail --max-time 3 \
+                --user "${CONFIG_SERVER_USERNAME}:${CONFIG_SERVER_PASSWORD}" \
+                http://127.0.0.1:8888/auth-service/default >/dev/null; then
               config_ready=true
               break
             fi
@@ -93,8 +103,7 @@ jobs:
             ps -ef | grep -E 'config-service|java' || true
             exit 1
           fi
-          CONFIG_SERVER_URL=http://127.0.0.1:8888 \
-            ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
+          ./gradlew :auth-service:processAot --no-daemon --stacktrace --max-workers=2
 
       - name: Build JVM fallback and Config Server images
         run: |
