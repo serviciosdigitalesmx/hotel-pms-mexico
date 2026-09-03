@@ -253,7 +253,15 @@ export_code="$(signed_request GET "http://127.0.0.1:18083/api/v1/guests/${guest_
 nonce_count_after="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
   --scan --pattern 'internal-auth:nonce:*' 2>/dev/null | wc -l | tr -d ' ')"
 feign_nonce_delta="$((nonce_count_after - nonce_count_before))"
-[[ "${feign_nonce_delta}" -ge 3 ]]
+docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
+  --scan --pattern 'internal-auth:nonce:*' 2>/dev/null \
+  | sort > "${RESULT_DIR}/redis-nonces-after-export.txt"
+printf 'Feign nonce evidence: before=%s after=%s delta=%s\n' \
+  "${nonce_count_before}" "${nonce_count_after}" "${feign_nonce_delta}"
+if [[ "${feign_nonce_delta}" -lt 3 ]]; then
+  echo "Expected the inbound export plus both Feign calls to claim at least 3 fresh nonces" >&2
+  exit 1
+fi
 
 flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname hotel_guest \
   --tuples-only --no-align --command \
