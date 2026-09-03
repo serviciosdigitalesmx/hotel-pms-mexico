@@ -190,6 +190,9 @@ docker run --detach --name "${GUEST_CONTAINER}" --network "${NETWORK_NAME}" \
   --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://guest-native-frontdesk:8081 \
   --env APPLICATION_CONFIG_BILLING_SERVICE_URL=http://guest-native-billing:8085 \
   --env INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
+  --env SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_DEFAULT_LOGGERLEVEL=BASIC \
+  --env LOGGING_LEVEL_COM_HOTELPMS_GUEST_CLIENT=DEBUG \
+  --env LOGGING_LEVEL_IO_GITHUB_RESILIENCE4J=DEBUG \
   hotel-pms/guest-service-native:ci >/dev/null
 
 wait_for_health guest-service-native http://127.0.0.1:18090/actuator/health 120 "${GUEST_CONTAINER}"
