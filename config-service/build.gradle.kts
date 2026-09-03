@@ -48,6 +48,9 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common.Factory")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd.common")
             buildArgs.add("--initialize-at-build-time=org.apache.sshd")
+            // SshClient starts a timer thread during build-time initialization;
+            // keep the client lifecycle runtime-only for Native correctness.
+            buildArgs.add("--initialize-at-run-time=org.apache.sshd.client.SshClient")
             buildArgs.add("--initialize-at-build-time=java.util.function.Supplier")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
             buildArgs.add("--initialize-at-build-time=ch.qos.logback")
