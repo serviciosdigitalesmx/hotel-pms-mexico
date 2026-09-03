@@ -76,7 +76,7 @@ wait_for_health() {
 cookie_value() {
     local jar="$1"
     local name="$2"
-    awk -v wanted="${name}" '$0 !~ /^#/ && $6 == wanted { value = $7 } END { print value }' "${jar}"
+    awk -v wanted="${name}" '($0 !~ /^#/ || $0 ~ /^#HttpOnly_/) && $6 == wanted { value = $7 } END { print value }' "${jar}"
 }
 
 jwt_payload() {
