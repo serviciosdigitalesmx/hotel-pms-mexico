@@ -61,7 +61,7 @@ wait_for_health() {
 
 signed_request() {
   local method="$1" url="$2" hotel_id="$3" nonce="$4" output_file="$5" body="${6:-}"
-  local timestamp signature
+  local timestamp signature http_status curl_rc
   timestamp="$(date +%s%3N)"
   signature="$(printf '%s' "ci-admin:ADMIN:${hotel_id}:${timestamp}:${nonce}" \
     | openssl dgst -sha256 -hmac "${CI_HMAC_SECRET}" -r | awk '{print $1}')"
@@ -78,7 +78,19 @@ signed_request() {
   if [[ -n "${body}" ]]; then
     curl_args+=(--header 'Content-Type: application/json' --data "${body}")
   fi
-  curl "${curl_args[@]}" "${url}"
+  curl_rc=0
+  if http_status="$(curl "${curl_args[@]}" "${url}")"; then
+    :
+  else
+    curl_rc=$?
+  fi
+  printf 'signed_request curl_rc=%s http_status=%s method=%s url=%s\n' \
+    "${curl_rc}" "${http_status:-000}" "${method}" "${url}" >&2
+  if [[ "${curl_rc}" -ne 0 ]]; then
+    printf '000\n'
+  else
+    printf '%s\n' "${http_status:-000}"
+  fi
 }
 
 unsigned_request_status() {
