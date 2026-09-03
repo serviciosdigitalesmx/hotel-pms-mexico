@@ -9,6 +9,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import javax.xml.XMLConstants;
+import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
@@ -52,19 +53,16 @@ public class FatturaPaXsdValidator {
         try {
             final SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             factory.setResourceResolver(resourceResolver());
-            try (InputStream fatturaXsd = new ClassPathResource(FATTURAPA_XSD).getInputStream()) {
+            try (InputStream fatturaXsd = new ClassPathResource(FATTURAPA_XSD).getInputStream();
+                    InputStream xmldsigXsd = new ClassPathResource(XMLDSIG_XSD).getInputStream()) {
                 final StreamSource fatturaSource = new StreamSource(fatturaXsd);
-                // Keep a deterministic classpath base for the import when the
-                // application is packaged as a Native Image. Without it the
-                // XML parser can discard the resolver's bundled stream and
-                // attempt to resolve the official remote URL instead.
+                final StreamSource xmldsigSource = new StreamSource(xmldsigXsd);
+                // Keep a deterministic base for the FatturaPA import. The
+                // imported schema deliberately has no systemId: Native Image
+                // must consume its embedded InputStream, not reinterpret the
+                // classpath path as a file on disk.
                 fatturaSource.setSystemId(FATTURAPA_XSD);
-                // Resolve the XML-DSig import only through LSInput#getByteStream.
-                // Native Image embeds the XSD as a resource rather than a file;
-                // giving the resolver a relative systemId makes Xerces attempt
-                // to open that path from the container filesystem and lose the
-                // imported ds:Signature declaration.
-                this.schema = factory.newSchema(fatturaSource);
+                this.schema = factory.newSchema(new Source[]{fatturaSource, xmldsigSource});
             }
         } catch (final IOException | SAXException ex) {
             // Fails application startup rather than at first invoice export — a broken
