@@ -8,12 +8,10 @@ RUN microdnf install -y findutils \
     && microdnf clean all
 COPY . .
 RUN sed -i '/spring.config.import:/d' config-service/src/main/resources/config/guest-service.yml
-RUN sed -i '/^[[:space:]]*import:/d' guest-service/src/main/resources/application.yml
-RUN sed -i '/spring.config.import:/d' guest-service/src/main/resources/application.yml
 RUN --mount=type=cache,target=/root/.gradle \
     chmod +x ./gradlew \
     && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \
-      SPRING_CLOUD_CONFIG_ENABLED=false \
+    && SPRING_CLOUD_CONFIG_ENABLED=false \
       SPRING_PROFILES_ACTIVE=guest-service \
       SPRING_CONFIG_ADDITIONAL_LOCATION=file:/workspace/config-service/src/main/resources/config/guest-service.yml \
       CONFIG_SERVER_PASSWORD=build-only \
