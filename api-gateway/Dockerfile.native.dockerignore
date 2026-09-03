@@ -1,0 +1,22 @@
+# Keep source and the Gradle multi-project build available to nativeCompile.
+*/build/*
+!config-service/build/
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
+.gradle/
+.git/
+.github/
+.add/
+.ralph-add/
+frontend/
+docs/
+backup/
+scripts/ci/
+argos
+argos-local
+.env
+.env.*
+**/.env
+**/.env.*
+*.backup-*
+*.env.backup-*

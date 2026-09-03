@@ -1,0 +1,249 @@
+name: API Gateway Native Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      native_quick_build:
+        description: "Use the reachability gate (-Ob); disable for the final optimized gate (-O2)"
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "api-gateway/**"
+      - "config-service/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/api-gateway-native.yml"
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate api-gateway Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+      CI_JWT_SECRET: ZmFrZS1qd3Qtc2VjcmV0LXN1ZmZpY2llbnQtbGVuZ3Ro
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-gateway-native-jvm21-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-gateway-native-jvm21-
+
+      - name: Cheap JVM tests and Config Server JAR
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :api-gateway:test :internal-auth-lib:test :config-service:bootJar \
+            --no-daemon --stacktrace --max-workers=2
+
+      - name: Cheap processAot preflight against the real Config Server
+        env:
+          CONFIG_SERVER_PASSWORD: ${{ env.CI_CONFIG_PASSWORD }}
+          INTERNAL_HMAC_SECRET: ${{ env.CI_HMAC_SECRET }}
+          INTERNAL_REDIS_PASSWORD: ${{ env.CI_REDIS_PASSWORD }}
+          JWT_SECRET: ${{ env.CI_JWT_SECRET }}
+        run: |
+          set -eu
+          config_jar="$(find config-service/build/libs -name '*-SNAPSHOT.jar' -print -quit)"
+          CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+            JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
+            java -jar "${config_jar}" >config-server-native-preflight.log 2>&1 &
+          config_pid=$!
+          trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
+          ready=false
+          for _ in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:8090/actuator/health | grep -q '"status":"UP"'; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "${ready}" != true ]; then
+            cat config-server-native-preflight.log
+            exit 1
+          fi
+          SPRING_PROFILES_ACTIVE=dev \
+          CONFIG_SERVER_URL=http://127.0.0.1:8888 \
+          CONFIG_SERVER_USERNAME=configuser \
+          CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+          INTERNAL_HMAC_SECRET="${INTERNAL_HMAC_SECRET}" \
+          INTERNAL_REDIS_PASSWORD="${INTERNAL_REDIS_PASSWORD}" \
+          SPRING_DATA_REDIS_PASSWORD="${INTERNAL_REDIS_PASSWORD}" \
+          JWT_SECRET="${JWT_SECRET}" \
+          ./gradlew :api-gateway:processAot \
+            -x :api-gateway:processTestAot --no-daemon --stacktrace --max-workers=2
+
+      - name: Build JVM control image
+        run: |
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/api-gateway-jvm:ci --file api-gateway/Dockerfile .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build one Native Image
+        id: native_image
+        continue-on-error: true
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api-gateway/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/api-gateway-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=${{ github.event_name != 'workflow_dispatch' || inputs.native_quick_build }}
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+            JWT_SECRET=${{ env.CI_JWT_SECRET }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Classify Native build result
+        if: steps.native_image.outcome == 'failure'
+        run: |
+          echo "NATIVE_GATE_FAIL: docker/build-push-action failed while building the single api-gateway Native Image" | tee -a "${GITHUB_STEP_SUMMARY}"
+          exit 1
+
+      - name: Verify image metadata
+        run: |
+          docker image inspect hotel-pms/api-gateway-native:ci
+          docker image inspect hotel-pms/api-gateway-jvm:ci
+
+      - name: Native runtime and security gate
+        env:
+          CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
+        run: |
+          set -eu
+          mkdir -p build/api-gateway-native-runtime
+          metrics="build/api-gateway-native-runtime/metrics.txt"
+          : > "${metrics}"
+          fail_native() {
+            echo "NATIVE_GATE_FAIL: $*" | tee -a "${metrics}"
+            exit 1
+          }
+          echo "# api-gateway Native runtime gate (${CI_NATIVE_BUILD_MODE})" >> "${metrics}"
+          native_size="$(docker image inspect hotel-pms/api-gateway-native:ci --format '{{.Size}}')"
+          jvm_size="$(docker image inspect hotel-pms/api-gateway-jvm:ci --format '{{.Size}}')"
+          echo "native_image_size_bytes=${native_size}" >> "${metrics}"
+          echo "jvm_image_size_bytes=${jvm_size}" >> "${metrics}"
+
+          docker network create gateway-native-ci
+          docker run -d --name gateway-native-redis --network gateway-native-ci \
+            --network-alias redis redis:8.8.1-alpine \
+            redis-server --requirepass "${CI_REDIS_PASSWORD}" >/dev/null
+          for _ in $(seq 1 30); do
+            if docker exec gateway-native-redis redis-cli -a "${CI_REDIS_PASSWORD}" ping >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker run -d --name gateway-native-config --network gateway-native-ci \
+            --network-alias config-server \
+            -p 18090:8090 \
+            -e CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+            hotel-pms/config-service:ci >/dev/null
+          config_ready=false
+          for _ in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:18090/actuator/health | grep -q '"status":"UP"'; then config_ready=true; break; fi
+            sleep 2
+          done
+          [ "${config_ready}" = true ] || { docker logs gateway-native-config; fail_native "Config Server liveness failed"; }
+
+          start_epoch="$(date +%s)"
+          docker run -d --name gateway-jvm --network gateway-native-ci \
+            -p 18080:8080 -p 18081:8090 \
+            -e CONFIG_SERVER_URL=http://config-server:8888 \
+            -e CONFIG_SERVER_USERNAME=configuser \
+            -e CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+            -e INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
+            -e INTERNAL_REDIS_PASSWORD="${CI_REDIS_PASSWORD}" \
+            -e SPRING_DATA_REDIS_PASSWORD="${CI_REDIS_PASSWORD}" \
+            -e JWT_SECRET="${CI_JWT_SECRET}" \
+            hotel-pms/api-gateway-jvm:ci >/dev/null
+          jvm_ready=false
+          for _ in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:18081/actuator/health/liveness | grep -q '"status":"UP"'; then jvm_ready=true; break; fi
+            sleep 2
+          done
+          [ "${jvm_ready}" = true ] || fail_native "JVM control image liveness failed"
+          echo "jvm_liveness_seconds=$(( $(date +%s) - start_epoch ))" >> "${metrics}"
+          docker rm --force gateway-jvm >/dev/null
+
+          start_epoch="$(date +%s)"
+          docker run -d --name gateway-native --network gateway-native-ci \
+            -p 18082:8080 -p 18083:8090 \
+            -e CONFIG_SERVER_URL=http://config-server:8888 \
+            -e CONFIG_SERVER_USERNAME=configuser \
+            -e CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
+            -e INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
+            -e INTERNAL_REDIS_PASSWORD="${CI_REDIS_PASSWORD}" \
+            -e SPRING_DATA_REDIS_PASSWORD="${CI_REDIS_PASSWORD}" \
+            -e JWT_SECRET="${CI_JWT_SECRET}" \
+            hotel-pms/api-gateway-native:ci >/dev/null
+          native_ready=false
+          for _ in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:18083/actuator/health/liveness | grep -q '"status":"UP"'; then native_ready=true; break; fi
+            sleep 2
+          done
+          [ "${native_ready}" = true ] || { docker logs gateway-native; fail_native "Native image liveness failed"; }
+          echo "native_liveness_seconds=$(( $(date +%s) - start_epoch ))" >> "${metrics}"
+
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18082/api/v1/guests)"
+          [ "${status}" = 401 ] || fail_native "JWT/RBAC route gate expected 401, got ${status}"
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18082/api/v1/auth/login)"
+          case "${status}" in 401|429|502|503|504) ;; *) fail_native "auth route/rate-limit gate returned unexpected ${status}" ;; esac
+          echo "auth_route_status=${status}" >> "${metrics}"
+          echo "webflux_routing_and_security_gate=PASS" >> "${metrics}"
+          echo "hmac_timestamp_nonce_contract=PASS (gateway and internal-auth tests)" >> "${metrics}"
+
+      - name: Publish metrics and evidence
+        if: always()
+        run: |
+          if [ -f build/api-gateway-native-runtime/metrics.txt ]; then
+            cat build/api-gateway-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-gateway-native-runtime-evidence
+          path: |
+            build/api-gateway-native-runtime
+            config-server-native-preflight.log
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force gateway-native gateway-jvm gateway-native-redis gateway-native-config 2>/dev/null || true
+          docker network rm gateway-native-ci 2>/dev/null || true

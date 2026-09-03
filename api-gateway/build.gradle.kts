@@ -2,6 +2,8 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
+    // Opt-in Native Image toolchain; api-gateway/Dockerfile remains the JVM fallback.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -15,6 +17,23 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.gateway.ApiGatewayApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            // The workflow uses -Ob for the inexpensive reachability gate and
+            // -O2 for the final optimized gate. Keep exactly one optimization
+            // flag per native image invocation.
+            val nativeQuickBuild = providers.gradleProperty("nativeQuickBuild")
+                .map(String::toBoolean)
+                .orElse(false)
+            buildArgs.add(nativeQuickBuild.map { quick -> if (quick) "-Ob" else "-O2" })
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 repositories {
@@ -72,4 +91,18 @@ dependencyManagement {
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("net.bytebuddy.experimental", "true")
+}
+
+// Spring AOT test sources are not part of the cheap JVM/native runtime gates.
+// Disabling only these generated-test tasks avoids an unnecessary second AOT
+// path while leaving the ordinary gateway tests and processAot enabled.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses"
+    )
+}.configureEach {
+    enabled = false
 }
