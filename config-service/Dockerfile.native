@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/root/.gradle \
     && CONFIG_SERVER_PASSWORD=build-only-config-password \
        SPRING_PROFILES_ACTIVE=native \
        ./gradlew :config-service:nativeCompile \
+         -PnativeImageBuild=true \
          -PnativeQuickBuild="${NATIVE_QUICK_BUILD:-false}" \
          --no-daemon --stacktrace --max-workers=2
 
