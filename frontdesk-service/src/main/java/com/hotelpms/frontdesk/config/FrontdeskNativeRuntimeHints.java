@@ -6,6 +6,7 @@ import com.hotelpms.frontdesk.client.BillingClient;
 import com.hotelpms.frontdesk.client.GuestClient;
 import com.hotelpms.frontdesk.client.NotificationClient;
 import com.hotelpms.frontdesk.reservations.validation.DateRangeValidator;
+import org.apache.xmpbox.type.TextType;
 import org.springframework.aop.SpringProxy;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
@@ -36,14 +37,19 @@ public final class FrontdeskNativeRuntimeHints implements RuntimeHintsRegistrar 
         hints.reflection().registerType(RetryableAiProviderException.class);
         hints.reflection().registerType(DateRangeValidator.class,
                 MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
+        // XMPBox creates PDF/UA metadata properties by their public constructor.
+        hints.reflection().registerType(TextType.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
 
         registerFeignProxy(hints, BillingClient.class);
         registerFeignProxy(hints, GuestClient.class);
         registerFeignProxy(hints, NotificationClient.class);
 
-        hints.resources().registerPattern("templates/pdf/*.html");
-        hints.resources().registerPattern("fonts/NotoSans-*.ttf");
+        // ResourceHint patterns use Spring path wildcards. PDFBox resolves the
+        // bundled Unicode CMap by name when embedding the Noto Sans fonts.
+        hints.resources().registerPattern("templates/pdf/**");
+        hints.resources().registerPattern("fonts/**");
+        hints.resources().registerPattern("org/apache/fontbox/cmap/Identity-H");
     }
 
     private static void registerFeignProxy(final RuntimeHints hints, final Class<?> clientInterface) {

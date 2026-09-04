@@ -11,7 +11,7 @@ ARG INTERNAL_REDIS_PASSWORD=native-ci-redis
 
 WORKDIR /workspace
 
-RUN microdnf install -y curl findutils \
+RUN microdnf install -y curl findutils freetype fontconfig libX11 libXext libXi libXrender libXtst \
     && microdnf clean all
 
 # A real Config Server is available while Spring AOT resolves the frontdesk
@@ -19,7 +19,8 @@ RUN microdnf install -y curl findutils \
 COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
 COPY . .
 
-RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+RUN --mount=type=cache,target=/root/.gradle \
+    --mount=type=cache,target=/root/.m2/repository <<'EOF'
 set -eu
 chmod +x ./gradlew
 
@@ -48,6 +49,47 @@ if [ "${config_ready}" != true ]; then
     exit 1
 fi
 
+# PDFBox reaches java.desktop through AWT. Capture the JDK's own JNI and
+# reflective registrations using the same builder/JDK and bundled fonts that
+# nativeCompile consumes. This is the proven Billing PDF pattern.
+mkdir -p /tmp/awt-native-image-config
+cat >/tmp/AwtReachabilitySmoke.java <<'JAVA'
+import java.awt.Graphics2D;
+import java.awt.Font;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.nio.file.Path;
+import javax.imageio.ImageIO;
+
+public final class AwtReachabilitySmoke {
+    private AwtReachabilitySmoke() {
+    }
+
+    public static void main(final String[] args) throws Exception {
+        final BufferedImage image = new BufferedImage(4, 4, BufferedImage.TYPE_INT_ARGB);
+        final Graphics2D graphics = image.createGraphics();
+        final Font regular = Font.createFont(Font.TRUETYPE_FONT,
+                Path.of("/workspace/pdf-template-engine/src/main/resources/fonts/NotoSans-Regular.ttf").toFile());
+        final Font bold = Font.createFont(Font.TRUETYPE_FONT,
+                Path.of("/workspace/pdf-template-engine/src/main/resources/fonts/NotoSans-Bold.ttf").toFile());
+        graphics.setFont(regular.deriveFont(12.0f));
+        graphics.fillRect(0, 0, 4, 4);
+        graphics.drawString("Native", 0, 4);
+        bold.deriveFont(Font.BOLD, 12.0f);
+        graphics.dispose();
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        if (!ImageIO.write(image, "png", output) || output.size() <= 8) {
+            throw new IllegalStateException("AWT smoke test produced no PNG");
+        }
+    }
+}
+JAVA
+javac /tmp/AwtReachabilitySmoke.java
+java -Djava.awt.headless=true \
+    -agentlib:native-image-agent=config-output-dir=/tmp/awt-native-image-config \
+    -cp /tmp AwtReachabilitySmoke
+find /tmp/awt-native-image-config -maxdepth 1 -type f -print
+
 SPRING_PROFILES_ACTIVE=frontdesk-service \
 CONFIG_SERVER_URL="${CONFIG_SERVER_URL}" \
 CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
@@ -66,19 +108,24 @@ ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT=deadbeefdeadbeefdeadbeefdeadbeef \
 ./gradlew :frontdesk-service:nativeCompile \
     -Pnative=true \
     -PnativeQuickBuild="${NATIVE_QUICK_BUILD}" \
+    -PnativeAwtConfigDir=/tmp/awt-native-image-config \
     --no-daemon --stacktrace --max-workers=2
 EOF
 
 FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates wget libfontconfig1 libfreetype6 libx11-6 libxext6 libxi6 libxrender1 libxtst6 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system spring \
     && useradd --system --gid spring --no-create-home spring
 
 USER spring:spring
 WORKDIR /app
+ENV LD_LIBRARY_PATH=/app:/usr/lib64:/lib64:/lib:/usr/lib
+ENV JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Djava.library.path=/app"
 COPY --from=builder /workspace/frontdesk-service/build/native/nativeCompile/frontdesk-service app
+COPY --from=builder /workspace/frontdesk-service/build/native/nativeCompile/lib*.so ./
 EXPOSE 8081 8090
 ENTRYPOINT ["/app/app"]

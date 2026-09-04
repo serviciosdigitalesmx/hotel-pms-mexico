@@ -61,7 +61,11 @@ jobs:
             echo 'build=true' >> "${GITHUB_OUTPUT}"
           elif [[ "${ACTION}" == synchronize ]]; then
             changed_files="$(git diff-tree --no-commit-id --name-only -r "${AFTER}")"
-            if grep -Eq '^(frontdesk-service/|internal-auth-lib/|common-web-lib/|pdf-template-engine/|config-service/|billing-service/|guest-service/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)' <<<"${changed_files}"; then
+            commit_subject="$(git log -1 --format=%s "${AFTER}")"
+            if [[ "${commit_subject}" == *'[final-o2]'* ]]; then
+              echo 'build=false' >> "${GITHUB_OUTPUT}"
+              echo 'Explicit final-O2 commit: no duplicate PR quick Native compilation.' >> "${GITHUB_STEP_SUMMARY}"
+            elif grep -Eq '^(frontdesk-service/|internal-auth-lib/|common-web-lib/|pdf-template-engine/|config-service/|billing-service/|guest-service/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)' <<<"${changed_files}"; then
               echo 'build=true' >> "${GITHUB_OUTPUT}"
             else
               echo 'build=false' >> "${GITHUB_OUTPUT}"

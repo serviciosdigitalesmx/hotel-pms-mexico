@@ -30,6 +30,14 @@ graalvmNative {
                 // Explicit final optimization so the optimized gate is visible in CI evidence.
                 buildArgs.add("-O2")
             }
+            // Quotation rendering reaches PDFBox's headless java.desktop path.
+            buildArgs.add("-Djava.awt.headless=true")
+            // GraalVM emits AWT JNI libraries beside the executable in this
+            // supported dynamic-library layout.
+            buildArgs.add("-H:+StaticExecutableWithDynamicLibC")
+            providers.gradleProperty("nativeAwtConfigDir").orNull?.takeIf { it.isNotBlank() }?.let {
+                buildArgs.add("-H:ConfigurationFileDirectories=$it")
+            }
             buildArgs.add("-J-Xmx12g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
