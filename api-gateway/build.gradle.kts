@@ -2,6 +2,8 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
+    // Opt-in Native Image support. The existing JVM bootJar/Dockerfile path is unchanged.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -15,6 +17,23 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.gateway.ApiGatewayApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            // Pull requests use -Ob for a cheap reachability/runtime check;
+            // the manual final gate passes nativeQuickBuild=false and uses -O2.
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                buildArgs.add("-Ob")
+            } else {
+                buildArgs.add("-O2")
+            }
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 repositories {
@@ -72,4 +91,23 @@ dependencyManagement {
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("net.bytebuddy.experimental", "true")
+}
+
+// Framework-generated AOT test tasks are not part of the cheap JVM regression
+// gate and would try to resolve Config Server while assembling unit tests.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }
