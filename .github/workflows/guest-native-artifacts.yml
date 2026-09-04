@@ -2,6 +2,9 @@ name: Export validated Guest Native pilot
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/guest-native-github]
+    paths: [.github/workflows/guest-native-artifacts.yml]
 
 jobs:
   native-build-and-runtime:
