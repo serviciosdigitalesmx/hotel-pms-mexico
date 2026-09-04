@@ -19,15 +19,49 @@ on:
       - "config-service/**"
       - "billing-service/**"
       - "guest-service/**"
-      - "scripts/ci/verify-frontdesk-native-runtime.sh"
       - "gradle/**"
       - "gradlew"
       - "build.gradle.kts"
       - "settings.gradle.kts"
+      - "scripts/ci/verify-frontdesk-native-runtime.sh"
+      - "scripts/ci/frontdesk-native-load.py"
       - ".github/workflows/frontdesk-native.yml"
+      # Gate/workflow/docs-only changes use an explicit O2 dispatch, avoiding
+      # a redundant PR quick build for unchanged, previously proven binaries.
+
+concurrency:
+  group: frontdesk-native-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
+  select-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.changed.outputs.build }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: changed
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before || github.event.pull_request.base.sha }}
+          AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [[ "${EVENT}" == workflow_dispatch ]]; then
+            echo 'build=true' >> "${GITHUB_OUTPUT}"
+          elif git diff --name-only "${BEFORE}" "${AFTER}" | grep -Eq '^(frontdesk-service/|internal-auth-lib/|common-web-lib/|pdf-template-engine/|config-service/|billing-service/|guest-service/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)'; then
+            echo 'build=true' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'build=false' >> "${GITHUB_OUTPUT}"
+            echo 'Gate/docs-only delta: no duplicate PR Native compilation; use explicit final O2 dispatch.' >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
   native-build-and-runtime:
+    needs: select-build
+    if: needs.select-build.outputs.build == 'true'
     name: Build and validate frontdesk-service Native Image
     runs-on: ubuntu-latest
     timeout-minutes: 240
@@ -63,6 +97,14 @@ jobs:
       - name: Build JVM fallback and downstream controls
         run: |
           chmod +x ./gradlew
+          ./gradlew :frontdesk-service:test \
+            --tests '*TenantIsolationArchTest' \
+            --tests '*StayControllerSecurityTest' \
+            --tests '*StayServiceImplTest' \
+            --tests '*ReservationServiceImplTest' \
+            --tests '*RoomServiceImplTest' \
+            -x :frontdesk-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
           ./gradlew \
             :config-service:bootJar \
             :frontdesk-service:bootJar \
@@ -114,10 +156,63 @@ jobs:
             --format 'image_size_bytes={{.Size}}'
 
       - name: Run Native runtime and integration gate
+        id: runtime_gate
         if: steps.native_build.outcome == 'success'
         env:
           CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
         run: bash scripts/ci/verify-frontdesk-native-runtime.sh
+
+      - name: Export validated O2 Native and JVM images
+        if: steps.runtime_gate.outcome == 'success' && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        run: |
+          set -euo pipefail
+          export_dir=build/frontdesk-native-images
+          mkdir -p "${export_dir}"
+          for mode in native jvm; do
+            source="hotel-pms/frontdesk-service-${mode}:ci"
+            docker tag "${source}" "hotel-pms/frontdesk-service-${mode}:validated"
+            docker tag "${source}" "hotel-pms/frontdesk-service-${mode}:${GITHUB_SHA}"
+          done
+          docker image inspect \
+            "hotel-pms/frontdesk-service-native:${GITHUB_SHA}" \
+            "hotel-pms/frontdesk-service-jvm:${GITHUB_SHA}" > "${export_dir}/image-metadata.json"
+          docker save \
+            hotel-pms/frontdesk-service-native:ci \
+            hotel-pms/frontdesk-service-native:validated \
+            "hotel-pms/frontdesk-service-native:${GITHUB_SHA}" \
+            hotel-pms/frontdesk-service-jvm:ci \
+            hotel-pms/frontdesk-service-jvm:validated \
+            "hotel-pms/frontdesk-service-jvm:${GITHUB_SHA}" \
+            | gzip -1 > "${export_dir}/frontdesk-service-images.tar.gz"
+          gzip --test "${export_dir}/frontdesk-service-images.tar.gz"
+          (cd "${export_dir}" && sha256sum frontdesk-service-images.tar.gz > SHA256SUMS)
+          jq -n --arg commit "${GITHUB_SHA}" \
+            --arg run "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{service:"frontdesk-service",commit:$commit,run:$run,native_build_mode:"optimized-O2",
+              image_archive:"frontdesk-service-images.tar.gz",architecture:"linux/amd64",
+              native_cpu_target:"x86-64-v3",required_aliases:["config-server","redis","postgres","guest-service","billing-service","frontdesk-service"],
+              limitations:["Quotation PDF text/fonts unvalidated","Zipkin/Loki export not tested","All-native integrated stack owned by main"]}' \
+            > "${export_dir}/provenance.json"
+          cp build/frontdesk-native-runtime/{metrics.txt,gate-status.txt} "${export_dir}/"
+
+      - name: Upload validated images
+        id: image_artifact
+        if: steps.runtime_gate.outcome == 'success' && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontdesk-service-validated-images-${{ github.sha }}
+          path: build/frontdesk-native-images
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish image download
+        if: steps.image_artifact.outcome == 'success'
+        env:
+          ARTIFACT_ID: ${{ steps.image_artifact.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.image_artifact.outputs.artifact-url }}
+        run: |
+          printf 'Validated Native/JVM image artifact: [%s](%s)\n' "${ARTIFACT_ID}" "${ARTIFACT_URL}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Publish runtime metrics
         if: always()
@@ -132,6 +227,14 @@ jobs:
         with:
           name: frontdesk-native-runtime-evidence
           path: build/frontdesk-native-runtime
+          if-no-files-found: warn
+
+      - name: Upload focused test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontdesk-native-focused-tests-${{ github.sha }}
+          path: frontdesk-service/build/test-results/test
           if-no-files-found: warn
 
       - name: Clean up integration containers
