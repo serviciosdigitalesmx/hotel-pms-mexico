@@ -10,6 +10,7 @@ AUTH_CONTAINER="gateway-native-auth"
 FRONTDESK_CONTAINER="gateway-native-frontdesk"
 NATIVE_CONTAINER="api-gateway-native"
 JVM_CONTAINER="api-gateway-jvm"
+OBSERVER="$(dirname "${BASH_SOURCE[0]}")/gateway-native-observe.py"
 
 : "${CI_POSTGRES_PASSWORD:?CI_POSTGRES_PASSWORD is required}"
 : "${CI_REDIS_PASSWORD:?CI_REDIS_PASSWORD is required}"
@@ -56,7 +57,7 @@ cookie_value() {
 http_code() {
     local output_file="$1"
     shift
-    curl --silent --show-error --output "${output_file}" --write-out '%{http_code}' "$@"
+    curl --silent --show-error --max-time 15 --output "${output_file}" --write-out '%{http_code}' "$@"
 }
 
 signed_internal_request() {
@@ -99,10 +100,18 @@ start_gateway() {
         "${image}" >/dev/null
 }
 
+observe_gateway() {
+    local mode="$1" phase="$2" container="$3" app_port="$4" management_port="$5" cookies="${6:-}"
+    python3 "${OBSERVER}" --mode "${mode}" --phase "${phase}" --container "${container}" \
+        --app-url "http://127.0.0.1:${app_port}" --management-url "http://127.0.0.1:${management_port}" \
+        --cookies "${cookies}" --output "${RESULT_DIR}"
+}
+
 docker network create "${NETWORK_NAME}" >/dev/null
 
 echo "Starting real Config Server, PostgreSQL and Redis"
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias config-server \
     --publish 18888:8888 --publish 18091:8090 \
     --env "CONFIG_SERVER_PASSWORD=${CI_CONFIG_PASSWORD}" \
     --env "JWT_SECRET=${CI_JWT_SECRET}" \
@@ -113,9 +122,11 @@ docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
 wait_for_health config-service http://127.0.0.1:18091/actuator/health 90 "${CONFIG_CONTAINER}"
 
 docker run --detach --name "${POSTGRES_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias postgres \
     --env POSTGRES_USER=postgres --env "POSTGRES_PASSWORD=${CI_POSTGRES_PASSWORD}" \
     postgres:15-alpine >/dev/null
 docker run --detach --name "${REDIS_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias redis \
     redis:8.8.1-alpine redis-server --requirepass "${CI_REDIS_PASSWORD}" >/dev/null
 
 for _ in {1..60}; do
@@ -192,10 +203,17 @@ curl --silent --show-error --fail http://127.0.0.1:18090/actuator/health/readine
     > "${RESULT_DIR}/native-readiness.json"
 jq -e '.status == "UP"' "${RESULT_DIR}/native-liveness.json" >/dev/null
 jq -e '.status == "UP"' "${RESULT_DIR}/native-readiness.json" >/dev/null
+observe_gateway native idle "${NATIVE_CONTAINER}" 18080 18090
+native_idle_memory="$(jq -r '.idle_memory_bytes' "${RESULT_DIR}/native-idle.json")"
 
 unauth_code="$(http_code "${RESULT_DIR}/native-unauthenticated.json" \
     --cookie-jar /dev/null http://127.0.0.1:18080/api/v1/rooms)"
 [[ "${unauth_code}" == 401 ]]
+invalid_jwt_code="$(http_code "${RESULT_DIR}/native-invalid-jwt.json" \
+    --cookie 'jwt=invalid.jwt.signature' --header 'X-Auth-User: admin' --header 'X-Auth-Role: ADMIN' \
+    --header 'X-Auth-Hotel: 00000000-0000-0000-0000-000000000001' \
+    http://127.0.0.1:18080/api/v1/rooms)"
+[[ "${invalid_jwt_code}" == 401 ]]
 
 echo "Validating real login, JWT, tenant header stripping and route forwarding"
 admin_cookie="${RESULT_DIR}/admin.cookies"
@@ -209,6 +227,14 @@ login_code="$(http_code "${RESULT_DIR}/native-login.json" \
 jq -e '.mustChangePassword == false' "${RESULT_DIR}/native-login.json" >/dev/null
 admin_csrf="$(cookie_value csrf_token "${admin_cookie}")"
 [[ -n "${admin_csrf}" ]]
+csrf_denied_code="$(http_code "${RESULT_DIR}/native-csrf-denied.json" \
+    --cookie "${admin_cookie}" --request POST http://127.0.0.1:18080/api/v1/auth/refresh)"
+[[ "${csrf_denied_code}" == 403 ]]
+refresh_code="$(http_code "${RESULT_DIR}/native-refresh.json" \
+    --cookie "${admin_cookie}" --cookie-jar "${admin_cookie}" \
+    --header "X-CSRF-Token: ${admin_csrf}" --request POST http://127.0.0.1:18080/api/v1/auth/refresh)"
+[[ "${refresh_code}" == 200 ]]
+admin_csrf="$(cookie_value csrf_token "${admin_cookie}")"
 
 me_code="$(http_code "${RESULT_DIR}/native-me.json" --cookie "${admin_cookie}" \
     http://127.0.0.1:18080/api/v1/auth/me)"
@@ -220,6 +246,10 @@ spoofed_tenant_code="$(http_code "${RESULT_DIR}/native-tenant-spoof.json" \
     http://127.0.0.1:18080/api/v1/auth/users)"
 [[ "${spoofed_tenant_code}" == 200 ]]
 jq -e 'any(.[]; .username == "e2e-live-other-hotel-admin")' \
+    "${RESULT_DIR}/native-tenant-spoof.json" >/dev/null
+# The CI tenant has exactly this seeded account before receptionist creation.
+# Require all returned accounts to belong to that expected identity, not merely one.
+jq -e 'length == 1 and all(.[]; .username == "e2e-live-other-hotel-admin")' \
     "${RESULT_DIR}/native-tenant-spoof.json" >/dev/null
 
 echo "Validating RBAC with a real receptionist account"
@@ -275,7 +305,10 @@ redis_replay_key="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDI
     --scan --pattern 'internal-auth:nonce:*' | grep -F "${replay_nonce}" || true)"
 [[ -n "${redis_replay_key}" ]]
 
-native_idle_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${NATIVE_CONTAINER}")"
+echo "Measuring Native sustained authenticated routing, health and loaded working set"
+sleep 3 # Let the deliberately exhausted authentication rate-limit bucket replenish.
+observe_gateway native loaded "${NATIVE_CONTAINER}" 18080 18090 "${admin_cookie}"
+native_loaded_memory="$(jq -r '.loaded_memory_bytes' "${RESULT_DIR}/native-loaded.json")"
 native_image_size_bytes="$(docker image inspect hotel-pms/api-gateway-native:ci --format '{{.Size}}')"
 docker stop "${NATIVE_CONTAINER}" >/dev/null
 
@@ -286,22 +319,49 @@ start_gateway "${JVM_CONTAINER}" hotel-pms/api-gateway-jvm:ci 28080 28090 \
 wait_for_health api-gateway-jvm http://127.0.0.1:28090/actuator/health 150 "${JVM_CONTAINER}"
 jvm_ready_ms="$(date +%s%3N)"
 jvm_startup_ms="$((jvm_ready_ms - jvm_started_ms))"
+observe_gateway jvm idle "${JVM_CONTAINER}" 28080 28090
+jvm_idle_memory="$(jq -r '.idle_memory_bytes' "${RESULT_DIR}/jvm-idle.json")"
 jvm_unauth_code="$(http_code "${RESULT_DIR}/jvm-unauthenticated.json" \
     --cookie-jar /dev/null http://127.0.0.1:28080/api/v1/rooms)"
 [[ "${jvm_unauth_code}" == 401 ]]
-jvm_idle_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_CONTAINER}")"
+jvm_cookie="${RESULT_DIR}/jvm-admin.cookies"
+jvm_login_code="$(http_code "${RESULT_DIR}/jvm-login.json" \
+    --cookie-jar "${jvm_cookie}" --header 'Content-Type: application/json' --request POST \
+    --data '{"username":"e2e-live-other-hotel-admin","password":"password"}' \
+    http://127.0.0.1:28080/api/v1/auth/login)"
+[[ "${jvm_login_code}" == 200 ]]
+jvm_refresh_code="$(http_code "${RESULT_DIR}/jvm-refresh.json" \
+    --cookie "${jvm_cookie}" --cookie-jar "${jvm_cookie}" \
+    --header "X-CSRF-Token: $(cookie_value csrf_token "${jvm_cookie}")" \
+    --request POST http://127.0.0.1:28080/api/v1/auth/refresh)"
+[[ "${jvm_refresh_code}" == 200 ]]
+jvm_receptionist_read="$(http_code "${RESULT_DIR}/jvm-receptionist-rooms.json" \
+    --cookie "${receptionist_cookie}" http://127.0.0.1:28080/api/v1/rooms)"
+[[ "${jvm_receptionist_read}" == 200 ]]
+jvm_receptionist_write="$(http_code "${RESULT_DIR}/jvm-receptionist-write-denied.json" \
+    --cookie "${receptionist_cookie}" --header "X-CSRF-Token: ${receptionist_csrf}" \
+    --header 'Content-Type: application/json' --request POST --data '{}' \
+    http://127.0.0.1:28080/api/v1/room-types)"
+[[ "${jvm_receptionist_write}" == 403 ]]
+echo "Measuring JVM sustained authenticated routing, health and loaded working set"
+observe_gateway jvm loaded "${JVM_CONTAINER}" 28080 28090 "${jvm_cookie}"
+jvm_loaded_memory="$(jq -r '.loaded_memory_bytes' "${RESULT_DIR}/jvm-loaded.json")"
 jvm_image_size_bytes="$(docker image inspect hotel-pms/api-gateway-jvm:ci --format '{{.Size}}')"
 
 cat > "${RESULT_DIR}/metrics.txt" <<METRICS
 native_build_mode=${CI_NATIVE_BUILD_MODE:-unknown}
 native_startup_ms=${native_startup_ms}
 native_idle_memory=${native_idle_memory}
+native_loaded_memory=${native_loaded_memory}
 native_image_size_bytes=${native_image_size_bytes}
 native_health_status=UP
 native_liveness=UP
 native_readiness=UP
 native_unauthenticated=${unauth_code}
+native_invalid_jwt_spoofed_headers=${invalid_jwt_code}
 native_login=${login_code}
+native_refresh=${refresh_code}
+native_csrf_denied=${csrf_denied_code}
 native_auth_me=${me_code}
 native_tenant_spoof_header=${spoofed_tenant_code}
 native_receptionist_read=${receptionist_read_code}
@@ -310,11 +370,48 @@ native_redis_rate_limit_max=${rate_limit_max}
 native_hmac_replay_first=${first_replay_code}
 native_hmac_replay_second=${second_replay_code}
 native_hmac_replay_nonce_persisted=PASS
+native_prometheus=PASS
+native_correlation_id=PASS
+native_stability=PASS
+native_stability_seconds=$(jq -r '.duration_seconds' "${RESULT_DIR}/native-loaded.json")
+native_loaded_requests=$(jq -r '.requests' "${RESULT_DIR}/native-loaded.json")
+native_loaded_errors=$(jq -r '.errors | length' "${RESULT_DIR}/native-loaded.json")
+native_loaded_latency_p95_ms=$(jq -r '.latency_p95_ms' "${RESULT_DIR}/native-loaded.json")
+native_restart_count=$(jq -r '.container_state.restart_count' "${RESULT_DIR}/native-loaded.json")
+native_oom_killed=$(jq -r '.container_state.oom_killed' "${RESULT_DIR}/native-loaded.json")
 jvm_startup_ms=${jvm_startup_ms}
 jvm_idle_memory=${jvm_idle_memory}
+jvm_loaded_memory=${jvm_loaded_memory}
 jvm_image_size_bytes=${jvm_image_size_bytes}
 jvm_health_status=UP
 jvm_unauthenticated=${jvm_unauth_code}
+jvm_login=${jvm_login_code}
+jvm_refresh=${jvm_refresh_code}
+jvm_receptionist_read=${jvm_receptionist_read}
+jvm_receptionist_write_denied=${jvm_receptionist_write}
+jvm_liveness=UP
+jvm_readiness=UP
+jvm_auth_me=200
+jvm_prometheus=PASS
+jvm_correlation_id=PASS
+jvm_stability=PASS
+jvm_stability_seconds=$(jq -r '.duration_seconds' "${RESULT_DIR}/jvm-loaded.json")
+jvm_loaded_requests=$(jq -r '.requests' "${RESULT_DIR}/jvm-loaded.json")
+jvm_loaded_errors=$(jq -r '.errors | length' "${RESULT_DIR}/jvm-loaded.json")
+jvm_loaded_latency_p95_ms=$(jq -r '.latency_p95_ms' "${RESULT_DIR}/jvm-loaded.json")
+jvm_restart_count=$(jq -r '.container_state.restart_count' "${RESULT_DIR}/jvm-loaded.json")
+jvm_oom_killed=$(jq -r '.container_state.oom_killed' "${RESULT_DIR}/jvm-loaded.json")
+memory_unit=bytes
+idle_memory_method=median_cgroup_working_set_3_samples_after_10s_no_application_traffic
+loaded_memory_method=peak_cgroup_working_set_during_180s_4workers_4rps
+config_server=PASS
+redis=PASS
+real_auth_routing=PASS
+real_frontdesk_routing=PASS
+postgresql_flyway_downstream=PASS
+gateway_jpa_flyway=NOT_APPLICABLE
+pdf_routes=NOT_VALIDATED
+integrated_all_native_stack=NOT_VALIDATED_BY_THIS_SERVICE_GATE
 METRICS
 
 cat "${RESULT_DIR}/metrics.txt"

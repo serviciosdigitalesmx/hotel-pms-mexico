@@ -18,12 +18,16 @@ on:
       - "frontdesk-service/**"
       - "internal-auth-lib/**"
       - "common-web-lib/**"
-      - "scripts/ci/verify-gateway-native-runtime.sh"
       - "gradle/**"
       - "gradlew"
       - "build.gradle.kts"
       - "settings.gradle.kts"
-      - ".github/workflows/gateway-native.yml"
+      # Gate/workflow-only changes use an explicit final O2 dispatch. They do
+      # not duplicate a proven binary build with an automatic PR quick build.
+
+concurrency:
+  group: gateway-native-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   native-build-and-runtime:
@@ -138,9 +142,66 @@ jobs:
           docker image inspect hotel-pms/api-gateway-native:ci --format 'image_size_bytes={{.Size}}'
 
       - name: Run Native and JVM runtime gate
+        id: runtime_gate
         env:
           CI_NATIVE_BUILD_MODE: ${{ (github.event_name == 'pull_request' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
         run: bash scripts/ci/verify-gateway-native-runtime.sh
+
+      - name: Archive validated O2 and JVM images
+        if: github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -Eeuo pipefail
+          output=build/gateway-native-images
+          mkdir -p "${output}"
+          for mode in native jvm; do
+            image="hotel-pms/api-gateway-${mode}"
+            docker tag "${image}:ci" "${image}:${SOURCE_SHA}"
+            docker tag "${image}:ci" "${image}:validated"
+            docker image inspect "${image}:${SOURCE_SHA}" > "${output}/${mode}-image-inspect.json"
+          done
+          archive="api-gateway-o2-jvm-${SOURCE_SHA}.tar.gz"
+          docker save \
+            "hotel-pms/api-gateway-native:${SOURCE_SHA}" hotel-pms/api-gateway-native:validated \
+            "hotel-pms/api-gateway-jvm:${SOURCE_SHA}" hotel-pms/api-gateway-jvm:validated \
+            | gzip -1 > "${output}/${archive}"
+          gzip -t "${output}/${archive}"
+          (cd "${output}" && sha256sum "${archive}" > SHA256SUMS && sha256sum --check SHA256SUMS)
+          tar -xOzf "${output}/${archive}" manifest.json > "${output}/docker-save-manifest.json"
+          jq -e --arg sha "${SOURCE_SHA}" \
+            '([.[].RepoTags[]] | sort) == (["hotel-pms/api-gateway-native:" + $sha,
+            "hotel-pms/api-gateway-native:validated", "hotel-pms/api-gateway-jvm:" + $sha,
+            "hotel-pms/api-gateway-jvm:validated"] | sort)' "${output}/docker-save-manifest.json"
+          jq -n --arg sha "${SOURCE_SHA}" --arg run "${RUN_URL}" --arg archive "${archive}" \
+            --slurpfile native "${output}/native-image-inspect.json" \
+            --slurpfile jvm "${output}/jvm-image-inspect.json" \
+            '{source_sha: $sha, run_url: $run, native_build_mode: "optimized-O2", archive: $archive,
+              native: $native[0][0], jvm: $jvm[0][0]}' > "${output}/provenance.json"
+
+      - name: Upload validated O2 and JVM images
+        id: images
+        if: github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-native-jvm-images-${{ github.sha }}
+          path: build/gateway-native-images
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record downloadable image artifact
+        if: steps.images.outcome == 'success'
+        env:
+          IMAGE_ARTIFACT_ID: ${{ steps.images.outputs.artifact-id }}
+          IMAGE_ARTIFACT_URL: ${{ steps.images.outputs.artifact-url }}
+          IMAGE_ARTIFACT_DIGEST: ${{ steps.images.outputs.artifact-digest }}
+        run: |
+          printf 'image_artifact_id=%s\nimage_artifact_url=%s\nimage_artifact_digest=%s\n' \
+            "${IMAGE_ARTIFACT_ID}" "${IMAGE_ARTIFACT_URL}" "${IMAGE_ARTIFACT_DIGEST}" \
+            >> build/gateway-native-runtime/metrics.txt
+          cp build/gateway-native-images/{SHA256SUMS,provenance.json,docker-save-manifest.json} build/gateway-native-runtime/
 
       - name: Publish runtime metrics
         if: always()
@@ -156,6 +217,11 @@ jobs:
           name: gateway-native-runtime-evidence
           path: build/gateway-native-runtime
           if-no-files-found: warn
+
+      - name: Classify runtime or export failure
+        if: failure()
+        run: |
+          echo "NATIVE_GATE_FAIL: inspect gateway runtime evidence and image export steps" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Clean up integration containers
         if: always()
