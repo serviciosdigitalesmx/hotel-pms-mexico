@@ -36,7 +36,7 @@ jobs:
           ./gradlew :notification-service:test :notification-service:bootJar :config-service:bootJar -x :notification-service:processAot --no-daemon --max-workers=2
           SPRING_PROFILES_ACTIVE=notification-service \
           SPRING_CONFIG_IMPORT=optional:configserver: \
-          SPRING_CONFIG_ADDITIONAL_LOCATION=file:./config-service/src/main/resources/config/notification-service.yml \
+          SPRING_CONFIG_ADDITIONAL_LOCATION="file:${GITHUB_WORKSPACE}/config-service/src/main/resources/config/notification-service.yml" \
           CONFIG_SERVER_PASSWORD="$CI_CONFIG_PASSWORD" INTERNAL_HMAC_SECRET="$CI_HMAC_SECRET" \
           INTERNAL_REDIS_PASSWORD="$CI_REDIS_PASSWORD" \
           ./gradlew :notification-service:processAot --no-daemon --max-workers=2
