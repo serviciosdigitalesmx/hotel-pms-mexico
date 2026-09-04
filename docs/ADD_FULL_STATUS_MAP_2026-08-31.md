@@ -2,6 +2,26 @@
 
 Fecha de corte: 2026-08-31.
 
+## Adenda verificada 2026-09-04 — solo Config Native
+
+`config-service` completó su gate individual JVM/tests/AOT/bootJar → Native -Ob
+→ Native -O2 en [run 33830247446](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830247446),
+SHA `a44f8fee350231be67e3218c53dd5bb00995a939`, rama
+`codex/config-native-direct` / PR #20. La comprobación incluye contenido real de
+39 perfiles por runtime, autenticación/rechazos, probes/Prometheus, secretos
+sin resolver y 180 segundos bajo carga sin errores, reinicios ni OOM.
+
+Native/JVM: arranque **616/3765 ms**, RAM idle **60.27/217.3 MiB**, máximo
+muestreado bajo carga **98.85/283 MiB** e imágenes **180867639/262590263 bytes**.
+El artefacto pareado **9921959128** conserva ambas imágenes con `:validated`,
+`:ci` y el SHA completo; evidencia O2 **9921959629**. El
+[reporte final](CONFIG_NATIVE_FINAL_EVIDENCE.md) registra etiquetas exactas,
+image IDs, checksums diferenciados del digest ZIP y el procedimiento de carga.
+
+Estado: Config validado individualmente, sin merge. El manifest, arranque de
+clientes Native y E2E/RAM del stack integrado corresponden a la tarea principal.
+Esta adenda no actualiza ni recertifica los estados históricos que siguen.
+
 ## Estado de integración
 
 | Área | Evidencia | Estado |
