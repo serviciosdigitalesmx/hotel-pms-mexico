@@ -53,12 +53,21 @@ jobs:
       - id: changed
         env:
           EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before || github.event.pull_request.base.sha }}
+          ACTION: ${{ github.event.action }}
+          BASE: ${{ github.event.pull_request.base.sha }}
           AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if [[ "${EVENT}" == workflow_dispatch ]]; then
             echo 'build=true' >> "${GITHUB_OUTPUT}"
-          elif git diff --name-only "${BEFORE}" "${AFTER}" | grep -Eq '^(frontdesk-service/|internal-auth-lib/|common-web-lib/|pdf-template-engine/|config-service/|billing-service/|guest-service/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)'; then
+          elif [[ "${ACTION}" == synchronize ]]; then
+            changed_files="$(git diff-tree --no-commit-id --name-only -r "${AFTER}")"
+            if grep -Eq '^(frontdesk-service/|internal-auth-lib/|common-web-lib/|pdf-template-engine/|config-service/|billing-service/|guest-service/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)' <<<"${changed_files}"; then
+              echo 'build=true' >> "${GITHUB_OUTPUT}"
+            else
+              echo 'build=false' >> "${GITHUB_OUTPUT}"
+              echo 'Gate/workflow/docs-only synchronize: no duplicate PR Native compilation; use explicit final O2 dispatch.' >> "${GITHUB_STEP_SUMMARY}"
+            fi
+          elif git diff --name-only "${BASE}" "${AFTER}" | grep -Eq '^(frontdesk-service/|internal-auth-lib/|common-web-lib/|pdf-template-engine/|config-service/|billing-service/|guest-service/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)'; then
             echo 'build=true' >> "${GITHUB_OUTPUT}"
           else
             echo 'build=false' >> "${GITHUB_OUTPUT}"

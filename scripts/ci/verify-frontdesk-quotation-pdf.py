@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+from datetime import datetime
 import re
 import secrets
 import subprocess
@@ -61,7 +62,21 @@ def main():
         assert quotation["totalPrice"] > 0 and len(quotation["options"]) == 1, quotation
         quote_path = "/api/v1/quotations/" + quotation["id"]
         persisted, _ = request("GET", quote_path, "quotation-get.json")
-        assert json.loads(persisted) == quotation, "Persisted quotation contract changed"
+        persisted = json.loads(persisted)
+        # PostgreSQL stores timestamps at microsecond precision, while the POST
+        # response can still carry Java nanoseconds. Compare the stable REST
+        # contract exactly and timestamps as instants instead of comparing raw
+        # JSON serialization precision.
+        stable_fields = ("id", "guestId", "guestFullName", "prospectEmail",
+                         "checkInDate", "checkOutDate", "expectedGuests", "status",
+                         "validUntil", "totalPrice", "options", "acceptedOptionId",
+                         "sendFailed", "sendFailureReason")
+        for field in stable_fields:
+            assert persisted[field] == quotation[field], \
+                f"Persisted quotation field changed: {field}"
+        for field in ("createdAt", "updatedAt"):
+            assert datetime.fromisoformat(persisted[field]) == datetime.fromisoformat(quotation[field]), \
+                f"Persisted quotation timestamp changed: {field}"
         request("GET", quote_path + "/pdf", "quotation-cross-tenant.json",
                 tenant="00000000-0000-0000-0000-000000000202", expected=404)
         request("GET", quote_path + "/pdf", "quotation-missing-hmac.json", authenticated=False, expected=401)
@@ -92,7 +107,8 @@ def main():
         subprocess.run(["pdftoppm", "-scale-to", "1400", "-png", str(root / "quotation-1.pdf"),
                         str(root / "quotation-preview")], check=True)
         result.update(status="PASS", quotation_id=quotation["id"], renders=checks,
-                      cross_tenant=404, missing_hmac=401, persistence="GET_MATCHES_CREATE")
+                      cross_tenant=404, missing_hmac=401,
+                      persistence="STABLE_FIELDS_AND_TIMESTAMP_INSTANTS_MATCH_CREATE")
     except Exception as error:
         result["error"] = str(error)
         raise
