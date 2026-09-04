@@ -11,6 +11,9 @@ BILLING_CONTAINER="fb-native-billing"
 FB_CONTAINER="fb-native-service"
 JVM_FB_CONTAINER="fb-jvm-service"
 FB_IMAGE="${FB_IMAGE:-hotel-pms/fb-service-native:ci}"
+JVM_FB_IMAGE="hotel-pms/fb-service-jvm:ci"
+LOAD_SECONDS=120
+STABILITY_SECONDS=300
 
 : "${CI_POSTGRES_PASSWORD:?CI_POSTGRES_PASSWORD is required}"
 : "${CI_REDIS_PASSWORD:?CI_REDIS_PASSWORD is required}"
@@ -18,12 +21,18 @@ FB_IMAGE="${FB_IMAGE:-hotel-pms/fb-service-native:ci}"
 : "${CI_HMAC_SECRET:?CI_HMAC_SECRET is required}"
 
 mkdir -p "${RESULT_DIR}"
+: > "${RESULT_DIR}/metrics.txt"
 
 collect_evidence() {
+  local result=$?
+  if [[ "$result" -ne 0 ]]; then
+    printf 'native_runtime_gate=NATIVE_GATE_FAIL\nexit_code=%s\n' "$result" >> "${RESULT_DIR}/metrics.txt"
+  fi
   docker ps -a > "${RESULT_DIR}/docker-ps.txt" 2>&1 || true
   for container in "${CONFIG_CONTAINER}" "${POSTGRES_CONTAINER}" "${REDIS_CONTAINER}" \
       "${FRONTDESK_CONTAINER}" "${BILLING_CONTAINER}" "${FB_CONTAINER}" "${JVM_FB_CONTAINER}"; do
     docker logs "${container}" > "${RESULT_DIR}/${container}.log" 2>&1 || true
+    docker inspect --format '{{json .State}}' "${container}" > "${RESULT_DIR}/${container}-state.json" 2>/dev/null || true
   done
 }
 trap collect_evidence EXIT
@@ -33,8 +42,9 @@ metric() {
 }
 
 wait_for_health() {
-  local label="$1" url="$2" attempts="${3:-90}" container="${4:-}"
+  local label="$1" url="$2" attempts="${3:-90}" container="${4:-}" interval="${5:-2}"
   local response container_state
+  local i
   for ((i = 1; i <= attempts; i++)); do
     response="$(curl --silent --show-error --max-time 3 "${url}" 2>/dev/null || true)"
     if jq -e '.status == "UP"' >/dev/null 2>&1 <<<"${response}"; then
@@ -48,7 +58,7 @@ wait_for_health() {
         return 1
       fi
     fi
-    sleep 2
+    sleep "$interval"
   done
   echo "${label} did not become healthy at ${url}" >&2
   return 1
@@ -56,15 +66,15 @@ wait_for_health() {
 
 signed_request() {
   local method="$1" url="$2" hotel_id="$3" nonce="$4" output_file="$5" body="${6:-}"
-  local timestamp signature
+  local timestamp signature role="${7:-ADMIN}"
   timestamp="$(date +%s%3N)"
-  signature="$(printf '%s' "ci-admin:ADMIN:${hotel_id}:${timestamp}:${nonce}" \
+  signature="$(printf '%s' "ci-admin:${role}:${hotel_id}:${timestamp}:${nonce}" \
     | openssl dgst -sha256 -hmac "${CI_HMAC_SECRET}" -r | awk '{print $1}')"
   local curl_args=(
-    --silent --show-error --output "${output_file}" --write-out '%{http_code}'
+    --silent --show-error --max-time 15 --output "${output_file}" --write-out '%{http_code}'
     --request "${method}"
     --header "X-Auth-User: ci-admin"
-    --header "X-Auth-Role: ADMIN"
+    --header "X-Auth-Role: ${role}"
     --header "X-Auth-Hotel: ${hotel_id}"
     --header "X-Auth-Timestamp: ${timestamp}"
     --header "X-Auth-Nonce: ${nonce}"
@@ -89,6 +99,68 @@ new_id() {
   uuidgen | tr '[:upper:]' '[:lower:]'
 }
 
+# Exact bytes, same cgroup-v2 working-set convention as docker stats on Linux:
+# memory.current minus inactive_file. Keep raw counters for independent review.
+memory_bytes() {
+  local label="$1" phase="$2" container="$3" current inactive working
+  current="$(docker exec "$container" cat /sys/fs/cgroup/memory.current)"
+  inactive="$(docker exec "$container" awk '$1 == "inactive_file" {print $2}' /sys/fs/cgroup/memory.stat)"
+  [[ "$current" =~ ^[0-9]+$ && "$inactive" =~ ^[0-9]+$ ]]
+  working=$((current - inactive))
+  [[ "$working" -gt 0 ]]
+  printf '%s,%s,%s,%s,%s,%s\n' "$(date +%s%3N)" "$label" "$phase" "$current" "$inactive" "$working" \
+    >> "${RESULT_DIR}/memory-samples.csv"
+  printf '%s\n' "$working"
+}
+
+check_probes() {
+  local label="$1" port="$2" probe
+  for probe in health health/liveness health/readiness; do
+    curl --silent --show-error --fail --max-time 5 "http://127.0.0.1:${port}/actuator/${probe}" \
+      > "${RESULT_DIR}/${label}-${probe//\//-}.json"
+    jq -e '.status == "UP"' "${RESULT_DIR}/${label}-${probe//\//-}.json" >/dev/null
+  done
+}
+
+measure_startup_idle() {
+  local label="$1" container="$2" port="$3" started i idle=()
+  docker stop "$container" >/dev/null
+  started="$(date +%s%3N)"
+  docker start "$container" >/dev/null
+  wait_for_health "${label}_measured" "http://127.0.0.1:${port}/actuator/health" 1200 "$container" 0.2
+  check_probes "$label" "$port"
+  metric "${label}_startup_ms=$(( $(date +%s%3N) - started ))"
+  sleep 15
+  for i in {1..5}; do
+    idle+=("$(memory_bytes "$label" idle "$container")")
+    sleep 1
+  done
+  metric "${label}_idle_memory=$(printf '%s\n' "${idle[@]}" | sort -n | sed -n '3p')"
+}
+
+load_worker() {
+  local label="$1" port="$2" worker="$3" deadline="$4" count=0 code
+  local response="${RESULT_DIR}/load-${label}-${worker}.json"
+  while [[ "$(date +%s)" -lt "$deadline" ]]; do
+    code="$(signed_request GET "http://127.0.0.1:${port}/api/v1/fb/menu-items" "$HOTEL_A" "$(new_id)" "$response")"
+    [[ "$code" == 200 ]]
+    jq -e --arg id "$MENU_ID" 'any(.[]; .id == $id and .price == 12.5)' "$response" >/dev/null
+    count=$((count + 1))
+  done
+  printf '%s\n' "$count" > "${RESULT_DIR}/load-${label}-${worker}-count.txt"
+}
+
+metric "source_commit=$(git rev-parse HEAD)"
+metric 'memory_unit=bytes'
+metric 'memory_method=cgroup_v2_memory.current_minus_inactive_file'
+metric 'startup_method=container_start_through_health_liveness_readiness_after_schema_migration'
+metric 'idle_method=median_5_samples_after_15_seconds_quiet'
+metric 'loaded_method=peak_working_set_during_120_seconds_4_concurrent_clients_per_runtime'
+printf 'timestamp_ms,runtime,phase,memory_current_bytes,inactive_file_bytes,working_set_bytes\n' > "${RESULT_DIR}/memory-samples.csv"
+metric "native_image_size_bytes=$(docker image inspect "$FB_IMAGE" --format '{{.Size}}')"
+metric "jvm_image_size_bytes=$(docker image inspect "$JVM_FB_IMAGE" --format '{{.Size}}')"
+docker image inspect "$FB_IMAGE" "$JVM_FB_IMAGE" > "${RESULT_DIR}/image-metadata.json"
+
 echo 'Starting Config Server, PostgreSQL and Redis'
 docker network create "${NETWORK_NAME}" >/dev/null
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -102,6 +174,7 @@ curl --silent --show-error --fail --user "configuser:${CI_CONFIG_PASSWORD}" \
 metric 'config_server_fb_profile=AVAILABLE'
 
 docker run --detach --name "${POSTGRES_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias postgres \
   --env POSTGRES_USER=postgres --env "POSTGRES_PASSWORD=${CI_POSTGRES_PASSWORD}" \
   postgres:15-alpine >/dev/null
 docker run --detach --name "${REDIS_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -177,11 +250,12 @@ common_fb_env=(
   --env "SPRING_DATASOURCE_PASSWORD=${CI_POSTGRES_PASSWORD}"
 )
 docker run --detach --name "${FB_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias fb-service \
   --publish 18087:8086 --publish 18088:8090 \
   "${common_fb_env[@]}" "${FB_IMAGE}" >/dev/null
 docker run --detach --name "${JVM_FB_CONTAINER}" --network "${NETWORK_NAME}" \
   --publish 18089:8086 --publish 18090:8090 \
-  "${common_fb_env[@]}" hotel-pms/fb-service-jvm:ci >/dev/null
+  "${common_fb_env[@]}" "$JVM_FB_IMAGE" >/dev/null
 
 wait_for_health frontdesk-service http://127.0.0.1:18082/actuator/health 120 "${FRONTDESK_CONTAINER}"
 wait_for_health billing-service http://127.0.0.1:18086/actuator/health 120 "${BILLING_CONTAINER}"
@@ -190,6 +264,26 @@ wait_for_health fb-service-jvm http://127.0.0.1:18090/actuator/health 120 "${JVM
 metric "native_build_mode=${CI_NATIVE_BUILD_MODE:-unspecified}"
 metric "native_image=${FB_IMAGE}"
 metric 'jvm_fallback_image=hotel-pms/fb-service-jvm:ci'
+
+# Both measurements use the same already-migrated database, ready downstream
+# services, runtime configuration, readiness criteria and quiet interval.
+measure_startup_idle native "$FB_CONTAINER" 18088
+measure_startup_idle jvm "$JVM_FB_CONTAINER" 18090
+for runtime in native jvm; do
+  port=18088
+  [[ "$runtime" == jvm ]] && port=18090
+  curl --silent --show-error --fail --max-time 5 "http://127.0.0.1:${port}/actuator/prometheus" \
+    > "${RESULT_DIR}/${runtime}-prometheus.txt"
+  grep -q '^process_uptime_seconds' "${RESULT_DIR}/${runtime}-prometheus.txt"
+  metric "${runtime}_liveness_readiness_prometheus=VERIFIED"
+done
+docker exec "$POSTGRES_CONTAINER" psql --username postgres --dbname hotel_fb --tuples-only --no-align \
+  --command 'SELECT count(*) > 0 AND bool_and(success) FROM flyway_schema_history;' \
+  | grep -qx t
+docker exec "$POSTGRES_CONTAINER" psql --username postgres --dbname hotel_fb --csv \
+  --command 'SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;' \
+  > "${RESULT_DIR}/flyway-history.csv"
+metric 'postgres_flyway=VERIFIED'
 
 HOTEL_A="$(new_id)"
 HOTEL_B="$(new_id)"
@@ -276,6 +370,90 @@ other_order_status="$(signed_request POST http://127.0.0.1:18087/api/v1/fb/order
 assert_code 404 "${other_order_status}" other_tenant_order_rejected
 metric 'tenant_order_isolation=VERIFIED'
 
+jvm_order_status="$(signed_request POST http://127.0.0.1:18089/api/v1/fb/orders "$HOTEL_A" "$(new_id)" \
+  "${RESULT_DIR}/jvm-order-create.json" "{\"stayId\":\"${STAY_ID}\",\"items\":[{\"menuItemId\":\"${MENU_ID}\",\"quantity\":1}]}")"
+assert_code 201 "$jvm_order_status" jvm_order_create
+JVM_ORDER_ID="$(jq -er '.id' "${RESULT_DIR}/jvm-order-create.json")"
+jvm_confirm_status="$(signed_request POST "http://127.0.0.1:18089/api/v1/fb/orders/${JVM_ORDER_ID}/confirm" "$HOTEL_A" "$(new_id)" \
+  "${RESULT_DIR}/jvm-order-confirm.json")"
+assert_code 200 "$jvm_confirm_status" jvm_order_confirm
+jq -e '.status == "BILLED_TO_ROOM"' "${RESULT_DIR}/jvm-order-confirm.json" >/dev/null
+jvm_invoice_status="$(signed_request GET "http://127.0.0.1:18085/api/v1/invoices/${INVOICE_ID}" "$HOTEL_A" "$(new_id)" \
+  "${RESULT_DIR}/billing-invoice-after-jvm.json")"
+assert_code 200 "$jvm_invoice_status" jvm_billing_invoice_read
+jq -e --arg order "$JVM_ORDER_ID" 'any(.charges[]; .type == "FB_ORDER" and .referenceId == $order and .amount == 12.5)' \
+  "${RESULT_DIR}/billing-invoice-after-jvm.json" >/dev/null
+metric 'jvm_feign_frontdesk_billing=VERIFIED'
+
+# Apply equivalent sustained authenticated reads to both runtimes before
+# deliberately stopping downstream services for the existing fallback checks.
+echo 'Measuring Native/JVM loaded RAM with four clients per runtime for 120 seconds'
+load_deadline=$(( $(date +%s) + LOAD_SECONDS ))
+load_pids=()
+for worker in {1..4}; do
+  load_worker native 18087 "$worker" "$load_deadline" &
+  load_pids+=("$!")
+  load_worker jvm 18089 "$worker" "$load_deadline" &
+  load_pids+=("$!")
+done
+native_peak=0
+jvm_peak=0
+while [[ "$(date +%s)" -lt "$load_deadline" ]]; do
+  native_sample="$(memory_bytes native loaded "$FB_CONTAINER")"
+  jvm_sample="$(memory_bytes jvm loaded "$JVM_FB_CONTAINER")"
+  (( native_sample > native_peak )) && native_peak="$native_sample"
+  (( jvm_sample > jvm_peak )) && jvm_peak="$jvm_sample"
+  sleep 2
+done
+for pid in "${load_pids[@]}"; do wait "$pid"; done
+metric "native_loaded_memory=$native_peak"
+metric "jvm_loaded_memory=$jvm_peak"
+metric "load_seconds=$LOAD_SECONDS"
+metric 'load_concurrent_clients_per_runtime=4'
+for runtime in native jvm; do
+  requests="$(awk '{sum += $1} END {print sum}' "${RESULT_DIR}"/load-"${runtime}"-*-count.txt)"
+  [[ "$requests" -gt 0 ]]
+  metric "${runtime}_load_successful_requests=$requests"
+  metric "${runtime}_load_failed_requests=0"
+done
+
+echo 'Checking health, authenticated contracts and tenant isolation continuously for five minutes'
+stability_start="$(date +%s)"
+stability_samples=0
+while [[ "$(( $(date +%s) - stability_start ))" -lt "$STABILITY_SECONDS" ]]; do
+  for runtime in native jvm; do
+    port=18087
+    management_port=18088
+    [[ "$runtime" == jvm ]] && { port=18089; management_port=18090; }
+    check_probes "$runtime" "$management_port"
+    code="$(signed_request GET "http://127.0.0.1:${port}/api/v1/fb/menu-items" "$HOTEL_A" "$(new_id)" "${RESULT_DIR}/${runtime}-stability-menu.json")"
+    [[ "$code" == 200 ]]
+    jq -e --arg id "$MENU_ID" 'any(.[]; .id == $id and .price == 12.5)' "${RESULT_DIR}/${runtime}-stability-menu.json" >/dev/null
+    code="$(signed_request GET "http://127.0.0.1:${port}/api/v1/fb/menu-items" "$HOTEL_B" "$(new_id)" "${RESULT_DIR}/${runtime}-stability-tenant-b.json")"
+    [[ "$code" == 200 ]]
+    jq -e 'length == 0' "${RESULT_DIR}/${runtime}-stability-tenant-b.json" >/dev/null
+    memory_bytes "$runtime" stability "fb-${runtime}-service" >/dev/null
+  done
+  stability_samples=$((stability_samples + 1))
+  printf '%s,%s,UP,UP\n' "$(date +%s%3N)" "$stability_samples" >> "${RESULT_DIR}/stability-samples.csv"
+  sleep 5
+done
+metric "stability_seconds=$(( $(date +%s) - stability_start ))"
+metric "stability_samples=$stability_samples"
+metric 'native_stability=PASS'
+metric 'jvm_stability=PASS'
+
+docker exec "$POSTGRES_CONTAINER" psql --username postgres --dbname hotel_fb --tuples-only --no-align \
+  --command "SELECT count(*) FROM restaurant_orders WHERE id = '${ORDER_ID}' AND hotel_id = '${HOTEL_A}' AND status = 'BILLED_TO_ROOM';" \
+  | grep -qx 1
+metric 'jpa_order_persistence=VERIFIED'
+docker restart "$FB_CONTAINER" >/dev/null
+wait_for_health native_after_persistence_restart http://127.0.0.1:18088/actuator/health 120 "$FB_CONTAINER"
+persisted_status="$(signed_request GET "http://127.0.0.1:18087/api/v1/fb/orders/stay/${STAY_ID}" "$HOTEL_A" "$(new_id)" "${RESULT_DIR}/orders-after-restart.json")"
+assert_code 200 "$persisted_status" native_order_persistence_after_restart
+jq -e --arg id "$ORDER_ID" 'any(.[]; .id == $id and .status == "BILLED_TO_ROOM")' "${RESULT_DIR}/orders-after-restart.json" >/dev/null
+metric 'persistence_after_restart=VERIFIED'
+
 echo 'Exercising Billing Feign fallback after a real order is created'
 fallback_order_file="${RESULT_DIR}/native-fallback-order.json"
 fallback_order_status="$(signed_request POST http://127.0.0.1:18087/api/v1/fb/orders "${HOTEL_A}" "$(new_id)" \
@@ -305,6 +483,32 @@ assert_code 200 "${replay_first_status}" hmac_first_request
 replay_second_status="$(signed_request GET http://127.0.0.1:18087/api/v1/fb/menu-items "${HOTEL_A}" "${replay_nonce}" "${RESULT_DIR}/replay-second.json")"
 assert_code 401 "${replay_second_status}" hmac_replay_rejected
 metric 'hmac_redis_replay_protection=VERIFIED'
+
+for runtime in native jvm; do
+  port=18087
+  [[ "$runtime" == jvm ]] && port=18089
+  unsigned_status="$(curl --silent --show-error --max-time 5 --output "${RESULT_DIR}/${runtime}-unsigned.json" \
+    --write-out '%{http_code}' "http://127.0.0.1:${port}/api/v1/fb/menu-items")"
+  assert_code 401 "$unsigned_status" "${runtime}_unsigned_rejected"
+  invalid_status="$(CI_HMAC_SECRET=deliberately-invalid-gate-signing-key signed_request GET \
+    "http://127.0.0.1:${port}/api/v1/fb/menu-items" "$HOTEL_A" "$(new_id)" "${RESULT_DIR}/${runtime}-invalid-hmac.json")"
+  assert_code 401 "$invalid_status" "${runtime}_invalid_hmac_rejected"
+  forbidden_status="$(signed_request POST "http://127.0.0.1:${port}/api/v1/fb/menu-items" "$HOTEL_A" "$(new_id)" \
+    "${RESULT_DIR}/${runtime}-rbac-forbidden.json" '{"name":"Forbidden","price":1,"category":"Test","available":true}' RECEPTIONIST)"
+  assert_code 403 "$forbidden_status" "${runtime}_rbac_menu_write_rejected"
+  check_probes "$runtime" "$((port + 1))"
+done
+for container in "$FB_CONTAINER" "$JVM_FB_CONTAINER"; do
+  docker inspect --format '{{json .}}' "$container" \
+    | jq -e '.State.Running == true and .State.OOMKilled == false and .RestartCount == 0' >/dev/null
+done
+metric 'native_jvm_no_oom_or_automatic_restarts=VERIFIED'
+
+for key in native_startup_ms jvm_startup_ms native_idle_memory jvm_idle_memory \
+    native_loaded_memory jvm_loaded_memory native_image_size_bytes jvm_image_size_bytes; do
+  value="$(sed -n "s/^${key}=//p" "${RESULT_DIR}/metrics.txt")"
+  [[ "$value" =~ ^[0-9]+$ && "$value" -gt 0 ]]
+done
 
 metric 'native_runtime_gate=PASS'
 echo "Native F&B runtime gate passed; evidence in ${RESULT_DIR}"
