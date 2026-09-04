@@ -65,6 +65,14 @@ jobs:
         id: jvm
         if: always() && steps.images.outcome == 'success' && steps.browser.outcome == 'success' && steps.frontend.outcome == 'success'
         run: bash scripts/ci/verify-native-stack-runtime.sh jvm
+      - name: Compare the actual Flyway migration histories
+        if: always() && steps.native.outcome == 'success' && steps.jvm.outcome == 'success'
+        run: |
+          for database in hotel_auth hotel_guest hotel_frontdesk hotel_billing hotel_fb; do
+            jq -se '.[0] == .[1]' "build/native-stack-runtime/native/$database-flyway.json" \
+              "build/native-stack-runtime/jvm/$database-flyway.json" >/dev/null
+          done
+          echo 'Native/JVM Flyway history and checksum parity: PASS' >> "$GITHUB_STEP_SUMMARY"
       - name: Publish stack measurements
         if: always()
         run: |

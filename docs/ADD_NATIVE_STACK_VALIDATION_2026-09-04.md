@@ -8,7 +8,7 @@ construidas y sus controles JVM, sin fusionar implementaciones ni hacer merge
 en `main`. Los pilotos Guest y Notification se reutilizan. El empaquetado Linux
 amd64 de Notification permite usar el piloto originalmente validado en ARM64.
 
-**Pendiente de cierre:** gate final de Auth, empaquetado Linux de Notification,
+**Pendiente de cierre:** empaquetado Linux de Notification,
 compatibilidad del healthcheck Docker de Config y E2E de los ocho servicios simultáneos. Un build individual verde no demuestra
 que el PMS completo funcione. Este documento se actualizará con el resultado
 real del workflow `All Native PMS stack integration`.
@@ -23,7 +23,7 @@ real del workflow `All Native PMS stack integration`.
 | Frontdesk / #22 | [33830356702](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830356702) | Habitaciones, reservas, check-in/out, Flyway 20, downstream Guest/Billing, tenant, RBAC, HMAC/replay, carga sostenida |
 | Gateway / #18 | [33830442810](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830442810) | WebFlux, login/refresh/me, routing real, JWT/CSRF/RBAC, eliminación de headers falsificados, rate limit Redis, firma y replay |
 | Config / #20 | [33830247446](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830247446) | O2 final, 39 combinaciones de perfiles autenticados, igualdad de contenido JVM/Native, secretos resueltos en runtime, Actuator y carga |
-| Auth / #23 | Pendiente de nuevo gate | Imagen construida; el gate anterior se detuvo por `Request.method` en el medidor Python, no por un error HTTP del servicio |
+| Auth / #23 | [33844799765](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33844799765) | O2, login/refresh/me, JWT inválido/expirado/falsificado, replay, RBAC/tenant, HMAC, Flyway 8, persistencia y cinco minutos de carga por modo sin 5xx |
 | Notification / referencia | Pendiente de empaquetado | Implementación del piloto conservada; se prepara evidencia amd64 con SMTP local real y Redis/HMAC |
 
 ## Mediciones individuales confirmadas
@@ -41,10 +41,15 @@ mediciones independientes para inventar un total del stack.
 | Frontdesk | 10373 / 25349 | 137.8 / 512.9 | 123.5 / 567.1 | 358126489 / 320946301 |
 | Gateway | 2258 / 8820 | 93.7 / 276.4 | 118.3 / 305.7 | 252154777 / 274783412 |
 | Config | 616 / 3765 | 60.27 / 217.3 | 98.85 / 283.0 | 180867639 / 262590263 |
+| Auth | 4277 / 15026 | 127.77 / 433.65 | 280.91 / 567.24 | 324244377 / 312365701 |
 
 RAM puede bajar durante la carga por recolección de basura; no implica un error
 si la medición de reposo fue anterior al primer ciclo de GC. Algunas imágenes
 Native son mayores que JVM: no se promete reducción de tamaño donde no ocurrió.
+Auth registra mediana bajo carga en la tabla (picos: 445.84 / 654.75 MiB).
+En cinco minutos completó 2271 ciclos Native y 2924 JVM con tres clientes; esta
+prueba no demuestra mayor throughput Native. El beneficio medido es de arranque
+y memoria, sin afirmar aceleración universal de todas las operaciones.
 
 ## Diseño de la integración final
 

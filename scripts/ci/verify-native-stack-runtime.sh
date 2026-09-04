@@ -84,6 +84,13 @@ done
 config_unauthorized="$(curl -sS -o "$result_dir/config-unauthorized.json" -w '%{http_code}' http://127.0.0.1:18888/guest-service/default)"
 [[ "$config_unauthorized" == 401 ]]
 echo "${mode}_config_authenticated_profiles_and_denied_anonymous=PASS" >> "$metrics"
+for database in hotel_auth hotel_guest hotel_frontdesk hotel_billing hotel_fb; do
+  "${compose[@]}" exec -T postgres psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
+    -c 'SELECT coalesce(json_agg(row_to_json(m) ORDER BY m.installed_rank), '\''[]'\''::json) FROM (SELECT installed_rank, version, description, type, script, checksum, success FROM flyway_schema_history) m;' \
+    > "$result_dir/$database-flyway.json"
+  jq -e 'length > 0 and all(.[]; .success == true)' "$result_dir/$database-flyway.json" >/dev/null
+  echo "${mode}_${database}_postgresql_and_flyway=PASS" >> "$metrics"
+done
 sample_memory idle
 verify_hmac guest-service 18083 GET /api/v1/guests 200
 verify_hmac frontdesk-service 18081 GET /api/v1/rooms 200
