@@ -28,6 +28,9 @@ collect_evidence() {
 
 on_exit() {
     local status=$?
+    if [[ "${status}" -ne 0 && "${failure_class}" == PASS ]]; then
+        failure_class="NATIVE_GATE_FAIL"
+    fi
     collect_evidence
     printf '%s\n' "${failure_class}" > "${RESULT_DIR}/failure-class.txt"
     if [[ "${status}" -ne 0 ]]; then
@@ -210,6 +213,7 @@ for container in "${CONFIG_CONTAINER}" "${POSTGRES_CONTAINER}" "${REDIS_CONTAINE
 done
 docker network create "${NETWORK_NAME}" >/dev/null || global_fail "could not create Docker network"
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias config-server \
     --publish 18888:8888 --publish 18091:8090 \
     --env "CONFIG_SERVER_PASSWORD=${CI_CONFIG_PASSWORD}" \
     --env 'JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
@@ -220,9 +224,13 @@ curl --silent --show-error --fail --user "configuser:${CI_CONFIG_PASSWORD}" \
     http://127.0.0.1:18888/auth-service/default \
     | jq -e '.name == "auth-service"' >/dev/null \
     || global_fail "Config Server did not serve auth-service configuration"
+config_unauthenticated_code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+    http://127.0.0.1:18888/auth-service/default)"
+[[ "${config_unauthenticated_code}" == 401 ]] || global_fail "Config Server accepted unauthenticated access"
 
 echo "Starting PostgreSQL and Redis"
 docker run --detach --name "${POSTGRES_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias postgres \
     --env POSTGRES_USER=postgres --env "POSTGRES_PASSWORD=${CI_POSTGRES_PASSWORD}" \
     postgres:15-alpine >/dev/null
 docker run --detach --name "${REDIS_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -260,6 +268,7 @@ hotel_b="99999999-9999-9999-9999-999999999999"
 echo "Starting auth-service Native Image"
 native_start_ms="$(date +%s%3N)"
 docker run --detach --name "${NATIVE_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias auth-service \
     --publish 18087:8087 --publish 18090:8090 \
     --env SPRING_PROFILES_ACTIVE=auth-service \
     --env CONFIG_SERVER_URL=http://${CONFIG_CONTAINER}:8888 \
@@ -281,6 +290,9 @@ jq -e '.status == "UP"' <<<"${native_health}" >/dev/null || native_fail "Native 
 printf '%s\n' "${native_health}" > "${RESULT_DIR}/native-health.json"
 native_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${NATIVE_CONTAINER}")"
 
+python3 scripts/ci/measure-auth-native-runtime.py --scope native --port 18087 --management-port 18090 \
+    --container "${NATIVE_CONTAINER}" --output "${RESULT_DIR}" --seconds "${CI_STABILITY_SECONDS:-300}" \
+    || native_fail "Native probes, JWT rejection, load or stability gate failed"
 run_basic_flow native 18087 native
 
 missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/native-missing-hmac.json" \
@@ -345,12 +357,25 @@ native_migration_count="$(docker exec "${POSTGRES_CONTAINER}" psql --username po
     --tuples-only --no-align --command 'select count(*) from flyway_schema_history where success = true;')"
 [[ "${native_migration_count}" == "8" ]] || native_fail "Flyway applied ${native_migration_count} successful migrations, expected 8"
 native_image_size_bytes="$(docker image inspect hotel-pms/auth-service-native:ci --format '{{.Size}}')"
+persisted_user_count="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname hotel_auth \
+    --tuples-only --no-align --command "select count(*) from user_account where username = 'native-auth-tenant-a';")"
+[[ "${persisted_user_count}" == 1 ]] || native_fail "created user missing from PostgreSQL"
+docker restart "${NATIVE_CONTAINER}" >/dev/null || native_fail "could not restart Native for persistence gate"
+wait_for_health auth-service-native http://127.0.0.1:18090/actuator/health 90 "${NATIVE_CONTAINER}" \
+    || native_fail "Native did not recover after deliberate restart"
+persistence_code="$(signed_request GET http://127.0.0.1:18087/api/v1/auth/users \
+    ci-admin ADMIN "${hotel_a}" "$(openssl rand -hex 16)" "${RESULT_DIR}/native-users-after-restart.json")"
+[[ "${persistence_code}" == 200 ]] || native_fail "user list failed after restart"
+jq -e 'any(.[]; .username == "native-auth-tenant-a" and .role == "RECEPTIONIST")' \
+    "${RESULT_DIR}/native-users-after-restart.json" >/dev/null || native_fail "created user did not survive restart"
+run_basic_flow native 18087 native-after-restart
 
 docker stop "${NATIVE_CONTAINER}" >/dev/null || native_fail "could not stop Native container for JVM control"
 
 echo "Starting auth-service JVM control"
 jvm_start_ms="$(date +%s%3N)"
 docker run --detach --name "${JVM_CONTAINER}" --network "${NETWORK_NAME}" \
+    --network-alias auth-service \
     --publish 28087:8087 --publish 28090:8090 \
     --env SPRING_PROFILES_ACTIVE=auth-service \
     --env CONFIG_SERVER_URL=http://${CONFIG_CONTAINER}:8888 \
@@ -371,14 +396,25 @@ jvm_health="$(curl --silent --show-error --fail http://127.0.0.1:28090/actuator/
     || global_fail "JVM health endpoint was not readable"
 printf '%s\n' "${jvm_health}" > "${RESULT_DIR}/jvm-health.json"
 jvm_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_CONTAINER}")"
+python3 scripts/ci/measure-auth-native-runtime.py --scope jvm --port 28087 --management-port 28090 \
+    --container "${JVM_CONTAINER}" --output "${RESULT_DIR}" --seconds "${CI_STABILITY_SECONDS:-300}" \
+    || global_fail "JVM probes, JWT rejection, load or stability control failed"
 run_basic_flow jvm 28087 jvm
 jvm_flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname hotel_auth_jvm \
     --tuples-only --no-align --command 'select max(version::integer) from flyway_schema_history where success = true;')"
 [[ "${jvm_flyway_latest}" == "8" ]] || global_fail "JVM control Flyway latest version was ${jvm_flyway_latest}"
+jvm_image_size_bytes="$(docker image inspect hotel-pms/auth-service-jvm:ci --format '{{.Size}}')"
 
 cat > "${RESULT_DIR}/metrics.txt" <<METRICS
 auth-service Native runtime evidence
 native_build_mode=${CI_NATIVE_BUILD_MODE:-unknown}
+commit=${GITHUB_SHA:-local}
+config_server_authenticated=PASS
+config_server_unauthenticated=${config_unauthenticated_code}
+postgresql_jpa_flyway=PASS
+redis_token_version_blacklist_nonce=PASS
+native_persistence_after_restart=PASS
+native_tenant_isolation=PASS
 native_health=UP
 native_login=${native_login_code}
 native_refresh=${native_refresh_code}
@@ -401,6 +437,31 @@ jvm_me=${jvm_me_code:-unknown}
 jvm_flyway_latest=${jvm_flyway_latest}
 jvm_startup_ms=${jvm_startup_ms}
 jvm_memory=${jvm_memory}
+jvm_image_size_bytes=${jvm_image_size_bytes}
+memory_unit=bytes
+memory_method=cgroup-v2-memory.current-minus-inactive_file
 METRICS
+
+for scope in native jvm; do
+    jq -r --arg scope "${scope}" '
+        "\($scope)_idle_memory=\(.idle_memory_bytes)",
+        "\($scope)_loaded_memory=\(.loaded_memory_bytes)",
+        "\($scope)_loaded_peak_memory=\(.loaded_peak_memory_bytes)",
+        "\($scope)_stability_seconds=\(.stability_seconds)",
+        "\($scope)_stability=\(.status)",
+        "\($scope)_completed_auth_cycles=\(.completed_auth_cycles)",
+        "\($scope)_http_5xx=\(.http_5xx)",
+        "\($scope)_request_failures=\(.request_failures)",
+        "\($scope)_liveness=\(.liveness)",
+        "\($scope)_readiness=\(.readiness)",
+        "\($scope)_prometheus=\(.prometheus)",
+        "\($scope)_jwt_signature_and_expiry=\(.jwt_signature_and_expiry)",
+        "\($scope)_invalid_jwt_and_refresh=\(.invalid_jwt_and_refresh)",
+        "\($scope)_refresh_replay=\(.refresh_replay)",
+        "\($scope)_cookie_flags=\(.cookie_flags)",
+        "\($scope)_restart_count_during_load=\(.container_state.restart_count)",
+        "\($scope)_oom_killed_during_load=\(.container_state.oom_killed)"
+    ' "${RESULT_DIR}/${scope}-measurement.json" >> "${RESULT_DIR}/metrics.txt"
+done
 
 cat "${RESULT_DIR}/metrics.txt"

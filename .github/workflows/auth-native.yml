@@ -17,6 +17,7 @@ on:
       - "common-web-lib/**"
       - "config-service/**"
       - "scripts/ci/verify-auth-native-runtime.sh"
+      - "scripts/ci/measure-auth-native-runtime.py"
       - ".dockerignore"
       - "gradle/**"
       - "gradlew"
@@ -165,16 +166,60 @@ jobs:
       - name: Run Native runtime and integration gate
         env:
           CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
+          CI_STABILITY_SECONDS: "300"
         run: bash scripts/ci/verify-auth-native-runtime.sh
+
+      - name: Export validated O2 and JVM images
+        if: success() && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        run: |
+          set -euo pipefail
+          export_dir=build/auth-native-images
+          mkdir -p "${export_dir}"
+          for mode in native jvm; do
+            image="hotel-pms/auth-service-${mode}"
+            docker tag "${image}:ci" "${image}:validated"
+            docker tag "${image}:ci" "${image}:${GITHUB_SHA}"
+            docker image inspect "${image}:${GITHUB_SHA}" > "${export_dir}/${mode}-image-inspect.json"
+          done
+          jq -n --arg commit "${GITHUB_SHA}" --arg run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{commit: $commit, run_url: $run, native_build_mode: "optimized-O2", module: "auth-service", platform: "linux/amd64"}' \
+            > "${export_dir}/provenance.json"
+          cp build/auth-native-runtime/metrics.txt "${export_dir}/metrics.txt"
+          docker save \
+            hotel-pms/auth-service-native:validated "hotel-pms/auth-service-native:${GITHUB_SHA}" \
+            hotel-pms/auth-service-jvm:validated "hotel-pms/auth-service-jvm:${GITHUB_SHA}" \
+            | gzip -1 > "${export_dir}/auth-service-images.tar.gz"
+          gzip -t "${export_dir}/auth-service-images.tar.gz"
+          tar -xOf "${export_dir}/auth-service-images.tar.gz" manifest.json > "${export_dir}/manifest.json"
+          jq -e --arg sha "${GITHUB_SHA}" '[.[].RepoTags[]] as $tags | all(["hotel-pms/auth-service-native:validated", "hotel-pms/auth-service-native:" + $sha, "hotel-pms/auth-service-jvm:validated", "hotel-pms/auth-service-jvm:" + $sha][]; . as $tag | $tags | index($tag) != null)' \
+            "${export_dir}/manifest.json"
+          (cd "${export_dir}" && sha256sum auth-service-images.tar.gz > SHA256SUMS)
+
+      - name: Upload validated O2 and JVM images
+        if: success() && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        id: images
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-native-images-${{ github.sha }}
+          path: build/auth-native-images
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Publish runtime metrics
         if: always()
+        env:
+          IMAGE_ARTIFACT_URL: ${{ steps.images.outputs.artifact-url }}
+          IMAGE_ARTIFACT_ID: ${{ steps.images.outputs.artifact-id }}
         run: |
           if [[ -f build/auth-native-runtime/metrics.txt ]]; then
             cat build/auth-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
           fi
           if [[ -f build/auth-native-runtime/failure-class.txt ]]; then
             echo "Failure classification: $(<build/auth-native-runtime/failure-class.txt)" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          if [[ -n "${IMAGE_ARTIFACT_ID}" ]]; then
+            echo "Validated Native + JVM images: ${IMAGE_ARTIFACT_URL} (artifact ${IMAGE_ARTIFACT_ID})" >> "${GITHUB_STEP_SUMMARY}"
           fi
 
       - name: Upload runtime evidence
