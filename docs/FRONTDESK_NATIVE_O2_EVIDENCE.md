@@ -1,5 +1,25 @@
 # Frontdesk Native O2 — ADD scope and evidence
 
+## Reopened scope: quotation PDF content and fonts
+
+The user reopened the individual gate on 2026-09-04 because the existing
+quotation PDF route shares the Billing PDF engine, but Frontdesk has no
+Identity-H/XMPBox/AWT metadata or AWT runtime libraries. The prior O2 result
+below remains valid only for its documented non-PDF coverage. It must not
+be treated as a quotation-PDF approval.
+
+New acceptance: create/get a priced quotation through the real REST
+contract, verify tenant/HMAC denial on the PDF endpoint, download it twice,
+and assert Spanish text, the actual guest, room and server-calculated total,
+embedded Noto Sans Regular/Bold with Unicode mapping, valid pages and
+rendered PNGs. First probe the existing Native/JVM image artifact without
+nativeCompile; retain both modes' failures. Only apply Frontdesk Native
+fixes supported by evidence, using Billing `80e20fef45235ee8f114d736f1ab571bb0642812`
+as the read-only reference. Do not change the shared PDF engine, public
+contracts, schemas, security or main's integrated stack. New approved O2
+must rerun the complete gate and export both images. Status: diagnosis
+pending; no PDF success claimed.
+
 ## A.SPEC: complete the proven service gate and preserve loadable images
 
 Owner: `codex/frontdesk-native`, PR #22. Isolated checkout:

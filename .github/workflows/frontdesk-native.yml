@@ -8,6 +8,11 @@ on:
         required: false
         default: true
         type: boolean
+      reuse_baseline_pdf_probe:
+        description: "Probe quotation PDF on paired images from O2 33830356702; no Native compile, load test or image publication"
+        required: false
+        default: false
+        type: boolean
   pull_request:
     branches:
       - main
@@ -25,6 +30,7 @@ on:
       - "settings.gradle.kts"
       - "scripts/ci/verify-frontdesk-native-runtime.sh"
       - "scripts/ci/frontdesk-native-load.py"
+      - "scripts/ci/verify-frontdesk-quotation-pdf.py"
       - ".github/workflows/frontdesk-native.yml"
       # Gate/workflow/docs-only changes use an explicit O2 dispatch, avoiding
       # a redundant PR quick build for unchanged, previously proven binaries.
@@ -119,12 +125,34 @@ jobs:
           docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
           docker build --tag hotel-pms/guest-service:ci --file guest-service/Dockerfile .
 
+      - name: Install PDF content and font inspection tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - name: Download proven baseline for PDF-only diagnosis
+        if: inputs.reuse_baseline_pdf_probe
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 33830356702
+          name: frontdesk-service-validated-images-738d010f0e80812be96d11070147ec41804b04a6
+          path: build/frontdesk-baseline-images
+
+      - name: Load both baseline images without Native compilation
+        id: reuse_image
+        if: inputs.reuse_baseline_pdf_probe
+        run: |
+          cd build/frontdesk-baseline-images
+          sha256sum -c SHA256SUMS
+          gzip -dc frontdesk-service-images.tar.gz | docker load
+
       - name: Set up Docker Buildx
+        if: ${{ !inputs.reuse_baseline_pdf_probe }}
         uses: docker/setup-buildx-action@v3
 
       # Exactly one native-image invocation is performed by this runner. PRs
       # run the cheap -Ob gate; dispatch with false for the final -O2 gate.
       - name: Build Native image
+        if: ${{ !inputs.reuse_baseline_pdf_probe }}
         id: native_build
         continue-on-error: true
         uses: docker/build-push-action@v6
@@ -153,7 +181,7 @@ jobs:
           exit 1
 
       - name: Verify image metadata
-        if: steps.native_build.outcome == 'success'
+        if: steps.native_build.outcome == 'success' || steps.reuse_image.outcome == 'success'
         run: |
           docker image inspect hotel-pms/frontdesk-service-native:ci
           docker image inspect hotel-pms/frontdesk-service-native:ci \
@@ -161,13 +189,15 @@ jobs:
 
       - name: Run Native runtime and integration gate
         id: runtime_gate
-        if: steps.native_build.outcome == 'success'
+        if: steps.native_build.outcome == 'success' || steps.reuse_image.outcome == 'success'
         env:
           CI_NATIVE_BUILD_MODE: ${{ (github.event_name != 'workflow_dispatch' || inputs.native_quick_build) && 'quick-Ob' || 'optimized-O2' }}
+          CI_PDF_DIAGNOSTIC_ONLY: ${{ inputs.reuse_baseline_pdf_probe && 'true' || 'false' }}
+          CI_IMAGE_SOURCE_COMMIT: ${{ inputs.reuse_baseline_pdf_probe && '738d010f0e80812be96d11070147ec41804b04a6' || github.sha }}
         run: bash scripts/ci/verify-frontdesk-native-runtime.sh
 
       - name: Export validated O2 Native and JVM images
-        if: steps.runtime_gate.outcome == 'success' && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        if: steps.runtime_gate.outcome == 'success' && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build && !inputs.reuse_baseline_pdf_probe
         run: |
           set -euo pipefail
           export_dir=build/frontdesk-native-images
@@ -195,13 +225,14 @@ jobs:
             '{service:"frontdesk-service",commit:$commit,run:$run,native_build_mode:"optimized-O2",
               image_archive:"frontdesk-service-images.tar.gz",architecture:"linux/amd64",
               native_cpu_target:"x86-64-v3",required_aliases:["config-server","redis","postgres","guest-service","billing-service","frontdesk-service"],
-              limitations:["Quotation PDF text/fonts unvalidated","Zipkin/Loki export not tested","All-native integrated stack owned by main"]}' \
+              quotation_pdf:"PASS_TEXT_AND_EMBEDDED_FONTS",
+              limitations:["Zipkin/Loki export not tested","All-native integrated stack owned by main"]}' \
             > "${export_dir}/provenance.json"
           cp build/frontdesk-native-runtime/{metrics.txt,gate-status.txt} "${export_dir}/"
 
       - name: Upload validated images
         id: image_artifact
-        if: steps.runtime_gate.outcome == 'success' && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build
+        if: steps.runtime_gate.outcome == 'success' && github.event_name == 'workflow_dispatch' && !inputs.native_quick_build && !inputs.reuse_baseline_pdf_probe
         uses: actions/upload-artifact@v4
         with:
           name: frontdesk-service-validated-images-${{ github.sha }}

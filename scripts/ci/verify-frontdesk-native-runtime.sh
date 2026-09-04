@@ -331,9 +331,16 @@ METRICS
 
 GATE_PHASE=native-business
 run_business_gate native http://127.0.0.1:18081 hotel_frontdesk
+GATE_PHASE=native-quotation-pdf
+native_pdf_exit=0
+python3 scripts/ci/verify-frontdesk-quotation-pdf.py native http://127.0.0.1:18081 \
+  "${RESULT_DIR}/native" || native_pdf_exit=$?
+if [[ "${CI_PDF_DIAGNOSTIC_ONLY:-false}" != true ]]; then
+[[ "${native_pdf_exit}" == 0 ]]
 GATE_PHASE=native-load-stability
 python3 scripts/ci/frontdesk-native-load.py native http://127.0.0.1:18081 \
   http://127.0.0.1:18091 "${NATIVE_CONTAINER}" "${RESULT_DIR}/native"
+fi
 
 
 docker stop "${NATIVE_CONTAINER}" >/dev/null
@@ -364,13 +371,22 @@ jvm_image_size="$(docker image inspect hotel-pms/frontdesk-service-jvm:ci --form
 
 GATE_PHASE=jvm-business
 run_business_gate jvm http://127.0.0.1:28081 hotel_frontdesk_jvm
+GATE_PHASE=jvm-quotation-pdf
+jvm_pdf_exit=0
+python3 scripts/ci/verify-frontdesk-quotation-pdf.py jvm http://127.0.0.1:28081 \
+  "${RESULT_DIR}/jvm" || jvm_pdf_exit=$?
+if [[ "${CI_PDF_DIAGNOSTIC_ONLY:-false}" != true ]]; then
+[[ "${jvm_pdf_exit}" == 0 ]]
 GATE_PHASE=jvm-load-stability
 python3 scripts/ci/frontdesk-native-load.py jvm http://127.0.0.1:28081 \
   http://127.0.0.1:28091 "${JVM_CONTAINER}" "${RESULT_DIR}/jvm"
+fi
 
 GATE_PHASE=complete
 cat > "${RESULT_DIR}/metrics.txt" <<METRICS
 source_commit=${GITHUB_SHA:-local}
+image_source_commit=${CI_IMAGE_SOURCE_COMMIT:-${GITHUB_SHA:-local}}
+pdf_diagnostic_only=${CI_PDF_DIAGNOSTIC_ONLY:-false}
 native_build_mode=${CI_NATIVE_BUILD_MODE:-unknown}
 native_startup_ms=${native_startup_ms}
 native_idle_memory=${native_memory}
@@ -382,9 +398,15 @@ jvm_idle_memory=${jvm_memory}
 jvm_image_size_bytes=${jvm_image_size}
 jvm_health_status=UP
 jvm_config_server=AUTHENTICATED_REMOTE_CONFIG
-quotation_pdf=UNVALIDATED_TEXT_AND_FONTS
+quotation_pdf_native_exit=${native_pdf_exit}
+quotation_pdf_jvm_exit=${jvm_pdf_exit}
 zipkin_loki_export=NOT_TESTED
 integrated_all_native_stack=OWNED_BY_MAIN
 METRICS
-cat "${RESULT_DIR}"/{native,jvm}/{business,load}-metrics.txt >> "${RESULT_DIR}/metrics.txt"
+for metrics in "${RESULT_DIR}"/{native,jvm}/{business,load,pdf}-metrics.txt; do
+  if [[ -f "${metrics}" ]]; then cat "${metrics}" >> "${RESULT_DIR}/metrics.txt"; fi
+done
 cat "${RESULT_DIR}/metrics.txt"
+GATE_PHASE=quotation-pdf-result
+[[ "${native_pdf_exit}" == 0 && "${jvm_pdf_exit}" == 0 ]]
+GATE_PHASE=complete
