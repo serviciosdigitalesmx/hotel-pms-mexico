@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1.7
+# Reversible Native Image variant for guest-service.
+# The JVM image remains guest-service/Dockerfile.
+FROM ghcr.io/graalvm/native-image-community:24.0.2 AS builder
+ARG NATIVE_QUICK_BUILD=false
+ARG CONFIG_SERVER_URL=http://127.0.0.1:8888
+ARG CONFIG_SERVER_USERNAME=configuser
+ARG CONFIG_SERVER_PASSWORD=native-ci-config
+ARG INTERNAL_HMAC_SECRET=native-ci-hmac-secret
+ARG INTERNAL_REDIS_PASSWORD=native-ci-redis
+WORKDIR /workspace
+RUN microdnf install -y curl findutils \
+    && microdnf clean all
+COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
+COPY . .
+RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+set -eu
+chmod +x ./gradlew
+find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +
+
+CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+JAVA_TOOL_OPTIONS='-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
+java -jar /tmp/config-server.jar >/tmp/config-server.log 2>&1 &
+config_pid=$!
+trap 'kill "${config_pid}" 2>/dev/null || true' EXIT
+
+config_ready=false
+for _ in $(seq 1 90); do
+    if curl --silent --fail http://127.0.0.1:8090/actuator/health \
+        | grep -q '"status":"UP"'; then
+        config_ready=true
+        break
+    fi
+    sleep 2
+done
+if [ "${config_ready}" != true ]; then
+    cat /tmp/config-server.log
+    exit 1
+fi
+
+SPRING_PROFILES_ACTIVE=guest-service \
+CONFIG_SERVER_URL="${CONFIG_SERVER_URL}" \
+CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
+CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
+INTERNAL_HMAC_SECRET="${INTERNAL_HMAC_SECRET}" \
+INTERNAL_REDIS_PASSWORD="${INTERNAL_REDIS_PASSWORD}" \
+SPRING_DATA_REDIS_PASSWORD="${INTERNAL_REDIS_PASSWORD}" \
+SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/hotel_guest \
+SPRING_DATASOURCE_USERNAME=native-ci \
+SPRING_DATASOURCE_PASSWORD=native-ci \
+./gradlew :guest-service:nativeCompile \
+    -Pnative=true \
+    -PnativeQuickBuild="${NATIVE_QUICK_BUILD}" \
+    --no-daemon --stacktrace --max-workers=2
+EOF
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system spring \
+    && useradd --system --gid spring --no-create-home spring
+USER spring:spring
+WORKDIR /app
+COPY --from=builder /workspace/guest-service/build/native/nativeCompile/guest-service app
+EXPOSE 8083 8090
+ENTRYPOINT ["/app/app"]

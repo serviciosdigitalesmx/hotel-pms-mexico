@@ -1,19 +1,29 @@
-# Exclude source code — Spring Boot JARs are pre-built by Gradle on the runner.
-# Docker only needs */build/libs/*.jar for the 9 Spring services.
-# (Frontend service uses context: ./frontend and is unaffected by this file.)
-*/src/
+# Keep source available for the opt-in Native Image builder. The dedicated
+# guest-service/Dockerfile.native.dockerignore keeps its context minimal.
+# JVM service images still receive their pre-built build/libs JARs.
 .gradle/
 */build/classes/
+*/build/generated/
 */build/generated-sources/
 */build/tmp/
 */build/resources/
+*/build/reports/
+*/build/test-results/
+*/build/native/
+/build/
 frontend/
 docs/
 backup/
 .git/
+.github/
 .add/
 .ralph-add/
+scripts/ci/
 argos
 argos-local
 *.backup-*
 *.env.backup-*
+.env
+.env.*
+**/.env
+**/.env.*
