@@ -24,6 +24,7 @@ LOAD_SECONDS = int(os.environ.get("CONFIG_STABILITY_SECONDS", "180"))
 CONCURRENCY = 4
 METRICS = {"native_build_mode": os.environ.get("CI_NATIVE_BUILD_MODE", "unknown")}
 CONTAINERS = []
+HEALTHCHECK = {}
 
 
 def require(condition, message):
@@ -91,6 +92,49 @@ def preflight():
     return config_matrix()
 
 
+def compose_healthcheck():
+    def config(*files):
+        args = ["compose", "--env-file", "/dev/null"]
+        for path in files:
+            args.extend(["-f", path])
+        return json.loads(docker(*args, "config", "--no-interpolate", "--format", "json"))["services"]
+
+    base = config("docker-compose.yml")
+    native = config("docker-compose.yml", "docker-compose.config-native.yml")
+    require(base["config-server"]["build"]["dockerfile"] == "config-service/Dockerfile",
+            "base Compose must retain the JVM Dockerfile")
+    require(native["config-server"]["build"]["dockerfile"] == "config-service/Dockerfile.native"
+            and native["config-server"]["image"] == "hotel-pms/config-service-native:validated",
+            "Native Compose override does not select the Config Native image")
+    for name in base:
+        if name != "config-server":
+            require(base[name] == native[name], f"Config-only override modified {name}")
+    health = base["config-server"]["healthcheck"]
+    require(health == native["config-server"]["healthcheck"],
+            "Native override must preserve the base Compose healthcheck")
+    require(health["test"][0] == "CMD-SHELL" and "wget" in health["test"][1]
+            and "http://localhost:8090/actuator/health/liveness" in health["test"][1],
+            "expected the existing in-container wget liveness healthcheck")
+    save("compose-contract.json", {"status": "PASS", "healthcheck": health,
+         "native_image": native["config-server"]["image"],
+         "native_dockerfile": native["config-server"]["build"]["dockerfile"],
+         "jvm_dockerfile": base["config-server"]["build"]["dockerfile"],
+         "other_services_unchanged": True})
+    METRICS["compose_override"] = "PASS"
+    return health
+
+
+def container_health(prefix, container):
+    health = json.loads(docker("inspect", "--format", "{{json .State.Health}}", container))
+    require(health["Status"] == "healthy" and health["FailingStreak"] == 0,
+            f"{prefix} real Compose wget healthcheck is not healthy")
+    require(health["Log"] and health["Log"][-1]["ExitCode"] == 0,
+            f"{prefix} has no successful in-container healthcheck execution")
+    save(f"{prefix}-docker-health.json", health)
+    METRICS[f"{prefix}_docker_health"] = "healthy"
+    METRICS[f"{prefix}_compose_wget_healthcheck"] = "PASS"
+
+
 def check_management(prefix, port):
     for endpoint in ("health", "health/liveness", "health/readiness"):
         data = json.loads(request(port, "/actuator/" + endpoint))
@@ -124,6 +168,11 @@ def start(prefix, port, management_port):
     started = time.monotonic()
     docker("run", "--detach", "--name", container, "--network", NETWORK,
            "--network-alias", f"config-server-{prefix}",
+           "--health-cmd", HEALTHCHECK["test"][1],
+           "--health-interval", HEALTHCHECK["interval"],
+           "--health-timeout", HEALTHCHECK["timeout"],
+           "--health-retries", str(HEALTHCHECK["retries"]),
+           "--health-start-period", HEALTHCHECK["start_period"],
            "--publish", f"127.0.0.1:{port}:8888", "--publish", f"127.0.0.1:{management_port}:8090",
            "--env", f"CONFIG_SERVER_USERNAME={USERNAME}",
            "--env", f"CONFIG_SERVER_PASSWORD={PASSWORD}", image)
@@ -142,6 +191,19 @@ def start(prefix, port, management_port):
     METRICS[f"{prefix}_idle_memory"] = idle["memory"]
     METRICS[f"{prefix}_idle_memory_bytes"] = idle["bytes"]
     check_management(prefix, management_port)
+    if prefix == "native":
+        packages = docker("exec", container, "dpkg-query", "-W", "ca-certificates", "wget")
+        docker("exec", container, "test", "-s", "/etc/ssl/certs/ca-certificates.crt")
+        (RESULT / "native-runtime-packages.txt").write_text(packages + "\n")
+        METRICS["native_ca_certificates"] = "PASS"
+    # Exercise the exact Compose command immediately, then require Docker's own
+    # scheduled check to become healthy; host-side curl alone cannot prove this.
+    docker("exec", container, "sh", "-ec", HEALTHCHECK["test"][1])
+    health_deadline = time.monotonic() + 45
+    while docker("inspect", "--format", "{{.State.Health.Status}}", container) != "healthy":
+        require(time.monotonic() < health_deadline, f"{prefix} Docker health never became healthy")
+        time.sleep(1)
+    container_health(prefix, container)
     return container
 
 
@@ -213,6 +275,7 @@ def stable_load(prefix, container, port, management_port, baseline):
                 sample["elapsed_seconds"] = round(time.monotonic() - started, 3)
                 samples.append(sample)
                 check_management(prefix, management_port)
+                container_health(prefix, container)
                 state = json.loads(docker("inspect", container))[0]
                 require(state["State"]["Running"] and not state["State"]["OOMKilled"]
                         and state["RestartCount"] == initial["RestartCount"]
@@ -246,11 +309,16 @@ def stable_load(prefix, container, port, management_port, baseline):
 
 
 def main():
+    global HEALTHCHECK
     matrix = preflight()
     if "--validate-only" in sys.argv:
         print(f"Validated resource coverage and {len(matrix)} config/profile cases")
         return
     RESULT.mkdir(parents=True, exist_ok=True)
+    HEALTHCHECK = compose_healthcheck()
+    if "--validate-compose-only" in sys.argv:
+        print("Validated Config Native Compose override and unchanged JVM/other services")
+        return
     save("config-matrix.json", matrix)
     docker("network", "create", NETWORK)
     try:

@@ -8,6 +8,8 @@ on:
       - "scripts/ci/verify-config-native-runtime.sh"
       - "scripts/ci/config-native-runtime.py"
       - "scripts/ci/export-config-native-images.sh"
+      - "docker-compose.config-native.yml"
+      - "docker-compose.yml"
       - ".dockerignore"
       - "gradle/**"
       - "gradlew"
@@ -17,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       final_only:
-        description: "Only for gate/workflow changes after this binary already passed O2"
+        description: "Runtime/gate-only changes to an O2-proven application; skip -Ob"
         type: boolean
         default: false
 
@@ -63,6 +65,7 @@ jobs:
         run: |
           bash -n scripts/ci/verify-config-native-runtime.sh scripts/ci/export-config-native-images.sh
           python3 scripts/ci/config-native-runtime.py --validate-only
+          python3 scripts/ci/config-native-runtime.py --validate-compose-only
           chmod +x ./gradlew
           ./gradlew :config-service:test :config-service:processAot :config-service:bootJar \
             --no-daemon --stacktrace --max-workers=2

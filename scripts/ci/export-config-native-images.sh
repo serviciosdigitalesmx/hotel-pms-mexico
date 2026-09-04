@@ -5,7 +5,9 @@ EXPORT_DIR="build/config-native-images"
 : "${TESTED_COMMIT:?Missing tested source commit}"
 [[ "$TESTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
 jq -e '.gate_status == "PASS" and .native_build_mode == "optimized-O2" and
-  .config_content_parity == "PASS" and .native_stability == "PASS" and .jvm_stability == "PASS"' \
+  .config_content_parity == "PASS" and .native_stability == "PASS" and .jvm_stability == "PASS" and
+  .native_docker_health == "healthy" and .jvm_docker_health == "healthy" and
+  .native_ca_certificates == "PASS" and .compose_override == "PASS"' \
   "$RESULT_DIR/metrics.json" >/dev/null
 mkdir -p "$EXPORT_DIR"
 tags=()

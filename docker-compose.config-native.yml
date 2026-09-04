@@ -1,0 +1,12 @@
+# Opt-in Config Native image; the base Compose keeps its JVM fallback.
+# docker compose -f docker-compose.yml -f docker-compose.config-native.yml up -d --build config-server
+# After loading the validated paired artifact, use --no-build instead of --build.
+services:
+  config-server:
+    build:
+      context: .
+      dockerfile: config-service/Dockerfile.native
+    image: hotel-pms/config-service-native:validated
+    environment:
+      JAVA_TOOL_OPTIONS: ""
+    # Inherit the real wget liveness healthcheck and all runtime settings from base.

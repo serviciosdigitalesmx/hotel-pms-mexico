@@ -22,7 +22,10 @@ RUN --mount=type=cache,target=/root/.gradle \
          --no-daemon --stacktrace --max-workers=2
 
 FROM debian:bookworm-slim
-RUN groupadd --system spring \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system spring \
     && useradd --system --gid spring --no-create-home spring
 USER spring:spring
 WORKDIR /app

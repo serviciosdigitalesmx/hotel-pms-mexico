@@ -9,6 +9,11 @@
 scripts/ci/
 frontend/
 docs/
+# Runtime recipes and Compose overrides are not inputs to nativeCompile.
+# BuildKit still reads the selected Dockerfile when it is excluded from COPY.
+**/Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
 backup/
 argos
 argos-local
