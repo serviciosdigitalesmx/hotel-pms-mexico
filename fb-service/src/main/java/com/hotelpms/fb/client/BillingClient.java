@@ -16,7 +16,9 @@ import java.util.UUID;
  * Adds F&amp;B charges to an open stay invoice.
  */
 @FunctionalInterface
-@FeignClient(name = "billing-service", url = "${application.config.billing-service-url}")
+@FeignClient(
+        name = "billing-service",
+        url = "${APPLICATION_CONFIG_BILLING_SERVICE_URL:http://billing-service:8085}")
 public interface BillingClient {
 
     /** Lower bound (inclusive) of the HTTP client-error range. */
