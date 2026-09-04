@@ -12,13 +12,13 @@ mkdir -p build/native-stack-artifact-evidence
 while IFS=$'\t' read -r module artifact_id source_sha run_id; do
   artifact_dir="${RUNNER_TEMP:?}/native-stack-images/$module"
   mkdir -p "$artifact_dir"
-  gh api "repos/$repository/actions/artifacts/$artifact_id" > "build/native-stack-artifact-evidence/$module-artifact.json"
+  timeout 180s gh api "repos/$repository/actions/artifacts/$artifact_id" > "build/native-stack-artifact-evidence/$module-artifact.json"
   jq -e --arg sha "$source_sha" --argjson run "$run_id" '.expired == false and .workflow_run.head_sha == $sha and .workflow_run.id == $run' \
     "build/native-stack-artifact-evidence/$module-artifact.json" >/dev/null
-  gh api "repos/$repository/actions/runs/$run_id" > "build/native-stack-artifact-evidence/$module-run.json"
+  timeout 180s gh api "repos/$repository/actions/runs/$run_id" > "build/native-stack-artifact-evidence/$module-run.json"
   jq -e --arg sha "$source_sha" '.status == "completed" and .conclusion == "success" and .head_sha == $sha' \
     "build/native-stack-artifact-evidence/$module-run.json" >/dev/null
-  gh api "repos/$repository/actions/artifacts/$artifact_id/zip" > "$artifact_dir/artifact.zip"
+  timeout 600s gh api "repos/$repository/actions/artifacts/$artifact_id/zip" > "$artifact_dir/artifact.zip"
   unzip -q "$artifact_dir/artifact.zip" -d "$artifact_dir/images"
   mapfile -t checksums < <(find "$artifact_dir/images" -type f \( -name SHA256SUMS -o -name '*.sha256' \))
   [[ "${#checksums[@]}" -gt 0 ]] || { echo "$module: artifact has no checksum" >&2; exit 1; }
@@ -27,7 +27,7 @@ while IFS=$'\t' read -r module artifact_id source_sha run_id; do
   done
   mapfile -t archives < <(find "$artifact_dir/images" -type f \( -name '*.tar.gz' -o -name '*.tar' \))
   [[ "${#archives[@]}" -gt 0 ]]
-  for archive in "${archives[@]}"; do docker load --input "$archive"; done
+  for archive in "${archives[@]}"; do timeout 300s docker load --input "$archive"; done
   for mode in native jvm; do
     image="hotel-pms/$module-$mode:validated"
     docker image inspect "$image" > "build/native-stack-artifact-evidence/$module-$mode-image.json"
