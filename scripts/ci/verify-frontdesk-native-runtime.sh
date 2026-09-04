@@ -61,15 +61,16 @@ wait_for_health() {
 
 signed_request() {
   local method="$1" url="$2" hotel_id="$3" nonce="$4" output_file="$5" body="${6:-}"
+  local role="${7:-ADMIN}"
   local timestamp signature http_status curl_rc
   timestamp="$(date +%s%3N)"
-  signature="$(printf '%s' "ci-admin:ADMIN:${hotel_id}:${timestamp}:${nonce}" \
+  signature="$(printf '%s' "ci-admin:${role}:${hotel_id}:${timestamp}:${nonce}" \
     | openssl dgst -sha256 -hmac "${CI_HMAC_SECRET}" -r | awk '{print $1}')"
   local curl_args=(
     --silent --show-error --max-time 30 --output "${output_file}" --write-out '%{http_code}'
     --request "${method}"
     --header 'X-Auth-User: ci-admin'
-    --header 'X-Auth-Role: ADMIN'
+    --header "X-Auth-Role: ${role}"
     --header "X-Auth-Hotel: ${hotel_id}"
     --header "X-Auth-Timestamp: ${timestamp}"
     --header "X-Auth-Nonce: ${nonce}"
@@ -224,6 +225,9 @@ run_business_gate() {
     "$(openssl rand -hex 16)" "${RESULT_DIR}/room-type.json" "${room_type_payload}")"
   [[ "${room_type_code}" == 201 ]]
   room_type_id="$(jq -er '.id' "${RESULT_DIR}/room-type.json")"
+  rbac_code="$(signed_request POST "${app_url}/api/v1/room-types" "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/rbac-room-type.json" "${room_type_payload}" RECEPTIONIST)"
+  [[ "${rbac_code}" == 403 ]]
   room_payload="{\"hotelId\":\"${hotel_a}\",\"roomNumber\":\"N-${guest_id:0:8}\",\"roomTypeId\":\"${room_type_id}\",\"status\":\"CLEAN\"}"
   room_code="$(signed_request POST ${app_url}/api/v1/rooms "${hotel_a}" \
     "$(openssl rand -hex 16)" "${RESULT_DIR}/room.json" "${room_payload}")"
@@ -320,6 +324,7 @@ ${label}_guest_service_hmac_missing_headers=${guest_missing_hmac_code}
 ${label}_billing_service_hmac_missing_headers=${billing_missing_hmac_code}
 ${label}_tenant_cross_hotel=${cross_tenant_code}
 ${label}_tenant_rooms_stays=404
+${label}_rbac_receptionist_room_type_write=${rbac_code}
 METRICS
 
 }

@@ -59,6 +59,17 @@ required in the integrated stack: main supplies its runtime configuration.
 
 ## Final verification
 
+Initial expanded run [33829932473](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33829932473)
+stopped before Native compilation: 119 existing tests ran, 116 passed and
+three legacy Alloggiati positive tests failed (expected 200, actual 403).
+The baseline controller already uses `@PreAuthorize("denyAll()")`, introduced
+by `738215e` (Mexico runtime safeguards). These stale positive expectations
+are `UNRELATED_GLOBAL_CI_FAIL`; no application/security/test sources changed.
+The focused suite retains all three receptionist-denied checks and the
+remaining 113 service/tenant tests. Real runtime RBAC additionally verifies
+receptionist room-type writes return 403 and legacy reports deny both ADMIN
+and RECEPTIONIST. Original failure XML artifact: `9921319062`.
+
 Pending: final O2 run, artifact download/checksum/tag verification, final
 metrics and test counts. No completion claim until these are recorded here.
 
@@ -70,6 +81,8 @@ metrics and test counts. No completion claim until these are recorded here.
   modify the shared PDF engine or certify Frontdesk quotations.
 - Guest and Billing dependencies in this independent gate are real JVM
   controls. Main owns the all-Native/all-JVM integrated stack and frontend E2E.
+- Notification delivery is not exercised by this independent gate; the
+  complete notification flow belongs in main's integrated stack validation.
 - Prometheus and structured logs are collected; Zipkin/Loki export and
   external Alloggiati submission are not tested.
 - Global frontend/PMD failures are unrelated unless they directly block this

@@ -75,6 +75,8 @@ def main():
         ("/api/v1/rooms", {"bad_signature": True}, 401),
         ("/api/v1/stays/reports/alloggiati/json?date=" + datetime.date.today().isoformat(),
          {"role": "RECEPTIONIST"}, 403),
+        ("/api/v1/stays/reports/alloggiati/json?date=" + datetime.date.today().isoformat(),
+         {"role": "ADMIN"}, 403),
     ]:
         try:
             request(app, path, authenticated=True, **kwargs)
@@ -151,7 +153,7 @@ def main():
         "stability_health_checks": len(probes), "stability_restarts": state_after["RestartCount"],
         "stability_oom_killed": "false", "liveness": "UP", "readiness": "UP",
         "prometheus": "PASS_HTTP_DB_PROCESS_METRICS", "hmac_invalid_signature": 401,
-        "rbac_receptionist_admin_report": 403, "stability": "PASS",
+        "legacy_alloggiati_admin_receptionist_denied": 403, "stability": "PASS",
     }
     (evidence / "load-metrics.txt").write_text("".join(f"{mode}_{key}={value}\n" for key, value in metrics.items()))
     print(json.dumps({"mode": mode, "requests": sum(counts.values()), "duration": elapsed, "peak": peak}))
