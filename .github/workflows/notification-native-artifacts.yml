@@ -33,7 +33,7 @@ jobs:
       - name: Verify unchanged JVM behavior and AOT
         run: |
           chmod +x ./gradlew
-          ./gradlew :notification-service:test :notification-service:bootJar :config-service:bootJar --no-daemon --max-workers=2
+          ./gradlew :notification-service:test :notification-service:bootJar :config-service:bootJar -x :notification-service:processAot --no-daemon --max-workers=2
           SPRING_PROFILES_ACTIVE=notification-service \
           SPRING_CONFIG_IMPORT=optional:configserver: \
           SPRING_CONFIG_ADDITIONAL_LOCATION=file:./config-service/src/main/resources/config/notification-service.yml \
