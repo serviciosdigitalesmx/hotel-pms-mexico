@@ -64,7 +64,7 @@ jobs:
           bash -n scripts/ci/verify-config-native-runtime.sh scripts/ci/export-config-native-images.sh
           python3 scripts/ci/config-native-runtime.py --validate-only
           chmod +x ./gradlew
-          ./gradlew :config-service:test :config-service:processAot \
+          ./gradlew :config-service:test :config-service:processAot :config-service:bootJar \
             --no-daemon --stacktrace --max-workers=2
 
   native-quick-gate:

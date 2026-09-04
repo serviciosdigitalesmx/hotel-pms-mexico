@@ -83,7 +83,7 @@ def preflight():
     dockerfile = Path("config-service/Dockerfile.native").read_text()
     require(not re.search(r"^(ARG|ENV)\s+.*(PASSWORD|SECRET|TOKEN)", dockerfile, re.MULTILINE),
             "secret-bearing native Dockerfile ARG/ENV")
-    metadata = ROOT / "META-INF/native-image/com.hotelpms/config-service/resource-config.json"
+    metadata = ROOT / "META-INF/native-image/com.hotelpms/config-service-resources/resource-config.json"
     patterns = [re.compile(e["pattern"]) for e in json.loads(metadata.read_text())["resources"]["includes"]]
     for path in (ROOT / "config").glob("*.yml"):
         require(any(p.fullmatch(str(path.relative_to(ROOT))) for p in patterns),
@@ -165,6 +165,11 @@ def check_profiles(prefix, port, matrix):
                 f"{prefix} {path} missing required sources {set(item['sources']) - names}")
         require(all(source["source"] for source in data["propertySources"]),
                 f"{prefix} {path} contains an empty property source")
+        for source in data["propertySources"]:
+            for key, value in source["source"].items():
+                if key.rsplit(".", 1)[-1] in {"password", "secret", "token", "private-key"}:
+                    require(isinstance(value, str) and value.startswith("${") and value.endswith("}"),
+                            f"{prefix} {path} resolved a client secret instead of serving its placeholder")
         if path == "/api-gateway/prod":
             effective = {}
             for source in reversed(data["propertySources"]):
