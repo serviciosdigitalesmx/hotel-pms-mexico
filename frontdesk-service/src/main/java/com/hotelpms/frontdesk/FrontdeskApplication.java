@@ -1,9 +1,11 @@
 package com.hotelpms.frontdesk;
 
+import com.hotelpms.frontdesk.config.FrontdeskNativeRuntimeHints;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
@@ -18,6 +20,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableFeignClients
 @EnableJpaAuditing
 @EnableCaching
+@ImportRuntimeHints(FrontdeskNativeRuntimeHints.class)
 public class FrontdeskApplication {
 
     /**

@@ -23,7 +23,8 @@ import java.util.UUID;
 /**
  * OpenFeign Client for communicating with the Billing Service.
  */
-@FeignClient(name = "billing-service")
+@FeignClient(name = "billing-service",
+        url = "${APPLICATION_CONFIG_BILLING_SERVICE_URL:http://billing-service:8085}")
 public interface BillingClient {
 
     /**
