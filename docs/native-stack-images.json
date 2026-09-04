@@ -8,6 +8,6 @@
     {"module": "billing-service", "artifact_id": 9921780165, "run_id": 33830302204, "sha": "80e20fef45235ee8f114d736f1ab571bb0642812"},
     {"module": "frontdesk-service", "artifact_id": 9921963152, "run_id": 33830356702, "sha": "738d010f0e80812be96d11070147ec41804b04a6"},
     {"module": "api-gateway", "artifact_id": 9921685455, "run_id": 33830442810, "sha": "065ea876667926a9ecaccbb3d4743d7e3ddab94f"},
-    {"module": "config-service", "artifact_id": 9921959128, "run_id": 33830247446, "sha": "a44f8fee350231be67e3218c53dd5bb00995a939"}
+    {"module": "config-service", "artifact_id": 9926885515, "run_id": 33845879948, "sha": "8222081c2b19b03ef18bc6a0b3f5e5cf18bef99a"}
   ]
 }
