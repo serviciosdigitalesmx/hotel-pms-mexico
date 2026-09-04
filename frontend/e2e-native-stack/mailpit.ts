@@ -1,5 +1,7 @@
 import { expect, type APIRequestContext, type TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { assertPdf, json, mailpitURL, status } from './support';
 
 interface MailSummary {
@@ -18,7 +20,8 @@ interface MailMessage extends MailSummary {
 // clear another run's mailbox. The frontdesk -> notification -> SMTP chain
 // must produce the messages that we observe here.
 export async function receivedMail(request: APIRequestContext, info: TestInfo,
-  email: string, subject: string, expectedText: string[], invoiceId?: string): Promise<void> {
+  email: string, subject: string, expectedText: string[],
+  invoice?: { id: string; expectedText: string[] }): Promise<void> {
   expect(email.endsWith('.test')).toBe(true);
   let found: MailSummary | undefined;
   await expect.poll(async () => {
@@ -41,8 +44,8 @@ export async function receivedMail(request: APIRequestContext, info: TestInfo,
   await info.attach(`mail-${subject}.json`, {
     body: JSON.stringify(message, null, 2), contentType: 'application/json',
   });
-  if (invoiceId) {
-    const pdf = message.Attachments.find(item => item.FileName === `factura-${invoiceId}.pdf`);
+  if (invoice) {
+    const pdf = message.Attachments.find(item => item.FileName === `factura-${invoice.id}.pdf`);
     expect(pdf, 'Checkout must include the real invoice PDF fetched from billing').toBeDefined();
     expect(pdf!.ContentType).toContain('application/pdf');
     const attachment = await request.get(
@@ -54,5 +57,11 @@ export async function receivedMail(request: APIRequestContext, info: TestInfo,
     await writeFile(pdfPath, bytes);
     await info.attach('checkout-mail-invoice.pdf', { path: pdfPath, contentType: 'application/pdf' });
     assertPdf(bytes);
+    // checkout-*.html intentionally puts charge details in the attachment,
+    // not in the body. Validate those details in the actual SMTP-delivered PDF.
+    // The shell gate additionally checks both PDFs' text and embedded fonts.
+    expect(invoice.expectedText.length).toBeGreaterThanOrEqual(5);
+    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', pdfPath, '-'], { timeout: 10_000 });
+    for (const text of invoice.expectedText) expect(stdout, `SMTP invoice must contain ${text}`).toContain(text);
   }
 }

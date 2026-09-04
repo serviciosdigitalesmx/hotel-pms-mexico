@@ -169,7 +169,7 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         return created;
       });
 
-      const { order, invoice } = await test.step('confirm F&B in UI and require the actual charge in the original folio', async () => {
+      const { order, invoice, pdfExpectedText } = await test.step('confirm F&B in UI and require the actual charge in the original folio', async () => {
         const menu = await json<MenuItemResponse>(await api.mutate('POST', '/api/v1/fb/menu-items', {
           name: `${tag} breakfast`, price: 12.5, category: 'Breakfast', description: 'E2E fixture', available: true,
         }), 201);
@@ -201,8 +201,9 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         evidence.menuItemId = menu.id;
         evidence.orderId = order.id;
         evidence.invoiceTotal = invoice.totalAmount;
-        evidence.pdfExpectedText = ['FACTURA', `Native ${tag}`, room.roomNumber, `${tag} breakfast`, '225.00'];
-        return { order, invoice };
+        const pdfExpectedText = ['FACTURA', `Native ${tag}`, room.roomNumber, `${tag} breakfast`, '225.00'];
+        evidence.pdfExpectedText = pdfExpectedText;
+        return { order, invoice, pdfExpectedText };
       });
 
       await test.step('second hotel cannot list, read or mutate the created fixtures, even with spoofed tenant headers', async () => {
@@ -334,7 +335,8 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         await expect(row.locator(`[id="checkout-btn-${stay.id}"]`)).toHaveCount(0);
         expect(await json(await api.get(`/api/v1/stays/${stay.id}`))).toMatchObject({ status: 'CHECKED_OUT', checkoutEmailFailed: false });
         expect(await json(await api.get(`/api/v1/rooms/${room.id}`))).toMatchObject({ status: 'DIRTY' });
-        await receivedMail(mailbox, info, email, checkoutSubject, [`Native ${tag}`, room.roomNumber, `${tag} breakfast`], invoice.id);
+        await receivedMail(mailbox, info, email, checkoutSubject, [`Native ${tag}`, room.roomNumber],
+          { id: invoice.id, expectedText: pdfExpectedText });
         evidence.finalStayStatus = 'CHECKED_OUT';
         evidence.reservationAndCheckoutMail = 'RECEIVED';
       });
