@@ -186,7 +186,13 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         const confirm = waitForApi(page, 'POST', `/api/v1/fb/orders/${order.id}/confirm`);
         await button.click();
         expect(await json(await confirm)).toMatchObject({ id: order.id, status: 'BILLED_TO_ROOM' });
-        expect(await json(await api.get(`/api/v1/fb/orders/${order.id}`))).toMatchObject({ status: 'BILLED_TO_ROOM' });
+        // RestaurantOrderController exposes read-by-stay, not GET /orders/{id}.
+        // Re-read the persisted order through that actual contract, not just
+        // the confirm response or the frontend's optimistic state.
+        const storedOrders = await json<RestaurantOrderResponse[]>(await api.get(`/api/v1/fb/orders/stay/${stay.id}`));
+        expect(storedOrders.map(item => item.id)).toEqual([order.id]);
+        expect(storedOrders[0]).toMatchObject({ id: order.id, stayId: stay.id, status: 'BILLED_TO_ROOM',
+          totalAmount: 25, roomNumber: room.roomNumber, items: order.items });
         const invoice = await json<InvoiceResponse>(await api.get(`/api/v1/invoices/${stay.invoiceId}`));
         const charges = invoice.charges?.filter(charge => charge.type === 'FB_ORDER' && charge.referenceId === order.id);
         expect(charges, 'A confirmed order alone is insufficient: billing fallback can swallow a failed charge').toHaveLength(1);
@@ -220,11 +226,17 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
           // missing fixture, absent route or unrelated downstream outage.
           for (const path of [`/api/v1/guests/${guest.id}`, `/api/v1/rooms/${room.id}`,
             `/api/v1/reservations/${reservation.id}`, `/api/v1/stays/${stay.id}`,
-            `/api/v1/invoices/${invoice.id}`, `/api/v1/invoices/${invoice.id}/pdf`, `/api/v1/fb/orders/${order.id}`]) {
+            `/api/v1/invoices/${invoice.id}`, `/api/v1/invoices/${invoice.id}/pdf`]) {
             await status(await api.get(path), 200);
             await status(await other.get(path), 404);
             await status(await other.get(path, spoof), 404);
           }
+          // The collection contract returns 200 + [] for a foreign stay. An
+          // own-tenant positive control proves the same route really has data.
+          const orderPath = `/api/v1/fb/orders/stay/${stay.id}`;
+          expect((await json<RestaurantOrderResponse[]>(await api.get(orderPath))).map(item => item.id)).toEqual([order.id]);
+          expect(await json(await other.get(orderPath))).toEqual([]);
+          expect(await json(await other.get(orderPath, spoof))).toEqual([]);
           for (const path of ['/api/v1/rooms?size=500', '/api/v1/reservations?size=500', '/api/v1/stays?size=500',
             '/api/v1/invoices?size=500', '/api/v1/fb/orders?size=500']) {
             const result = await json<SpringPage<{ id: string }>>(await other.get(path, spoof));
