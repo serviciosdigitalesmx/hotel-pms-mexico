@@ -1,0 +1,9 @@
+# Opt-in Native pilot. Use with:
+# docker compose -f docker-compose.yml -f docker-compose.notification-native.yml up -d --build notification-service
+# Remove this override to return to the unchanged JVM container.
+services:
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile.native
+    image: hotel-pms/notification-service-native

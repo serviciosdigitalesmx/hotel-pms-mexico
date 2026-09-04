@@ -1,0 +1,89 @@
+name: Export validated Notification Native reference
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-notification-native-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-notification-native-
+      - name: Verify unchanged JVM behavior and AOT
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :notification-service:test :notification-service:bootJar :config-service:bootJar --no-daemon --max-workers=2
+          SPRING_PROFILES_ACTIVE=notification-service \
+          SPRING_CONFIG_IMPORT=optional:configserver: \
+          SPRING_CONFIG_ADDITIONAL_LOCATION=file:./config-service/src/main/resources/config/notification-service.yml \
+          CONFIG_SERVER_PASSWORD="$CI_CONFIG_PASSWORD" INTERNAL_HMAC_SECRET="$CI_HMAC_SECRET" \
+          INTERNAL_REDIS_PASSWORD="$CI_REDIS_PASSWORD" \
+          ./gradlew :notification-service:processAot --no-daemon --max-workers=2
+          docker build -f config-service/Dockerfile -t hotel-pms/config-service:ci .
+          docker build -f notification-service/Dockerfile -t hotel-pms/notification-service-jvm:validated .
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Linux amd64 from the validated pilot implementation
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: notification-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/notification-service-native:validated
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify portability and real local SMTP delivery
+        run: bash scripts/ci/verify-notification-reference-runtime.sh
+      - name: Archive verified Native and JVM images
+        run: |
+          mkdir -p build/notification-validated-images
+          docker tag hotel-pms/notification-service-native:validated hotel-pms/notification-service-native:${GITHUB_SHA}
+          docker save hotel-pms/notification-service-native:validated hotel-pms/notification-service-native:${GITHUB_SHA} hotel-pms/notification-service-jvm:validated \
+            | gzip -1 > build/notification-validated-images/notification-service-images.tar.gz
+          docker image inspect hotel-pms/notification-service-native:validated hotel-pms/notification-service-jvm:validated \
+            --format 'id={{.Id}} os={{.Os}} architecture={{.Architecture}} size={{.Size}} tags={{json .RepoTags}}' \
+            > build/notification-validated-images/image-metadata.txt
+          cd build/notification-validated-images
+          sha256sum notification-service-images.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notification-service-optimized-images-${{ github.sha }}
+          path: build/notification-validated-images
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notification-reference-runtime-evidence
+          path: build/notification-reference-runtime
+          if-no-files-found: warn
+      - name: Publish metrics
+        if: always()
+        run: |
+          if test -f build/notification-reference-runtime/metrics.txt; then
+            cat build/notification-reference-runtime/metrics.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Clean up isolated CI containers
+        if: always()
+        run: |
+          docker rm -f notification-reference-native notification-reference-jvm notification-reference-config notification-reference-redis notification-reference-mail || true
+          docker network rm notification-reference-ci || true

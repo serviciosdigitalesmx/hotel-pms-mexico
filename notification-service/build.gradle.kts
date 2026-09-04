@@ -3,6 +3,8 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
+    // Opt-in Native Image toolchain; the existing JVM Dockerfile remains unchanged.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -16,6 +18,18 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.notification.NotificationApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            buildArgs.add("-O2");
+            // Keep the pilot build inside Docker Desktop's memory budget.
+            buildArgs.add("-J-Xmx4600m")
+            buildArgs.add("--parallelism=4")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 configurations {
@@ -104,4 +118,25 @@ tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
     extraArgs.addAll(
         listOf("-exclude", "${project.projectDir}/config/spotbugs/exclude.xml")
     )
+}
+
+// Spring AOT sources are generated framework code. Keep QA and JVM tests on
+// the project's handwritten main/test sources. Native behavior is verified
+// against the real container, so the normal JVM build must not generate a
+// separate AOT test application that tries to resolve Config Server at build time.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }
