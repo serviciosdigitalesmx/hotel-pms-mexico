@@ -3,6 +3,7 @@ set -Eeuo pipefail
 : "${CI_CONFIG_PASSWORD:?}" "${CI_REDIS_PASSWORD:?}" "${CI_HMAC_SECRET:?}"
 result_dir="${GITHUB_WORKSPACE:-$(pwd)}/build/notification-reference-runtime"
 mkdir -p "$result_dir"
+trap 'echo "REFERENCE_GATE_FAIL at line ${LINENO}" >&2' ERR
 collect() {
   for container in notification-reference-native notification-reference-jvm notification-reference-config notification-reference-redis notification-reference-mail; do
     docker logs "$container" > "$result_dir/$container.log" 2>&1 || true
@@ -42,7 +43,7 @@ for mode in native jvm; do
     curl -fsS "http://127.0.0.1:18098/actuator/health/$probe" | jq -e '.status == "UP"' >/dev/null
   done
   curl -fsS http://127.0.0.1:18098/actuator/prometheus > "$result_dir/$mode-prometheus.txt"
-  grep -q '^http_server_requests' "$result_dir/$mode-prometheus.txt"
+  grep -q '^application_ready_time_seconds' "$result_dir/$mode-prometheus.txt"
   unsigned="$(curl -sS -o "$result_dir/$mode-unsigned.json" -w '%{http_code}' -X POST http://127.0.0.1:18088/internal/notifications/checkin -H 'Content-Type: application/json' -d '{}')"
   [[ "$unsigned" == 401 ]]
   nonce="$(openssl rand -hex 16)"
@@ -59,6 +60,10 @@ for mode in native jvm; do
   [[ "$(docker exec notification-reference-redis redis-cli --no-auth-warning -a "$CI_REDIS_PASSWORD" exists "internal-auth:nonce:$nonce")" == 1 ]]
   curl -fsS http://127.0.0.1:18025/api/v1/messages > "$result_dir/$mode-mailbox.json"
   jq -e --arg recipient "$mode@example.test" 'any(.messages[]; any(.To[]; .Address == $recipient))' "$result_dir/$mode-mailbox.json" >/dev/null
+  # Business HTTP meters are created lazily. Require them after real requests,
+  # not before the first request has reached the application port.
+  curl -fsS http://127.0.0.1:18098/actuator/prometheus > "$result_dir/$mode-prometheus-after-delivery.txt"
+  grep -q '^http_server_requests' "$result_dir/$mode-prometheus-after-delivery.txt"
   loaded_memory="$(docker stats --no-stream --format '{{.MemUsage}}' "$container")"
   for _ in {1..30}; do
     curl -fsS http://127.0.0.1:18098/actuator/health | jq -e '.status == "UP"' >/dev/null
