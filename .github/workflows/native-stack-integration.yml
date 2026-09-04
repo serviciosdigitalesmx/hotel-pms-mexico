@@ -54,8 +54,8 @@ jobs:
         id: browser
         working-directory: frontend
         run: |
-          npm ci
-          google-chrome --version
+          npm ci --prefer-offline --fetch-timeout=60000 --fetch-retries=2
+          timeout 30s google-chrome --version
       - uses: docker/setup-buildx-action@v3
       - name: Build the existing frontend
         id: frontend
