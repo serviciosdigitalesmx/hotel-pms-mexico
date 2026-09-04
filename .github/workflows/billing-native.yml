@@ -137,14 +137,16 @@ jobs:
         if: success() && env.NATIVE_BUILD_MODE == 'optimized-O2'
         run: |
           mkdir -p build/billing-native-image
+          docker tag hotel-pms/billing-service-native:ci hotel-pms/billing-service-native:validated
           docker tag hotel-pms/billing-service-native:ci hotel-pms/billing-service-native:${GITHUB_SHA}
-          docker save hotel-pms/billing-service-native:${GITHUB_SHA} \
-            | gzip -1 > build/billing-native-image/billing-service-native-linux-amd64.tar.gz
-          docker image inspect hotel-pms/billing-service-native:${GITHUB_SHA} \
-            --format 'id={{.Id}} os={{.Os}} architecture={{.Architecture}} size={{.Size}}' \
+          docker tag hotel-pms/billing-service-jvm:ci hotel-pms/billing-service-jvm:validated
+          docker save hotel-pms/billing-service-native:validated hotel-pms/billing-service-native:${GITHUB_SHA} hotel-pms/billing-service-jvm:validated \
+            | gzip -1 > build/billing-native-image/billing-service-images-linux-amd64.tar.gz
+          docker image inspect hotel-pms/billing-service-native:${GITHUB_SHA} hotel-pms/billing-service-jvm:validated \
+            --format 'id={{.Id}} os={{.Os}} architecture={{.Architecture}} size={{.Size}} tags={{json .RepoTags}}' \
             > build/billing-native-image/image-metadata.txt
           cd build/billing-native-image
-          sha256sum billing-service-native-linux-amd64.tar.gz > SHA256SUMS
+          sha256sum billing-service-images-linux-amd64.tar.gz > SHA256SUMS
 
       - name: Upload validated optimized image
         if: success() && env.NATIVE_BUILD_MODE == 'optimized-O2'
