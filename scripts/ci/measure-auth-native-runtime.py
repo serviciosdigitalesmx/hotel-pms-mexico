@@ -79,7 +79,7 @@ class Gate:
             status, data, response_headers = response.status, response.read(), response.headers
         path = urllib.parse.urlparse(url).path
         with self.lock:
-            key = f"{request.method} {path} {status}"
+            key = f"{request.get_method()} {path} {status}"
             self.counts[key] = self.counts.get(key, 0) + 1
         require(status == expected, f"{path}: HTTP {status}, expected {expected}")
         if cookies is not None and expected == 200:
