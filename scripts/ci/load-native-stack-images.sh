@@ -10,6 +10,7 @@ jq -e --argjson expected "$expected" '
 ' "$manifest" >/dev/null
 mkdir -p build/native-stack-artifact-evidence
 while IFS=$'\t' read -r module artifact_id source_sha run_id; do
+  echo "[native-stack-loader] starting module=$module artifact=$artifact_id run=$run_id"
   artifact_dir="${RUNNER_TEMP:?}/native-stack-images/$module"
   mkdir -p "$artifact_dir"
   timeout 180s gh api "repos/$repository/actions/artifacts/$artifact_id" > "build/native-stack-artifact-evidence/$module-artifact.json"
@@ -34,4 +35,6 @@ while IFS=$'\t' read -r module artifact_id source_sha run_id; do
     jq -e '.[0].Os == "linux" and .[0].Architecture == "amd64"' \
       "build/native-stack-artifact-evidence/$module-$mode-image.json" >/dev/null
   done
+  echo "[native-stack-loader] completed module=$module"
 done < <(jq -r '.images[] | [.module,.artifact_id,.sha,.run_id] | @tsv' "$manifest")
+echo '[native-stack-loader] completed all modules'
