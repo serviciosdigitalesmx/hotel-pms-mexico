@@ -180,7 +180,8 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
       await test.step('second hotel cannot list, read or mutate the created fixtures, even with spoofed tenant headers', async () => {
         const otherContext = await browser.newContext({ baseURL });
         try {
-          const other = new PmsApi(otherContext.request);
+          const otherPage = await otherContext.newPage();
+          const other = new PmsApi(otherPage);
           expect((await other.login(otherCredentials())).role).toBe('ADMIN');
           const settings = await other.settings();
           expect(settings.hotelId).not.toBe(original.hotelId);
@@ -227,7 +228,6 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
             amount: invoice.totalAmount, paymentMethod: 'CASH',
           }, spoof), 404);
           await status(await other.mutate('POST', `/api/v1/fb/orders/${order.id}/confirm`, undefined, spoof), 404);
-          const otherPage = await otherContext.newPage();
           expect((await searchGuestsUI(otherPage, otherEmail)).content.map(g => g.id)).toEqual([otherGuest.id]);
           await expect(otherPage.getByRole('row').filter({ hasText: otherEmail })).toContainText('Other');
           const visibleGuests = await searchGuestsUI(otherPage, email);

@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import type { UserPayload } from '../src/types/auth.types';
 import type { RoomTypeResponse } from '../src/types/inventory.types';
-import { json, loginUI, PmsApi, status, uniqueTag } from './support';
+import { baseURL, json, loginUI, PmsApi, status, uniqueTag } from './support';
 
-test('real receptionist RBAC and forged internal headers cannot grant ADMIN or tenant access', async ({ page, playwright }) => {
+test('real receptionist RBAC and forged internal headers cannot grant ADMIN or tenant access', async ({ page, browser }) => {
   const admin = await loginUI(page);
   const tag = uniqueTag();
   const settings = await admin.settings();
@@ -12,10 +12,12 @@ test('real receptionist RBAC and forged internal headers cannot grant ADMIN or t
     username, password: 'NativeReception1A', email: `${tag}@staff.test`, role: 'RECEPTIONIST',
   }), 201);
   expect(created).toMatchObject({ username, role: 'RECEPTIONIST' });
-  const receptionist = await playwright.request.newContext();
-  const anonymous = await playwright.request.newContext();
+  const receptionist = await browser.newContext({ baseURL });
+  const anonymous = await browser.newContext({ baseURL });
   try {
-    const api = new PmsApi(receptionist);
+    const receptionistPage = await receptionist.newPage();
+    const anonymousPage = await anonymous.newPage();
+    const api = new PmsApi(receptionistPage);
     const me: UserPayload = await api.login({ username, password: 'NativeReception1A', newPassword: 'NativeReception2B' });
     expect(me.role).toBe('RECEPTIONIST');
     await status(await api.get('/api/v1/rooms'), 200);
@@ -37,11 +39,11 @@ test('real receptionist RBAC and forged internal headers cannot grant ADMIN or t
     expect(safeSettings.hotelId).toBe(settings.hotelId);
     const roomTypes = await json<RoomTypeResponse[]>(await admin.get('/api/v1/room-types'));
     expect(roomTypes.some(item => item.name === data.name)).toBe(false);
-    const anon = new PmsApi(anonymous);
+    const anon = new PmsApi(anonymousPage);
     await status(await anon.get('/api/v1/rooms', forged), 401);
     await status(await anon.get('/api/v1/auth/users', forged), 401);
   } finally {
-    await receptionist.dispose();
-    await anonymous.dispose();
+    await receptionist.close();
+    await anonymous.close();
   }
 });

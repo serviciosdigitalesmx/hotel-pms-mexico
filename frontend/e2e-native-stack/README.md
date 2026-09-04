@@ -25,6 +25,13 @@ Three tests are discovered. One worker, no retries, per-request timeouts and
 bounded Mailpit polling make failures visible. `--list` and TypeScript checking
 do not contact the PMS or launch a browser.
 
+Authenticated helper calls execute with same-origin browser `fetch`, not
+Playwright's standalone `APIRequestContext`. The production cookies intentionally
+remain `Secure`; Chromium honors them on the trustworthy loopback origin, while
+the standalone HTTP client omits them on plain `http://` and would turn valid
+post-login checks into false 401 failures. Secondary and replay sessions use
+independent browser contexts, so cookie rotation and tenant isolation remain real.
+
 | Environment | Default / meaning |
 | --- | --- |
 | `PLAYWRIGHT_NATIVE_BASE_URL` | `http://127.0.0.1:18080`, frontend with same-origin `/api` gateway proxy |

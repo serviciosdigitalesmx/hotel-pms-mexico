@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, type APIRequestContext, type APIResponse, type Page, type Response } from '@playwright/test';
+import { expect, type Page, type Response } from '@playwright/test';
 import type { UserPayload } from '../src/types/auth.types';
 import type { HotelSettingsResponse, StayResponse } from '../src/types/stay.types';
 
@@ -12,8 +12,28 @@ if (new URL(baseURL).hostname !== new URL(apiBaseURL).hostname) {
 
 // StayResponse.java exposes these fields; the existing frontend type omits them.
 export type NativeStay = StayResponse & { hotelId: string; invoiceId: string | null };
-export type HttpResponse = APIResponse | Response;
+export interface HttpResponse {
+  status(): number;
+  url(): string;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+}
 export interface Credentials { username: string; password: string; newPassword?: string }
+
+interface BrowserResponsePayload {
+  status: number;
+  url: string;
+  body: string;
+}
+
+class BrowserResponse implements HttpResponse {
+  constructor(private readonly payload: BrowserResponsePayload) {}
+
+  status(): number { return this.payload.status; }
+  url(): string { return this.payload.url; }
+  async text(): Promise<string> { return this.payload.body; }
+  async json(): Promise<unknown> { return JSON.parse(this.payload.body) as unknown; }
+}
 
 let nextRequestAt = 0;
 async function requestSlot(): Promise<void> {
@@ -70,8 +90,8 @@ export async function json<T>(response: HttpResponse, expected = 200): Promise<T
   return await response.json() as T;
 }
 
-export async function csrfHeaders(request: APIRequestContext): Promise<Record<string, string>> {
-  const state = await request.storageState();
+export async function csrfHeaders(page: Page): Promise<Record<string, string>> {
+  const state = await page.context().storageState();
   const csrf = state.cookies.find(cookie => cookie.name === 'csrf_token'
     && cookie.domain.replace(/^\./, '') === new URL(apiBaseURL).hostname);
   expect(Boolean(csrf?.value), 'Login must provide the real csrf_token cookie').toBe(true);
@@ -79,30 +99,72 @@ export async function csrfHeaders(request: APIRequestContext): Promise<Record<st
 }
 
 export class PmsApi {
-  constructor(readonly request: APIRequestContext) {}
+  constructor(readonly page: Page) {}
 
-  async get(path: string, headers?: Record<string, string>): Promise<APIResponse> {
+  private async browserFetch(method: string, path: string, data?: unknown,
+    headers?: Record<string, string>): Promise<HttpResponse> {
+    if (new URL(this.page.url()).origin !== baseURL) {
+      // Establish the real frontend origin without booting React. Loading the
+      // login route here would race its automatic /me -> /refresh bootstrap
+      // against a direct secondary-user login and could clear fresh cookies.
+      await this.page.goto(`${baseURL}/vite.svg`, { waitUntil: 'domcontentloaded' });
+    }
+    const payload = await this.page.evaluate(async request => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), request.timeout);
+      try {
+        const requestHeaders = new Headers(request.headers);
+        const init: RequestInit = {
+          method: request.method,
+          headers: requestHeaders,
+          credentials: 'include',
+          redirect: 'manual',
+          signal: controller.signal,
+        };
+        if (request.hasData) {
+          requestHeaders.set('Content-Type', 'application/json');
+          init.body = JSON.stringify(request.data);
+        }
+        const response = await fetch(request.url, init);
+        return { status: response.status, url: response.url, body: await response.text() };
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    }, {
+      method,
+      url: `${apiBaseURL}${path}`,
+      data,
+      hasData: data !== undefined,
+      headers: headers ?? {},
+      timeout: method === 'GET' ? 20_000 : 30_000,
+    });
+    return new BrowserResponse(payload);
+  }
+
+  async get(path: string, headers?: Record<string, string>): Promise<HttpResponse> {
     await requestSlot();
-    return this.request.get(`${apiBaseURL}${path}`, { headers, timeout: 20_000, maxRedirects: 0 });
+    return this.browserFetch('GET', path, undefined, headers);
   }
 
   async mutate(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string,
-    data?: unknown, extraHeaders?: Record<string, string>): Promise<APIResponse> {
+    data?: unknown, extraHeaders?: Record<string, string>): Promise<HttpResponse> {
     await requestSlot();
-    return this.request.fetch(`${apiBaseURL}${path}`, {
-      method, data, headers: { ...await csrfHeaders(this.request), ...extraHeaders },
-      timeout: 30_000, maxRedirects: 0,
-    });
+    return this.browserFetch(method, path, data, { ...await csrfHeaders(this.page), ...extraHeaders });
+  }
+
+  async rawMutation(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string,
+    data?: unknown, headers?: Record<string, string>): Promise<HttpResponse> {
+    // Deliberate negative CSRF probes use this path so the browser still sends
+    // its real auth cookies while the test controls the CSRF header exactly.
+    await requestSlot();
+    return this.browserFetch(method, path, data, headers);
   }
 
   async login(credentials: Credentials): Promise<UserPayload> {
     await requestSlot();
     // Login bootstraps the cookie pair and is an explicit CSRF exemption.
-    const result = await json<{ mustChangePassword: boolean }>(await this.request.post(
-      `${apiBaseURL}/api/v1/auth/login`, {
-        data: { username: credentials.username, password: credentials.password },
-        timeout: 20_000, maxRedirects: 0,
-      }));
+    const result = await json<{ mustChangePassword: boolean }>(await this.browserFetch(
+      'POST', '/api/v1/auth/login', { username: credentials.username, password: credentials.password }));
     if (result.mustChangePassword) {
       expect(Boolean(credentials.newPassword), 'Supply a new password for the official change-password flow').toBe(true);
       await status(await this.mutate('POST', '/api/v1/auth/change-password', {
@@ -141,7 +203,7 @@ export async function loginUI(page: Page): Promise<PmsApi> {
     username: credentials.username, role: 'ADMIN', mustChangePassword: false,
   });
   await expect(page).toHaveURL(`${baseURL}/`);
-  return new PmsApi(page.context().request);
+  return new PmsApi(page);
 }
 
 export function assertPdf(bytes: Buffer): void {
