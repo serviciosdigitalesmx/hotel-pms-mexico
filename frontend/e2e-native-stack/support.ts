@@ -15,6 +15,16 @@ export type NativeStay = StayResponse & { hotelId: string; invoiceId: string | n
 export type HttpResponse = APIResponse | Response;
 export interface Credentials { username: string; password: string; newPassword?: string }
 
+let nextRequestAt = 0;
+async function requestSlot(): Promise<void> {
+  // Keep functional assertions below the real gateway's 10 req/s default.
+  // Do not disable rate limiting or retry a failed mutation to hide an error.
+  const now = Date.now();
+  const scheduledAt = Math.max(now, nextRequestAt);
+  nextRequestAt = scheduledAt + 200;
+  if (scheduledAt > now) await new Promise(resolve => setTimeout(resolve, scheduledAt - now));
+}
+
 export function primaryCredentials(): Credentials {
   return {
     username: process.env.NATIVE_ADMIN_USERNAME ?? 'e2e-live-other-hotel-admin',
@@ -71,12 +81,14 @@ export async function csrfHeaders(request: APIRequestContext): Promise<Record<st
 export class PmsApi {
   constructor(readonly request: APIRequestContext) {}
 
-  get(path: string, headers?: Record<string, string>): Promise<APIResponse> {
+  async get(path: string, headers?: Record<string, string>): Promise<APIResponse> {
+    await requestSlot();
     return this.request.get(`${apiBaseURL}${path}`, { headers, timeout: 20_000, maxRedirects: 0 });
   }
 
   async mutate(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string,
     data?: unknown, extraHeaders?: Record<string, string>): Promise<APIResponse> {
+    await requestSlot();
     return this.request.fetch(`${apiBaseURL}${path}`, {
       method, data, headers: { ...await csrfHeaders(this.request), ...extraHeaders },
       timeout: 30_000, maxRedirects: 0,
@@ -84,6 +96,7 @@ export class PmsApi {
   }
 
   async login(credentials: Credentials): Promise<UserPayload> {
+    await requestSlot();
     // Login bootstraps the cookie pair and is an explicit CSRF exemption.
     const result = await json<{ mustChangePassword: boolean }>(await this.request.post(
       `${apiBaseURL}/api/v1/auth/login`, {
