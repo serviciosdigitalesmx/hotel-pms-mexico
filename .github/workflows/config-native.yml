@@ -6,6 +6,8 @@ on:
     paths:
       - "config-service/**"
       - "scripts/ci/verify-config-native-runtime.sh"
+      - "scripts/ci/config-native-runtime.py"
+      - "scripts/ci/export-config-native-images.sh"
       - ".dockerignore"
       - "gradle/**"
       - "gradlew"
@@ -13,11 +15,21 @@ on:
       - "settings.gradle.kts"
       - ".github/workflows/config-native.yml"
   workflow_dispatch:
+    inputs:
+      final_only:
+        description: "Only for gate/workflow changes after this binary already passed O2"
+        type: boolean
+        default: false
+
+concurrency:
+  group: config-native-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
+  TESTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
   CI_CONFIG_USERNAME: configuser
   CI_CONFIG_PASSWORD: native-ci-config-password
   CONFIG_SERVER_PASSWORD: native-ci-config-password
@@ -30,6 +42,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TESTED_COMMIT }}
       - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
@@ -47,12 +61,15 @@ jobs:
             ${{ runner.os }}-config-native-jvm21-
       - name: Run cheap tests and AOT processing
         run: |
+          bash -n scripts/ci/verify-config-native-runtime.sh scripts/ci/export-config-native-images.sh
+          python3 scripts/ci/config-native-runtime.py --validate-only
           chmod +x ./gradlew
           ./gradlew :config-service:test :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
 
   native-quick-gate:
     name: Native -Ob gate
+    if: ${{ !inputs.final_only }}
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -64,6 +81,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TESTED_COMMIT }}
       - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
@@ -115,7 +134,8 @@ jobs:
 
   native-optimized-gate:
     name: Native -O2 final gate
-    needs: native-quick-gate
+    needs: [preflight, native-quick-gate]
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.native-quick-gate.result == 'success' || (inputs.final_only && needs.native-quick-gate.result == 'skipped')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
@@ -126,6 +146,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TESTED_COMMIT }}
       - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
@@ -161,6 +183,29 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Run -O2 correction and final runtime gate
         run: bash scripts/ci/verify-config-native-runtime.sh
+      - name: Export validated Native and JVM images
+        run: bash scripts/ci/export-config-native-images.sh
+      - name: Upload loadable O2 and JVM images
+        id: images
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-native-optimized-images-${{ env.TESTED_COMMIT }}
+          path: build/config-native-images
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
+      - name: Record image artifact identity
+        env:
+          IMAGE_ARTIFACT_ID: ${{ steps.images.outputs.artifact-id }}
+          IMAGE_ARTIFACT_URL: ${{ steps.images.outputs.artifact-url }}
+          IMAGE_ARTIFACT_DIGEST: ${{ steps.images.outputs.artifact-digest }}
+        run: |
+          jq -n --arg id "$IMAGE_ARTIFACT_ID" --arg url "$IMAGE_ARTIFACT_URL" \
+            --arg digest "$IMAGE_ARTIFACT_DIGEST" --arg commit "$TESTED_COMMIT" \
+            '{artifact_id: $id, artifact_url: $url, artifact_digest: $digest, tested_commit: $commit}' \
+            > build/config-native-runtime/image-artifact.json
+          printf '\nDownloadable Native + JVM images: [%s](%s)\n' \
+            "$IMAGE_ARTIFACT_ID" "$IMAGE_ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish -O2 metrics
         if: always()
         run: |
@@ -174,3 +219,4 @@ jobs:
           name: config-native-optimized-evidence
           path: build/config-native-runtime
           if-no-files-found: warn
+          retention-days: 30
