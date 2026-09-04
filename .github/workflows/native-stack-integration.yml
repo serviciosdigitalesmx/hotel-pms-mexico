@@ -9,7 +9,12 @@ on:
       - frontend/Dockerfile
       - frontend/nginx.conf
 
+concurrency:
+  group: native-stack-integration
+  cancel-in-progress: true
+
 jobs:
+
   integrated-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 90
