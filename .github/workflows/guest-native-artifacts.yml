@@ -1,0 +1,140 @@
+name: Export validated Guest Native pilot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  native-build-and-runtime:
+    name: Build and validate guest-service Native Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    env:
+      CI_POSTGRES_PASSWORD: native-ci-postgres-password
+      CI_REDIS_PASSWORD: native-ci-redis-password
+      CI_CONFIG_PASSWORD: native-ci-config-password
+      CI_HMAC_SECRET: native-ci-hmac-secret-with-sufficient-length
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Maven and Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-jvm21-dependencies-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-jvm21-dependencies-
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+
+      - name: Build real JVM integration dependencies
+        run: |
+          chmod +x ./gradlew
+          ./gradlew \
+            :config-service:bootJar \
+            :frontdesk-service:bootJar \
+            :billing-service:bootJar \
+            :guest-service:bootJar \
+            -x :guest-service:processAot \
+            --no-daemon --stacktrace --max-workers=2
+          docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
+          docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .
+          docker build --tag hotel-pms/billing-service:ci --file billing-service/Dockerfile .
+          docker build --tag hotel-pms/guest-service-jvm:ci --file guest-service/Dockerfile .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Native image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: guest-service/Dockerfile.native
+          load: true
+          push: false
+          tags: hotel-pms/guest-service-native:ci
+          build-args: |
+            NATIVE_QUICK_BUILD=false
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
+            CONFIG_SERVER_USERNAME=configuser
+            CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
+            INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}
+            INTERNAL_REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image metadata
+        run: |
+          docker image inspect hotel-pms/guest-service-native:ci
+          docker image inspect hotel-pms/guest-service-native:ci \
+            --format 'image_size_bytes={{.Size}}'
+
+      - name: Run Native runtime and integration gate
+        env:
+          CI_NATIVE_BUILD_MODE: optimized-O2
+        run: bash scripts/ci/verify-guest-native-runtime.sh
+
+      - name: Archive validated Native and JVM images
+        run: |
+          mkdir -p build/guest-validated-images
+          docker tag hotel-pms/guest-service-native:ci hotel-pms/guest-service-native:validated
+          docker tag hotel-pms/guest-service-native:ci hotel-pms/guest-service-native:${GITHUB_SHA}
+          docker tag hotel-pms/guest-service-jvm:ci hotel-pms/guest-service-jvm:validated
+          docker save hotel-pms/guest-service-native:validated hotel-pms/guest-service-native:${GITHUB_SHA} hotel-pms/guest-service-jvm:validated \
+            | gzip -1 > build/guest-validated-images/guest-service-images.tar.gz
+          docker image inspect hotel-pms/guest-service-native:validated hotel-pms/guest-service-jvm:validated \
+            --format 'id={{.Id}} os={{.Os}} architecture={{.Architecture}} size={{.Size}} tags={{json .RepoTags}}' \
+            > build/guest-validated-images/image-metadata.txt
+          cd build/guest-validated-images
+          sha256sum guest-service-images.tar.gz > SHA256SUMS
+
+      - name: Upload validated images
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-service-optimized-images-${{ github.sha }}
+          path: build/guest-validated-images
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Publish runtime metrics
+        if: always()
+        run: |
+          if [[ -f build/guest-native-runtime/metrics.txt ]]; then
+            cat build/guest-native-runtime/metrics.txt >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-native-runtime-evidence
+          path: build/guest-native-runtime
+          if-no-files-found: warn
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker rm --force \
+            guest-service-native \
+            guest-service-jvm \
+            guest-native-billing \
+            guest-native-frontdesk \
+            guest-native-redis \
+            guest-native-postgres \
+            guest-native-config 2>/dev/null || true
+          docker network rm guest-native-ci 2>/dev/null || true
