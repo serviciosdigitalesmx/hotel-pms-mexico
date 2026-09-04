@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/native-stack-validation]
-    paths: [docs/native-stack-images.json]
+    paths:
+      - docs/native-stack-images.json
+      - frontend/Dockerfile
+      - frontend/nginx.conf
 
 jobs:
   integrated-runtime:
