@@ -61,7 +61,12 @@ export function otherCredentials(): Credentials {
 }
 
 export function uniqueTag(): string {
-  return `native-${randomUUID().replaceAll('-', '').slice(0, 16)}`;
+  // Keep all 64 random bits while mapping every hexadecimal nibble to a letter.
+  // The same tag is intentionally reused in guest surnames, whose real Bean
+  // Validation contract rejects digits.
+  const alphabet = 'abcdefghijklmnop';
+  const hex = randomUUID().replaceAll('-', '').slice(0, 16);
+  return `native-${[...hex].map(nibble => alphabet[Number.parseInt(nibble, 16)]).join('')}`;
 }
 
 function localOrigin(value: string): string {
