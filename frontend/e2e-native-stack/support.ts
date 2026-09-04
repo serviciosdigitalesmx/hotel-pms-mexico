@@ -141,7 +141,7 @@ export async function loginUI(page: Page): Promise<PmsApi> {
     username: credentials.username, role: 'ADMIN', mustChangePassword: false,
   });
   await expect(page).toHaveURL(`${baseURL}/`);
-  return new PmsApi(page.request);
+  return new PmsApi(page.context().request);
 }
 
 export function assertPdf(bytes: Buffer): void {
