@@ -79,7 +79,7 @@
             <td class="amount" th:text="${charge.vatLabel}">10%</td>
             <td class="amount" th:text="${charge.amountFormatted}">EUR 0,00</td>
         </tr>
-        <tr th:if="${#lists.isEmpty(charges)}"><td colspan="4" class="empty-row">Sin cargos</td></tr>
+        <tr th:if="${chargesEmpty}"><td colspan="4" class="empty-row">Sin cargos</td></tr>
         </tbody>
     </table>
 </th:block>
@@ -97,7 +97,7 @@
             <td th:text="${payment.reference}">---</td>
             <td class="amount" th:text="${payment.amountFormatted}">EUR 0,00</td>
         </tr>
-        <tr th:if="${#lists.isEmpty(payments)}"><td colspan="4" class="empty-row">Sin pagos</td></tr>
+        <tr th:if="${paymentsEmpty}"><td colspan="4" class="empty-row">Sin pagos</td></tr>
         </tbody>
     </table>
 </th:block>

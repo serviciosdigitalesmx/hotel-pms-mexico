@@ -226,7 +226,7 @@ describe('Stays', () => {
     expect(screen.queryByText('download_json_export')).not.toBeInTheDocument();
   });
 
-  it('should render JSON export button for ADMIN', async () => {
+  it('should not render the retired JSON export for ADMIN', async () => {
     vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
       (selector as (s: { user: { role: string } }) => unknown)({ user: { role: 'ADMIN' } })
     );
@@ -236,7 +236,7 @@ describe('Stays', () => {
     } as never);
     render(<Stays />);
     await waitFor(() => expect(screen.getByText('no_active_stays')).toBeInTheDocument());
-    expect(screen.getByText('download_json_export')).toBeInTheDocument();
+    expect(screen.queryByText('download_json_export')).not.toBeInTheDocument();
   });
 
   it('should navigate to guests page when guest name is clicked', async () => {
@@ -254,7 +254,7 @@ describe('Stays', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/guests?search=John%20Doe');
   });
 
-  it('should render JSON export button for OWNER', async () => {
+  it('should not render the retired JSON export for OWNER', async () => {
     vi.mocked(useAuthStore).mockImplementation((selector: unknown) =>
       (selector as (s: { user: { role: string } }) => unknown)({ user: { role: 'OWNER' } })
     );
@@ -264,7 +264,7 @@ describe('Stays', () => {
     } as never);
     render(<Stays />);
     await waitFor(() => expect(screen.getByText('no_active_stays')).toBeInTheDocument());
-    expect(screen.getByText('download_json_export')).toBeInTheDocument();
+    expect(screen.queryByText('download_json_export')).not.toBeInTheDocument();
   });
 
   it('renders the expected check-out date column', async () => {
