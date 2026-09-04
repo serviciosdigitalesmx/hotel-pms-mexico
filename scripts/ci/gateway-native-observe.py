@@ -86,8 +86,13 @@ def observe(args):
                         body, headers = request(args.app_url + endpoint,
                                                 {"Cookie": cookie_header, "X-Correlation-ID": correlation})
                         value = json.loads(body)
-                        if endpoint.endswith("/rooms") and not isinstance(value, list):
-                            raise RuntimeError("Rooms response is not an array")
+                        if endpoint.endswith("/rooms") and (
+                            not isinstance(value, dict)
+                            or not isinstance(value.get("content"), list)
+                            or not isinstance(value.get("totalElements"), int)
+                            or value.get("number") != 0
+                        ):
+                            raise RuntimeError("Rooms response does not match its existing paginated contract")
                         if endpoint.endswith("/me") and value.get("username") != "e2e-live-other-hotel-admin":
                             raise RuntimeError("Wrong authenticated identity")
                         if headers.get("X-Correlation-ID") != correlation:
