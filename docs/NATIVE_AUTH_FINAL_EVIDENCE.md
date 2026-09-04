@@ -12,6 +12,12 @@ The isolated checkout is `/tmp/hotel-pms-auth.tekU99`; neither dirty user checko
 - The branch already contained its original Native hints/configuration and Flyway V7-to-V8 migration filename repair. Those inherited changes were preserved, not reimplemented here.
 - Dispatch uses `native_quick_build=false`. Gate-only commits use `[skip ci]` to avoid a duplicate PR quick build; the explicitly dispatched O2 gate still runs. Gradle caches, Buildx GHA caches, and the single `nativeCompile` invocation per job are preserved.
 
+## Flyway rename and existing databases
+
+This PR renames `auth-service/src/main/resources/db/migration/V7__seed_second_hotel_admin_for_e2e_tests.sql` to `V8__seed_second_hotel_admin_for_e2e_tests.sql`, because V7 is already assigned to the housekeeper-role migration. The diff changes the filename/version and header comments only: the executable seed SQL is unchanged, with no DDL change. This removes the duplicate-version conflict when initializing an empty database; it does **not** imply zero impact on an existing migration history.
+
+Before deploying onto an existing Auth database, inspect its actual `flyway_schema_history`, especially applied versions, script names and checksums, and compare it with the migrations packaged in the target image. Review any validation mismatch before deployment; this PR neither performs nor recommends an automatic `flyway repair`. Both this service gate and Main's integrated stack use controlled empty databases, so their success does not validate an upgrade of an existing database or checksum/history compatibility for that database.
+
 ## Final result
 
 **Individual Auth O2 gate: PASS**, verified from the downloaded evidence for [run 33844799765](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33844799765) on 2026-09-04. JVM tests and `processAot` passed. The Native build step restored the cached compiler layer (`RUN ... nativeCompile` is `CACHED`) in nine seconds, without another native compilation. Its image ID is exactly the same as the image compiled with optimization level 2 in run 33829833736. The corrected harness then validated that O2 image and the JVM control; `failure-class.txt` is `PASS`.
