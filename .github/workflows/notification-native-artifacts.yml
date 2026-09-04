@@ -2,6 +2,8 @@ name: Export validated Notification Native reference
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/notification-native-reference]
 
 jobs:
   package-reference:
