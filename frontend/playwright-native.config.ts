@@ -18,6 +18,8 @@ export default defineConfig({
   timeout: 180_000,
   expect: { timeout: 15_000 },
   outputDir: path.join(evidenceDir, 'results'),
+  // The subsequent bash gate reads both PDFs even after a passing test run.
+  preserveOutput: 'always',
   reporter: [
     ['list'],
     ['html', { outputFolder: path.join(evidenceDir, 'html'), open: 'never' }],

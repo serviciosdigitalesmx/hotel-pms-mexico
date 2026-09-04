@@ -261,8 +261,8 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         const pdfPath = info.outputPath('invoice.pdf');
         await download.saveAs(pdfPath);
         const bytes = await readFile(pdfPath);
-        assertPdf(bytes);
         await info.attach('browser-invoice.pdf', { path: pdfPath, contentType: 'application/pdf' });
+        assertPdf(bytes);
         await page.keyboard.press('Escape');
         await expect(detail).toBeHidden();
         await row.getByRole('button', { name: common.register_payment, exact: true }).click();

@@ -50,9 +50,9 @@ export async function receivedMail(request: APIRequestContext, info: TestInfo,
       { timeout: 10_000, maxRedirects: 0 });
     await status(attachment, 200);
     const bytes = await attachment.body();
-    assertPdf(bytes);
     const pdfPath = info.outputPath('checkout-mail-invoice.pdf');
     await writeFile(pdfPath, bytes);
     await info.attach('checkout-mail-invoice.pdf', { path: pdfPath, contentType: 'application/pdf' });
+    assertPdf(bytes);
   }
 }

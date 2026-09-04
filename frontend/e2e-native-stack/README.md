@@ -113,7 +113,9 @@ Under `NATIVE_E2E_OUTPUT_DIR`: `junit.xml`, `html/`, and per-test `results/` wit
 failure traces/screenshots and JSON fixture/mail attachments. The full journey
 saves stable filenames `results/<test-directory>/invoice.pdf` (browser download)
 and `results/<test-directory>/checkout-mail-invoice.pdf` (SMTP attachment), also
-attached to the report. `fixture-identifiers.json` records real IDs and
+attached to the report. `preserveOutput: 'always'` retains these files after both
+passing and failing runs; files are saved before PDF envelope assertions so
+malformed downloads remain available for diagnosis. `fixture-identifiers.json` records real IDs and
 `pdfExpectedText` for the infrastructure gate: FACTURA, this run's guest name,
 room number, breakfast item name and 225.00. These differ from the standalone
 billing gate's separate Native Billing/100.00 fixtures.
