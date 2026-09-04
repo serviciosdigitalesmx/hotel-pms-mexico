@@ -69,6 +69,16 @@ curl -fsS http://127.0.0.1:18080/ >/dev/null
 echo "${mode}_stack_available_ms=$(( $(date +%s%3N) - started_ms ))" > "$metrics"
 for index in "${!services[@]}"; do
   service="${services[$index]}"
+  container_id="$("${compose[@]}" ps -q "$service")"
+  executable="$(docker exec "$container_id" readlink /proc/1/exe)"
+  if [[ "$mode" == native ]]; then
+    [[ "$executable" == /app/app ]]
+  else
+    [[ "$executable" == */java ]]
+  fi
+  docker inspect --format '{"image":{{json .Image}},"path":{{json .Path}},"state":{{json .State}},"restartCount":{{.RestartCount}}}' \
+    "$container_id" > "$result_dir/$service-runtime-identity.json"
+  echo "${mode}_${service}_pid1_executable=$executable" >> "$metrics"
   for suffix in '' /liveness /readiness; do
     curl -fsS "http://127.0.0.1:${management_ports[$index]}/actuator/health$suffix" \
       | jq -e '.status == "UP"' >/dev/null

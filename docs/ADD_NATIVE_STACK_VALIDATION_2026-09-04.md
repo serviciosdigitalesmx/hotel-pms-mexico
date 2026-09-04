@@ -8,8 +8,8 @@ construidas y sus controles JVM, sin fusionar implementaciones ni hacer merge
 en `main`. Los pilotos Guest y Notification se reutilizan. El empaquetado Linux
 amd64 de Notification permite usar el piloto originalmente validado en ARM64.
 
-**Pendiente de cierre:** empaquetado Linux de Notification,
-compatibilidad del healthcheck Docker de Config y E2E de los ocho servicios simultáneos. Un build individual verde no demuestra
+**Pendiente de cierre:** compatibilidad del healthcheck Docker de Config,
+PDF de cotizaciones en Frontdesk y E2E de los ocho servicios simultáneos. Un build individual verde no demuestra
 que el PMS completo funcione. Este documento se actualizará con el resultado
 real del workflow `All Native PMS stack integration`.
 
@@ -24,7 +24,7 @@ real del workflow `All Native PMS stack integration`.
 | Gateway / #18 | [33830442810](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830442810) | WebFlux, login/refresh/me, routing real, JWT/CSRF/RBAC, eliminación de headers falsificados, rate limit Redis, firma y replay |
 | Config / #20 | [33830247446](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830247446) | O2 final, 39 combinaciones de perfiles autenticados, igualdad de contenido JVM/Native, secretos resueltos en runtime, Actuator y carga |
 | Auth / #23 | [33844799765](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33844799765) | O2, login/refresh/me, JWT inválido/expirado/falsificado, replay, RBAC/tenant, HMAC, Flyway 8, persistencia y cinco minutos de carga por modo sin 5xx |
-| Notification / referencia | Pendiente de empaquetado | Implementación del piloto conservada; se prepara evidencia amd64 con SMTP local real y Redis/HMAC |
+| Notification / referencia | [33845871639](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33845871639) | Implementación del piloto conservada; O2 Linux amd64, SMTP real en Mailpit, Redis/HMAC/replay, health/probes/Prometheus y control JVM |
 
 ## Mediciones individuales confirmadas
 
@@ -42,6 +42,7 @@ mediciones independientes para inventar un total del stack.
 | Gateway | 2258 / 8820 | 93.7 / 276.4 | 118.3 / 305.7 | 252154777 / 274783412 |
 | Config | 616 / 3765 | 60.27 / 217.3 | 98.85 / 283.0 | 180867639 / 262590263 |
 | Auth | 4277 / 15026 | 127.77 / 433.65 | 280.91 / 567.24 | 324244377 / 312365701 |
+| Notification | 1345 / 8851 | 96.25 / 277.4 | 101.3 / 285.3 | 263164825 / 281539085 |
 
 RAM puede bajar durante la carga por recolección de basura; no implica un error
 si la medición de reposo fue anterior al primer ciclo de GC. Algunas imágenes
@@ -114,6 +115,11 @@ No se cambió el contrato, el template ni la regla de facturación para pasar.
 - Los fallos globales preexistentes de PMD/Checkstyle/Vitest se separan como
   `UNRELATED_GLOBAL_CI_FAIL`; no se desactivan controles de seguridad para ocultar
   un `NATIVE_GATE_FAIL` o `NATIVE_STACK_GATE_FAIL`.
+- Auth corrige la numeración duplicada de la semilla del segundo hotel de V7 a
+  V8, conservando el SQL ejecutable. La validación usa bases nuevas. Antes de
+  desplegar sobre una base existente hay que revisar `flyway_schema_history`,
+  scripts y checksums; no se afirma que ese historial tenga impacto cero ni se
+  ejecuta `repair` automáticamente.
 - Las cotizaciones PDF no están cubiertas por el gate individual de Frontdesk.
 - Nada se considera integrado en `origin/main`: los PR permanecen sin merge,
   conforme a la instrucción de revisión independiente.
