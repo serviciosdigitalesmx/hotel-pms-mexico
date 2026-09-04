@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 import common from '../src/locales/es/common.json' with { type: 'json' };
 import guestLabels from '../src/locales/es/guests.json' with { type: 'json' };
@@ -305,7 +305,9 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         evidence.reservationAndCheckoutMail = 'RECEIVED';
       });
     } finally {
-      await info.attach('fixture-identifiers.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+      const evidencePath = info.outputPath('fixture-identifiers.json');
+      await writeFile(evidencePath, JSON.stringify(evidence, null, 2));
+      await info.attach('fixture-identifiers.json', { path: evidencePath, contentType: 'application/json' });
       try {
         await status(await api.mutate('PUT', '/api/v1/stays/settings', restore), 200);
       } finally {

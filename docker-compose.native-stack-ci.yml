@@ -1,0 +1,164 @@
+# Isolated CI override; use with docker-compose.yml and a unique project name.
+# NATIVE_STACK_MODE=native selects exported Native images; jvm selects their
+# paired JVM controls. Base service contracts and network segmentation are kept.
+x-ci-health: &ci-health
+  test: ["CMD-SHELL", "wget -T3 -q -O /dev/null http://localhost:8090/actuator/health || exit 1"]
+  interval: 3s
+  timeout: 4s
+  retries: 120
+  start_period: 1s
+x-ci-resources: &ci-resources
+  resources:
+    limits:
+      cpus: "2.0"
+      memory: 1G
+    reservations:
+      cpus: "0.10"
+      memory: 128M
+
+services:
+  postgres:
+    build: !reset null
+    image: postgres:15-alpine
+    container_name: !reset null
+    ports: !reset []
+    healthcheck:
+      interval: 2s
+      retries: 60
+      start_period: 1s
+  redis:
+    container_name: !reset null
+    ports: !reset []
+    healthcheck:
+      interval: 2s
+      retries: 60
+      start_period: 1s
+  config-server:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/config-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18888:8888"
+      - "127.0.0.1:18100:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+  api-gateway:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/api-gateway-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18000:8080"
+      - "127.0.0.1:18101:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      SPRING_PROFILES_ACTIVE: api-gateway
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      AUTH_REDIS_HOST: redis
+      GW_CORS_ALLOWED_ORIGINS: http://127.0.0.1:18080
+  auth-service:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/auth-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18087:8087"
+      - "127.0.0.1:18102:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+  guest-service:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/guest-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18083:8083"
+      - "127.0.0.1:18103:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+  frontdesk-service:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/frontdesk-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18081:8081"
+      - "127.0.0.1:18104:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+  billing-service:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/billing-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18085:8085"
+      - "127.0.0.1:18105:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+  fb-service:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/fb-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18086:8086"
+      - "127.0.0.1:18106:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+  notification-service:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/notification-service-${NATIVE_STACK_MODE:?Select native or jvm}:validated
+    ports: !override
+      - "127.0.0.1:18088:8088"
+      - "127.0.0.1:18107:8090"
+    healthcheck: *ci-health
+    deploy: *ci-resources
+    environment:
+      INTERNAL_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+  frontend:
+    build: !reset null
+    container_name: !reset null
+    image: hotel-pms/frontend:stack-ci
+    ports: !override
+      - "127.0.0.1:18080:8080"
+  zipkin:
+    container_name: !reset null
+    ports: !override
+      - "127.0.0.1:19411:9411"
+  loki:
+    container_name: !reset null
+    ports: !override
+      - "127.0.0.1:13100:3100"
+  mailpit:
+    image: axllent/mailpit:v1.31.0
+    ports:
+      - "127.0.0.1:18025:8025"
+    networks:
+      - backend-network

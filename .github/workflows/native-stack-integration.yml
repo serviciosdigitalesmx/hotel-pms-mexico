@@ -1,0 +1,83 @@
+name: All Native PMS stack integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/native-stack-validation]
+    paths: [docs/native-stack-images.json]
+
+jobs:
+  integrated-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      POSTGRES_PASSWORD: native-stack-ci-postgres-password
+      REDIS_PASSWORD: native-stack-ci-redis-password
+      CONFIG_SERVER_PASSWORD: native-stack-ci-config-password
+      INTERNAL_HMAC_SECRET: native-stack-ci-hmac-secret-with-sufficient-length
+      # CI-only Base64 HMAC key; keep the same encoding contract as Auth/Gateway.
+      JWT_SECRET: TmF0aXZlQXV0aC1jaS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
+      PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Inspect available runner resources
+        run: |
+          free -h
+          df -h /
+          nproc
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Load eight verified Native/JVM image pairs
+        id: images
+        run: bash scripts/ci/load-native-stack-images.sh
+      - name: Prepare real browser tests
+        id: browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the existing frontend
+        id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          load: true
+          tags: hotel-pms/frontend:stack-ci
+          cache-from: type=gha,scope=native-stack-frontend
+          cache-to: type=gha,scope=native-stack-frontend,mode=max
+      - name: Verify all Native services together through the frontend
+        id: native
+        run: bash scripts/ci/verify-native-stack-runtime.sh native
+      - name: Verify the paired JVM fallback with the same E2E flows
+        id: jvm
+        if: always() && steps.images.outcome == 'success' && steps.browser.outcome == 'success' && steps.frontend.outcome == 'success'
+        run: bash scripts/ci/verify-native-stack-runtime.sh jvm
+      - name: Publish stack measurements
+        if: always()
+        run: |
+          for mode in native jvm; do
+            if test -f "build/native-stack-runtime/$mode/metrics.txt"; then
+              cat "build/native-stack-runtime/$mode/metrics.txt" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-stack-integration-evidence
+          path: |
+            build/native-stack-runtime
+            build/native-stack-artifact-evidence
+          if-no-files-found: warn
