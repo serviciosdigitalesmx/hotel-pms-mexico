@@ -3,22 +3,22 @@
 ## Reopened scope: quotation PDF content and fonts
 
 The user reopened the individual gate on 2026-09-04 because the existing
-quotation PDF route shares the Billing PDF engine, but Frontdesk has no
-Identity-H/XMPBox/AWT metadata or AWT runtime libraries. The prior O2 result
-below remains valid only for its documented non-PDF coverage. It must not
-be treated as a quotation-PDF approval.
+quotation PDF route shares the Billing PDF engine while the then-current
+Frontdesk Native configuration had no proven Identity-H/XMPBox/AWT support.
+The earlier O2 artifact at source `738d010f` remains valid only for its
+documented non-PDF coverage and is superseded for integrated handoff by the
+artifact at source `38fd5a2b` below.
 
-New acceptance: create/get a priced quotation through the real REST
-contract, verify tenant/HMAC denial on the PDF endpoint, download it twice,
-and assert Spanish text, the actual guest, room and server-calculated total,
-embedded Noto Sans Regular/Bold with Unicode mapping, valid pages and
-rendered PNGs. First probe the existing Native/JVM image artifact without
-nativeCompile; retain both modes' failures. Only apply Frontdesk Native
-fixes supported by evidence, using Billing `80e20fef45235ee8f114d736f1ab571bb0642812`
-as the read-only reference. Do not change the shared PDF engine, public
-contracts, schemas, security or main's integrated stack. New approved O2
-must rerun the complete gate and export both images. Status: diagnosis
-pending; no PDF success claimed.
+The strengthened acceptance creates and reloads a priced quotation through
+the existing REST contract, verifies tenant/HMAC denial on its PDF endpoint,
+downloads the PDF twice, and requires HTTP 200, PDF bytes, Spanish text plus
+the actual guest/room/server-calculated total, embedded Noto Sans Regular and
+Bold with Unicode mapping, valid pages and rendered PNGs. The final O2 run
+passes all of those assertions in both Native and JVM modes. The shared PDF
+engine, public contracts, schemas and security behavior were not changed.
+Billing `80e20fef45235ee8f114d736f1ab571bb0642812` was used read-only as the
+proven AWT/Identity-H reference. Status: **approved for this bounded
+individual-service gate**; integrated-stack validation remains owned by main.
 
 ## A.SPEC: complete the proven service gate and preserve loadable images
 
@@ -34,15 +34,17 @@ compiler log: optimization level 2; startup 10,360 ms Native / 25,345 ms JVM;
 idle memory 138.7 MiB / 467.5 MiB. This baseline lacks loaded memory,
 probe/Prometheus assertions, sustained load, and downloadable images.
 
-The implementation delta changes only the Frontdesk workflow, runtime gate
-and this report. The final closure changes documentation only. Application source,
-GraalVM arguments, Native Dockerfile and JVM Dockerfile stay unchanged.
-The existing Native Docker ignore excludes workflow, gate and documentation
-changes, allowing the previous O2 cache to be reused when available. No
-local Docker or nativeCompile is used. Each runner invokes at most one
-nativeCompile; processAot is its prerequisite. Existing focused JVM tests run
-before image building. PR synchronization skips compilation when only gate
-or documentation files changed; final O2 is dispatched explicitly.
+The reopened delta is restricted to the Frontdesk workflow/runtime PDF gate,
+Native Docker/GraalVM AWT support, Frontdesk runtime hints and this report.
+It does not refactor `pdf-template-engine` or change the JVM Dockerfile,
+business implementation, API/schema or authorization rules. The Native
+builder captures AWT reachability with the bundled Noto fonts; the runtime
+includes the required AWT/font libraries and Graal-produced JNI libraries;
+the hints retain PDF templates/fonts, `Identity-H` and XMPBox `TextType`.
+No local Docker or nativeCompile was used. Each runner invokes at most one
+nativeCompile; `processAot` is its prerequisite. Existing focused JVM tests
+run before image building. The `[final-o2]` selector prevents a duplicate PR
+quick build while the complete O2 is dispatched explicitly.
 
 Acceptance: both modes execute real Config Server/PostgreSQL/Redis and
 Guest/Billing JVM integrations; rooms → reservation → check-in → invoice →
@@ -78,125 +80,176 @@ and HMAC through runtime environment variables. Shared network aliases:
 `billing-service`. No CI dependency names or placeholder credentials are
 required in the integrated stack: main supplies its runtime configuration.
 
-## Final verification — individual O2 gate passed
+## Final verification — individual O2/PDF gate passed
 
 Validated source/image commit:
-`738d010f0e80812be96d11070147ec41804b04a6`.
-[Final run 33830356702](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830356702)
-completed successfully on 2026-09-04 at 03:05:21 UTC. Logs show
-`processAot`, exactly one `:frontdesk-service:nativeCompile`, compiler
-optimization level **2**, and target **x86-64-v3**. The binary was rebuilt in
-this run (11m25s image-build step); this was not a complete cache hit. The
-runtime gate took 11m39s and ended `NATIVE_GATE_PASS phase=complete`.
+`38fd5a2bad5ca33071b362d95fda48a20d5bf68f`.
+[Final run 33855201348](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33855201348)
+completed successfully on 2026-09-04 at 09:14:49 UTC. Logs show exactly one
+`:frontdesk-service:nativeCompile`, compiler optimization level **2**, target
+**x86-64-v3**, generated AWT JNI libraries and the captured AWT reachability
+metadata. The complete runtime gate ended
+`NATIVE_GATE_PASS phase=complete`; no baseline-image diagnostic mode was
+used. The corresponding PR run `33855200677` only ran the selector, so no
+duplicate quick Native compilation occurred.
 
-Downloaded and inspected the actual test XML, runtime evidence and Docker
-save archive. Final focused tests: **116 passed, 0 failures, 0 errors,
-0 skipped**. Both business flows link the created room, reservation, stay
-and invoice IDs through check-in, payment and check-out. SQL assertions
-confirm one persisted checked-out stay per database and Flyway version 20.
+Downloaded and inspected the actual focused-test XML, runtime evidence,
+PDFs/previews and Docker save archive. Final focused tests: **116 passed,
+0 failures, 0 errors, 0 skipped**. Both business flows link the created
+room, reservation, stay and invoice IDs through check-in, payment and
+check-out. SQL assertions confirm one persisted checked-out stay per
+database and Flyway version 20.
 
 | Measured field | Native O2 | JVM control |
 | --- | ---: | ---: |
-| Startup to health UP | 10,373 ms | 25,349 ms |
-| Idle Docker memory snapshot | 137.8 MiB | 512.9 MiB |
-| Peak sampled memory during load | 123.5 MiB | 567.1 MiB |
-| Peak sampled memory, bytes | 129,499,136 | 594,647,450 |
-| Docker image size, bytes | 358,126,489 | 320,946,301 |
-| Sustained load duration | 301.20 s | 301.27 s |
-| Successful signed reads | 11,310 | 11,448 |
+| Startup to health UP | 10,507 ms | 32,140 ms |
+| Idle Docker memory snapshot | 147.6 MiB | 484.4 MiB |
+| Peak sampled memory during load | 144.1 MiB | 562.5 MiB |
+| Peak sampled memory, bytes | 151,099,802 | 589,824,000 |
+| Docker image size, bytes | 371,799,666 | 320,946,355 |
+| Sustained load duration | 301.35 s | 301.19 s |
+| Successful signed reads | 11,302 | 11,464 |
 | Concurrent workers | 4 | 4 |
 | Memory samples | 27 | 27 |
 | Health/probe checks | 87/87 | 87/87 |
 | Load/probe errors; restarts; OOM | 0; 0; false | 0; 0; false |
 
 Each mode completed 29 checks of each health, liveness and readiness
-endpoint. Native read counts were rooms 2,829, reservations 2,826, stays
-2,827, room types 2,828; JVM completed 2,862 reads of each route. Responses
-were checked for nonempty persisted data. Prometheus snapshots before and
-after load contain HTTP request, Hikari connection and process uptime
-metrics. The raw `load-stability.json` samples, totals, probes and container
-state were cross-checked against every corresponding summary field.
+endpoint. Native read counts were rooms 2,827, reservations 2,824, stays
+2,825 and room types 2,826; JVM completed 2,866 reads of each route.
+Responses were checked for nonempty persisted data. Prometheus snapshots
+before and after load contain HTTP request, Hikari connection and process
+uptime metrics. The raw samples, totals, probes and container state agree
+with the corresponding summary fields.
 
-For both modes: Config Server authenticated configuration retrieval,
+For both modes: authenticated Config Server retrieval,
 PostgreSQL/JPA/Flyway, Redis, and real Guest/Billing Feign calls passed.
-Missing and invalid HMAC returned 401; identical nonce replay returned
-200 then 401. Cross-tenant reservation, room and stay reads returned 404;
-receptionist room-type writes returned 403; legacy Alloggiati reports denied
-both ADMIN and RECEPTIONIST. Security and API/schema code did not change.
+Missing and invalid HMAC returned 401; identical nonce replay returned 200
+then 401. Cross-tenant quotation/PDF, reservation, room and stay access
+returned 404; receptionist room-type writes returned 403; legacy Alloggiati
+reports denied both ADMIN and RECEPTIONIST.
 
-Native startup was 59.1% shorter, idle memory 73.1% lower, and peak sampled
-loaded memory 78.2% lower in this run; its image was **11.6% larger**. Idle
-is a single snapshot immediately after startup; loaded RAM is the maximum
-of 27 later Docker working-set samples during authenticated reads after the
-business flow. Thus Native loaded memory below its earlier idle snapshot is
-not contradictory and is not a process-lifetime peak measurement. The two
-modes ran sequentially with separate fresh Frontdesk databases and the same
-JVM downstream services; these are individual-service results, not total
-backend RAM or production throughput measurements.
+Native startup was 67.3% shorter, idle memory 69.5% lower and peak sampled
+loaded memory 74.4% lower; its image was **15.8% larger** than the JVM
+control. Idle is one snapshot immediately after startup; loaded RAM is the
+maximum of 27 later Docker working-set samples. The modes ran sequentially
+with separate fresh Frontdesk databases and the same JVM downstream
+services. These are individual-service measurements, not total-backend RAM,
+capacity or long-term leak certification.
+
+### Quotation PDF contract evidence
+
+Native and JVM each created then reloaded one real priced quotation. Four
+downloads were checked independently (two per mode): HTTP 200,
+`application/pdf`, attachment filename containing the quotation ID, `%PDF-`
+bytes, one valid rendered page, and extracted text containing `COTIZACIÓN`,
+`Habitación`, `Native Frontdesk`, the actual room, `Opción PDF Native` and
+the server-calculated `200.00`. `pdffonts` reports both subsetted
+`NotoSans-Bold` and `NotoSans-Regular` as embedded with `Identity-H` and
+Unicode maps (`emb=yes`, `sub=yes`, `uni=yes`) in every download.
+
+Native PDFs were 22,340 bytes; JVM PDFs were 22,089 bytes. The retained
+first-page PNG from each mode was visually inspected and is legible with
+the expected accents, guest, room and amount. The POST/GET persistence
+contract compares all 14 stable response fields exactly; only the database
+representation boundary for `createdAt`/`updatedAt` permits a maximum one
+microsecond difference. Cross-tenant access returned 404 and missing HMAC
+returned 401. Repeated PDFs are deliberately validated separately rather
+than assumed byte-deterministic.
+
+This closes the former empty/unverified-PDF risk for Frontdesk's quotation
+route under the stated content/font contract. It does not certify PDF/UA:
+OpenHTMLToPDF logs that no document description is present and ignores some
+flexbox declarations. The inspected output remains visually correct for this
+template; accessibility/remediation was not expanded into this Native fix.
 
 ### Downloadable images and evidence
 
 | Artifact | ID | Purpose |
 | --- | --- | --- |
-| [Paired Native/JVM images](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830356702/artifacts/9921963152) | `9921963152` | Docker save gzip, metadata, checksum, provenance and copied metrics |
-| [Runtime evidence](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830356702/artifacts/9921963416) | `9921963416` | Both functional flows, Prometheus, load samples and container logs |
-| [Focused test XML](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830356702/artifacts/9921963627) | `9921963627` | 116 passing focused tests |
+| [Paired Native/JVM images](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33855201348/artifacts/9930690941) | `9930690941` | Docker save gzip, metadata, checksum, provenance and copied metrics |
+| [Runtime/PDF evidence](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33855201348/artifacts/9930691624) | `9930691624` | Both functional flows, PDFs/text/fonts/previews, Prometheus, load samples and logs |
+| [Focused test XML](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33855201348/artifacts/9930692152) | `9930692152` | 116 passing focused tests |
 
 Image artifact name:
-`frontdesk-service-validated-images-738d010f0e80812be96d11070147ec41804b04a6`.
-The image artifact expires **2026-10-04 03:05:12 UTC**, unless retained
-elsewhere by the integrated-stack owner. `compression-level: 0` was verified
-in the successful upload step. Its GitHub artifact ZIP digest is
-`sha256:8be5dd577eecdeb7029d42fbacc310a83cbcd42f50246c5dec948c42c7b7ff09`.
+`frontdesk-service-validated-images-38fd5a2bad5ca33071b362d95fda48a20d5bf68f`.
+It expires **2026-10-04 09:14:01 UTC**, unless retained elsewhere by main.
+The successful upload log confirms `actions/upload-artifact@v4` with
+`compression-level: 0`. The API-reported artifact ZIP digest is
+`sha256:3cd92a044f4e8e233d4a729e2ebf48ae35513b019d19f06a70c04a8d56bd57aa`.
 
-The inner Docker archive `frontdesk-service-images.tar.gz` has SHA-256:
+The inner `frontdesk-service-images.tar.gz` is 321,353,078 bytes and has
+SHA-256:
 
 ```text
-56d36b7422ce047ab83e92e88bc3f66eefe04b072964ae4f2cf9ed384c5fa7a8
+343d56694715f9f1bda71a9d7649175de0fa39fc6dacfada3893504307f30e99
 ```
 
 Verified `SHA256SUMS`, gzip integrity, both manifest entries, all six tags,
-image-config digests against Docker metadata, all referenced layers, and
-every SHA-named blob's content hash. Native has four layers; JVM has nine.
-The image artifact's metrics are byte-identical to the runtime evidence.
-No local Docker load/run was performed; main owns the integrated runtime.
+image-config IDs, every referenced layer and all 32 SHA-named blob content
+hashes. Native has five layers; JVM has nine. The image artifact metrics are
+byte-identical to the runtime evidence. No local Docker load/run was
+performed; main owns the integrated runtime.
 
 Actual loadable tags:
 
 ```text
 hotel-pms/frontdesk-service-native:validated
-hotel-pms/frontdesk-service-native:738d010f0e80812be96d11070147ec41804b04a6
+hotel-pms/frontdesk-service-native:38fd5a2bad5ca33071b362d95fda48a20d5bf68f
 hotel-pms/frontdesk-service-native:ci
 hotel-pms/frontdesk-service-jvm:validated
-hotel-pms/frontdesk-service-jvm:738d010f0e80812be96d11070147ec41804b04a6
+hotel-pms/frontdesk-service-jvm:38fd5a2bad5ca33071b362d95fda48a20d5bf68f
 hotel-pms/frontdesk-service-jvm:ci
 ```
 
 Docker image IDs:
 
 ```text
-Native sha256:70c2245eb72c764d1056e6d64b421f6059a06ab5706e3a5eb72befa1a9337f32
-JVM    sha256:d9e0715a91f00928dcacdc40f629d2fad591c8168b1e59a1a2755ba6d7ed879e
+Native sha256:274c55da66b6a09a7b492b152c0339ef3e0aabbc495a052b28b4ce04f39ff2fd
+JVM    sha256:cd72f016fd7fa56078f864ae52c50afb9d8228b5135f464e32e4a72fb1bcadd7
 ```
 
-Verified local handoff paths (temporary, on this Mac):
+Verified local download paths (temporary, on this Mac):
 
 ```text
-/tmp/hotel-pms-frontdesk.LhlPgp/build/final-images/frontdesk-service-images.tar.gz
-/tmp/hotel-pms-frontdesk.LhlPgp/build/final-images/SHA256SUMS
-/tmp/hotel-pms-frontdesk.LhlPgp/build/final-images/image-metadata.json
-/tmp/hotel-pms-frontdesk.LhlPgp/build/final-images/provenance.json
-/tmp/hotel-pms-frontdesk.LhlPgp/build/final-tests/
-/tmp/pms-final-evidence.lbZiDy/frontdesk/metrics.txt
-/tmp/pms-final-evidence.lbZiDy/frontdesk/native/load-stability.json
-/tmp/pms-final-evidence.lbZiDy/frontdesk/jvm/load-stability.json
+/tmp/frontdesk-final-verify.loE9YZ/paired/frontdesk-service-images.tar.gz
+/tmp/frontdesk-final-verify.loE9YZ/paired/SHA256SUMS
+/tmp/frontdesk-final-verify.loE9YZ/paired/image-metadata.json
+/tmp/frontdesk-final-verify.loE9YZ/paired/provenance.json
+/tmp/frontdesk-final-verify.loE9YZ/runtime/native/pdf-result.json
+/tmp/frontdesk-final-verify.loE9YZ/runtime/jvm/pdf-result.json
+/tmp/frontdesk-final-verify.loE9YZ/tests/
 ```
 
-This closes Frontdesk's individual O2 gate/evidence/image handoff. It does
-not close the overall PMS migration. The final documentation-only commit
-does not replace the source/image SHA above and requires no binary rebuild.
+This closes Frontdesk's individual O2/PDF gate, evidence and paired-image
+handoff. It does not close the overall PMS migration. This final
+documentation-only closure does not replace the source/image SHA above and
+requires no binary rebuild.
 
 ### Preflight history and unrelated failures
+
+The PDF reopening separated harness defects from the application defect.
+Initial harness commit `30ed027e` and
+[diagnostic run 33846365517](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33846365517)
+reused the prior paired images without nativeCompile and failed in both modes
+because the first harness compared the full POST and persisted GET JSON;
+PostgreSQL legitimately serializes stored timestamps at microsecond rather
+than Java nanosecond precision. Commit `b02866ab` changed that check to the
+stable contract fields, and [run 33854012734](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33854012734)
+showed the remaining one-microsecond PostgreSQL rounding boundary. Commit
+`fa07b3df` limits timestamp tolerance to that boundary; it does not relax any
+PDF assertion.
+
+[Diagnostic run 33854533076](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33854533076)
+then reached the real Native PDF route and retained its HTTP 500 evidence in
+artifact `9929730592`. The Native log showed
+`UnsatisfiedLinkError: Can't load library: awt` through PDFBox and
+OpenHTMLToPDF. Commit `38fd5a2b` applies the bounded proven correction:
+builder/runtime AWT and font libraries, captured AWT reachability, emitted
+Graal JNI libraries, headless dynamic-library arguments, XMPBox `TextType`
+constructor reflection, and the bundled `Identity-H` CMap. The succeeding
+O2 result above demonstrates that this was an application Native gap after
+the harness was corrected, not a false green or a PDF-engine replacement.
 
 Initial expanded run [33829932473](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33829932473)
 stopped before Native compilation: 119 existing tests ran, 116 passed and
@@ -220,10 +273,10 @@ while also reading the prior default scope for O2 reuse.
 
 ## Actual limitations outside this gate
 
-- `GET /api/v1/quotations/{id}/pdf` exists but PDF text/fonts are **unvalidated**.
-  A successful HTTP response or PDF signature is not valid PDF content proof.
-  Main owns the Billing Identity-H/text/font correction; this delta does not
-  modify the shared PDF engine or certify Frontdesk quotations.
+- Frontdesk quotation PDF text and embedded fonts are now validated in both
+  modes, but PDF/UA accessibility is not. OpenHTMLToPDF reports no document
+  description and unsupported flexbox declarations; no PDF-template refactor
+  was authorized or attempted.
 - Guest and Billing dependencies in this independent gate are real JVM
   controls. Main owns the all-Native/all-JVM integrated stack and frontend E2E.
 - Notification delivery is not exercised by this independent gate; the
@@ -235,10 +288,10 @@ while also reading the prior default scope for O2 reuse.
   and belongs to main's stack. Native logs also warn that GC notification
   metrics are unavailable; the three Alloggiati caches do not record full
   cache statistics. Do not claim complete observability parity.
-- Native logs contain a Lettuce event-loop thread warning after the
-  intentional shutdown that precedes the JVM control. It is outside the
-  passing load window; shutdown/thread cleanup and long-term leak behavior
-  are not certified by this five-minute gate.
+- Native logs contain Lettuce, bounded-elastic and Zipkin reporter thread
+  warnings during the intentional shutdown that precedes the JVM control.
+  They occur after the passing load window; shutdown/thread cleanup and
+  long-term leak behavior are not certified by this five-minute gate.
 - External Alloggiati submission is not tested; the existing Mexico runtime
   correctly keeps those HTTP routes denied.
 - Global frontend/PMD failures are unrelated unless they directly block this
