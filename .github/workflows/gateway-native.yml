@@ -30,7 +30,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build-scope:
+    name: Avoid duplicate Native builds for gate-only PR updates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.scope.outputs.build }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Inspect the actual PR update, not the cumulative PR diff
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "${EVENT_NAME}" != pull_request ]]; then
+            echo 'build=true' >> "${GITHUB_OUTPUT}"
+          elif git diff --name-only "${BEFORE_SHA}" "${HEAD_SHA}" | grep -Eq '^(api-gateway/|config-service/|auth-service/|frontdesk-service/|internal-auth-lib/|common-web-lib/|gradle/|gradlew$|build.gradle.kts$|settings.gradle.kts$)'; then
+            echo 'build=true' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'build=false' >> "${GITHUB_OUTPUT}"
+            echo 'Gate/docs-only update: use the explicit final O2 dispatch.' >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
   native-build-and-runtime:
+    needs: build-scope
+    if: needs.build-scope.outputs.build == 'true'
     name: Build and validate api-gateway Native Image
     runs-on: ubuntu-latest
     timeout-minutes: 180

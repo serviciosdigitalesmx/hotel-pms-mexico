@@ -228,7 +228,8 @@ jq -e '.mustChangePassword == false' "${RESULT_DIR}/native-login.json" >/dev/nul
 admin_csrf="$(cookie_value csrf_token "${admin_cookie}")"
 [[ -n "${admin_csrf}" ]]
 csrf_denied_code="$(http_code "${RESULT_DIR}/native-csrf-denied.json" \
-    --cookie "${admin_cookie}" --request POST http://127.0.0.1:18080/api/v1/auth/refresh)"
+    --cookie "${admin_cookie}" --header 'Content-Type: application/json' --data '{}' \
+    --request POST http://127.0.0.1:18080/api/v1/room-types)"
 [[ "${csrf_denied_code}" == 403 ]]
 refresh_code="$(http_code "${RESULT_DIR}/native-refresh.json" \
     --cookie "${admin_cookie}" --cookie-jar "${admin_cookie}" \
