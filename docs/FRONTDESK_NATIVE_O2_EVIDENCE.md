@@ -70,6 +70,15 @@ remaining 113 service/tenant tests. Real runtime RBAC additionally verifies
 receptionist room-type writes return 403 and legacy reports deny both ADMIN
 and RECEPTIONIST. Original failure XML artifact: `9921319062`.
 
+Run [33830144074](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830144074)
+passed the 116 focused tests but the automatically finalized whole-module
+JaCoCo verification demanded 40% coverage from this partial selection (20%).
+Only this focused command excludes `jacocoTestCoverageVerification`; the
+repository coverage rule and full-suite commands remain unchanged. No
+Native compilation ran in either failed preflight. Buildx now writes a
+Frontdesk/mode-specific GHA scope to prevent parallel service cache eviction,
+while also reading the prior default scope for O2 reuse.
+
 Pending: final O2 run, artifact download/checksum/tag verification, final
 metrics and test counts. No completion claim until these are recorded here.
 
