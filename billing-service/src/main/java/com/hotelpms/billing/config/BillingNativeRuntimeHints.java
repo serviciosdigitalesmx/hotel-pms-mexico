@@ -38,6 +38,8 @@ public final class BillingNativeRuntimeHints implements RuntimeHintsRegistrar {
         // ResourceHint patterns use Spring's path wildcards, not regexes.
         hints.resources().registerPattern("templates/pdf/**");
         hints.resources().registerPattern("fonts/**");
+        // PDFBox loads this encoding by name when embedding the bundled TrueType fonts.
+        hints.resources().registerPattern("org/apache/fontbox/cmap/Identity-H");
         hints.resources().registerPattern("xsd/**");
     }
 

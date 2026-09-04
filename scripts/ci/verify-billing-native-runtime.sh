@@ -63,6 +63,20 @@ signed_request() {
   curl "${args[@]}" "${url}"
 }
 
+verify_pdf_content() {
+  local pdf_file="$1" evidence_prefix="$2"
+  pdftotext -layout "${pdf_file}" "${RESULT_DIR}/${evidence_prefix}-text.txt"
+  for expected_text in 'FACTURA' 'Native Billing' 'Native room night' 'Habitación' '100.00'; do
+    grep --fixed-strings --quiet "${expected_text}" "${RESULT_DIR}/${evidence_prefix}-text.txt" || {
+      echo "${evidence_prefix}: missing PDF text: ${expected_text}" >&2
+      return 1
+    }
+  done
+  pdffonts "${pdf_file}" | tee "${RESULT_DIR}/${evidence_prefix}-fonts.txt" \
+    | awk 'NR > 2 { if ($1 !~ /NotoSans/ || $(NF-4) != "yes") exit 1; count++ }
+           END { if (count < 2) exit 1 }'
+}
+
 echo "Starting Config Server, PostgreSQL, and Redis"
 docker network create "${NETWORK_NAME}" >/dev/null
 docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -152,6 +166,7 @@ native_ready_ms="$(date +%s%3N)"
 native_startup_ms=$((native_ready_ms - native_started_ms))
 curl --silent --show-error --fail http://127.0.0.1:18095/actuator/health \
   | tee "${RESULT_DIR}/health.json" | jq -e '.status == "UP"' >/dev/null
+native_idle_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${BILLING_CONTAINER}")"
 
 missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/missing-hmac.json" \
   --write-out '%{http_code}' http://127.0.0.1:18085/api/v1/invoices)"
@@ -219,6 +234,7 @@ pdf_code="$(signed_request GET "http://127.0.0.1:18085/api/v1/invoices/${invoice
   "$(openssl rand -hex 16)" "${RESULT_DIR}/invoice.pdf")"
 [[ "${pdf_code}" == 200 ]]
 file "${RESULT_DIR}/invoice.pdf" | grep -qi PDF
+verify_pdf_content "${RESULT_DIR}/invoice.pdf" native-pdf
 nonce_count_after="$(docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" \
   --scan --pattern 'internal-auth:nonce:*' 2>/dev/null | wc -l | tr -d ' ')"
 feign_nonce_delta=$((nonce_count_after - nonce_count_before))
@@ -239,7 +255,7 @@ for _ in {1..10}; do
     | jq -e '.status == "UP"' >/dev/null
   sleep 1
 done
-native_idle_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${BILLING_CONTAINER}")"
+native_after_use_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${BILLING_CONTAINER}")"
 native_image_size_bytes="$(docker image inspect hotel-pms/billing-service-native:ci --format '{{.Size}}')"
 
 echo "Starting billing JVM control"
@@ -261,6 +277,21 @@ jvm_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/jvm-missing-hmac.
   --write-out '%{http_code}' http://127.0.0.1:28085/api/v1/invoices)"
 [[ "${jvm_missing_hmac_code}" == 401 ]]
 jvm_idle_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_BILLING_CONTAINER}")"
+jvm_invoice_code="$(signed_request POST http://127.0.0.1:28085/api/v1/invoices/stay "${hotel_a}" \
+  "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-invoice-create.json" "${invoice_payload}")"
+[[ "${jvm_invoice_code}" == 201 ]]
+jvm_invoice_id="$(jq -er '.id' "${RESULT_DIR}/jvm-invoice-create.json")"
+jvm_charge_code="$(signed_request POST "http://127.0.0.1:28085/api/v1/invoices/stay/${stay_id}/charges" "${hotel_a}" \
+  "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-charge-create.json" "${charge_payload}")"
+[[ "${jvm_charge_code}" == 201 ]]
+jvm_payment_code="$(signed_request POST "http://127.0.0.1:28085/api/v1/invoices/${jvm_invoice_id}/payments" "${hotel_a}" \
+  "$(openssl rand -hex 16)" "${RESULT_DIR}/jvm-payment-create.json" '{"amount":100.00,"paymentMethod":"CASH"}')"
+[[ "${jvm_payment_code}" == 201 ]]
+jvm_pdf_code="$(signed_request GET "http://127.0.0.1:28085/api/v1/invoices/${jvm_invoice_id}/pdf" "${hotel_a}" \
+  "$(openssl rand -hex 16)" "${RESULT_DIR}/invoice-jvm.pdf")"
+[[ "${jvm_pdf_code}" == 200 ]]
+verify_pdf_content "${RESULT_DIR}/invoice-jvm.pdf" jvm-pdf
+jvm_after_use_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_BILLING_CONTAINER}")"
 jvm_image_size_bytes="$(docker image inspect hotel-pms/billing-service-jvm:ci --format '{{.Size}}')"
 jvm_flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname hotel_billing_jvm \
   --tuples-only --no-align --command 'select max(version::integer) from flyway_schema_history where success = true;')"
@@ -270,6 +301,7 @@ printf '%s\n' \
   "native_build_mode=${CI_NATIVE_BUILD_MODE:-unknown}" \
   "native_startup_ms=${native_startup_ms}" \
   "native_idle_memory=${native_idle_memory}" \
+  "native_after_basic_use_memory=${native_after_use_memory}" \
   "native_image_size_bytes=${native_image_size_bytes}" \
   "native_health_status=UP" \
   "native_flyway_latest_version=${flyway_latest}" \
@@ -286,11 +318,15 @@ printf '%s\n' \
   "native_overspend_rejected=${overspend_code}" \
   "native_feign_nonce_delta=${feign_nonce_delta}" \
   "native_pdf_status=${pdf_code}" \
+  "native_pdf_text_and_embedded_fonts=PASS" \
   "native_stability_health_checks=10/10" \
   "jvm_startup_ms=${jvm_startup_ms}" \
   "jvm_idle_memory=${jvm_idle_memory}" \
+  "jvm_after_basic_use_memory=${jvm_after_use_memory}" \
   "jvm_image_size_bytes=${jvm_image_size_bytes}" \
   "jvm_health_status=UP" \
   "jvm_flyway_latest_version=${jvm_flyway_latest}" \
   "jvm_hmac_missing_headers=${jvm_missing_hmac_code}" \
+  "jvm_pdf_status=${jvm_pdf_code}" \
+  "jvm_pdf_text_and_embedded_fonts=PASS" \
   | tee "${RESULT_DIR}/metrics.txt"

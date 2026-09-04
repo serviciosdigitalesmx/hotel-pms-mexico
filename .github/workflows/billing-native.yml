@@ -69,7 +69,7 @@ jobs:
         id: jvm_preflight
         run: |
           chmod +x ./gradlew
-          ./gradlew :billing-service:test --no-daemon --stacktrace --max-workers=2
+          ./gradlew :pdf-template-engine:test :billing-service:test --no-daemon --stacktrace --max-workers=2
           SPRING_CLOUD_CONFIG_ENABLED=false \
           SPRING_CONFIG_IMPORT=optional:configserver: \
           SPRING_PROFILES_ACTIVE=billing-service \
@@ -128,7 +128,32 @@ jobs:
         id: native_gate
         env:
           CI_NATIVE_BUILD_MODE: ${{ env.NATIVE_BUILD_MODE }}
-        run: bash scripts/ci/verify-billing-native-runtime.sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y poppler-utils
+          bash scripts/ci/verify-billing-native-runtime.sh
+
+      - name: Export validated optimized image
+        if: success() && env.NATIVE_BUILD_MODE == 'optimized-O2'
+        run: |
+          mkdir -p build/billing-native-image
+          docker tag hotel-pms/billing-service-native:ci hotel-pms/billing-service-native:${GITHUB_SHA}
+          docker save hotel-pms/billing-service-native:${GITHUB_SHA} \
+            | gzip -1 > build/billing-native-image/billing-service-native-linux-amd64.tar.gz
+          docker image inspect hotel-pms/billing-service-native:${GITHUB_SHA} \
+            --format 'id={{.Id}} os={{.Os}} architecture={{.Architecture}} size={{.Size}}' \
+            > build/billing-native-image/image-metadata.txt
+          cd build/billing-native-image
+          sha256sum billing-service-native-linux-amd64.tar.gz > SHA256SUMS
+
+      - name: Upload validated optimized image
+        if: success() && env.NATIVE_BUILD_MODE == 'optimized-O2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: billing-native-image-${{ github.sha }}
+          path: build/billing-native-image
+          compression-level: 0
+          if-no-files-found: error
 
       - name: Classify gate failure
         if: failure()
