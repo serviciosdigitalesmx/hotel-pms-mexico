@@ -75,8 +75,12 @@ def main():
             assert persisted[field] == quotation[field], \
                 f"Persisted quotation field changed: {field}"
         for field in ("createdAt", "updatedAt"):
-            assert datetime.fromisoformat(persisted[field]) == datetime.fromisoformat(quotation[field]), \
-                f"Persisted quotation timestamp changed: {field}"
+            # PostgreSQL rounds Java's nanoseconds to its microsecond storage
+            # precision. Accept only that representation boundary (<= 1 us).
+            delta = abs(datetime.fromisoformat(persisted[field])
+                        - datetime.fromisoformat(quotation[field]))
+            assert delta.total_seconds() <= 0.000001, \
+                f"Persisted quotation timestamp changed beyond database precision: {field}"
         request("GET", quote_path + "/pdf", "quotation-cross-tenant.json",
                 tenant="00000000-0000-0000-0000-000000000202", expected=404)
         request("GET", quote_path + "/pdf", "quotation-missing-hmac.json", authenticated=False, expected=401)
@@ -108,7 +112,7 @@ def main():
                         str(root / "quotation-preview")], check=True)
         result.update(status="PASS", quotation_id=quotation["id"], renders=checks,
                       cross_tenant=404, missing_hmac=401,
-                      persistence="STABLE_FIELDS_AND_TIMESTAMP_INSTANTS_MATCH_CREATE")
+                      persistence="STABLE_FIELDS_MATCH_AND_TIMESTAMPS_WITHIN_POSTGRES_PRECISION")
     except Exception as error:
         result["error"] = str(error)
         raise
