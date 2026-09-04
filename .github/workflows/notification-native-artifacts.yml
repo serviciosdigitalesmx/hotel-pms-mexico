@@ -34,13 +34,27 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :notification-service:test :notification-service:bootJar :config-service:bootJar -x :notification-service:processAot --no-daemon --max-workers=2
+          docker build -f config-service/Dockerfile -t hotel-pms/config-service:ci .
+          docker run -d --name notification-reference-aot-config -p 8888:8888 -p 18990:8090 \
+            -e SPRING_PROFILES_ACTIVE=native -e JAVA_TOOL_OPTIONS=-Xmx256m \
+            -e "CONFIG_SERVER_PASSWORD=$CI_CONFIG_PASSWORD" hotel-pms/config-service:ci
+          ready=false
+          for _ in {1..90}; do
+            if curl -fsS -u "configuser:$CI_CONFIG_PASSWORD" \
+              http://127.0.0.1:8888/notification-service/default >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [[ "$ready" == true ]]
           SPRING_PROFILES_ACTIVE=notification-service \
-          SPRING_CONFIG_IMPORT=optional:configserver: \
+          CONFIG_SERVER_URL=http://127.0.0.1:8888 \
           SPRING_CONFIG_ADDITIONAL_LOCATION="file:${GITHUB_WORKSPACE}/config-service/src/main/resources/config/notification-service.yml" \
           CONFIG_SERVER_PASSWORD="$CI_CONFIG_PASSWORD" INTERNAL_HMAC_SECRET="$CI_HMAC_SECRET" \
           INTERNAL_REDIS_PASSWORD="$CI_REDIS_PASSWORD" \
           ./gradlew :notification-service:processAot --no-daemon --max-workers=2
-          docker build -f config-service/Dockerfile -t hotel-pms/config-service:ci .
+          docker rm -f notification-reference-aot-config
           docker build -f notification-service/Dockerfile -t hotel-pms/notification-service-jvm:validated .
       - uses: docker/setup-buildx-action@v3
       - name: Build Linux amd64 from the validated pilot implementation
@@ -87,5 +101,5 @@ jobs:
       - name: Clean up isolated CI containers
         if: always()
         run: |
-          docker rm -f notification-reference-native notification-reference-jvm notification-reference-config notification-reference-redis notification-reference-mail || true
+          docker rm -f notification-reference-aot-config notification-reference-native notification-reference-jvm notification-reference-config notification-reference-redis notification-reference-mail || true
           docker network rm notification-reference-ci || true
