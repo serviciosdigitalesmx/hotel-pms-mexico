@@ -5,6 +5,15 @@ on:
   push:
     branches: [codex/native-stack-validation]
     paths:
+      - .github/workflows/native-stack-integration.yml
+      - scripts/ci/verify-native-stack-runtime.sh
+      - scripts/ci/native-stack-lifecycle.sh
+      - scripts/ci/test-native-stack-lifecycle.sh
+      - scripts/ci/load-native-stack-images.sh
+      - docker-compose.yml
+      - docker-compose.native-stack-ci.yml
+      - frontend/playwright-native.config.ts
+      - frontend/e2e-native-stack/**
       - docs/native-stack-images.json
       - frontend/Dockerfile
       - frontend/nginx.conf
@@ -50,6 +59,10 @@ jobs:
       - name: Load eight verified Native/JVM image pairs
         id: images
         run: bash scripts/ci/load-native-stack-images.sh
+      - name: Verify bounded sampler lifecycle failure paths
+        run: |
+          bash -n scripts/ci/verify-native-stack-runtime.sh scripts/ci/native-stack-lifecycle.sh
+          timeout --signal=TERM --kill-after=5s 30s bash scripts/ci/test-native-stack-lifecycle.sh
       - name: Prepare real browser tests
         id: browser
         working-directory: frontend
@@ -90,6 +103,15 @@ jobs:
               cat "build/native-stack-runtime/$mode/metrics.txt" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
+      - name: Final cleanup of this run's disposable Compose projects
+        if: always()
+        run: |
+          source scripts/ci/native-stack-lifecycle.sh
+          failed=0
+          for mode in native jvm; do
+            cleanup_ci_project "pms-native-ci-$GITHUB_RUN_ID-$mode" "$mode" || failed=1
+          done
+          exit "$failed"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

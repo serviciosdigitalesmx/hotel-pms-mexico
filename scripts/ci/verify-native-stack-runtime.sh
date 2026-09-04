@@ -14,6 +14,7 @@ progress="$result_dir/progress.log"
 services=(config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service)
 management_ports=(18100 18101 18102 18103 18104 18105 18106 18107)
 load_sampler_pid=''
+source scripts/ci/native-stack-lifecycle.sh
 current_phase='initialization'
 phase() {
   current_phase="$*"
@@ -22,12 +23,11 @@ phase() {
 collect() {
   gate_exit=$?
   trap - EXIT
+  # Evidence is best effort, but cleanup errors must fail an otherwise green gate.
+  set +e
   failed_phase="$current_phase"
   phase "collect evidence after exit=$gate_exit phase=$failed_phase"
-  if [[ -n "$load_sampler_pid" ]]; then
-    kill "$load_sampler_pid" 2>/dev/null || true
-    wait "$load_sampler_pid" 2>/dev/null || true
-  fi
+  stop_load_sampler || { [[ "$gate_exit" != 0 ]] || gate_exit=1; }
   timeout --signal=TERM --kill-after=5s 20s "${compose[@]}" ps --all > "$result_dir/containers.txt" 2>&1 || true
   for service in "${services[@]}" postgres redis frontend zipkin loki mailpit; do
     timeout --signal=TERM --kill-after=5s 20s "${compose[@]}" logs --no-color "$service" > "$result_dir/$service.log" 2>&1 || true
@@ -36,12 +36,15 @@ collect() {
     printf '%s_STACK_GATE_FAIL phase=%s exit=%s\n' "${mode^^}" "$failed_phase" "$gate_exit" \
       > "$result_dir/failure-classification.txt"
   fi
-  # These containers/volumes were created by this run. Volumes remain until the
-  # disposable hosted runner is released; no workstation data is touched.
-  timeout --signal=TERM --kill-after=10s 60s "${compose[@]}" down --timeout 20 >/dev/null 2>&1 || true
+  if ! cleanup_ci_project "$project" "$mode" > "$result_dir/cleanup.log" 2>&1; then
+    echo "Cleanup failed for $project; see $result_dir/cleanup.log" >&2
+    [[ "$gate_exit" != 0 ]] || gate_exit=1
+  fi
   exit "$gate_exit"
 }
 trap collect EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 sample_memory() {
   local stage="$1"
   mapfile -t backend_ids < <("${compose[@]}" ps -q "${services[@]}")
@@ -78,6 +81,24 @@ verify_hmac() {
 }
 # Exclude registry download time from both cold-start measurements. Each mode
 # still initializes its own empty database and starts every container from zero.
+if [[ "$mode" == jvm ]]; then
+  phase 'ensure Native project released all containers, networks and volumes'
+  cleanup_ci_project "pms-native-ci-$GITHUB_RUN_ID-native" native > "$result_dir/native-preflight-cleanup.log" 2>&1
+  assert_project_removed "pms-native-ci-$GITHUB_RUN_ID-native"
+fi
+phase 'verify shared CI host ports are free'
+python3 - <<'PY'
+import socket
+ports = [18080, 18888, 18000, 18087, 18083, 18081, 18085, 18086, 18088,
+         19411, 13100, 18025, *range(18100, 18108)]
+for port in ports:
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(('127.0.0.1', port))
+        except OSError as error:
+            raise SystemExit(f'CI port {port} is still occupied; refusing to start: {error}')
+PY
 phase 'pull shared infrastructure images'
 timeout --signal=TERM --kill-after=30s 10m "${compose[@]}" pull postgres redis zipkin loki mailpit
 phase 'start fresh integrated stack and wait for health'
@@ -143,9 +164,7 @@ docker stats --format '{{json .}}' "${backend_ids[@]}" > "$result_dir/backend-du
 load_sampler_pid=$!
 phase 'run three real Playwright frontend/API journeys'
 (cd frontend && timeout --signal=TERM --kill-after=30s 15m npx playwright test --config playwright-native.config.ts)
-kill "$load_sampler_pid" 2>/dev/null || true
-wait "$load_sampler_pid" 2>/dev/null || true
-load_sampler_pid=''
+stop_load_sampler
 echo "${mode}_real_frontend_api_e2e=PASS" >> "$metrics"
 sample_memory after_basic_use
 peak_bytes="$(jq -s '

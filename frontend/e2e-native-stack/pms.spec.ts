@@ -60,15 +60,37 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
         await dialog.locator('input[name="firstName"]').fill('Native');
         await dialog.locator('input[name="lastName"]').fill(tag);
         await dialog.locator('input[name="email"]').fill(email);
+        await dialog.locator('input[name="country"]').fill('MX');
         const response = waitForApi(page, 'POST', '/api/v1/guests');
         await dialog.getByRole('button', { name: common.save, exact: true }).click();
         const created = await json<GuestResponseDTO>(await response, 201);
-        expect(created).toMatchObject({ firstName: 'Native', lastName: tag, email });
+        expect(created.id).toMatch(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i);
+        expect(created).toMatchObject({ firstName: 'Native', lastName: tag, email, country: 'MX' });
         await expect(dialog).toBeHidden();
         const list = await searchGuestsUI(page, email);
         expect(list.content.map(g => g.id)).toEqual([created.id]);
         await expect(page.getByRole('row').filter({ hasText: email })).toContainText(`Native ${tag}`);
-        expect(await json(await api.get(`/api/v1/guests/${created.id}`))).toMatchObject({ ...created });
+        const persisted = await json<GuestResponseDTO>(await api.get(`/api/v1/guests/${created.id}`));
+        expect(persisted).toMatchObject({ id: created.id, firstName: 'Native', lastName: tag, email, country: 'MX' });
+        const { createdAt, updatedAt, ...createdFields } = created;
+        const { createdAt: storedCreatedAt, updatedAt: storedUpdatedAt, ...storedFields } = persisted;
+        // Keep every non-timestamp field strict (contact/fiscal details and
+        // identity documents included). PostgreSQL rounds LocalDateTime to
+        // microseconds; Jackson's creation response can retain nanoseconds.
+        expect(storedFields).toEqual(createdFields);
+        for (const [name, before, after] of [
+          ['createdAt', createdAt, storedCreatedAt], ['updatedAt', updatedAt, storedUpdatedAt],
+        ]) {
+          // Both are zone-less LocalDateTime values; parse in the same frame,
+          // independent of the workstation TZ. Date has millisecond precision.
+          expect(before, name).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?$/);
+          expect(after, name).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?$/);
+          const beforeMs = Date.parse(`${before}Z`);
+          const afterMs = Date.parse(`${after}Z`);
+          expect(Number.isFinite(beforeMs), `${name} on creation must be valid`).toBe(true);
+          expect(Number.isFinite(afterMs), `${name} on read must be valid`).toBe(true);
+          expect(Math.abs(afterMs - beforeMs), `${name} must survive persistence`).toBeLessThanOrEqual(1);
+        }
         evidence.guestId = created.id;
         return created;
       });
