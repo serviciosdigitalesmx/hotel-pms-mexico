@@ -167,9 +167,15 @@ phase 'run three real Playwright frontend/API journeys'
 stop_load_sampler
 echo "${mode}_real_frontend_api_e2e=PASS" >> "$metrics"
 sample_memory after_basic_use
-peak_bytes="$(jq -s '
+phase 'calculate memory under browser load'
+# Docker streaming stats prefixes frames with terminal cursor-control sequences.
+# Keep the raw evidence and remove only ANSI CSI codes before strict JSON parsing.
+peak_bytes="$(jq -Rs '
   def bytes: .MemUsage | split(" / ")[0] | capture("(?<amount>[0-9.]+)(?<unit>[A-Za-z]+)") |
     (.amount | tonumber) * ({B:1,kB:1000,kiB:1024,KiB:1024,MB:1000000,MiB:1048576,GB:1000000000,GiB:1073741824}[.unit]);
+  gsub("\u001b\\[[0-9;]*[A-Za-z]"; "") |
+  split("\n") | map(select(test("\\S")) | fromjson) |
+  if length == 0 then error("No load samples recorded") else . end |
   group_by(.ID) | map(map(bytes) | max) | add | round
 ' "$result_dir/backend-during-e2e-stats.jsonl")"
 echo "${mode}_backend_loaded_sum_per_container_peak_memory_bytes=$peak_bytes" >> "$metrics"
