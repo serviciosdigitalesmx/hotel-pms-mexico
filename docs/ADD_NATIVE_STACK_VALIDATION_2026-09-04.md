@@ -1,5 +1,31 @@
 # ADD — migración Native e integración controlada del PMS
 
+## Cierre final con Frontdesk corregido — 2026-09-05
+
+[Run 33952436539](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33952436539)
+terminó SUCCESS con commit `bf4d59735d6919f7cade6b967d3223b9fac4fd41`.
+El manifest incluye Frontdesk O2 `38fd5a2b`, cuyo PDF de cotizaciones pasó
+individualmente en run `33855201348`. La integración de esa imagen queda cerrada.
+
+| Medición final conjunta | Native | JVM |
+|---|---:|---:|
+| Stack disponible (ms) | 29934 | 84846 |
+| Backend en reposo (bytes) | 947021414 | 2566389760 |
+| Backend tras uso básico (bytes) | 1084227584 | 2766877491 |
+| Suma de picos individuales durante E2E (bytes) | 1086534451 | 2777992397 |
+
+Ambos modos: E2E PASS; ocho health/liveness/readiness y Prometheus PASS;
+Config autenticado PASS; cinco bases PostgreSQL/Flyway PASS y paridad de
+historias PASS; HMAC/Redis/replay PASS; factura y adjunto PDF con texto/fuentes
+PASS; Zipkin/Loki PASS. Estabilidad durante 300 segundos: 30 comprobaciones
+por servicio, cero reinicios y cero OOM. No certifica estabilidad prolongada.
+Evidencia: artefacto `native-stack-integration-evidence` del run y copia local
+`/tmp/native-evidence-33952436539-final`.
+
+Esta sección sustituye el pendiente de reintegración y las métricas históricas
+que siguen debajo. Código publicado en la rama de validación; sin merge a main
+ni despliegue en la Mac. La validación integrada solicitada queda completada.
+
 ## Estado y alcance
 
 Trabajo sobre `serviciosdigitalesmx/hotel-pms-mexico`. Las seis migraciones
