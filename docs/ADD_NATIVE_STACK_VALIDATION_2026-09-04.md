@@ -8,10 +8,29 @@ construidas y sus controles JVM, sin fusionar implementaciones ni hacer merge
 en `main`. Los pilotos Guest y Notification se reutilizan. El empaquetado Linux
 amd64 de Notification permite usar el piloto originalmente validado en ARM64.
 
-**Pendiente de cierre:** compatibilidad del healthcheck Docker de Config,
-PDF de cotizaciones en Frontdesk y E2E de los ocho servicios simultáneos. Un build individual verde no demuestra
-que el PMS completo funcione. Este documento se actualizará con el resultado
-real del workflow `All Native PMS stack integration`.
+**Validación integrada cerrada el 2026-09-05:**
+[run 33940555256](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33940555256),
+commit `e2dc2185`. Los ocho servicios Native y sus controles JVM pasan juntos.
+Se verificaron tres recorridos Playwright por modo (cero fallos ni omisiones),
+PostgreSQL, igualdad de las cinco historias Flyway, Config autenticado,
+health/readiness/liveness, Redis/HMAC/replay, RBAC, tenant, flujos entre servicios,
+factura PDF y adjunto SMTP con texto y fuentes, Prometheus, Zipkin y Loki.
+Estabilidad: 30 comprobaciones por servicio durante cinco minutos, sin reinicios
+ni OOM en ambos modos. Esto no equivale a una prueba prolongada en producción.
+
+| Medición conjunta en runner | Native | JVM |
+|---|---:|---:|
+| Stack disponible (ms, infraestructura incluida; descarga excluida) | 34508 | 97786 |
+| RAM backend en reposo (bytes) | 1065101558 | 2623327437 |
+| RAM backend tras uso básico (bytes) | 1164936479 | 2842899251 |
+| Suma de picos por contenedor durante E2E (bytes; no pico simultáneo) | 1168994468 | 2856635597 |
+
+Evidencia descargada: `/tmp/native-evidence-33940555256-final`;
+artefacto remoto `native-stack-integration-evidence` del run enlazado.
+El healthcheck Docker de Config queda verificado por este gate.
+El PDF de cotizaciones Frontdesk sigue requiriendo evidencia específica:
+el PDF validado aquí es el de factura y su adjunto, no el de cotización.
+No se realizó merge en main ni despliegue en la Mac.
 
 ## Mapa funcional y evidencia individual O2
 
