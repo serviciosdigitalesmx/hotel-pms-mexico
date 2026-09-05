@@ -28,8 +28,14 @@ ni OOM en ambos modos. Esto no equivale a una prueba prolongada en producción.
 Evidencia descargada: `/tmp/native-evidence-33940555256-final`;
 artefacto remoto `native-stack-integration-evidence` del run enlazado.
 El healthcheck Docker de Config queda verificado por este gate.
-El PDF de cotizaciones Frontdesk sigue requiriendo evidencia específica:
-el PDF validado aquí es el de factura y su adjunto, no el de cotización.
+El PDF de cotizaciones Frontdesk está validado individualmente en O2 por
+[run 33855201348](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33855201348),
+SHA `38fd5a2bad5ca33071b362d95fda48a20d5bf68f`: dos renders por modo,
+texto esperado y NotoSans Regular/Bold embebidas, Native y JVM PASS.
+El manifest se actualizó al artefacto `9930690941` con esa corrección AWT/PDF.
+La integración conjunta de este nuevo manifest requiere el resultado de la
+corrida disparada por `bf4d5973`; las métricas anteriores pertenecen al manifest
+previo. No atribuirlas a las nuevas imágenes hasta cerrar esa corrida.
 No se realizó merge en main ni despliegue en la Mac.
 
 ## Mapa funcional y evidencia individual O2
