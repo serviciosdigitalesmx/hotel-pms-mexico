@@ -6,7 +6,7 @@
     {"module": "guest-service", "artifact_id": 9921659975, "run_id": 33830026445, "sha": "dc73cf06b6c9a4f4be554f7af376fbe3f43c6ba1"},
     {"module": "fb-service", "artifact_id": 9921801599, "run_id": 33829870882, "sha": "83d5584aabd4c5b49e8121e79389b185ca877645"},
     {"module": "billing-service", "artifact_id": 9921780165, "run_id": 33830302204, "sha": "80e20fef45235ee8f114d736f1ab571bb0642812"},
-    {"module": "frontdesk-service", "artifact_id": 9921963152, "run_id": 33830356702, "sha": "738d010f0e80812be96d11070147ec41804b04a6"},
+    {"module": "frontdesk-service", "artifact_id": 9930690941, "run_id": 33855201348, "sha": "38fd5a2bad5ca33071b362d95fda48a20d5bf68f"},
     {"module": "api-gateway", "artifact_id": 9921685455, "run_id": 33830442810, "sha": "065ea876667926a9ecaccbb3d4743d7e3ddab94f"},
     {"module": "config-service", "artifact_id": 9926885515, "run_id": 33845879948, "sha": "8222081c2b19b03ef18bc6a0b3f5e5cf18bef99a"}
   ]
