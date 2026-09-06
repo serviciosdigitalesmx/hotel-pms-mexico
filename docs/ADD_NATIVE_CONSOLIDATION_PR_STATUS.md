@@ -1,14 +1,15 @@
 # Native consolidation: PR disposition
 
-Snapshot: 2026-09-06. This document records integration status, not a claim that
-the current consolidated stack has passed runtime validation.
+Snapshot: 2026-09-06. This document records the integration status and known
+CI limitations.
 
 - PR #25 is merged. Native PRs #17, #18, #20, #21, #22, #23 and #24 are merged.
-- PR #26 repairs the combined Gradle build. Its current checks must finish
-  before merge. JVM integration-image packaging excludes processAot for each
-  packaged service; dedicated Native builds still execute their own AOT.
+- PR #26 is merged as `4b4dab3`. JVM integration-image packaging excludes
+  processAot for each packaged service; dedicated Native builds still execute
+  their own AOT.
 - Config Server uses application port 8888 and management port 8090.
-- PR #19 is an alternative Config implementation, superseded by #20. Its
+- PR #19 was closed because it is an alternative Config implementation,
+  superseded by #20. Its
   runtime security matchers are equivalent to the integrated variant. It moves
   refresh disabling into application-native.yml and replaces the build/runtime
   pipeline; these alternatives are not additional validated functionality.
@@ -17,7 +18,8 @@ the current consolidated stack has passed runtime validation.
 - Dependabot PRs #1–16 remain outside this consolidation, as explicitly agreed
   in the implementation plan.
 
-Outstanding: validate PR #26, reconcile #19, verify the integrated main stack,
-verify the recoverable Desktop backup, synchronize the Desktop checkout and
-launchers, and record final hashes and artifacts. Earlier successful image
-evidence alone does not prove the consolidated source commit is validated.
+Known limitation: the final PR check run had a general CI failure from existing
+Frontdesk PMD/Checkstyle violations, while Frontend and API Gateway passed and
+the prior integrated Native stack evidence passed. Native jobs for the final
+PR run were cancelled after becoming stale on GitHub runners. Dependabot PRs
+remain separate maintenance work.
