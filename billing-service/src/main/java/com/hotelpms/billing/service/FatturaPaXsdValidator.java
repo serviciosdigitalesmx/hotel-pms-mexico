@@ -95,12 +95,13 @@ public class FatturaPaXsdValidator {
     private static Schema compileBundledSchema() throws IOException, SAXException {
         final Path tempDirectory = Files.createTempDirectory("hotel-pms-fatturapa-xsd-");
         final Path fatturaPath = tempDirectory.resolve("Schema_VFPR12_v1.2.3.xsd");
-        final Path xmldsigPath = tempDirectory.resolve("xmldsig-core-schema.xsd");
+        final String xmldsigFilename = "xmldsig-core-schema.xsd";
+        final Path xmldsigPath = tempDirectory.resolve(xmldsigFilename);
         try {
             final String fatturaContents;
             try (InputStream fatturaXsd = new ClassPathResource(FATTURAPA_XSD).getInputStream()) {
                 fatturaContents = new String(fatturaXsd.readAllBytes(), StandardCharsets.UTF_8)
-                        .replace(XMLDSIG_SCHEMA_LOCATION, xmldsigPath.getFileName().toString());
+                        .replace(XMLDSIG_SCHEMA_LOCATION, xmldsigFilename);
             }
             Files.writeString(fatturaPath, fatturaContents, StandardCharsets.UTF_8);
             try (InputStream xmldsigXsd = new ClassPathResource(XMLDSIG_XSD).getInputStream()) {
