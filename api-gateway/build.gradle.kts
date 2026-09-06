@@ -3,7 +3,7 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     // Opt-in Native Image support. The existing JVM bootJar/Dockerfile path is unchanged.
-    id("org.graalvm.buildtools.native") version "0.10.6"
+    id("org.graalvm.buildtools.native")
 }
 
 group = "com.hotelpms"

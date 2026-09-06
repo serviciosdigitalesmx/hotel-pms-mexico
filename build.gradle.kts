@@ -1,3 +1,9 @@
+plugins {
+    // Resolve the Native Image Gradle plugin once for the multi-project build.
+    // Each service opts in below without creating sibling build-service clashes.
+    id("org.graalvm.buildtools.native") version "0.10.6" apply false
+}
+
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
