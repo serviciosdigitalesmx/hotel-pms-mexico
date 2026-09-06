@@ -72,6 +72,7 @@ jobs:
           mkdir -p build
           ./gradlew :config-service:bootJar :fb-service:test \
             -x :fb-service:processAot \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           CONFIG_SERVER_PASSWORD="${CI_CONFIG_PASSWORD}" \
             java -jar config-service/build/libs/*-SNAPSHOT.jar \
@@ -109,6 +110,7 @@ jobs:
             :billing-service:bootJar \
             :fb-service:bootJar \
             -x :fb-service:processAot \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/frontdesk-service:ci --file frontdesk-service/Dockerfile .

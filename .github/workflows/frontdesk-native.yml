@@ -123,6 +123,7 @@ jobs:
             --tests '*ReservationServiceImplTest' \
             --tests '*RoomServiceImplTest' \
             -x :frontdesk-service:processAot \
+            -x :config-service:processAot \
             -x :frontdesk-service:jacocoTestCoverageVerification \
             --no-daemon --stacktrace --max-workers=2
           echo 'UNRELATED_GLOBAL_CI_FAIL (baseline 33829932473): three legacy Alloggiati tests expect 200 although existing Mexico runtime uses denyAll(); retained the three 403 tests and real runtime RBAC gates. No application/security changes.' >> "${GITHUB_STEP_SUMMARY}"
@@ -132,6 +133,7 @@ jobs:
             :billing-service:bootJar \
             :guest-service:bootJar \
             -x :frontdesk-service:processAot \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/frontdesk-service-jvm:ci --file frontdesk-service/Dockerfile .
