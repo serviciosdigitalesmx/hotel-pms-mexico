@@ -135,7 +135,7 @@ jobs:
             }
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Each ubuntu-latest runner invokes one nativeCompile/native-image only.
       # Pull requests use -Ob; the manually dispatched false mode is the final -O2 gate.
