@@ -80,6 +80,7 @@ jobs:
           SPRING_DATASOURCE_USERNAME=native-ci \
           SPRING_DATASOURCE_PASSWORD=native-ci \
           ./gradlew :billing-service:processAot \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
 
       - name: Build real JVM integration images

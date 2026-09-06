@@ -125,6 +125,7 @@ jobs:
           CONFIG_SERVER_USERNAME="${CONFIG_SERVER_USERNAME}" \
           CONFIG_SERVER_PASSWORD="${CONFIG_SERVER_PASSWORD}" \
             ./gradlew :auth-service:processAot \
+              -x :config-service:processAot \
               --no-daemon --stacktrace --max-workers=2 \
             || {
               echo "Config Server state after processAot failure" >&2
