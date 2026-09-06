@@ -3,6 +3,7 @@ package com.hotelpms.pdftemplate;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -36,6 +37,21 @@ class ThymeleafPdfTemplateRendererTest {
 
         // Different variable values must produce different (differently-sized) PDF content.
         assertThat(withTitle).isNotEqualTo(withoutContext);
+    }
+
+    @Test
+    void preservesTextAndEmbedsFonts() throws IOException {
+        final String title = "Habitación México, crédito y huésped";
+        final byte[] pdf = renderer.render(MINIMAL_TEMPLATE, Map.of(TITLE_VAR, title));
+
+        try (PDDocument document = Loader.loadPDF(pdf)) {
+            assertThat(new PDFTextStripper().getText(document)).contains(title);
+            final var resources = document.getPage(0).getResources();
+            assertThat(resources.getFontNames()).isNotEmpty();
+            for (final var name : resources.getFontNames()) {
+                assertThat(resources.getFont(name).isEmbedded()).isTrue();
+            }
+        }
     }
 
     @Test

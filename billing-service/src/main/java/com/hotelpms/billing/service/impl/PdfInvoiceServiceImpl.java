@@ -111,8 +111,12 @@ public class PdfInvoiceServiceImpl implements PdfInvoiceService {
         context.put("guestPec", blankToNull(guest.pecEmail()));
 
         vatBreakdownCalculator.assertReconciles(invoice.totalAmount(), invoice.charges());
-        context.put("charges", toChargeRows(invoice.charges(), currency));
-        context.put("payments", toPaymentRows(invoice.payments(), currency));
+        final List<Map<String, String>> chargeRows = toChargeRows(invoice.charges(), currency);
+        final List<Map<String, String>> paymentRows = toPaymentRows(invoice.payments(), currency);
+        context.put("charges", chargeRows);
+        context.put("chargesEmpty", chargeRows.isEmpty());
+        context.put("payments", paymentRows);
+        context.put("paymentsEmpty", paymentRows.isEmpty());
 
         final BigDecimal paid = invoice.payments().stream()
                 .map((@NonNull PaymentResponse pr) -> pr.amount())

@@ -1,0 +1,20 @@
+# Keep the Native builder context small while bypassing the root .dockerignore,
+# which is intentionally optimized for the pre-built JVM images.
+*
+!gradlew
+!gradle/
+!gradle/**
+!settings.gradle.kts
+!build.gradle.kts
+!*/build.gradle.kts
+!billing-service/
+!billing-service/**
+!internal-auth-lib/
+!internal-auth-lib/**
+!common-web-lib/
+!common-web-lib/**
+!pdf-template-engine/
+!pdf-template-engine/**
+!config-service/build/
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
