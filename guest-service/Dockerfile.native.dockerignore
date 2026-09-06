@@ -1,0 +1,22 @@
+# Native build context: retain all source modules required by the Gradle
+# multi-project build and exclude outputs or unrelated runtime assets.
+*/build/*
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
+.gradle/
+.git/
+.github/
+.add/
+.ralph-add/
+scripts/ci/
+frontend/
+docs/
+backup/
+argos
+argos-local
+.env
+.env.*
+**/.env
+**/.env.*
+*.backup-*
+*.env.backup-*
