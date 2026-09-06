@@ -21,7 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
  * state and offer a manual retry (mirrors {@code BillingClient.createInvoiceForStay},
  * which already signals failure via a {@code null} return).
  */
-@FeignClient(name = "notification-service")
+@FeignClient(name = "notification-service",
+        url = "${APPLICATION_CONFIG_NOTIFICATION_SERVICE_URL:http://notification-service:8088}")
 public interface NotificationClient {
 
     Logger LOG = LoggerFactory.getLogger(NotificationClient.class);

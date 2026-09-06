@@ -56,7 +56,9 @@ public class Room {
     @Column(nullable = false, unique = true, length = MAX_ROOM_NUMBER_LENGTH)
     private String roomNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // Native Image disables runtime Hibernate proxy generation; this relation is
+    // part of every room response, so loading it eagerly preserves the contract.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;
 
