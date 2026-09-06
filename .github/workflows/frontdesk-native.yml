@@ -132,6 +132,8 @@ jobs:
             :frontdesk-service:bootJar \
             :billing-service:bootJar \
             :guest-service:bootJar \
+            -x :guest-service:processAot \
+            -x :billing-service:processAot \
             -x :frontdesk-service:processAot \
             -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2

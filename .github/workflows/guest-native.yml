@@ -75,6 +75,8 @@ jobs:
             :billing-service:bootJar \
             :guest-service:bootJar \
             -x :guest-service:processAot \
+            -x :frontdesk-service:processAot \
+            -x :billing-service:processAot \
             -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
@@ -95,7 +97,7 @@ jobs:
           tags: hotel-pms/guest-service-native:ci
           build-args: |
             NATIVE_QUICK_BUILD=${{ github.event_name != 'workflow_dispatch' || inputs.native_quick_build }}
-            CONFIG_SERVER_URL=http://127.0.0.1:8090
+            CONFIG_SERVER_URL=http://127.0.0.1:8888
             CONFIG_SERVER_USERNAME=configuser
             CONFIG_SERVER_PASSWORD=${{ env.CI_CONFIG_PASSWORD }}
             INTERNAL_HMAC_SECRET=${{ env.CI_HMAC_SECRET }}

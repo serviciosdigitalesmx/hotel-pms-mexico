@@ -102,6 +102,8 @@ jobs:
             :auth-service:bootJar \
             :frontdesk-service:bootJar \
             :api-gateway:bootJar \
+            -x :auth-service:processAot \
+            -x :frontdesk-service:processAot \
             -x :api-gateway:processAot \
             -x :api-gateway:processAotTest \
             -x :config-service:processAot \
