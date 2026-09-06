@@ -80,6 +80,7 @@ jobs:
           SPRING_DATASOURCE_USERNAME=native-ci \
           SPRING_DATASOURCE_PASSWORD=native-ci \
           ./gradlew :billing-service:processAot \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
 
       - name: Build real JVM integration images
@@ -89,6 +90,10 @@ jobs:
             :guest-service:bootJar \
             :frontdesk-service:bootJar \
             :billing-service:bootJar \
+            -x :guest-service:processAot \
+            -x :frontdesk-service:processAot \
+            -x :billing-service:processAot \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/guest-service-jvm:ci --file guest-service/Dockerfile .

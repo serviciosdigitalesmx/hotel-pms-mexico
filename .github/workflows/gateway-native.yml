@@ -102,8 +102,11 @@ jobs:
             :auth-service:bootJar \
             :frontdesk-service:bootJar \
             :api-gateway:bootJar \
+            -x :auth-service:processAot \
+            -x :frontdesk-service:processAot \
             -x :api-gateway:processAot \
             -x :api-gateway:processAotTest \
+            -x :config-service:processAot \
             --no-daemon --stacktrace --max-workers=2
           docker build --tag hotel-pms/config-service:ci --file config-service/Dockerfile .
           docker build --tag hotel-pms/auth-service:ci --file auth-service/Dockerfile .
@@ -134,7 +137,7 @@ jobs:
           INTERNAL_HMAC_SECRET="${CI_HMAC_SECRET}" \
           JWT_SECRET="${CI_JWT_SECRET}" \
           SPRING_PROFILES_ACTIVE=api-gateway \
-          ./gradlew :api-gateway:processAot --no-daemon --stacktrace --max-workers=2
+          ./gradlew :api-gateway:processAot -x :config-service:processAot --no-daemon --stacktrace --max-workers=2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

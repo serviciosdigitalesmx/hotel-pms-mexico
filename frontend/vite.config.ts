@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
-    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'e2e/**', 'e2e-live/**'],
+    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'e2e/**', 'e2e-live/**', 'e2e-native-stack/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
         'node_modules/**',
         'dist/**',
         'e2e/**',
+        'e2e-live/**',
+        'e2e-native-stack/**',
         '**/*.config.*',
         '**/setupTests.*',
         '**/*.d.ts',

@@ -4,7 +4,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
     // Opt-in Native Image toolchain; the existing JVM Dockerfile remains the fallback.
-    id("org.graalvm.buildtools.native") version "0.10.6"
+    id("org.graalvm.buildtools.native")
 }
 
 group = "com.hotelpms"
