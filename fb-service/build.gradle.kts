@@ -3,6 +3,8 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
+    // Opt-in Native Image toolchain; the existing JVM Dockerfile remains the fallback.
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -16,6 +18,22 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.fb.FbApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                // Cheap reachability/runtime iteration before the optimized build.
+                buildArgs.add("-Ob")
+            } else {
+                buildArgs.add("-O2")
+            }
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 configurations {
@@ -102,4 +120,24 @@ dependencyManagement {
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("net.bytebuddy.experimental", "true")
+}
+
+// Spring AOT test sources are generated framework code. Keep the inexpensive
+// JVM regression suite focused on handwritten tests and avoid resolving Config
+// Server for processTestAot.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }

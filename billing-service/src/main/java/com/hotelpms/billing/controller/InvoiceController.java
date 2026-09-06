@@ -52,8 +52,6 @@ import java.util.UUID;
 @Slf4j
 public class InvoiceController {
 
-    private static final String DENY_ALL_AUTHORITY = "denyAll()";
-
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final String PDF_FILENAME_PREFIX = "fattura-";
     private static final String PDF_EXTENSION = ".pdf";
@@ -247,7 +245,7 @@ public class InvoiceController {
      * @return UTF-8 encoded XML bytes with {@code Content-Disposition: attachment} header
      */
     @GetMapping(value = "/{id}/fatturaPA", produces = "application/xml;charset=UTF-8")
-    @PreAuthorize(DENY_ALL_AUTHORITY)
+    @PreAuthorize(DENY_ALL)
     public ResponseEntity<byte[]> getFatturaPAXml(@NonNull @PathVariable final UUID id) {
         log.info("REST request to generate FatturaPA XML for invoice {}", id);
         final byte[] xml = fatturaPAService.generateXml(id);
@@ -272,7 +270,7 @@ public class InvoiceController {
      * @return 200 with no body if generation would succeed
      */
     @GetMapping("/{id}/fatturaPA/validate")
-    @PreAuthorize(DENY_ALL_AUTHORITY)
+    @PreAuthorize(DENY_ALL)
     public ResponseEntity<Void> validateFatturaPAXml(@NonNull @PathVariable final UUID id) {
         fatturaPAService.validateXmlGeneration(id);
         return ResponseEntity.ok().build();
@@ -287,7 +285,7 @@ public class InvoiceController {
      * @return the updated invoice response
      */
     @PatchMapping("/{id}/sdi-status")
-    @PreAuthorize(DENY_ALL_AUTHORITY)
+    @PreAuthorize(DENY_ALL)
     public ResponseEntity<InvoiceResponse> updateSdiStatus(
             @NonNull @PathVariable final UUID id,
             @NonNull @Valid @RequestBody final SdiStatusRequest request) {
@@ -313,7 +311,7 @@ public class InvoiceController {
      * @return ZIP bytes with {@code Content-Disposition: attachment} header
      */
     @GetMapping(value = "/export", produces = "application/zip")
-    @PreAuthorize(DENY_ALL_AUTHORITY)
+    @PreAuthorize(DENY_ALL)
     public ResponseEntity<byte[]> exportBatch(
             @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate from,
             @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate to,

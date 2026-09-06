@@ -1,10 +1,13 @@
 package com.hotelpms.fb.config;
 
+import com.hotelpms.internalauth.feign.FeignAuthContext;
 import com.hotelpms.internalauth.feign.InternalFeignAuthInterceptor;
 import feign.RequestInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
@@ -37,6 +40,18 @@ public class FeignHeaderConfig {
      */
     @Bean
     public RequestInterceptor authHeaderInterceptor() {
-        return new InternalFeignAuthInterceptor(hmacSecret, Optional::empty);
+        return new InternalFeignAuthInterceptor(hmacSecret, FeignHeaderConfig::resolveSecurityContext);
+    }
+
+    private static Optional<FeignAuthContext> resolveSecurityContext() {
+        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null
+                || !(authentication.getDetails() instanceof String hotelId)
+                || authentication.getAuthorities().isEmpty()) {
+            return Optional.empty();
+        }
+        final String role = authentication.getAuthorities().iterator().next().getAuthority()
+                .replaceFirst("^ROLE_", "");
+        return Optional.of(new FeignAuthContext(authentication.getName(), role, hotelId));
     }
 }

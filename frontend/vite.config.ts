@@ -6,8 +6,8 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  // The ESLint Vite watcher is useful in dev/build, but it keeps a process
-  // alive after Vitest has completed in CI. Unit tests do not need that plugin.
+  // The ESLint Vite watcher keeps the dev server alive after Vitest completes.
+  // Keep it enabled for dev/build, but not for the isolated test server.
   plugins: [react(), ...(mode === 'test' ? [] : [eslint()])],
   test: {
     globals: true,
