@@ -1,0 +1,16 @@
+# Used instead of the repository .dockerignore for the native gateway build.
+# Keep only Gradle inputs, gateway source, and the real Config Server JAR used
+# during AOT.
+*
+!gradlew
+!gradle/
+!gradle/**
+!settings.gradle.kts
+!build.gradle.kts
+!api-gateway/
+!api-gateway/**
+api-gateway/build/
+!config-service/
+!config-service/build/
+!config-service/build/libs/
+!config-service/build/libs/*.jar

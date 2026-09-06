@@ -62,6 +62,7 @@ public class InvoiceController {
     private static final String ZIP_FILENAME_PREFIX = "fatturaPA-export-";
     private static final String ZIP_EXTENSION = ".zip";
     private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
+    private static final String DENY_ALL = "denyAll()";
 
     private final InvoiceService invoiceService;
     private final FatturaPAService fatturaPAService;

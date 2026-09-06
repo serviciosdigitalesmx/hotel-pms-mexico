@@ -28,7 +28,8 @@ vi.mock('focus-trap-react', () => ({
 
 const GUEST_WITH_FISCAL = {
   id: 'g2', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com',
-  fiscalCode: 'RSSMRA74D22A001Q', active: true,
+  rfc: 'RSSMRA74D22A001Q', fiscalName: 'Mario Rossi', fiscalPostalCode: '64000',
+  fiscalRegime: '612', cfdiUse: 'G03', active: true,
   createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00',
 };
 
@@ -118,7 +119,7 @@ describe('GuestFormModal', () => {
   describe('fiscal section', () => {
     it('is collapsed by default in add mode', () => {
       render(<GuestFormModal onClose={vi.fn()} onSaved={vi.fn()} />);
-      expect(screen.queryByLabelText(/label_fiscal_code/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('RFC')).not.toBeInTheDocument();
     });
 
     it('expands and collapses when toggle button is clicked', () => {
@@ -126,16 +127,16 @@ describe('GuestFormModal', () => {
       const toggle = screen.getByRole('button', { name: /section_fiscal_data/i });
 
       fireEvent.click(toggle);
-      expect(screen.getByLabelText(/label_fiscal_code/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('RFC')).toBeInTheDocument();
 
       fireEvent.click(toggle);
-      expect(screen.queryByLabelText(/label_fiscal_code/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('RFC')).not.toBeInTheDocument();
     });
 
     it('is expanded by default when guest has fiscal data', () => {
       render(<GuestFormModal guest={GUEST_WITH_FISCAL} onClose={vi.fn()} onSaved={vi.fn()} />);
-      expect(screen.getByLabelText(/label_fiscal_code/i)).toBeInTheDocument();
-      expect((screen.getByLabelText(/label_fiscal_code/i) as HTMLInputElement).value).toBe('RSSMRA74D22A001Q');
+      expect(screen.getByLabelText('RFC')).toBeInTheDocument();
+      expect((screen.getByLabelText('RFC') as HTMLInputElement).value).toBe('RSSMRA74D22A001Q');
     });
   });
 

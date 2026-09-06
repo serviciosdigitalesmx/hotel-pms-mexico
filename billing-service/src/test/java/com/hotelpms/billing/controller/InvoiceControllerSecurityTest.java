@@ -26,8 +26,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -38,10 +36,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Integration-level security tests for {@link InvoiceController}'s
  * fiscally-sensitive endpoints, protected by
- * {@code @PreAuthorize("hasAnyRole('ADMIN','OWNER')")} (round 2 exploratory
- * test, bug #5): {@code document-type}, {@code fatturaPA}, {@code sdi-status}
- * and the batch {@code export} were previously reachable by any authenticated
- * role, including RECEPTIONIST.
+ * {@code @PreAuthorize("denyAll()")} for the currently disabled fiscal
+ * operations: {@code fatturaPA}, {@code sdi-status} and batch {@code export}.
+ * The document-type endpoint remains role-protected separately.
  *
  * <p>Modeled on {@code MenuItemControllerSecurityTest} (fb-service):
  * default Spring Security auto-configurations are excluded so only
@@ -154,33 +151,29 @@ class InvoiceControllerSecurityTest {
     }
 
     @Test
-    void fatturaPAXmlReturnsOkForAdmin() throws Exception {
-        when(fatturaPAService.generateXml(INVOICE_ID)).thenReturn(new byte[0]);
-
+    void fatturaPAXmlRemainsDisabledForAdmin() throws Exception {
         mockMvc.perform(withAuthHeaders(
                         get(BASE_URL + "/{id}/fatturaPA", INVOICE_ID),
                         USER_ADMIN, ROLE_ADMIN, TEST_HOTEL_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    void updateSdiStatusReturnsOkForAdmin() throws Exception {
+    void updateSdiStatusRemainsDisabledForAdmin() throws Exception {
         mockMvc.perform(withAuthHeaders(
                         patch(BASE_URL + "/{id}/sdi-status", INVOICE_ID)
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                                 .content(SDI_STATUS_BODY),
                         USER_ADMIN, ROLE_ADMIN, TEST_HOTEL_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    void exportBatchReturnsOkForAdmin() throws Exception {
-        when(fatturaPAService.generateBatchZip(any(), any(), anyBoolean())).thenReturn(new byte[0]);
-
+    void exportBatchRemainsDisabledForAdmin() throws Exception {
         mockMvc.perform(withAuthHeaders(
                         get(BASE_URL + "/export?from=2026-01-01&to=2026-12-31"),
                         USER_ADMIN, ROLE_ADMIN, TEST_HOTEL_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     @Test

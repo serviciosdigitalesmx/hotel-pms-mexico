@@ -59,7 +59,11 @@ public class PublicBookingFilter
             @Value("${public-booking.resolver-url:"
                     + "http://frontdesk-service:8081/internal/public-hotels}")
             final String resolverUrl,
-            @Value("${public-booking.hotel-id}")
+            // Public booking is opt-in and currently has no route in the
+            // Config Server contract. Keep the gateway bootable when that
+            // optional resolver identity is not configured; the filter still
+            // fails closed with 502 if a route is enabled without it.
+            @Value("${public-booking.hotel-id:}")
             final String resolverIdentityHotelId,
             final WebClient.Builder webClientBuilder) {
 
