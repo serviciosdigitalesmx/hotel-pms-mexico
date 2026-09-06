@@ -1,0 +1,23 @@
+# Native build context keeps the real multi-project sources and the prebuilt
+# Config Server JAR used during Spring AOT, while excluding unrelated output.
+build/
+*/build/*
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
+.gradle/
+.git/
+.github/
+.add/
+.ralph-add/
+scripts/ci/
+frontend/
+docs/
+backup/
+argos
+argos-local
+.env
+.env.*
+**/.env
+**/.env.*
+*.backup-*
+*.env.backup-*

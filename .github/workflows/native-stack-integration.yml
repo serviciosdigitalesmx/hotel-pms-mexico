@@ -1,0 +1,122 @@
+name: All Native PMS stack integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/native-stack-validation]
+    paths:
+      - .github/workflows/native-stack-integration.yml
+      - scripts/ci/verify-native-stack-runtime.sh
+      - scripts/ci/native-stack-lifecycle.sh
+      - scripts/ci/test-native-stack-lifecycle.sh
+      - scripts/ci/load-native-stack-images.sh
+      - docker-compose.yml
+      - docker-compose.native-stack-ci.yml
+      - frontend/playwright-native.config.ts
+      - frontend/e2e-native-stack/**
+      - docs/native-stack-images.json
+      - frontend/Dockerfile
+      - frontend/nginx.conf
+
+concurrency:
+  group: native-stack-integration
+  cancel-in-progress: true
+
+jobs:
+
+  integrated-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      POSTGRES_PASSWORD: native-stack-ci-postgres-password
+      REDIS_PASSWORD: native-stack-ci-redis-password
+      CONFIG_SERVER_PASSWORD: native-stack-ci-config-password
+      INTERNAL_HMAC_SECRET: native-stack-ci-hmac-secret-with-sufficient-length
+      # CI-only Base64 HMAC key; keep the same encoding contract as Auth/Gateway.
+      JWT_SECRET: TmF0aXZlQXV0aC1jaS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
+      PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      CHROME_CHANNEL: chrome
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Inspect available runner resources
+        run: |
+          free -h
+          df -h /
+          nproc
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Load eight verified Native/JVM image pairs
+        id: images
+        run: bash scripts/ci/load-native-stack-images.sh
+      - name: Verify bounded sampler lifecycle failure paths
+        run: |
+          bash -n scripts/ci/verify-native-stack-runtime.sh scripts/ci/native-stack-lifecycle.sh
+          timeout --signal=TERM --kill-after=5s 30s bash scripts/ci/test-native-stack-lifecycle.sh
+      - name: Prepare real browser tests
+        id: browser
+        working-directory: frontend
+        run: |
+          npm ci --prefer-offline --fetch-timeout=60000 --fetch-retries=2
+          timeout 30s google-chrome --version
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the existing frontend
+        id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          load: true
+          tags: hotel-pms/frontend:stack-ci
+          cache-from: type=gha,scope=native-stack-frontend
+          cache-to: type=gha,scope=native-stack-frontend,mode=max
+      - name: Verify all Native services together through the frontend
+        id: native
+        run: bash scripts/ci/verify-native-stack-runtime.sh native
+      - name: Verify the paired JVM fallback with the same E2E flows
+        id: jvm
+        if: always() && steps.images.outcome == 'success' && steps.browser.outcome == 'success' && steps.frontend.outcome == 'success'
+        run: bash scripts/ci/verify-native-stack-runtime.sh jvm
+      - name: Compare the actual Flyway migration histories
+        if: always() && steps.native.outcome == 'success' && steps.jvm.outcome == 'success'
+        run: |
+          for database in hotel_auth hotel_guest hotel_frontdesk hotel_billing hotel_fb; do
+            jq -se '.[0] == .[1]' "build/native-stack-runtime/native/$database-flyway.json" \
+              "build/native-stack-runtime/jvm/$database-flyway.json" >/dev/null
+          done
+          echo 'Native/JVM Flyway history and checksum parity: PASS' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish stack measurements
+        if: always()
+        run: |
+          for mode in native jvm; do
+            if test -f "build/native-stack-runtime/$mode/metrics.txt"; then
+              cat "build/native-stack-runtime/$mode/metrics.txt" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+      - name: Final cleanup of this run's disposable Compose projects
+        if: always()
+        run: |
+          source scripts/ci/native-stack-lifecycle.sh
+          failed=0
+          for mode in native jvm; do
+            cleanup_ci_project "pms-native-ci-$GITHUB_RUN_ID-$mode" "$mode" || failed=1
+          done
+          exit "$failed"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-stack-integration-evidence
+          path: |
+            build/native-stack-runtime
+            build/native-stack-artifact-evidence
+          if-no-files-found: warn

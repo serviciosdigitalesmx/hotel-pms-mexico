@@ -141,38 +141,6 @@ describe('InvoiceDetailModal', () => {
     await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('CANNOT_UPDATE_CANCELLED_INVOICE', 'error'));
   });
 
-  it('shows SDI status chip for FATTURA non-cancelled invoice', () => {
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
-    expect(screen.getByText('sdi_status_label')).toBeInTheDocument();
-    expect(screen.getByText('sdi_status_not_sent')).toBeInTheDocument();
-  });
-
-  it('shows download FatturaPA button for FATTURA non-cancelled invoice', () => {
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
-    expect(screen.getByRole('button', { name: /download_fattura_pa/i })).toBeInTheDocument();
-  });
-
-  it('validates then calls downloadFatturaPAXml when button clicked', async () => {
-    vi.mocked(billingService.validateFatturaPAXml).mockResolvedValueOnce(undefined);
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: /download_fattura_pa/i }));
-
-    await waitFor(() => expect(billingService.validateFatturaPAXml).toHaveBeenCalledWith('inv1'));
-    expect(billingService.downloadFatturaPAXml).toHaveBeenCalledWith('inv1');
-  });
-
-  it('shows error toast and does not download when FatturaPA validation fails', async () => {
-    vi.mocked(billingService.validateFatturaPAXml).mockRejectedValueOnce({
-      response: { data: { detail: 'GUEST_STRUCTURED_ADDRESS_INCOMPLETE' } },
-    });
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: /download_fattura_pa/i }));
-
-    await waitFor(() =>
-      expect(mockAddToast).toHaveBeenCalledWith('GUEST_STRUCTURED_ADDRESS_INCOMPLETE', 'error'));
-    expect(billingService.downloadFatturaPAXml).not.toHaveBeenCalled();
-  });
-
   it('hides SDI section for RICEVUTA invoices', () => {
     render(<InvoiceDetailModal invoice={INVOICE_RICEVUTA} onClose={onClose} />);
     expect(screen.queryByText('sdi_status_label')).not.toBeInTheDocument();

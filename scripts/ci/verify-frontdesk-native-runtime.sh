@@ -1,0 +1,412 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+RESULT_DIR="${GITHUB_WORKSPACE:-$(pwd)}/build/frontdesk-native-runtime"
+NETWORK_NAME="frontdesk-native-ci"
+POSTGRES_CONTAINER="frontdesk-native-postgres"
+REDIS_CONTAINER="frontdesk-native-redis"
+CONFIG_CONTAINER="frontdesk-native-config"
+GUEST_CONTAINER="frontdesk-native-guest"
+BILLING_CONTAINER="frontdesk-native-billing"
+NATIVE_CONTAINER="frontdesk-service-native"
+JVM_CONTAINER="frontdesk-service-jvm"
+
+: "${CI_POSTGRES_PASSWORD:?CI_POSTGRES_PASSWORD is required}"
+: "${CI_REDIS_PASSWORD:?CI_REDIS_PASSWORD is required}"
+: "${CI_CONFIG_PASSWORD:?CI_CONFIG_PASSWORD is required}"
+: "${CI_HMAC_SECRET:?CI_HMAC_SECRET is required}"
+
+mkdir -p "${RESULT_DIR}"
+GATE_PHASE=bootstrap
+
+collect_evidence() {
+  docker ps -a > "${RESULT_DIR}/docker-ps.txt" 2>&1 || true
+  for container in "${CONFIG_CONTAINER}" "${POSTGRES_CONTAINER}" "${REDIS_CONTAINER}" \
+      "${GUEST_CONTAINER}" "${BILLING_CONTAINER}" "${NATIVE_CONTAINER}" "${JVM_CONTAINER}"; do
+    docker logs "${container}" > "${RESULT_DIR}/${container}.log" 2>&1 || true
+  done
+}
+finalize_gate() {
+  local status=$?
+  collect_evidence
+  if [[ "${status}" -eq 0 ]]; then
+    printf 'NATIVE_GATE_PASS phase=%s\n' "${GATE_PHASE}" > "${RESULT_DIR}/gate-status.txt"
+  else
+    printf 'NATIVE_GATE_FAIL phase=%s exit=%s\n' "${GATE_PHASE}" "${status}" | tee "${RESULT_DIR}/gate-status.txt" >&2
+  fi
+  exit "${status}"
+}
+trap finalize_gate EXIT
+
+wait_for_health() {
+  local label="$1" url="$2" attempts="${3:-90}" container="${4:-}"
+  local response state
+  for ((i = 1; i <= attempts; i++)); do
+    response="$(curl --silent --show-error --max-time 3 "${url}" 2>/dev/null || true)"
+    if jq -e '.status == "UP"' >/dev/null 2>&1 <<<"${response}"; then
+      return 0
+    fi
+    if [[ -n "${container}" ]]; then
+      state="$(docker inspect --format '{{.State.Status}}' "${container}" 2>/dev/null || true)"
+      if [[ "${state}" == exited || "${state}" == dead ]]; then
+        echo "${label} stopped before becoming UP" >&2
+        return 1
+      fi
+    fi
+    sleep 2
+  done
+  echo "${label} did not become UP at ${url}" >&2
+  return 1
+}
+
+signed_request() {
+  local method="$1" url="$2" hotel_id="$3" nonce="$4" output_file="$5" body="${6:-}"
+  local role="${7:-ADMIN}"
+  local timestamp signature http_status curl_rc
+  timestamp="$(date +%s%3N)"
+  signature="$(printf '%s' "ci-admin:${role}:${hotel_id}:${timestamp}:${nonce}" \
+    | openssl dgst -sha256 -hmac "${CI_HMAC_SECRET}" -r | awk '{print $1}')"
+  local curl_args=(
+    --silent --show-error --max-time 30 --output "${output_file}" --write-out '%{http_code}'
+    --request "${method}"
+    --header 'X-Auth-User: ci-admin'
+    --header "X-Auth-Role: ${role}"
+    --header "X-Auth-Hotel: ${hotel_id}"
+    --header "X-Auth-Timestamp: ${timestamp}"
+    --header "X-Auth-Nonce: ${nonce}"
+    --header "X-Internal-Signature: ${signature}"
+  )
+  if [[ -n "${body}" ]]; then
+    curl_args+=(--header 'Content-Type: application/json' --data "${body}")
+  fi
+  curl_rc=0
+  if http_status="$(curl "${curl_args[@]}" "${url}")"; then
+    :
+  else
+    curl_rc=$?
+  fi
+  printf 'signed_request curl_rc=%s http_status=%s method=%s url=%s\n' \
+    "${curl_rc}" "${http_status:-000}" "${method}" "${url}" >&2
+  if [[ "${curl_rc}" -ne 0 ]]; then
+    printf '000\n'
+  else
+    printf '%s\n' "${http_status:-000}"
+  fi
+}
+
+unsigned_request_status() {
+  local output_file="$1" url="$2" http_status curl_rc
+  : > "${output_file}"
+  if http_status="$(curl --silent --show-error --max-time 10 --output "${output_file}" \
+    --write-out '%{http_code}' "${url}" 2>"${output_file}.stderr")"; then
+    curl_rc=0
+  else
+    curl_rc=$?
+  fi
+  printf 'curl_rc=%s http_status=%s url=%s\n' "${curl_rc}" "${http_status:-000}" "${url}" \
+    | tee "${output_file}.meta" >&2
+  printf '%s\n' "${http_status:-000}"
+}
+
+echo "Starting real Config Server"
+docker network create "${NETWORK_NAME}" >/dev/null
+docker run --detach --name "${CONFIG_CONTAINER}" --network "${NETWORK_NAME}" --network-alias config-server \
+  --publish 18888:8888 --publish 18090:8090 \
+  --env "CONFIG_SERVER_PASSWORD=${CI_CONFIG_PASSWORD}" \
+  --env 'JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError' \
+  hotel-pms/config-service:ci >/dev/null
+wait_for_health config-service http://127.0.0.1:18090/actuator/health 90 "${CONFIG_CONTAINER}"
+curl --silent --show-error --fail --user "configuser:${CI_CONFIG_PASSWORD}" \
+  http://127.0.0.1:18888/frontdesk-service/default \
+  | jq -e '.name == "frontdesk-service"' >/dev/null
+
+echo "Starting PostgreSQL and Redis"
+docker run --detach --name "${POSTGRES_CONTAINER}" --network "${NETWORK_NAME}" --network-alias postgres \
+  --env POSTGRES_USER=postgres --env "POSTGRES_PASSWORD=${CI_POSTGRES_PASSWORD}" \
+  postgres:15-alpine >/dev/null
+docker run --detach --name "${REDIS_CONTAINER}" --network "${NETWORK_NAME}" --network-alias redis \
+  redis:8.8.1-alpine redis-server --requirepass "${CI_REDIS_PASSWORD}" >/dev/null
+
+postgres_ready_streak=0
+for _ in {1..60}; do
+  if docker exec "${POSTGRES_CONTAINER}" pg_isready --username postgres >/dev/null 2>&1 \
+      && docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname postgres \
+      --tuples-only --no-align --command 'select 1;' 2>/dev/null | grep -qx 1; then
+    postgres_ready_streak=$((postgres_ready_streak + 1))
+    [[ "${postgres_ready_streak}" -ge 2 ]] && break
+  else
+    postgres_ready_streak=0
+  fi
+  sleep 2
+done
+[[ "${postgres_ready_streak}" -ge 2 ]]
+for database in hotel_frontdesk hotel_frontdesk_jvm hotel_guest hotel_billing; do
+  docker exec "${POSTGRES_CONTAINER}" createdb --username postgres "${database}"
+done
+for _ in {1..30}; do
+  if docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" ping 2>/dev/null \
+      | grep -qx PONG; then
+    break
+  fi
+  sleep 1
+done
+docker exec "${REDIS_CONTAINER}" redis-cli --pass "${CI_REDIS_PASSWORD}" ping 2>/dev/null \
+  | grep -qx PONG
+
+common_env=(
+  --env CONFIG_SERVER_URL=http://frontdesk-native-config:8888
+  --env "CONFIG_SERVER_PASSWORD=${CI_CONFIG_PASSWORD}"
+  --env INTERNAL_REDIS_HOST=frontdesk-native-redis
+  --env "INTERNAL_REDIS_PASSWORD=${CI_REDIS_PASSWORD}"
+  --env "SPRING_DATA_REDIS_PASSWORD=${CI_REDIS_PASSWORD}"
+  --env SPRING_DATASOURCE_USERNAME=postgres
+  --env "SPRING_DATASOURCE_PASSWORD=${CI_POSTGRES_PASSWORD}"
+  --env "INTERNAL_HMAC_SECRET=${CI_HMAC_SECRET}"
+)
+
+echo "Starting JVM downstream services"
+docker run --detach --name "${GUEST_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias guest-service --publish 18083:8083 --publish 18093:8090 \
+  --env SPRING_PROFILES_ACTIVE=guest-service "${common_env[@]}" \
+  --env SPRING_DATASOURCE_URL=jdbc:postgresql://frontdesk-native-postgres:5432/hotel_guest \
+  --env APPLICATION_CONFIG_FRONTDESK_SERVICE_URL=http://frontdesk-service:8081 \
+  hotel-pms/guest-service:ci >/dev/null
+docker run --detach --name "${BILLING_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias billing-service --publish 18085:8085 --publish 18095:8090 \
+  --env SPRING_PROFILES_ACTIVE=billing-service "${common_env[@]}" \
+  --env SPRING_DATASOURCE_URL=jdbc:postgresql://frontdesk-native-postgres:5432/hotel_billing \
+  hotel-pms/billing-service:ci >/dev/null
+wait_for_health guest-service http://127.0.0.1:18093/actuator/health 120 "${GUEST_CONTAINER}"
+wait_for_health billing-service http://127.0.0.1:18095/actuator/health 120 "${BILLING_CONTAINER}"
+
+GATE_PHASE=native-runtime
+native_started_ms="$(date +%s%3N)"
+docker run --detach --name "${NATIVE_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias frontdesk-service --publish 18081:8081 --publish 18091:8090 \
+  --env SPRING_PROFILES_ACTIVE=frontdesk-service "${common_env[@]}" \
+  --env SPRING_DATASOURCE_URL=jdbc:postgresql://frontdesk-native-postgres:5432/hotel_frontdesk \
+  --env ALLOGGIATI_USERNAME=ci-placeholder-user \
+  --env ALLOGGIATI_PASSWORD=ci-placeholder-password \
+  --env ALLOGGIATI_WS_KEY=ci-placeholder-ws-key \
+  --env ALLOGGIATI_DRY_RUN=true \
+  --env ALLOGGIATI_CREDENTIALS_ENCRYPTION_KEY=ci-placeholder-encryption-key \
+  --env ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT=deadbeefdeadbeefdeadbeefdeadbeef \
+  hotel-pms/frontdesk-service-native:ci >/dev/null
+wait_for_health frontdesk-service-native http://127.0.0.1:18091/actuator/health 150 "${NATIVE_CONTAINER}"
+native_ready_ms="$(date +%s%3N)"
+native_startup_ms=$((native_ready_ms - native_started_ms))
+native_health="$(curl --silent --show-error --fail http://127.0.0.1:18091/actuator/health)"
+printf '%s\n' "${native_health}" > "${RESULT_DIR}/native-health.json"
+jq -e '.status == "UP"' >/dev/null <<<"${native_health}"
+native_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${NATIVE_CONTAINER}")"
+native_image_size="$(docker image inspect hotel-pms/frontdesk-service-native:ci --format '{{.Size}}')"
+
+run_business_gate() {
+  local label="$1" app_url="$2" database="$3"
+  local RESULT_DIR="${RESULT_DIR}/${label}"
+  mkdir -p "${RESULT_DIR}"
+  hotel_a=00000000-0000-0000-0000-000000000101
+  hotel_b=00000000-0000-0000-0000-000000000202
+  tomorrow="$(date -u -d '+1 day' +%F)"
+  checkout="$(date -u -d '+3 day' +%F)"
+
+  missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/native-missing-hmac.json" \
+    --write-out '%{http_code}' ${app_url}/api/v1/rooms)"
+  [[ "${missing_hmac_code}" == 401 ]]
+
+  guest_payload="$(jq -nc --arg email "${label}-frontdesk@example.test" '{firstName:"Native",lastName:"Frontdesk",email:$email}')"
+  guest_code="$(signed_request POST http://127.0.0.1:18083/api/v1/guests "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/guest-create.json" "${guest_payload}")"
+  [[ "${guest_code}" == 201 ]]
+  guest_id="$(jq -er '.id' "${RESULT_DIR}/guest-create.json")"
+
+  room_type_payload="{\"name\":\"Native Deluxe ${guest_id:0:8}\",\"description\":\"CI room type\",\"maxOccupancy\":2,\"basePrice\":100.00}"
+  room_type_code="$(signed_request POST ${app_url}/api/v1/room-types "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/room-type.json" "${room_type_payload}")"
+  [[ "${room_type_code}" == 201 ]]
+  room_type_id="$(jq -er '.id' "${RESULT_DIR}/room-type.json")"
+  rbac_code="$(signed_request POST "${app_url}/api/v1/room-types" "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/rbac-room-type.json" "${room_type_payload}" RECEPTIONIST)"
+  [[ "${rbac_code}" == 403 ]]
+  room_payload="{\"hotelId\":\"${hotel_a}\",\"roomNumber\":\"N-${guest_id:0:8}\",\"roomTypeId\":\"${room_type_id}\",\"status\":\"CLEAN\"}"
+  room_code="$(signed_request POST ${app_url}/api/v1/rooms "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/room.json" "${room_payload}")"
+  [[ "${room_code}" == 201 ]]
+  room_id="$(jq -er '.id' "${RESULT_DIR}/room.json")"
+
+  reservation_payload="{\"guestId\":\"${guest_id}\",\"expectedGuests\":1,\"checkInDate\":\"${tomorrow}\",\"checkOutDate\":\"${checkout}\",\"status\":\"CONFIRMED\",\"lineItems\":[{\"roomId\":\"${room_id}\"}]}"
+  reservation_code="$(signed_request POST ${app_url}/api/v1/reservations "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/reservation.json" "${reservation_payload}")"
+  [[ "${reservation_code}" == 201 ]]
+  reservation_id="$(jq -er '.id' "${RESULT_DIR}/reservation.json")"
+
+  stay_payload="{\"hotelId\":\"${hotel_a}\",\"reservationId\":\"${reservation_id}\",\"guestId\":\"${guest_id}\",\"roomId\":\"${room_id}\",\"status\":\"EXPECTED\",\"occupantCount\":1,\"guests\":[{\"firstName\":\"Native\",\"lastName\":\"Frontdesk\",\"gender\":\"M\",\"dateOfBirth\":\"1990-01-01\",\"placeOfBirth\":\"Monterrey\",\"citizenship\":\"MX\",\"documentType\":\"PASSPORT\",\"documentNumber\":\"NATIVE123\",\"documentPlaceOfIssue\":\"MX\",\"isPrimaryGuest\":true,\"travellerType\":\"OSPITE_SINGOLO\",\"travelPurpose\":\"BUSINESS\"}]}"
+  checkin_code="$(signed_request POST ${app_url}/api/v1/stays "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/checkin.json" "${stay_payload}")"
+  echo "check-in HTTP status=${checkin_code}"
+  [[ "${checkin_code}" == 201 ]]
+  stay_id="$(jq -er '.id' "${RESULT_DIR}/checkin.json")"
+  invoice_id="$(jq -er '.invoiceId' "${RESULT_DIR}/checkin.json")"
+  echo "check-in identifiers extracted"
+  jq -e '.status == "CHECKED_IN" and .roomNumber != null' "${RESULT_DIR}/checkin.json" >/dev/null
+  echo "check-in response validation passed"
+
+  echo "Probing guest-service rejection without internal HMAC"
+  guest_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/guest-missing-hmac.json" \
+    "http://127.0.0.1:18083/api/v1/guests/${guest_id}")"
+  echo "guest-service missing HMAC status=${guest_missing_hmac_code}"
+  billing_missing_hmac_code="$(unsigned_request_status "${RESULT_DIR}/billing-missing-hmac.json" \
+    "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}")"
+  echo "billing-service missing HMAC status=${billing_missing_hmac_code}"
+  [[ "${guest_missing_hmac_code}" == 401 && "${billing_missing_hmac_code}" == 401 ]]
+
+  cross_tenant_code="$(signed_request GET "${app_url}/api/v1/reservations/${reservation_id}" \
+    "${hotel_b}" "$(openssl rand -hex 16)" "${RESULT_DIR}/cross-tenant.json")"
+  [[ "${cross_tenant_code}" == 404 ]]
+
+  replay_nonce="$(openssl rand -hex 16)"
+  replay_timestamp="$(date +%s%3N)"
+  replay_signature="$(printf '%s' "ci-admin:ADMIN:${hotel_a}:${replay_timestamp}:${replay_nonce}" \
+    | openssl dgst -sha256 -hmac "${CI_HMAC_SECRET}" -r | awk '{print $1}')"
+  replay_headers=(
+    --header 'X-Auth-User: ci-admin' --header 'X-Auth-Role: ADMIN'
+    --header "X-Auth-Hotel: ${hotel_a}" --header "X-Auth-Timestamp: ${replay_timestamp}"
+    --header "X-Auth-Nonce: ${replay_nonce}" --header "X-Internal-Signature: ${replay_signature}"
+  )
+  replay_first="$(curl --silent --output "${RESULT_DIR}/replay-first.json" --write-out '%{http_code}' \
+    "${replay_headers[@]}" ${app_url}/api/v1/rooms)"
+  replay_second="$(curl --silent --output "${RESULT_DIR}/replay-second.json" --write-out '%{http_code}' \
+    "${replay_headers[@]}" ${app_url}/api/v1/rooms)"
+  [[ "${replay_first}" == 200 && "${replay_second}" == 401 ]]
+
+  invoice_code="$(signed_request GET "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}" "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/invoice.json")"
+  [[ "${invoice_code}" == 200 ]]
+  invoice_total="$(jq -er '.totalAmount' "${RESULT_DIR}/invoice.json")"
+  payment_payload="{\"amount\":${invoice_total},\"paymentMethod\":\"CASH\",\"transactionReference\":\"native-ci\"}"
+  payment_code="$(signed_request POST "http://127.0.0.1:18085/api/v1/invoices/${invoice_id}/payments" "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/payment.json" "${payment_payload}")"
+  [[ "${payment_code}" == 201 ]]
+
+  checkout_code="$(signed_request PUT "${app_url}/api/v1/stays/${stay_id}/check-out" "${hotel_a}" \
+    "$(openssl rand -hex 16)" "${RESULT_DIR}/checkout.json")"
+  [[ "${checkout_code}" == 200 ]]
+  jq -e '.status == "CHECKED_OUT"' "${RESULT_DIR}/checkout.json" >/dev/null
+
+  flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname "${database}" \
+    --tuples-only --no-align --command 'select max(version::integer) from flyway_schema_history where success = true;')"
+  [[ "${flyway_latest}" == 20 ]]
+  persisted_rows="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname "${database}" \
+    --tuples-only --no-align --command "select count(*) from stays where id = '${stay_id}' and hotel_id = '${hotel_a}' and status = 'CHECKED_OUT';")"
+  [[ "${persisted_rows}" == 1 ]]
+
+
+  # Assert a second tenant cannot retrieve rooms or stays either.
+  for resource in "rooms/${room_id}" "stays/${stay_id}"; do
+    cross_code="$(signed_request GET "${app_url}/api/v1/${resource}" \
+      "${hotel_b}" "$(openssl rand -hex 16)" "${RESULT_DIR}/cross-${resource%%/*}.json")"
+    [[ "${cross_code}" == 404 ]]
+  done
+
+  cat > "${RESULT_DIR}/business-metrics.txt" <<METRICS
+${label}_rooms_reservations_stays=PASS
+${label}_checkin_status=CHECKED_IN
+${label}_checkout_status=CHECKED_OUT
+${label}_postgresql=PASS
+${label}_flyway_latest_version=${flyway_latest}
+${label}_persisted_checkout_rows=${persisted_rows}
+${label}_redis=PASS
+${label}_hmac_missing_headers=${missing_hmac_code}
+${label}_hmac_replay_first=${replay_first}
+${label}_hmac_replay_second=${replay_second}
+${label}_feign_guest_billing=CHECK_IN_ACCEPTED
+${label}_guest_service_hmac_missing_headers=${guest_missing_hmac_code}
+${label}_billing_service_hmac_missing_headers=${billing_missing_hmac_code}
+${label}_tenant_cross_hotel=${cross_tenant_code}
+${label}_tenant_rooms_stays=404
+${label}_rbac_receptionist_room_type_write=${rbac_code}
+METRICS
+
+}
+
+GATE_PHASE=native-business
+run_business_gate native http://127.0.0.1:18081 hotel_frontdesk
+GATE_PHASE=native-quotation-pdf
+native_pdf_exit=0
+python3 scripts/ci/verify-frontdesk-quotation-pdf.py native http://127.0.0.1:18081 \
+  "${RESULT_DIR}/native" || native_pdf_exit=$?
+if [[ "${CI_PDF_DIAGNOSTIC_ONLY:-false}" != true ]]; then
+[[ "${native_pdf_exit}" == 0 ]]
+GATE_PHASE=native-load-stability
+python3 scripts/ci/frontdesk-native-load.py native http://127.0.0.1:18081 \
+  http://127.0.0.1:18091 "${NATIVE_CONTAINER}" "${RESULT_DIR}/native"
+fi
+
+
+docker stop "${NATIVE_CONTAINER}" >/dev/null
+docker network disconnect "${NETWORK_NAME}" "${NATIVE_CONTAINER}"
+GATE_PHASE=jvm-control
+jvm_started_ms="$(date +%s%3N)"
+docker run --detach --name "${JVM_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias frontdesk-service --network-alias frontdesk-service-jvm --publish 28081:8081 --publish 28091:8090 \
+  --env SPRING_PROFILES_ACTIVE=frontdesk-service "${common_env[@]}" \
+  --env SPRING_DATASOURCE_URL=jdbc:postgresql://frontdesk-native-postgres:5432/hotel_frontdesk_jvm \
+  --env ALLOGGIATI_USERNAME=ci-placeholder-user --env ALLOGGIATI_PASSWORD=ci-placeholder-password \
+  --env ALLOGGIATI_WS_KEY=ci-placeholder-ws-key --env ALLOGGIATI_DRY_RUN=true \
+  --env ALLOGGIATI_CREDENTIALS_ENCRYPTION_KEY=ci-placeholder-encryption-key \
+  --env ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT=deadbeefdeadbeefdeadbeefdeadbeef \
+  --env 'JAVA_TOOL_OPTIONS=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError' \
+  hotel-pms/frontdesk-service-jvm:ci >/dev/null
+wait_for_health frontdesk-service-jvm http://127.0.0.1:28091/actuator/health 150 "${JVM_CONTAINER}"
+jvm_ready_ms="$(date +%s%3N)"
+jvm_startup_ms=$((jvm_ready_ms - jvm_started_ms))
+jvm_health="$(curl --silent --show-error --fail http://127.0.0.1:28091/actuator/health)"
+printf '%s\n' "${jvm_health}" > "${RESULT_DIR}/jvm-health.json"
+jq -e '.status == "UP"' >/dev/null <<<"${jvm_health}"
+jvm_missing_hmac_code="$(curl --silent --output "${RESULT_DIR}/jvm-missing-hmac.json" \
+  --write-out '%{http_code}' http://127.0.0.1:28081/api/v1/rooms)"
+[[ "${jvm_missing_hmac_code}" == 401 ]]
+jvm_memory="$(docker stats --no-stream --format '{{.MemUsage}}|{{.MemPerc}}' "${JVM_CONTAINER}")"
+jvm_image_size="$(docker image inspect hotel-pms/frontdesk-service-jvm:ci --format '{{.Size}}')"
+
+GATE_PHASE=jvm-business
+run_business_gate jvm http://127.0.0.1:28081 hotel_frontdesk_jvm
+GATE_PHASE=jvm-quotation-pdf
+jvm_pdf_exit=0
+python3 scripts/ci/verify-frontdesk-quotation-pdf.py jvm http://127.0.0.1:28081 \
+  "${RESULT_DIR}/jvm" || jvm_pdf_exit=$?
+if [[ "${CI_PDF_DIAGNOSTIC_ONLY:-false}" != true ]]; then
+[[ "${jvm_pdf_exit}" == 0 ]]
+GATE_PHASE=jvm-load-stability
+python3 scripts/ci/frontdesk-native-load.py jvm http://127.0.0.1:28081 \
+  http://127.0.0.1:28091 "${JVM_CONTAINER}" "${RESULT_DIR}/jvm"
+fi
+
+GATE_PHASE=complete
+cat > "${RESULT_DIR}/metrics.txt" <<METRICS
+source_commit=${GITHUB_SHA:-local}
+image_source_commit=${CI_IMAGE_SOURCE_COMMIT:-${GITHUB_SHA:-local}}
+pdf_diagnostic_only=${CI_PDF_DIAGNOSTIC_ONLY:-false}
+native_build_mode=${CI_NATIVE_BUILD_MODE:-unknown}
+native_startup_ms=${native_startup_ms}
+native_idle_memory=${native_memory}
+native_image_size_bytes=${native_image_size}
+native_health_status=UP
+native_config_server=AUTHENTICATED_REMOTE_CONFIG
+jvm_startup_ms=${jvm_startup_ms}
+jvm_idle_memory=${jvm_memory}
+jvm_image_size_bytes=${jvm_image_size}
+jvm_health_status=UP
+jvm_config_server=AUTHENTICATED_REMOTE_CONFIG
+quotation_pdf_native_exit=${native_pdf_exit}
+quotation_pdf_jvm_exit=${jvm_pdf_exit}
+zipkin_loki_export=NOT_TESTED
+integrated_all_native_stack=OWNED_BY_MAIN
+METRICS
+for metrics in "${RESULT_DIR}"/{native,jvm}/{business,load,pdf}-metrics.txt; do
+  if [[ -f "${metrics}" ]]; then cat "${metrics}" >> "${RESULT_DIR}/metrics.txt"; fi
+done
+cat "${RESULT_DIR}/metrics.txt"
+GATE_PHASE=quotation-pdf-result
+[[ "${native_pdf_exit}" == 0 && "${jvm_pdf_exit}" == 0 ]]
+GATE_PHASE=complete
