@@ -3,6 +3,7 @@ plugins {
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.danilopianini.gradle-java-qa") version "1.165.0"
+    id("org.graalvm.buildtools.native") version "0.10.6"
 }
 
 group = "com.hotelpms"
@@ -16,6 +17,21 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.auth.AuthApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                buildArgs.add("-Ob")
+            } else {
+                buildArgs.add("-O2")
+            }
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 configurations {
@@ -131,4 +147,24 @@ tasks.named("populateDefaultSpotBugsExcludes") {
             )
         )
     }
+}
+
+// AOT-generated framework sources are not handwritten application code. Keep
+// the cheap JVM test/QA path focused on the real source tree; nativeCompile
+// still runs processAot explicitly in the Native Docker builder.
+tasks.matching {
+    it.name in setOf(
+        "processTestAot",
+        "compileAotTestJava",
+        "processAotTestResources",
+        "aotTestClasses",
+        "checkstyleAot",
+        "checkstyleAotTest",
+        "pmdAot",
+        "pmdAotTest",
+        "spotbugsAot",
+        "spotbugsAotTest"
+    )
+}.configureEach {
+    enabled = false
 }

@@ -1,8 +1,10 @@
 package com.hotelpms.auth;
 
+import com.hotelpms.auth.config.AuthNativeRuntimeHints;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
@@ -11,6 +13,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @SpringBootApplication
 @EnableFeignClients
 @EnableJpaAuditing
+@ImportRuntimeHints(AuthNativeRuntimeHints.class)
 public class AuthApplication {
     /**
      * Dummy instance method to prevent PMD and Checkstyle from treating this as a utility class.

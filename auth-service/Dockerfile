@@ -4,5 +4,5 @@ RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 WORKDIR /app
 COPY auth-service/build/libs/*-SNAPSHOT.jar app.jar
-EXPOSE 8085
+EXPOSE 8087
 ENTRYPOINT ["java", "-jar", "app.jar"]
