@@ -3,6 +3,25 @@
 > Corte de evidencia: 2026-08-30. Fuente Git: `/Users/usuario/Desktop/HOTEL-PMS`.
 > No se considera una función validada E2E solo porque exista en un commit.
 
+## Actualización acotada ADD — Config Native, 2026-09-04
+
+Este bloque actualiza únicamente `config-service`; las secciones posteriores
+conservan su corte histórico. Rama `codex/config-native-direct`, PR #20, sin merge.
+
+| Bloque | Implementado y comprobado | Estado / evidencia |
+| --- | --- | --- |
+| Config Native O2 | Recursos YAML específicos de los siete clientes y compartidos incluidos; 39 combinaciones aplicación/perfil coinciden con JVM | PASS, SHA `a44f8fee350231be67e3218c53dd5bb00995a939`, [run 33830247446](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/runs/33830247446) |
+| Seguridad y observabilidad | Config 200 autenticado; 401 sin credenciales, contraseña incorrecta o credencial de compilación; health/liveness/readiness UP y Prometheus; secretos de clientes conservados como placeholders | PASS individual Native y JVM; sin cambios de política de seguridad/API/esquema |
+| Comparación y estabilidad | Native/JVM: arranque 616/3765 ms; RAM idle 60.27/217.3 MiB; RAM cargada máxima muestreada 98.85/283 MiB; imágenes 180867639/262590263 bytes; 180 s y cuatro clientes por runtime, sin errores/reinicios/OOM | PASS; evidencia O2 `9921959629` |
+| Entrega reutilizable | Imágenes Native y JVM juntas, etiquetas `:ci`, `:validated` y SHA completo, SHA256SUMS y recarga Docker verificados | Artefacto `9921959128`; [identidades, checksums y carga](CONFIG_NATIVE_FINAL_EVIDENCE.md#image-handoff-contract) |
+| Integración completa PMS | Consumo por los demás Native, E2E del stack, memoria total y comparación all-Native/all-JVM | Pendiente de la tarea coordinadora; no queda certificado por este gate individual |
+
+El PASS antiguo `33753485524` era insuficiente: la respuesta Native de auth solo
+contenía `application.yml`, mientras JVM sí incluía `auth-service.yml`. La
+corrección y las pruebas de contenido reales están en el
+[reporte final de Config](CONFIG_NATIVE_FINAL_EVIDENCE.md). Cierre documental
+posterior al O2: no cambia el SHA de las imágenes ni requiere recompilarlas.
+
 ## Estado Git que bloquea una versión única
 
 | Referencia | Commit | Relación |

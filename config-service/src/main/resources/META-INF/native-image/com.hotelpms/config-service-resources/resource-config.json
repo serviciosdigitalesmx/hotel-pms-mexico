@@ -1,0 +1,7 @@
+{
+  "resources": {
+    "includes": [
+      { "pattern": "config/.*\\.(yml|yaml)" }
+    ]
+  }
+}

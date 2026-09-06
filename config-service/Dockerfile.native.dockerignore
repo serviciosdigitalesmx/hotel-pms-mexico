@@ -1,0 +1,25 @@
+*/build/*
+!config-service/src/main/
+!config-service/src/test/
+.gradle/
+.git/
+.github/
+.add/
+.ralph-add/
+scripts/ci/
+frontend/
+docs/
+# Runtime recipes and Compose overrides are not inputs to nativeCompile.
+# BuildKit still reads the selected Dockerfile when it is excluded from COPY.
+**/Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+backup/
+argos
+argos-local
+*.backup-*
+*.env.backup-*
+.env
+.env.*
+**/.env
+**/.env.*

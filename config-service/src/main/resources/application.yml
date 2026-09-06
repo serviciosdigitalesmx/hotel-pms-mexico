@@ -11,6 +11,11 @@ spring:
       server:
         native:
           search-locations: classpath:/config/
+    # Config is packaged on the classpath for Native Image; it is not a
+    # refreshable runtime scope. Disabling refresh removes the unsupported
+    # RefreshScope controller from the AOT graph.
+    refresh:
+      enabled: false
   security:
     user:
       name: ${CONFIG_SERVER_USERNAME:configuser}
@@ -22,9 +27,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: "prometheus,health,info"
   endpoint:
     health:
       probes:
         enabled: true
       show-details: when-authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

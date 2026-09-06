@@ -14,11 +14,12 @@ import static org.springframework.security.config.Customizer.withDefaults;
 /**
  * Spring Security configuration for the Config Server.
  *
- * <p>All requests to the main application port (:8888) require HTTP Basic
- * authentication. Sessions are stateless because config clients authenticate
- * on every request; CSRF protection is disabled as there is no browser
- * session or form-based interaction. The management port (:8090) runs on a
- * separate embedded server and is not affected by this filter chain.
+ * <p>All configuration requests require HTTP Basic authentication. Health
+ * probes and Prometheus metrics are public because the compose Prometheus
+ * scraper and container health checks call the management port without
+ * credentials. Sessions are stateless because config clients authenticate on
+ * every request; CSRF protection is disabled as there is no browser session or
+ * form-based interaction.
  */
 @Configuration
 @EnableWebSecurity
@@ -38,7 +39,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health/**").permitAll()
+                .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
                 .anyRequest().authenticated())
             .httpBasic(withDefaults());
         return http.build();
