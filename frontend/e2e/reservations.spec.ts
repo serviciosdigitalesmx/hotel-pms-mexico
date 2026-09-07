@@ -136,6 +136,9 @@ test.describe('Reservations', () => {
     await page.route('**/api/v1/stays**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 }) }),
     );
+    await page.route('**/api/v1/stays/settings', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false, locale: 'en-US' }) }),
+    );
 
     await page.goto('/reservations');
     await expect(page.getByText('Mario Rossi')).toBeVisible({ timeout: 10000 });
