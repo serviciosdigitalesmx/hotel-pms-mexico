@@ -6,7 +6,6 @@ import java.text.Normalizer;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,10 +27,17 @@ public final class DeterministicParser {
     static final String SLOT_BATCH_COUNT = "batchCount";
 
     private static final String CHECK_IN_WORD = "checkin";
+    private static final int CENTURY_BASE_YEAR = 2000;
 
     private static final Pattern EMAIL = Pattern.compile(
             "[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}",
             Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern CHECK_IN_SEMANTICS = Pattern.compile(
+            ".*\\b(?:entra|entrada|llega|llegada|checkin|desde)\\b.*");
+
+    private static final Pattern CHECK_OUT_SEMANTICS = Pattern.compile(
+            ".*\\b(?:sale|salida|checkout|se va|hasta)\\b.*");
 
     private static final Pattern ISO_DATE =
             Pattern.compile("\\b(\\d{4})-(\\d{1,2})-(\\d{1,2})\\b");
@@ -148,15 +154,15 @@ public final class DeterministicParser {
          * - "checkin masivo"
          * - "checkin 10 cuartos"
          */
-        if ((text.contains("checkin")
+        if (text.contains(CHECK_IN_WORD)
                 && (text.contains("grupo")
                     || text.contains("masivo")
-                    || BATCH_COUNT.matcher(text).find()))
+                    || BATCH_COUNT.matcher(text).find())
                 || containsAny(
                         text,
-                        "checkin de grupo",
-                        "checkin grupal",
-                        "checkin masivo")) {
+                        CHECK_IN_WORD + " de grupo",
+                        CHECK_IN_WORD + " grupal",
+                        CHECK_IN_WORD + " masivo")) {
             return LocalIntent.BATCH_CHECK_IN;
         }
 
@@ -293,12 +299,7 @@ public final class DeterministicParser {
 
         return result.stream()
                 .sorted((a, b) -> Integer.compare(a.start(), b.start()))
-                .filter(DeterministicParser::notDuplicateMention)
                 .toList();
-    }
-
-    private static boolean notDuplicateMention(final DateMention mention) {
-        return true;
     }
 
     private static void addRelativeDates(
@@ -422,26 +423,19 @@ public final class DeterministicParser {
     }
 
     private static boolean hasBothDateSemantics(final String text) {
-        final boolean input = text.matches(
-                ".*\\b(?:entra|entrada|llega|llegada|checkin|desde)\\b.*");
-
-        final boolean output = text.matches(
-                ".*\\b(?:sale|salida|checkout|se va|hasta)\\b.*");
-
+        final boolean input = CHECK_IN_SEMANTICS.matcher(text).matches();
+        final boolean output = CHECK_OUT_SEMANTICS.matcher(text).matches();
         return input && output;
     }
 
     private static boolean hasCheckInSemantics(final String text) {
-        return text.matches(
-                ".*\\b(?:entra|entrada|llega|llegada|checkin|desde)\\b.*")
+        return CHECK_IN_SEMANTICS.matcher(text).matches()
                 && !hasCheckOutSemantics(text);
     }
 
     private static boolean hasCheckOutSemantics(final String text) {
-        return text.matches(
-                ".*\\b(?:sale|salida|checkout|se va|hasta)\\b.*")
-                && !text.matches(
-                        ".*\\b(?:entra|entrada|llega|llegada|checkin|desde)\\b.*");
+        return CHECK_OUT_SEMANTICS.matcher(text).matches()
+                && !CHECK_IN_SEMANTICS.matcher(text).matches();
     }
 
     private static LocalDate resolveMonthDay(
@@ -490,28 +484,20 @@ public final class DeterministicParser {
             return year;
         }
 
-        return 2000 + year;
+        return CENTURY_BASE_YEAR + year;
     }
 
     private static void extractGuest(
             final String text,
             final Map<String, String> entities) {
 
-        for (final Pattern pattern : List.of(CHECK_IN_GUEST, ACTION_GUEST, LEADING_GUEST)) {
-            final Matcher matcher = pattern.matcher(text);
-
-            if (!matcher.find()) {
-                continue;
-            }
-
-            final String candidate = trimGuestCandidate(matcher.group(1));
-
-            if (candidate.matches("[a-z][a-z ]{1,80}")) {
-                entities.put(SLOT_GUEST_QUERY, candidate);
-            }
-
-            return;
-        }
+        List.of(CHECK_IN_GUEST, ACTION_GUEST, LEADING_GUEST).stream()
+                .map(pattern -> pattern.matcher(text))
+                .filter(Matcher::find)
+                .findFirst()
+                .map(matcher -> trimGuestCandidate(matcher.group(1)))
+                .filter(candidate -> candidate.matches("[a-z][a-z ]{1,80}"))
+                .ifPresent(candidate -> entities.put(SLOT_GUEST_QUERY, candidate));
     }
 
     private static String trimGuestCandidate(final String candidate) {
@@ -561,6 +547,21 @@ public final class DeterministicParser {
     public record ParsedCommand(
             LocalIntent intent,
             Map<String, String> entities) {
+
+        /**
+         * Copies the entity map so callers cannot mutate the record state.
+         *
+         * @param intent classified local intent
+         * @param entities high-confidence values extracted from the message
+         */
+        public ParsedCommand {
+            entities = Map.copyOf(entities);
+        }
+
+        @Override
+        public Map<String, String> entities() {
+            return Map.copyOf(entities);
+        }
     }
 
     private record DateMention(

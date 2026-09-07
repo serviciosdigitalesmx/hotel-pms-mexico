@@ -28,7 +28,9 @@ class ResilientIntentFallbackHandlerTest {
         final AtomicBoolean fallbackCalled = new AtomicBoolean();
 
         final AssistantChatResponse result = handler.resolve(
-                () -> { throw new RetryableAiProviderException("provider unavailable"); },
+                () -> {
+                    throw new RetryableAiProviderException("provider unavailable");
+                },
                 () -> {
                     fallbackCalled.set(true);
                     return response("deterministic");
@@ -41,8 +43,12 @@ class ResilientIntentFallbackHandlerTest {
     @Test
     void propagatesFallbackFailureWithoutMaskingIt() {
         assertThatThrownBy(() -> handler.resolve(
-                () -> { throw new RetryableAiProviderException("provider unavailable"); },
-                () -> { throw new IllegalArgumentException("fallback failed"); }))
+                () -> {
+                    throw new RetryableAiProviderException("provider unavailable");
+                },
+                () -> {
+                    throw new IllegalArgumentException("fallback failed");
+                }))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("fallback failed");
     }
@@ -50,7 +56,9 @@ class ResilientIntentFallbackHandlerTest {
     @Test
     void propagatesNonProviderErrorsInsteadOfUsingFallback() {
         assertThatThrownBy(() -> handler.resolve(
-                () -> { throw new IllegalStateException("programming error"); },
+                () -> {
+                    throw new IllegalStateException("programming error");
+                },
                 () -> response("must not run")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("programming error");
@@ -59,7 +67,10 @@ class ResilientIntentFallbackHandlerTest {
     @Test
     void usesFallbackWhenRateLimiterRejectsCall() {
         assertThat(handler.resolve(
-                () -> { throw RequestNotPermitted.createRequestNotPermitted(RateLimiter.ofDefaults("test")); },
+                () -> {
+                    throw RequestNotPermitted.createRequestNotPermitted(
+                            RateLimiter.ofDefaults("test"));
+                },
                 () -> response("rate limited fallback")).answer())
                 .isEqualTo("rate limited fallback");
     }

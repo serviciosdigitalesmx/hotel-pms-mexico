@@ -60,6 +60,13 @@ public class AssistantService {
     private static final String COMPLETION_TOKENS_METRIC = "pms.ai.tokens.completion";
     private static final String TOTAL_TOKENS_METRIC = "pms.ai.tokens.total";
     private static final String REQUEST_DURATION_METRIC = "pms.ai.requests.duration";
+    private static final String DEFAULT_AI_MODEL = "qwen3:4b-instruct-2507-q4_K_M";
+    private static final String JSON_TYPE_FIELD = "type";
+    private static final double P50_PERCENTILE = 0.5;
+    private static final double P95_PERCENTILE = 0.95;
+    private static final double P99_PERCENTILE = 0.99;
+    private static final int HTTP_TOO_MANY_REQUESTS = 429;
+    private static final int HTTP_SERVER_ERROR = 500;
     private static final double TEMPERATURE = 0.1;
     private static final int MAX_OUTPUT_TOKENS = 1040;
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
@@ -91,7 +98,7 @@ public class AssistantService {
                 .orElseThrow(() -> new BadRequestException("AI_ASSISTANT_NOT_CONFIGURED"));
         ensureConfigured(settings);
         final String selectedModel =
-                safe(settings.getAiModel(), "qwen3:4b-instruct-2507-q4_K_M");
+                safe(settings.getAiModel(), DEFAULT_AI_MODEL);
         final boolean deepSeek = isDeepSeekModel(selectedModel);
 
         final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(
@@ -130,13 +137,13 @@ public class AssistantService {
         final ObjectNode body = objectMapper.createObjectNode();
         body.put(
                 "model",
-                safe(settings.getAiModel(), "qwen3:4b-instruct-2507-q4_K_M"));
+                safe(settings.getAiModel(), DEFAULT_AI_MODEL));
         final String selectedModel =
-                safe(settings.getAiModel(), "qwen3:4b-instruct-2507-q4_K_M");
+                safe(settings.getAiModel(), DEFAULT_AI_MODEL);
 
         if (isDeepSeekModel(selectedModel)) {
             final ObjectNode thinking = objectMapper.createObjectNode();
-            thinking.put("type", "disabled");
+            thinking.put(JSON_TYPE_FIELD, "disabled");
             body.set("thinking", thinking);
         } else {
             body.put("reasoning_effort", "none");
@@ -181,7 +188,7 @@ public class AssistantService {
     private ObjectNode toProviderToolCall(final AssistantToolCall call) {
         final ObjectNode node = objectMapper.createObjectNode();
         node.put("id", call.id());
-        node.put("type", FUNCTION_FIELD);
+        node.put(JSON_TYPE_FIELD, FUNCTION_FIELD);
         final ObjectNode function = node.putObject(FUNCTION_FIELD);
         function.put(NAME_FIELD, call.name());
         function.put("arguments", writeArguments(call.arguments()));
@@ -205,7 +212,8 @@ public class AssistantService {
                 + "Las consultas son automáticas. Las acciones son sólo propuestas y jamás se ejecutan hasta "
                 + "que el usuario autenticado revise los parámetros y pulse el botón Confirmar y ejecutar. "
                 + "No solicites ni proceses contraseñas, llaves API, tokens ni credenciales. No uses flujos "
-                + "fiscales CFDI 4.0 no proporcionados por el usuario. Si faltan datos, consulta primero o pregunta al usuario. Después de un "
+                + "fiscales CFDI 4.0 no proporcionados por el usuario. Si faltan datos, consulta primero "
+                + "o pregunta al usuario. Después de un "
                 + "resultado de herramienta, explica claramente qué ocurrió. Hotel: "
                 + safe(settings.getHotelName(), "Hotel") + ". Hora local: "
                 + ZonedDateTime.now(resolveZone(settings.getTimezone())) + ". Instrucciones: "
@@ -248,12 +256,19 @@ public class AssistantService {
             final Timer timer = Timer.builder(REQUEST_DURATION_METRIC)
                     .description("AI provider request duration")
                     .tags(PROVIDER_TAG, provider, MODEL_TAG, model)
-                    .publishPercentiles(0.5, 0.95, 0.99)
+                    .publishPercentiles(P50_PERCENTILE, P95_PERCENTILE, P99_PERCENTILE)
                     .register(meterRegistry);
             timerSample.stop(timer);
         }
     }
 
+    /**
+     * Records token usage counters keyed by provider and model.
+     *
+     * @param usage parsed usage JSON node
+     * @param provider AI provider name
+     * @param model configured model name
+     */
     void recordTokenUsage(
             final JsonNode usage,
             final String provider,
@@ -295,11 +310,6 @@ public class AssistantService {
         }
         return result;
     }
-
-
-
-
-
 
     /**
      * Resolves the installation-level Ollama OpenAI-compatible endpoint.
@@ -362,7 +372,7 @@ public class AssistantService {
             final JsonNode error = root.path("error");
 
             final String message = error.path("message").asText("");
-            final String type = error.path("type").asText("");
+            final String type = error.path(JSON_TYPE_FIELD).asText("");
             final String code = error.path("code").asText("");
 
             return "message=" + safeForLog(message)
@@ -401,6 +411,6 @@ public class AssistantService {
     }
 
     static boolean isRetryableProviderStatus(final int statusCode) {
-        return statusCode == 429 || statusCode >= 500;
+        return statusCode == HTTP_TOO_MANY_REQUESTS || statusCode >= HTTP_SERVER_ERROR;
     }
 }

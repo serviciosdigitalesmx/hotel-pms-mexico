@@ -14,6 +14,7 @@ import com.hotelpms.frontdesk.exception.NotFoundException;
 import com.hotelpms.frontdesk.reservations.service.ReservationService;
 import com.hotelpms.frontdesk.rooms.dto.RoomResponse;
 import com.hotelpms.frontdesk.stays.domain.StayStatus;
+import com.hotelpms.frontdesk.stays.domain.HotelSettings;
 import com.hotelpms.frontdesk.stays.dto.StayRequest;
 import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
 import com.hotelpms.frontdesk.stays.service.StayService;
@@ -38,6 +39,14 @@ import java.util.UUID;
 public final class LocalIntentRouter {
 
     private static final int MAX_GUEST_RESULTS = 10;
+    private static final int RESPONSE_INITIAL_CAPACITY = 256;
+    private static final String INDIVIDUAL = "INDIVIDUAL";
+    private static final String COMPANY = "COMPANY";
+    private static final String AGENCY = "AGENCY";
+    private static final String CONVENTION = "CONVENTION";
+    private static final String NO_CHANGE_MESSAGE = "No se realizó ningún cambio.";
+    private static final String NO_CHECK_IN_MESSAGE = "No se realizó ningún check-in.";
+    private static final String BATCH_KEY_PREFIX = "batch:";
     private static final String SLOT_GUEST_QUERY = DeterministicParser.SLOT_GUEST_QUERY;
     private static final String SLOT_OCCUPANT_COUNT = DeterministicParser.SLOT_OCCUPANT_COUNT;
     private static final String SLOT_ROOM_TYPE = DeterministicParser.SLOT_ROOM_TYPE;
@@ -77,7 +86,17 @@ public final class LocalIntentRouter {
     private final HotelSettingsRepository hotelSettingsRepository;
     private final ResilientIntentFallbackHandler fallbackHandler;
 
-    /** Constructor retained for existing direct unit-test wiring. */
+    /**
+     * Creates a router with its built-in deterministic fallback.
+     *
+     * @param sessionStore active conversation sessions
+     * @param parser deterministic intent and entity parser
+     * @param guestClient guest service client
+     * @param reservationService room availability service
+     * @param stayService stay operations service
+     * @param assistantService AI assistant service
+     * @param hotelSettingsRepository hotel settings repository
+     */
     public LocalIntentRouter(
             final ConversationSessionStore sessionStore,
             final DeterministicParser parser,
@@ -90,6 +109,18 @@ public final class LocalIntentRouter {
                 hotelSettingsRepository, new ResilientIntentFallbackHandler());
     }
 
+    /**
+     * Creates a router with an injectable fallback handler.
+     *
+     * @param sessionStore active conversation sessions
+     * @param parser deterministic intent and entity parser
+     * @param guestClient guest service client
+     * @param reservationService room availability service
+     * @param stayService stay operations service
+     * @param assistantService AI assistant service
+     * @param hotelSettingsRepository hotel settings repository
+     * @param fallbackHandler provider fallback boundary
+     */
     @Autowired
     public LocalIntentRouter(
             final ConversationSessionStore sessionStore,
@@ -194,7 +225,7 @@ public final class LocalIntentRouter {
                     hotelId, ex.getClass().getSimpleName());
             sessionStore.save(hotelId, userId, session);
             return response("El PMS rechazó la operación por una validación de negocio. "
-                    + "No se realizó ningún cambio.");
+                    + NO_CHANGE_MESSAGE);
         } catch (final ExternalServiceException ex) {
             log.warn("Local assistant dependency failed | hotelId={} | type={}",
                     hotelId, ex.getClass().getSimpleName());
@@ -268,7 +299,8 @@ public final class LocalIntentRouter {
             return response("No hay habitaciones disponibles para esas fechas"
                     + requestedTypeSuffix(session) + ".");
         }
-        final StringBuilder answer = new StringBuilder("Habitaciones disponibles (" + rooms.size() + "):\n");
+        final StringBuilder answer = new StringBuilder("Habitaciones disponibles (")
+                .append(rooms.size()).append("):\n");
         rooms.forEach(room -> answer.append(formatRoom(room)).append('\n'));
         return response(answer.toString().trim());
     }
@@ -404,9 +436,16 @@ public final class LocalIntentRouter {
     /**
      * Group/batch check-in.
      *
-     * The operator performs one conversational operation and confirms once.
+     * <p>The operator performs one conversational operation and confirms once.
      * Internally every StayService.checkIn call remains an independent real PMS
      * check-in, so one failure cannot be reported as a false global success.
+     *
+     * @param hotelId authenticated tenant
+     * @param session active conversation session
+     * @param command parsed command
+     * @param input raw operator input
+     * @param today reference date
+     * @return assistant response for the batch flow
      */
     private AssistantChatResponse handleBatchCheckIn(
             final UUID hotelId,
@@ -540,7 +579,7 @@ public final class LocalIntentRouter {
          * Particular no necesita nombre de organización.
          * Empresa, agencia y convenio sí.
          */
-        if (!"INDIVIDUAL".equals(originType)
+        if (!INDIVIDUAL.equals(originType)
                 && !session.has(
                         SLOT_BATCH_ORGANIZATION_NAME)) {
 
@@ -574,11 +613,11 @@ public final class LocalIntentRouter {
          */
         if (!session.has(SLOT_BATCH_BILLING_MODE)) {
 
-            if ("INDIVIDUAL".equals(originType)) {
+            if (INDIVIDUAL.equals(originType)) {
 
                 session.put(
                         SLOT_BATCH_BILLING_MODE,
-                        "INDIVIDUAL");
+                        INDIVIDUAL);
 
             } else if (session.getStep()
                     == ConversationStep.WAITING_BATCH_BILLING_MODE) {
@@ -658,25 +697,25 @@ public final class LocalIntentRouter {
                  "individual",
                  "particulares",
                  "individuales" ->
-                    "INDIVIDUAL";
+                    INDIVIDUAL;
 
             case "2",
                  "empresa",
                  "corporativo",
                  "corporativa" ->
-                    "COMPANY";
+                    COMPANY;
 
             case "3",
                  "agencia",
                  "agencia de viajes" ->
-                    "AGENCY";
+                    AGENCY;
 
             case "4",
                  "convenio",
                  "evento",
                  "convenio evento",
                  "convenio / evento" ->
-                    "CONVENTION";
+                    CONVENTION;
 
             default -> null;
         };
@@ -687,13 +726,13 @@ public final class LocalIntentRouter {
 
         return switch (originType) {
 
-            case "COMPANY" ->
+            case COMPANY ->
                     "¿Cuál es el nombre de la empresa?";
 
-            case "AGENCY" ->
+            case AGENCY ->
                     "¿Cuál es el nombre de la agencia?";
 
-            case "CONVENTION" ->
+            case CONVENTION ->
                     "¿Cuál es el nombre del convenio, evento "
                             + "u organización?";
 
@@ -729,14 +768,14 @@ public final class LocalIntentRouter {
         final String normalized =
                 DeterministicParser.normalize(input);
 
-        if (normalized.equals("1")
+        if ("1".equals(normalized)
                 || normalized.contains("individual")
                 || normalized.contains("separad")) {
 
-            return "INDIVIDUAL";
+            return INDIVIDUAL;
         }
 
-        if (normalized.equals("2")
+        if ("2".equals(normalized)
                 || normalized.contains("consolid")
                 || normalized.contains("empresa")
                 || normalized.contains("agencia")
@@ -745,7 +784,7 @@ public final class LocalIntentRouter {
             return "ORGANIZATION";
         }
 
-        if (normalized.equals("3")
+        if ("3".equals(normalized)
                 || normalized.contains("pendiente")
                 || normalized.contains("despues")
                 || normalized.contains("por definir")) {
@@ -761,16 +800,16 @@ public final class LocalIntentRouter {
 
         return switch (originType) {
 
-            case "INDIVIDUAL" ->
+            case INDIVIDUAL ->
                     "Particular / individual";
 
-            case "COMPANY" ->
+            case COMPANY ->
                     "Empresa";
 
-            case "AGENCY" ->
+            case AGENCY ->
                     "Agencia";
 
-            case "CONVENTION" ->
+            case CONVENTION ->
                     "Convenio / evento";
 
             default ->
@@ -783,7 +822,7 @@ public final class LocalIntentRouter {
 
         return switch (billingMode) {
 
-            case "INDIVIDUAL" ->
+            case INDIVIDUAL ->
                     "Individual";
 
             case "ORGANIZATION" ->
@@ -868,7 +907,7 @@ public final class LocalIntentRouter {
                             + LINE_BREAK
                             + "Disponibles: " + rooms.size()
                             + LINE_BREAK
-                            + "No se realizó ningún cambio.");
+                            + NO_CHANGE_MESSAGE);
         }
 
         final List<BatchResolvedGuest> resolved =
@@ -895,7 +934,7 @@ public final class LocalIntentRouter {
                                 + "Regístralo en Huéspedes y después "
                                 + "vuelve a pegar la lista completa."
                                 + LINE_BREAK
-                                + "No se realizó ningún check-in.");
+                                + NO_CHECK_IN_MESSAGE);
             }
 
             if (result.content().size() > 1) {
@@ -909,7 +948,7 @@ public final class LocalIntentRouter {
                                 + LINE_BREAK
                                 + "Usa un nombre más específico en la lista."
                                 + LINE_BREAK
-                                + "No se realizó ningún check-in.");
+                                + NO_CHECK_IN_MESSAGE);
             }
 
             final GuestResponse guest =
@@ -941,7 +980,7 @@ public final class LocalIntentRouter {
                                 + LINE_BREAK
                                 + "Corrige la lista."
                                 + LINE_BREAK
-                                + "No se realizó ningún check-in.");
+                                + NO_CHECK_IN_MESSAGE);
             }
 
             resolved.add(
@@ -954,7 +993,7 @@ public final class LocalIntentRouter {
         session.clearOptions();
 
         final StringBuilder proposal =
-                new StringBuilder(
+                new StringBuilder(RESPONSE_INITIAL_CAPACITY).append(
                         "[PROPUESTA DE CHECK-IN DE GRUPO]")
                         .append(LINE_BREAK)
                         .append("Origen: ")
@@ -992,7 +1031,7 @@ public final class LocalIntentRouter {
         for (final BatchResolvedGuest item : resolved) {
 
             final String key =
-                    "batch:" + number;
+                    BATCH_KEY_PREFIX + number;
 
             final String encoded =
                     item.guest().id()
@@ -1045,7 +1084,7 @@ public final class LocalIntentRouter {
 
             return response(
                     "Check-in de grupo cancelado. "
-                            + "No se realizó ningún cambio.");
+                            + NO_CHANGE_MESSAGE);
         }
 
         if (command.intent() != LocalIntent.CONFIRM) {
@@ -1078,7 +1117,7 @@ public final class LocalIntentRouter {
         final LocalDate checkOut =
                 LocalDate.parse(session.get(SLOT_CHECK_OUT));
 
-        final java.util.Set<String> currentlyAvailable =
+        final Set<String> currentlyAvailable =
                 filterByRequestedType(
                         reservationService.getAvailableRooms(
                                 checkIn,
@@ -1092,7 +1131,7 @@ public final class LocalIntentRouter {
 
             final String encoded =
                     session.getOptionIds().get(
-                            "batch:" + number);
+                            BATCH_KEY_PREFIX + number);
 
             if (encoded == null) {
                 session.setStep(
@@ -1130,7 +1169,7 @@ public final class LocalIntentRouter {
         int failed = 0;
 
         final StringBuilder answer =
-                new StringBuilder(
+                new StringBuilder(RESPONSE_INITIAL_CAPACITY).append(
                         "RESULTADO CHECK-IN DE GRUPO")
                         .append(LINE_BREAK)
                         .append(LINE_BREAK);
@@ -1138,7 +1177,7 @@ public final class LocalIntentRouter {
         for (int number = 1; number <= count; number++) {
 
             final String key =
-                    "batch:" + number;
+                    BATCH_KEY_PREFIX + number;
 
             final String encoded =
                     session.getOptionIds().get(key);
@@ -1188,7 +1227,13 @@ public final class LocalIntentRouter {
 
                 answer.append(LINE_BREAK);
 
-            } catch (final RuntimeException ex) {
+            } catch (final BadRequestException
+                    | ConflictException
+                    | NotFoundException
+                    | ExternalServiceException
+                    | FeignException
+                    | IllegalArgumentException
+                    | IllegalStateException ex) {
 
                 failed++;
 
@@ -1215,7 +1260,7 @@ public final class LocalIntentRouter {
         answer.append(LINE_BREAK)
                 .append("Completados: ")
                 .append(success)
-                .append("/")
+                .append('/')
                 .append(count);
 
         if (failed > 0) {
@@ -1274,17 +1319,6 @@ public final class LocalIntentRouter {
         return List.copyOf(result);
     }
 
-    private record BatchGuestLine(
-            String query,
-            int occupants) {
-    }
-
-    private record BatchResolvedGuest(
-            GuestResponse guest,
-            RoomResponse room,
-            int occupants) {
-    }
-
     private AssistantChatResponse resolveGuest(
             final ConversationSession session,
             final boolean forCheckIn,
@@ -1311,7 +1345,8 @@ public final class LocalIntentRouter {
         final StringBuilder answer = new StringBuilder("Encontré varios huéspedes. Elige una opción:\n");
         int option = 1;
         for (final GuestResponse guest : result.content()) {
-            final String key = Integer.toString(option++);
+            final String key = Integer.toString(option);
+            option++;
             final String label = fullName(guest) + formatEmail(guest.email());
             session.getOptionIds().put(key, guest.id().toString());
             session.getOptionLabels().put(key, label);
@@ -1442,7 +1477,8 @@ public final class LocalIntentRouter {
         final StringBuilder answer = new StringBuilder("Hay varias habitaciones disponibles. Elige una:\n");
         int option = 1;
         for (final RoomResponse room : rooms) {
-            final String key = Integer.toString(option++);
+            final String key = Integer.toString(option);
+            option++;
             session.getOptionIds().put(key, room.id().toString());
             session.getOptionLabels().put(key, formatRoom(room));
             answer.append(key).append(". ").append(formatRoom(room)).append('\n');
@@ -1551,7 +1587,7 @@ public final class LocalIntentRouter {
 
     private ZoneId resolveHotelZone(final UUID hotelId) {
         final String timezone = hotelSettingsRepository.findById(hotelId)
-                .map(settings -> settings.getTimezone())
+                .map(HotelSettings::getTimezone)
                 .orElse("America/Monterrey");
         try {
             return ZoneId.of(timezone);
@@ -1572,7 +1608,7 @@ public final class LocalIntentRouter {
     }
 
     private static String formatRoom(final RoomResponse room) {
-        final StringBuilder result = new StringBuilder("Habitación ")
+        final StringBuilder result = new StringBuilder(RESPONSE_INITIAL_CAPACITY).append("Habitación ")
                 .append(room.roomNumber()).append(" — ").append(room.roomType().name())
                 .append(" — capacidad ").append(room.roomType().maxOccupancy());
         final BigDecimal price = room.resolvedTotalPrice();
@@ -1605,7 +1641,6 @@ public final class LocalIntentRouter {
         return new AssistantChatResponse(answer, List.of());
     }
 
-
     private static boolean aiFirstEnabled() {
         final String configured = System.getenv("ASSISTANT_AI_FIRST");
 
@@ -1614,6 +1649,17 @@ public final class LocalIntentRouter {
         }
 
         return !"false".equalsIgnoreCase(configured.trim());
+    }
+
+    private record BatchGuestLine(
+            String query,
+            int occupants) {
+    }
+
+    private record BatchResolvedGuest(
+            GuestResponse guest,
+            RoomResponse room,
+            int occupants) {
     }
 
 }

@@ -13,24 +13,28 @@ import java.time.LocalDate;
 /**
  * Request DTO for guest creation and update operations.
  *
- * @param firstName   The first name of the guest.
- * @param lastName    The last name of the guest.
- * @param email       The email address of the guest (required if phone absent).
- * @param phone       The phone number of the guest (required if email absent).
- * @param address     The street address of the guest.
- * @param city        The city of the guest.
- * @param country     The country of the guest.
- * @param dateOfBirth  The date of birth of the guest.
- * @param fiscalCode   Italian Codice Fiscale or equivalent (optional).
- * @param vatNumber    Partita IVA / VAT number (optional).
- * @param companyName  Company / legal entity name (optional).
- * @param sdiCode      SDI/Destinatario code for electronic invoicing (optional).
- * @param pecEmail     PEC email for electronic invoicing (optional).
- * @param cap          CAP — Italian 5-digit postal code (optional; required only to
- *                     use this guest as FatturaPA cessionario).
- * @param comune       Comune — municipality name, validated together with {@code provincia}
- *                     (optional; required only to use this guest as FatturaPA cessionario).
- * @param provincia    Provincia — 2-letter province code, e.g. {@code "RM"} (optional).
+ * @param firstName         the first name of the guest
+ * @param lastName          the last name of the guest
+ * @param email             email address of the guest (required if phone absent)
+ * @param phone             phone number of the guest (required if email absent)
+ * @param address           street address of the guest
+ * @param city              city of the guest
+ * @param country           country of the guest
+ * @param dateOfBirth       date of birth of the guest
+ * @param rfc               Mexican RFC (optional)
+ * @param fiscalName        fiscal business name (optional)
+ * @param fiscalPostalCode  fiscal postal code (optional)
+ * @param fiscalRegime      fiscal regime code (optional)
+ * @param cfdiUse           CFDI usage code (optional)
+ * @param billingEmail      separate billing email (optional)
+ * @param fiscalCode        Italian Codice Fiscale or equivalent (optional)
+ * @param vatNumber         Partita IVA / VAT number (optional)
+ * @param companyName       company / legal entity name (optional)
+ * @param sdiCode           SDI/Destinatario code for electronic invoicing (optional)
+ * @param pecEmail          PEC email for electronic invoicing (optional)
+ * @param cap               CAP — Italian 5-digit postal code (optional)
+ * @param comune            Comune — municipality name (optional)
+ * @param provincia         Provincia — 2-letter province code (optional)
  */
 public record GuestRequest(
         @NotBlank
@@ -55,13 +59,13 @@ public record GuestRequest(
         @Pattern(regexp = ValidationConstants.LOCATION_PATTERN)
         String country,
         @Past LocalDate dateOfBirth,
-        @Size(max = 13)
+        @Size(max = ValidationConstants.MAX_RFC_LENGTH)
         @Pattern(
                 regexp = "^$|^[A-Za-zÑñ&]{3,4}[0-9]{6}[A-Za-z0-9]{3}$",
                 message = "RFC_INVALID")
         String rfc,
 
-        @Size(max = 200)
+        @Size(max = ValidationConstants.MAX_FISCAL_NAME_LENGTH)
         String fiscalName,
 
         @Pattern(
@@ -116,6 +120,11 @@ public record GuestRequest(
         return hasEmail || hasPhone;
     }
 
+    /**
+     * Requires a complete CFDI profile once any fiscal field is supplied.
+     *
+     * @return true when no fiscal field is supplied or the profile is complete
+     */
     @AssertTrue(message = "CFDI_PROFILE_INCOMPLETE")
     public boolean isCfdiProfileComplete() {
         final boolean anyCfdi =
@@ -125,15 +134,12 @@ public record GuestRequest(
                 || notBlank(fiscalRegime)
                 || notBlank(cfdiUse);
 
-        if (!anyCfdi) {
-            return true;
-        }
-
-        return notBlank(rfc)
+        final boolean completeProfile = notBlank(rfc)
                 && notBlank(fiscalName)
                 && notBlank(fiscalPostalCode)
                 && notBlank(fiscalRegime)
                 && notBlank(cfdiUse);
+        return !anyCfdi || completeProfile;
     }
 
     private static boolean notBlank(final String value) {
