@@ -139,7 +139,7 @@ test.describe('Reservations', () => {
 
     await page.goto('/reservations');
     await expect(page.getByText('Mario Rossi')).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /^Check In$/i }).click();
+    await page.getByRole('button', { name: /check in/i }).last().click();
     await expect(page).toHaveURL(/\/stays\/check-in\//);
   });
 
