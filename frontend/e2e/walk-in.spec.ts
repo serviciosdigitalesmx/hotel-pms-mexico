@@ -111,7 +111,7 @@ test.describe('Walk-in Check-in (México)', () => {
     );
     await page.goto('/stays/walk-in');
     await expect(page.locator('#walkin-room')).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /complete check.in/i }).click();
+    await page.getByRole('button', { name: /complete walk.in/i }).click();
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(page).toHaveURL(/\/stays\/walk-in/);
   });
@@ -164,7 +164,7 @@ test.describe('Walk-in Check-in (México)', () => {
     await page.locator('input[name="placeOfBirth"]').fill('Monterrey, México');
     await page.locator('input[name="citizenship"]').fill('México');
 
-    await page.getByRole('button', { name: /complete check.in/i }).click();
+    await page.getByRole('button', { name: /complete walk.in/i }).click();
     await expect(page).toHaveURL(/\/stays/, { timeout: 5000 });
   });
 });
