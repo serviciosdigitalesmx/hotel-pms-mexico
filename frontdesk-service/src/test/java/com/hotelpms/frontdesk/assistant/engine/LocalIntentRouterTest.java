@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -238,7 +239,7 @@ class LocalIntentRouterTest {
     }
 
     private static GuestResponse guest(final UUID id, final String firstName, final String lastName) {
-        return new GuestResponse(id, firstName, lastName, firstName.toLowerCase() + "@hotel.test");
+        return new GuestResponse(id, firstName, lastName, firstName.toLowerCase(Locale.ROOT) + "@hotel.test");
     }
 
     private static RoomResponse room(final UUID id, final String number) {

@@ -109,10 +109,13 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'es',
     fallbackLng: 'es',
     defaultNS: 'common',
     fallbackNS: 'common',
+    detection: {
+      order: ['querystring', 'navigator', 'htmlTag', 'localStorage'],
+      caches: [],
+    },
     interpolation: {
       escapeValue: false, // react already safes from xss
     },

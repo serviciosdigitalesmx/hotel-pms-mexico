@@ -71,7 +71,7 @@ async function mockDashboardApis(page: import('@playwright/test').Page): Promise
     }),
   );
   await page.route('**/api/v1/stays/settings', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false }) }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false, locale: 'en-US' }) }),
   );
   await page.route('**/api/v1/rooms**', (route) =>
     route.fulfill({

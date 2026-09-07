@@ -11,6 +11,11 @@ public final class ValidationConstants {
     public static final int MAX_PHONE_LENGTH = 20;
     public static final int MAX_ADDRESS_LENGTH = 255;
     public static final int MAX_LOCATION_LENGTH = 50;
+    public static final int MAX_RFC_LENGTH = 13;
+    public static final int MAX_FISCAL_NAME_LENGTH = 200;
+    public static final int MAX_FISCAL_POSTAL_CODE_LENGTH = 5;
+    public static final int MAX_FISCAL_REGIME_LENGTH = 3;
+    public static final int MAX_CFDI_USE_LENGTH = 4;
     public static final int MAX_DOCUMENT_NUMBER_LENGTH = 100;
     public static final int MAX_COUNTRY_LENGTH = 100;
     public static final int MAX_FISCAL_CODE_LENGTH = 16;

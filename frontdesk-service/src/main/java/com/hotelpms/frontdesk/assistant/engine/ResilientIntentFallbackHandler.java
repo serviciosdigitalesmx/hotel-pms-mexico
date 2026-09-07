@@ -18,8 +18,13 @@ public final class ResilientIntentFallbackHandler {
 
     /**
      * Resolves an intent through the primary provider and invokes the local resolver when it fails.
-     * The fallback is deliberately supplied by the router so it retains session locking and tenant
+     *
+     * <p>The fallback is deliberately supplied by the router so it retains session locking and tenant
      * context instead of bypassing the existing operational flow.
+     *
+     * @param primary supplier for the configured AI provider
+     * @param fallback supplier for the deterministic local resolver
+     * @return the assistant response chosen by the provider or the fallback
      */
     public AssistantChatResponse resolve(
             final Supplier<AssistantChatResponse> primary,
@@ -28,22 +33,13 @@ public final class ResilientIntentFallbackHandler {
         Objects.requireNonNull(fallback, "fallback");
         try {
             return primary.get();
-        } catch (final RuntimeException providerFailure) {
-            if (!isProviderFailure(providerFailure)) {
-                log.error("AI intent fallback boundary rejected non-provider error | type={}",
-                        providerFailure.getClass().getSimpleName(), providerFailure);
-                throw providerFailure;
-            }
+        } catch (final RetryableAiProviderException
+                | PermanentAiProviderException
+                | CallNotPermittedException
+                | RequestNotPermitted providerFailure) {
             log.warn("AI intent provider unavailable; using deterministic fallback | type={}",
                     providerFailure.getClass().getSimpleName());
             return fallback.get();
         }
-    }
-
-    private static boolean isProviderFailure(final RuntimeException failure) {
-        return failure instanceof RetryableAiProviderException
-                || failure instanceof PermanentAiProviderException
-                || failure instanceof CallNotPermittedException
-                || failure instanceof RequestNotPermitted;
     }
 }

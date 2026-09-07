@@ -147,15 +147,9 @@ public class GuestServiceImpl implements GuestService {
     }
 
     /**
-     * Validates that Comune and Provincia are either both absent (guest has no
-     * Italian structured address yet) or both present and matching a real, active
-     * municipality per the Alloggiati Web reference data owned by frontdesk-service
-     * (P0-1) — the same source already used for police check-in reporting (F2).
+     * Normalizes México guest fields before persistence.
      *
-     * @param comune    the comune name, or {@code null}
-     * @param provincia the 2-letter province code, or {@code null}
-     * @throws GuestValidationException if exactly one of the two is present, or the
-     *                                   pair doesn't match a real active comune
+     * @param guest the entity to normalize
      */
     private static void normalizeMexicoGuest(final Guest guest) {
         if (guest.getCountry() == null || guest.getCountry().isBlank()) {
@@ -193,6 +187,17 @@ public class GuestServiceImpl implements GuestService {
         }
     }
 
+    /**
+     * Validates that Comune and Provincia are either both absent (guest has no
+     * Italian structured address yet) or both present and matching a real, active
+     * municipality per the Alloggiati Web reference data owned by frontdesk-service
+     * (P0-1) — the same source already used for police check-in reporting (F2).
+     *
+     * @param comune    the comune name, or {@code null}
+     * @param provincia the 2-letter province code, or {@code null}
+     * @throws GuestValidationException if exactly one of the two is present, or the
+     *                                   pair doesn't match a real active comune
+     */
     private void validateComune(final String comune, final String provincia) {
         final boolean hasComune = comune != null && !comune.isBlank();
         final boolean hasProvincia = provincia != null && !provincia.isBlank();

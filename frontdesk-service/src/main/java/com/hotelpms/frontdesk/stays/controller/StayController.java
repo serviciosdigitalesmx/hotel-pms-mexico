@@ -48,6 +48,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/stays")
 @RequiredArgsConstructor
 public class StayController {
+    private static final String DENY_ALL = "denyAll()";
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
@@ -160,7 +161,7 @@ public class StayController {
      * @param date the check-in date in YYYY-MM-DD format
      * @return the downloadable fixed-width text report
      */
-    @PreAuthorize("denyAll()")
+    @PreAuthorize(DENY_ALL)
     @GetMapping("/reports/alloggiati")
     @SuppressWarnings("PMD.LooseCoupling")
     public ResponseEntity<byte[]> downloadAlloggiatiReport(
@@ -186,7 +187,7 @@ public class StayController {
      * @param date the check-in date in YYYY-MM-DD format
      * @return the downloadable JSON array of guest arrival records
      */
-    @PreAuthorize("denyAll()")
+    @PreAuthorize(DENY_ALL)
     @GetMapping("/reports/alloggiati/json")
     @SuppressWarnings("PMD.LooseCoupling")
     public ResponseEntity<List<AlloggiatiRowDto>> downloadAlloggiatiJson(
@@ -208,7 +209,7 @@ public class StayController {
      * @param date the check-in date in YYYY-MM-DD format
      * @return 200 OK on successful transmission
      */
-    @PreAuthorize("denyAll()")
+    @PreAuthorize(DENY_ALL)
     @PostMapping("/reports/alloggiati/submit")
     public ResponseEntity<Void> submitAlloggiatiReport(
             @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate date) {
@@ -224,7 +225,7 @@ public class StayController {
      *
      * @return the failure summary
      */
-    @PreAuthorize("denyAll()")
+    @PreAuthorize(DENY_ALL)
     @GetMapping("/reports/alloggiati/failures/summary")
     public ResponseEntity<AlloggiatiFailureSummaryResponse> getAlloggiatiFailureSummary() {
         return ResponseEntity.ok(stayService.getAlloggiatiFailureSummary(Objects.requireNonNull(extractHotelId())));

@@ -54,7 +54,7 @@ test.describe('Walk-in Check-in', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false }),
+        body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false, locale: 'en-US' }),
       }),
     );
     // Default empty rooms so /stays/walk-in doesn't trigger 401 → logout redirect.

@@ -49,6 +49,9 @@ public class Guest {
     private static final int MAX_ADDRESS_LENGTH = 255;
     private static final int MAX_LOCATION_LENGTH = 50;
     private static final int MAX_FISCAL_CODE_LENGTH = 16;
+    private static final int MAX_RFC_LENGTH = 13;
+    private static final int MAX_FISCAL_NAME_LENGTH = 200;
+    private static final int MAX_FISCAL_POSTAL_CODE_LENGTH = 5;
     private static final int MAX_VAT_NUMBER_LENGTH = 20;
     private static final int MAX_COMPANY_NAME_LENGTH = 200;
     private static final int MAX_SDI_CODE_LENGTH = 7;
@@ -88,13 +91,13 @@ public class Guest {
     @Column(length = MAX_LOCATION_LENGTH)
     private String country;
 
-    @Column(name = "rfc", length = 13)
+    @Column(name = "rfc", length = MAX_RFC_LENGTH)
     private String rfc;
 
-    @Column(name = "fiscal_name", length = 200)
+    @Column(name = "fiscal_name", length = MAX_FISCAL_NAME_LENGTH)
     private String fiscalName;
 
-    @Column(name = "fiscal_postal_code", length = 5)
+    @Column(name = "fiscal_postal_code", length = MAX_FISCAL_POSTAL_CODE_LENGTH)
     private String fiscalPostalCode;
 
     @Column(name = "fiscal_regime", length = 3)

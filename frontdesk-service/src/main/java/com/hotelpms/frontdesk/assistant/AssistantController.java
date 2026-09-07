@@ -15,13 +15,21 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/** REST boundary for the conversational PMS assistant. */
 @RestController
 @RequestMapping("/api/v1/stays/assistant")
 @RequiredArgsConstructor
+@SuppressWarnings("checkstyle:DesignForExtension")
 public class AssistantController {
 
     private final AssistantService assistantService;
 
+    /**
+     * Resolves one assistant turn for the authenticated hotel operator.
+     *
+     * @param request validated chat request
+     * @return assistant response with the next answer or proposed operation
+     */
     @PostMapping("/chat")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')")
     public AssistantChatResponse chat(

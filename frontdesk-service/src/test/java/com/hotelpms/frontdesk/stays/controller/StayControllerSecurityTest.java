@@ -1,7 +1,6 @@
 package com.hotelpms.frontdesk.stays.controller;
 
 import com.hotelpms.internalauth.security.NonceStore;
-import com.hotelpms.frontdesk.stays.dto.AlloggiatiRowDto;
 import com.hotelpms.frontdesk.security.SecurityConfig;
 import com.hotelpms.frontdesk.stays.service.AlloggiatiReportService;
 import com.hotelpms.frontdesk.stays.service.AlloggiatiWebSenderService;
@@ -25,21 +24,18 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Integration-level security tests for StayController endpoints protected by
- * {@code @PreAuthorize("hasAnyRole('ADMIN','OWNER')")}.
+ * Integration-level security tests for StayController endpoints that remain
+ * disabled with {@code @PreAuthorize("denyAll()")} in the México runtime.
  *
  * <p>Default Spring Security auto-configurations are excluded so that only
  * {@link SecurityConfig} (our custom configuration) processes requests.
@@ -90,8 +86,6 @@ class StayControllerSecurityTest {
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String USER_OWNER = "owner";
     private static final String ROLE_OWNER = "OWNER";
-    private static final String STATO_CODE = "Z000";
-
     @Autowired
     private MockMvc mockMvc;
 
@@ -127,12 +121,10 @@ class StayControllerSecurityTest {
     }
 
     @Test
-    void submitAlloggiatiReportReturns200ForAdmin() throws Exception {
-        doNothing().when(alloggiatiWebSenderService).submitReport(any(), any());
-
+    void submitAlloggiatiReportIsDeniedEvenForAdmin() throws Exception {
         mockMvc.perform(withAuthHeaders(post(PATH_SUBMIT).param(PARAM_DATE, TEST_DATE),
                         USER_ADMIN, ROLE_ADMIN, TEST_HOTEL_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     // ──────────────────────────────── JSON export ──────────────────────────
@@ -145,14 +137,10 @@ class StayControllerSecurityTest {
     }
 
     @Test
-    void downloadAlloggiatiJsonReturns200ForOwner() throws Exception {
-        when(alloggiatiReportService.generateJsonReport(any(), any())).thenReturn(List.of(
-                new AlloggiatiRowDto("16", "17/05/2026", 1, "Rossi", "Mario",
-                        "1", "01/01/1980", "", "", STATO_CODE, STATO_CODE, "PASSE", "AB123", STATO_CODE)));
-
+    void downloadAlloggiatiJsonIsDeniedEvenForOwner() throws Exception {
         mockMvc.perform(withAuthHeaders(get(PATH_JSON).param(PARAM_DATE, TEST_DATE),
                         USER_OWNER, ROLE_OWNER, TEST_HOTEL_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     // ──────────────────────────────── txt export ───────────────────────────
@@ -170,13 +158,10 @@ class StayControllerSecurityTest {
     }
 
     @Test
-    void downloadAlloggiatiTxtReturns200ForAdmin() throws Exception {
-        when(alloggiatiReportService.generateReport(any(), any()))
-                .thenReturn("16        17/05/2026" + "01" + "Rossi");
-
+    void downloadAlloggiatiTxtIsDeniedEvenForAdmin() throws Exception {
         mockMvc.perform(withAuthHeaders(get(PATH_TXT).param(PARAM_DATE, TEST_DATE),
                         USER_ADMIN, ROLE_ADMIN, TEST_HOTEL_ID))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     // ──────────────────────────────── HMAC helpers ──────────────────────────
