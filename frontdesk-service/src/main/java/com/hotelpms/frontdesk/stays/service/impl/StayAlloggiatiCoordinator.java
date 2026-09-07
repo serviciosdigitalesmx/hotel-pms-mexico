@@ -6,8 +6,8 @@ import com.hotelpms.frontdesk.stays.dto.HotelSettingsResponse;
 import com.hotelpms.frontdesk.stays.repository.StayRepository;
 import com.hotelpms.frontdesk.stays.service.AlloggiatiWebSenderService;
 import com.hotelpms.frontdesk.stays.service.HotelSettingsService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -19,13 +19,24 @@ import java.time.LocalDate;
  * path ({@code POST /reports/alloggiati/submit}).
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 class StayAlloggiatiCoordinator {
 
     private final AlloggiatiWebSenderService alloggiatiWebSenderService;
     private final HotelSettingsService hotelSettingsService;
     private final StayRepository stayRepository;
+    private final boolean alloggiatiEnabled;
+
+    StayAlloggiatiCoordinator(
+            final AlloggiatiWebSenderService alloggiatiWebSenderService,
+            final HotelSettingsService hotelSettingsService,
+            final StayRepository stayRepository,
+            @Value("${hotel-pms.alloggiati.enabled:false}") final boolean alloggiatiEnabled) {
+        this.alloggiatiWebSenderService = alloggiatiWebSenderService;
+        this.hotelSettingsService = hotelSettingsService;
+        this.stayRepository = stayRepository;
+        this.alloggiatiEnabled = alloggiatiEnabled;
+    }
 
     /**
      * Sends the day's Alloggiati Web report for the stay's check-in date if
@@ -34,6 +45,11 @@ class StayAlloggiatiCoordinator {
      * @param stay the just-checked-in stay
      */
     void sendAlloggiatiIfEnabled(final Stay stay) {
+        if (!alloggiatiEnabled) {
+            log.debug("Alloggiati runtime disabled — skipping Polizia di Stato send for stay {}",
+                    stay.getId());
+            return;
+        }
         if (stay.getHotelId() == null) {
             return;
         }

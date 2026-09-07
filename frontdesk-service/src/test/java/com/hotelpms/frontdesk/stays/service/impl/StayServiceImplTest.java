@@ -208,7 +208,11 @@ class StayServiceImplTest {
                 stayRepository, stayMapper, guestClient, roomService,
                 new StayCheckInValidator(guestClient, reservationService, roomService),
                 new StayBillingCoordinator(billingClient, roomService, stayRepository, reservationService, ratePricingService),
-                new StayAlloggiatiCoordinator(alloggiatiWebSenderService, hotelSettingsService, stayRepository),
+                new StayAlloggiatiCoordinator(
+                        alloggiatiWebSenderService,
+                        hotelSettingsService,
+                        stayRepository,
+                        false),
                 new StayNotificationCoordinator(
                         notificationClient, guestClient, billingClient, hotelSettingsService, stayRepository),
                 new StayReservationSync(reservationService, stayRepository));
