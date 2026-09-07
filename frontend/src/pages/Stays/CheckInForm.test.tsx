@@ -107,4 +107,31 @@ describe('CheckInForm (México)', () => {
     expect(payload.guests[0]).not.toHaveProperty('travellerType');
     expect(payload.guests[0]).not.toHaveProperty('documentType');
   });
+  it('prefills the primary guest from the last stay and submits the selected occupancy', async () => {
+    vi.mocked(stayService.getLastCompletedStayForGuest).mockResolvedValue(mockStayResponse({
+      guests: [{ id: 'sg1', firstName: 'Ana', lastName: 'López', gender: '2', dateOfBirth: '1990-02-03',
+        placeOfBirth: 'Monterrey', citizenship: 'México', isPrimaryGuest: true }],
+    }));
+    vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
+    const { container } = renderComponent();
+    await screen.findByText('prefill_banner_stay');
+    expect(screen.getByLabelText(/label_first_name/i)).toHaveValue('Ana');
+    expect(screen.getByLabelText(/label_citizenship/i)).toHaveValue('México');
+    fireEvent.change(screen.getByLabelText('occupant_count'), { target: { value: '3' } });
+    fireEvent.submit(container.querySelector('form')!);
+    await waitFor(() => expect(stayService.createStay).toHaveBeenCalledWith(expect.objectContaining({
+      occupantCount: 3,
+      guests: [expect.objectContaining({ firstName: 'Ana', isPrimaryGuest: true })],
+    })));
+  });
+
+  it('uses profile names when the previous stay is unavailable', async () => {
+    vi.mocked(stayService.getLastCompletedStayForGuest).mockRejectedValue(new Error('Unavailable'));
+    vi.mocked(guestService.getGuestById).mockResolvedValue({ id: 'g1', firstName: 'Ana', lastName: 'López' } as never);
+    renderComponent();
+    await screen.findByText('prefill_banner_profile');
+    expect(screen.getByLabelText(/label_first_name/i)).toHaveValue('Ana');
+    expect(screen.getByLabelText(/label_last_name/i)).toHaveValue('López');
+  });
+
 });
