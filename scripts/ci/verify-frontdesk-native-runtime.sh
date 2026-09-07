@@ -295,7 +295,9 @@ run_business_gate() {
 
   flyway_latest="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname "${database}" \
     --tuples-only --no-align --command 'select max(version::integer) from flyway_schema_history where success = true;')"
-  [[ "${flyway_latest}" == 20 ]]
+  # V21-V23 restore the historical AI configuration migrations.
+  echo "${label} Flyway latest version=${flyway_latest}; expected=23"
+  [[ "${flyway_latest}" == 23 ]]
   persisted_rows="$(docker exec "${POSTGRES_CONTAINER}" psql --username postgres --dbname "${database}" \
     --tuples-only --no-align --command "select count(*) from stays where id = '${stay_id}' and hotel_id = '${hotel_a}' and status = 'CHECKED_OUT';")"
   [[ "${persisted_rows}" == 1 ]]
