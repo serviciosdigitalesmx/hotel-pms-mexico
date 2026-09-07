@@ -116,7 +116,7 @@ test.describe('Reservations', () => {
     await page.goto('/reservations');
     await expect(page.getByText('Mario Rossi')).toBeVisible({ timeout: 10000 });
     // Check-in button should appear next to the CONFIRMED reservation
-    await expect(page.getByRole('button', { name: /check.in/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Check In$/i })).toBeVisible();
   });
 
   test('navigates to check-in form when check-in clicked', async ({ page }) => {
@@ -131,7 +131,7 @@ test.describe('Reservations', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
     );
     await page.route('**/api/v1/stays/settings', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false }) }),
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false, locale: 'en-US' }) }),
     );
     await page.route('**/api/v1/stays**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 }) }),
@@ -139,7 +139,7 @@ test.describe('Reservations', () => {
 
     await page.goto('/reservations');
     await expect(page.getByText('Mario Rossi')).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /check.in/i }).first().click();
+    await page.getByRole('button', { name: /^Check In$/i }).click();
     await expect(page).toHaveURL(/\/stays\/check-in\//);
   });
 

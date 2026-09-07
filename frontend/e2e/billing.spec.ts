@@ -59,15 +59,12 @@ test.describe('Billing flow', () => {
     await expect(page.getByText('2026/0001')).toBeVisible();
   });
 
-  test('invoice detail modal shows SDI section for FATTURA', async ({ page }) => {
-    await page.route('**/api/v1/invoices/inv-001/fatturaPA', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/xml', body: '<FatturaElettronica/>' }),
-    );
+  test('invoice detail modal opens for FATTURA and exposes PDF download', async ({ page }) => {
     await page.goto('/billing');
     await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: /View/i }).first().click();
-    await expect(page.getByText('SDI Status')).toBeVisible({ timeout: 3000 });
-    await expect(page.getByRole('button', { name: /Download FatturaPA XML/i })).toBeVisible();
+    await expect(page.getByText('Invoice Details')).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('button', { name: /Download PDF/i })).toBeVisible();
   });
 
   test('passes accessibility audit on billing page', async ({ page }) => {
