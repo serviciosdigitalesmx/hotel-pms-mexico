@@ -4,14 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { stayService } from '../../services/stayService';
 import { guestService } from '../../services/guestService';
-import type { AvailableRoom, AlloggiatiStato, AlloggiatiTipdoc, StayGuestRequest, TravellerType } from '../../types/stay.types';
+import type { AvailableRoom, StayGuestRequest } from '../../types/stay.types';
 import type { GuestResponseDTO } from '../../types/guest.types';
 import { useToastStore } from '../../store/toastStore';
 import { GuestFieldSection } from './GuestFieldSection';
 import {
   emptyGuest,
-  TYPES_WITHOUT_DOC,
-  validateAlloggiatiGuests,
+  validateCheckInGuests,
 } from './stayGuestFieldHelpers';
 import type { IdentifiableGuest } from './stayGuestFieldHelpers';
 import { getErrorMessage } from '../../utils/errorMessage';
@@ -63,10 +62,6 @@ export function WalkInCheckInForm() {
   const [loading, setLoading] = useState(false);
   const [roomsLoading, setRoomsLoading] = useState(true);
 
-  // Alloggiati lookup tables
-  const [stati, setStati] = useState<AlloggiatiStato[]>([]);
-  const [tipdoc, setTipdoc] = useState<AlloggiatiTipdoc[]>([]);
-  // Alloggiati guest data (one primary guest by default, additional guests can be added)
   const [guests, setGuests] = useState<IdentifiableGuest[]>([emptyGuest(true)]);
   const guestSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,11 +72,6 @@ export function WalkInCheckInForm() {
       .then(setRooms)
       .catch(() => setRooms([]))
       .finally(() => setRoomsLoading(false));
-  }, []);
-
-  useEffect(() => {
-    stayService.getLookupStati().then(setStati).catch(() => { /* non-blocking */ });
-    stayService.getLookupTipdoc().then(setTipdoc).catch(() => { /* non-blocking */ });
   }, []);
 
   const handleRoomChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -160,7 +150,7 @@ export function WalkInCheckInForm() {
       if (!selectedGuest)   { setError(t('walkin_err_guest_required')); return; }
       if (!expectedCheckOutDate) { setError(t('walkin_err_checkout_required')); return; }
 
-      const issue = validateAlloggiatiGuests(guests, t);
+      const issue = validateCheckInGuests(guests, t);
       if (issue) {
         setError(issue);
         return;
@@ -168,23 +158,16 @@ export function WalkInCheckInForm() {
 
       setLoading(true);
       try {
-        const apiGuests: StayGuestRequest[] = guests.map(g => {
-          const withoutDoc = TYPES_WITHOUT_DOC.includes(g.travellerType as TravellerType);
-          return {
-            firstName: g.firstName,
-            lastName: g.lastName,
-            gender: g.gender,
-            dateOfBirth: g.dateOfBirth,
-            placeOfBirth: g.placeOfBirth,
-            citizenship: g.citizenship,
-            documentType: withoutDoc ? undefined : (g.documentType || undefined),
-            documentNumber: withoutDoc ? undefined : (g.documentNumber || undefined),
-            documentPlaceOfIssue: withoutDoc ? undefined : (g.documentPlaceOfIssue || undefined),
-            isPrimaryGuest: g.isPrimaryGuest,
-            travellerType: g.travellerType || undefined,
-            travelPurpose: g.travelPurpose || undefined,
-          };
-        });
+        const apiGuests: StayGuestRequest[] = guests.map(g => ({
+          firstName: g.firstName,
+          lastName: g.lastName,
+          gender: g.gender,
+          dateOfBirth: g.dateOfBirth,
+          placeOfBirth: g.placeOfBirth,
+          citizenship: g.citizenship,
+          isPrimaryGuest: g.isPrimaryGuest,
+          travelPurpose: g.travelPurpose || undefined,
+        }));
 
         await stayService.createStay({
           guestId: selectedGuest.id,
@@ -290,8 +273,6 @@ export function WalkInCheckInForm() {
             guest={guests[0]}
             index={0}
             canRemove={false}
-            stati={stati}
-            tipdoc={tipdoc}
             onRemove={handleGuestRemove}
             onChange={handleGuestChange}
           />

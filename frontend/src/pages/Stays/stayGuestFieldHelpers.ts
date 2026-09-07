@@ -1,15 +1,16 @@
 import { z } from 'zod';
-import type { StayGuestRequest, TravellerType } from '../../types/stay.types';
 
-export const TYPES_WITHOUT_DOC: TravellerType[] = ['FAMILIARE', 'MEMBRO_GRUPPO'];
-export const CODICE_ITALIA = '100000100';
-
-export interface IdentifiableGuest extends StayGuestRequest {
+export interface IdentifiableGuest {
   _id: string;
-  /** UI-only: stato codice for placeOfBirth logic */
-  _statoDiNascita: string;
-  /** UI-only: stato codice for documentPlaceOfIssue logic */
-  _statoRilascioDoc: string;
+  firstName: string;
+  lastName: string;
+  /** "1" = male, "2" = female */
+  gender: string;
+  dateOfBirth: string;
+  placeOfBirth: string;
+  citizenship: string;
+  isPrimaryGuest: boolean;
+  travelPurpose: string;
 }
 
 export const emptyGuest = (isPrimary: boolean): IdentifiableGuest => ({
@@ -20,24 +21,13 @@ export const emptyGuest = (isPrimary: boolean): IdentifiableGuest => ({
   dateOfBirth: '',
   placeOfBirth: '',
   citizenship: '',
-  documentType: '',
-  documentNumber: '',
-  documentPlaceOfIssue: '',
   isPrimaryGuest: isPrimary,
-  travellerType: isPrimary ? 'OSPITE_SINGOLO' : undefined,
   travelPurpose: '',
-  _statoDiNascita: '',
-  _statoRilascioDoc: '',
 });
 
 type GuestErrorTranslator = (key: string, options?: Record<string, unknown>) => string;
 
-/**
- * Alloggiati Web compliance rules shared by CheckInForm and WalkInCheckInForm.
- * Issues are added in the same order as the original sequential checks so
- * the first one matches what a "stop at first error" caller would report.
- */
-const buildAlloggiatiGuestsSchema = (t: GuestErrorTranslator) =>
+const buildGuestsSchema = (t: GuestErrorTranslator) =>
   z.array(z.custom<IdentifiableGuest>()).superRefine((guests, ctx) => {
     if (!guests.some((g) => g.isPrimaryGuest)) {
       ctx.addIssue({ code: 'custom', path: [], message: t('err_primary_guest_required') });
@@ -45,37 +35,35 @@ const buildAlloggiatiGuestsSchema = (t: GuestErrorTranslator) =>
 
     guests.forEach((g, idx) => {
       const number = idx + 1;
-      const hasDoc = !TYPES_WITHOUT_DOC.includes(g.travellerType as TravellerType);
-      const isItalianDocIssue = g._statoRilascioDoc === CODICE_ITALIA;
-
-      if (!g._statoDiNascita) {
-        ctx.addIssue({ code: 'custom', path: [idx, '_statoDiNascita'], message: t('err_stato_nascita_required', { number }) });
+      if (!g.firstName.trim()) {
+        ctx.addIssue({ code: 'custom', path: [idx, 'firstName'], message: t('err_first_name_required', { number }) });
       }
-      if (hasDoc) {
-        if (!g._statoRilascioDoc) {
-          ctx.addIssue({ code: 'custom', path: [idx, '_statoRilascioDoc'], message: t('err_stato_rilascio_required', { number }) });
-        }
-        if (isItalianDocIssue && !g.documentPlaceOfIssue) {
-          ctx.addIssue({ code: 'custom', path: [idx, 'documentPlaceOfIssue'], message: t('err_comune_rilascio_required', { number }) });
-        }
+      if (!g.lastName.trim()) {
+        ctx.addIssue({ code: 'custom', path: [idx, 'lastName'], message: t('err_last_name_required', { number }) });
       }
-      // Checked last: stay_guests.date_of_birth is NOT NULL in Postgres for
-      // every guest regardless of traveller type, but this was never
-      // validated client-side (found via frontend/e2e-live/walk-in-live.spec.ts
-      // against the real backend — a FAMILIARE guest with no date of birth
-      // used to reach the database's NOT NULL constraint and 500).
+      if (!g.gender) {
+        ctx.addIssue({ code: 'custom', path: [idx, 'gender'], message: t('err_gender_required', { number }) });
+      }
       if (!g.dateOfBirth) {
         ctx.addIssue({ code: 'custom', path: [idx, 'dateOfBirth'], message: t('err_date_of_birth_required', { number }) });
+      }
+      if (!g.placeOfBirth.trim()) {
+        ctx.addIssue({ code: 'custom', path: [idx, 'placeOfBirth'], message: t('err_place_of_birth_required', { number }) });
+      }
+      if (!g.citizenship.trim()) {
+        ctx.addIssue({ code: 'custom', path: [idx, 'citizenship'], message: t('err_citizenship_required', { number }) });
       }
     });
   });
 
 /**
- * Validates the full guest list against Alloggiati Web rules.
- * Returns the first violation message, or null when the list is valid —
- * matches the original hand-rolled "stop at first error" behavior.
+ * Validates the guest list against the México check-in contract.
+ * Returns the first violation message, or null when the list is valid.
  */
-export const validateAlloggiatiGuests = (guests: IdentifiableGuest[], t: GuestErrorTranslator): string | null => {
-  const result = buildAlloggiatiGuestsSchema(t).safeParse(guests);
+export const validateCheckInGuests = (
+  guests: IdentifiableGuest[],
+  t: GuestErrorTranslator,
+): string | null => {
+  const result = buildGuestsSchema(t).safeParse(guests);
   return result.success ? null : (result.error.issues[0]?.message ?? null);
 };

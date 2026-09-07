@@ -42,24 +42,6 @@ describe('stayService', () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it('should submit alloggiati report', async () => {
-    vi.mocked(api.post).mockResolvedValueOnce({ data: null, status: 200 });
-
-    await stayService.submitAlloggiatiReport('2026-05-15');
-
-    expect(api.post).toHaveBeenCalledWith(
-      '/api/v1/stays/reports/alloggiati/submit',
-      null,
-      { params: { date: '2026-05-15' } },
-    );
-  });
-
-  it('should propagate error from submitAlloggiatiReport', async () => {
-    vi.mocked(api.post).mockRejectedValueOnce(new Error('Portal error'));
-
-    await expect(stayService.submitAlloggiatiReport('2026-05-15')).rejects.toThrow('Portal error');
-  });
-
   it('should check out', async () => {
     const mockResponse = { id: '1', status: 'CHECKED_OUT' };
     vi.mocked(api.put).mockResolvedValueOnce({ data: mockResponse });
@@ -150,58 +132,6 @@ describe('stayService — settings, lookups, downloads', () => {
     expect(validateStatus(404)).toBe(false);
   });
 
-  it('should fetch Alloggiati stati lookup', async () => {
-    const mockStati = [{ codice: '100000100', descrizione: 'ITALIA' }];
-    vi.mocked(api.get).mockResolvedValueOnce({ data: mockStati });
-
-    const result = await stayService.getLookupStati();
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/lookup/stati');
-    expect(result).toEqual(mockStati);
-  });
-
-  it('should fetch Alloggiati tipdoc lookup', async () => {
-    const mockTipdoc = [{ codice: 'IDENT', descrizione: "CARTA DI IDENTITA'" }];
-    vi.mocked(api.get).mockResolvedValueOnce({ data: mockTipdoc });
-
-    const result = await stayService.getLookupTipdoc();
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/lookup/tipdoc');
-    expect(result).toEqual(mockTipdoc);
-  });
-
-  it('should search Alloggiati comuni lookup with provincia', async () => {
-    const mockComuni = [{ codice: '412058036', descrizione: 'FIANO ROMANO', provincia: 'RM' }];
-    vi.mocked(api.get).mockResolvedValueOnce({ data: mockComuni });
-
-    const result = await stayService.searchLookupComuni('Fiano', 'RM');
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/lookup/comuni', {
-      params: { q: 'Fiano', provincia: 'RM' },
-    });
-    expect(result).toEqual(mockComuni);
-  });
-
-  it('should search Alloggiati comuni lookup without provincia', async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: [] });
-
-    await stayService.searchLookupComuni('Roma');
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/lookup/comuni', {
-      params: { q: 'Roma', provincia: undefined },
-    });
-  });
-
-  it('should fetch Alloggiati failure summary', async () => {
-    const mockSummary = { failedCount: 2, mostRecentFailureAt: '2026-06-19T10:00:00', mostRecentFailureReason: 'PS portal down' };
-    vi.mocked(api.get).mockResolvedValueOnce({ data: mockSummary });
-
-    const result = await stayService.getAlloggiatiFailureSummary();
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/reports/alloggiati/failures/summary');
-    expect(result).toEqual(mockSummary);
-  });
-
   it('should fetch available (CLEAN) rooms only', async () => {
     const mockRooms = [
       { id: 'r1', roomNumber: '101', status: 'CLEAN' },
@@ -223,53 +153,4 @@ describe('stayService — settings, lookups, downloads', () => {
     expect(result).toEqual([]);
   });
 
-  it('should download the Alloggiati txt report as a blob', async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: 'plain text content' });
-
-    const createObjectURL = vi.fn(() => 'blob:http://test/txt');
-    const revokeObjectURL = vi.fn();
-    const clickFn = vi.fn();
-    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
-    const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
-      href: '',
-      download: '',
-      click: clickFn,
-    } as unknown as HTMLAnchorElement);
-
-    await stayService.downloadAlloggiatiReport('2026-06-20');
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/reports/alloggiati', {
-      params: { date: '2026-06-20' },
-      responseType: 'blob',
-    });
-    expect(createObjectURL).toHaveBeenCalled();
-    expect(clickFn).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:http://test/txt');
-    createElementSpy.mockRestore();
-  });
-
-  it('should download the Alloggiati json export as a blob', async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ data: '[]' });
-
-    const createObjectURL = vi.fn(() => 'blob:http://test/json');
-    const revokeObjectURL = vi.fn();
-    const clickFn = vi.fn();
-    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
-    const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
-      href: '',
-      download: '',
-      click: clickFn,
-    } as unknown as HTMLAnchorElement);
-
-    await stayService.downloadAlloggiatiJson('2026-06-20');
-
-    expect(api.get).toHaveBeenCalledWith('/api/v1/stays/reports/alloggiati/json', {
-      params: { date: '2026-06-20' },
-      responseType: 'blob',
-    });
-    expect(createObjectURL).toHaveBeenCalled();
-    expect(clickFn).toHaveBeenCalled();
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:http://test/json');
-    createElementSpy.mockRestore();
-  });
 });

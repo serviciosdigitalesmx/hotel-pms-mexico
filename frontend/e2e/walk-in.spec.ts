@@ -23,22 +23,17 @@ const MOCK_STAY = {
   status: 'CHECKED_IN',
   actualCheckInTime: new Date().toISOString(),
   alloggiatiSent: false,
+  alloggiatiSendFailed: false,
+  invoiceCreationFailed: false,
+  checkoutEmailFailed: false,
   guests: [],
 };
 
-// Alloggiati lookup data — must be present so the LookupAutocomplete can
-// filter results when the user types in the stato-nascita field.
-const MOCK_STATI = [
-  { codice: 'EE', descrizione: 'ESTERO' },
-  { codice: '100000100', descrizione: 'ITALIA' },
-];
-
-test.describe('Walk-in Check-in', () => {
+test.describe('Walk-in Check-in (México)', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/v1/auth/me', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_USER) }),
     );
-    // Use pathname-based matcher so query params (?page=0&size=20&sort=...) are ignored.
     await page.route((url) => url.pathname === '/api/v1/stays', async (route) => {
       if (route.request().method() === 'POST') {
         await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(MOCK_STAY) });
@@ -57,27 +52,12 @@ test.describe('Walk-in Check-in', () => {
         body: JSON.stringify({ hotelId: 'h-001', alloggiatiAutoSend: false, locale: 'en-US' }),
       }),
     );
-    // Default empty rooms so /stays/walk-in doesn't trigger 401 → logout redirect.
-    // Individual tests that need specific rooms data override this with their own mock.
     await page.route('**/api/v1/rooms**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ content: [], totalElements: 0, totalPages: 1, number: 0, size: 200 }),
       }),
-    );
-    // Lookup endpoints must be mocked to prevent 401 responses from the running
-    // backend triggering the Axios interceptor → performLogout() → /login redirect.
-    await page.route('**/api/v1/stays/lookup/stati', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_STATI) }),
-    );
-    await page.route('**/api/v1/stays/lookup/tipdoc', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
-        { codice: 'PP', descrizione: 'PASSAPORTO' },
-      ]) }),
-    );
-    await page.route('**/api/v1/stays/lookup/comuni**', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
     );
   });
 
@@ -111,13 +91,6 @@ test.describe('Walk-in Check-in', () => {
   });
 
   test('shows error when no rooms available', async ({ page }) => {
-    await page.route('**/api/v1/rooms**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ content: [], totalElements: 0, totalPages: 1, number: 0, size: 200 }),
-      }),
-    );
     await page.goto('/stays/walk-in');
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 });
   });
@@ -137,15 +110,13 @@ test.describe('Walk-in Check-in', () => {
       }),
     );
     await page.goto('/stays/walk-in');
-    // Wait for rooms to load (select appears only when rooms.length > 0)
     await expect(page.locator('#walkin-room')).toBeVisible({ timeout: 10000 });
-    // Click submit without selecting a room — should show validation error
-    await page.getByRole('button', { name: /complete walk-in/i }).click();
+    await page.getByRole('button', { name: /complete walk.in/i }).click();
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(page).toHaveURL(/\/stays\/walk-in/);
   });
 
-  test('completes walk-in and redirects to stays', async ({ page }) => {
+  test('completes walk-in with the México guest contract and redirects to stays', async ({ page }) => {
     await page.route('**/api/v1/rooms**', (route) =>
       route.fulfill({
         status: 200,
@@ -174,35 +145,26 @@ test.describe('Walk-in Check-in', () => {
     );
 
     await page.goto('/stays/walk-in');
-    // Wait for rooms to load before interacting
     await expect(page.locator('#walkin-room')).toBeVisible({ timeout: 10000 });
-
-    // Select room
     await page.locator('#walkin-room').selectOption({ value: 'room-001' });
 
-    // Search and select guest
     await page.locator('#walkin-guest').fill('Lucia');
     await expect(page.getByRole('option', { name: /Lucia Bianchi/i })).toBeVisible({ timeout: 3000 });
     await page.getByRole('option', { name: /Lucia Bianchi/i }).click();
 
-    // Set checkout date (tomorrow)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const iso = tomorrow.toISOString().split('T')[0];
     await page.locator('#walkin-checkout').fill(iso);
 
-    // Fill mandatory Alloggiati fields (added in F2 sprint).
-    // Choose FAMILIARE type (no document required) and a foreign birthplace
-    // (no Italian comune required) — minimum path through frontend validation.
-    await page.locator('#traveller-type-0').selectOption({ value: 'FAMILIARE' });
+    await page.locator('input[name="firstName"]').fill('Lucia');
+    await page.locator('input[name="lastName"]').fill('Bianchi');
+    await page.locator('select[name="gender"]').selectOption('1');
+    await page.locator('input[name="dateOfBirth"]').fill('1990-05-17');
+    await page.locator('input[name="placeOfBirth"]').fill('Monterrey, México');
+    await page.locator('input[name="citizenship"]').fill('México');
 
-    // Type at least 2 chars to trigger the autocomplete, then click the option.
-    await page.locator('#stato-nascita-0').fill('ES');
-    await expect(page.getByRole('option', { name: /ESTERO/i })).toBeVisible({ timeout: 3000 });
-    await page.getByRole('option', { name: /ESTERO/i }).click();
-
-    // Submit
-    await page.getByRole('button', { name: /complete walk-in/i }).click();
+    await page.getByRole('button', { name: /complete walk.in/i }).click();
     await expect(page).toHaveURL(/\/stays/, { timeout: 5000 });
   });
 });

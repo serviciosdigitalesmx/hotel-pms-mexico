@@ -7,31 +7,6 @@ export interface AvailableRoom {
   roomType?: { name: string; basePrice?: number; maxOccupancy?: number } | null;
 }
 
-export type TravellerType =
-  | 'OSPITE_SINGOLO'
-  | 'CAPOFAMIGLIA'
-  | 'CAPOGRUPPO'
-  | 'FAMILIARE'
-  | 'MEMBRO_GRUPPO';
-
-export interface AlloggiatiStato {
-  codice: string;
-  descrizione: string;
-  dataFineVal?: string | null;
-}
-
-export interface AlloggiatiComune {
-  codice: string;
-  descrizione: string;
-  provincia: string;
-  dataFineVal?: string | null;
-}
-
-export interface AlloggiatiTipdoc {
-  codice: string;
-  descrizione: string;
-}
-
 export interface StayGuestResponse {
   id: string;
   firstName: string;
@@ -39,17 +14,9 @@ export interface StayGuestResponse {
   /** "1" = Maschio, "2" = Femmina */
   gender: string;
   dateOfBirth: string;
-  /** 9-char comune code (Italian-born) or 9-char stato code (foreign-born) */
   placeOfBirth: string;
-  /** 9-char stato code from the Portale Alloggiati Web lookup */
   citizenship: string;
-  /** 5-char tipdoc code — null for FAMILIARE/MEMBRO_GRUPPO */
-  documentType?: string | null;
-  documentNumber?: string | null;
-  /** 9-char comune or stato code — null for FAMILIARE/MEMBRO_GRUPPO */
-  documentPlaceOfIssue?: string | null;
   isPrimaryGuest: boolean;
-  travellerType?: TravellerType;
   travelPurpose?: string;
 }
 
@@ -59,17 +26,9 @@ export interface StayGuestRequest {
   /** "1" = Maschio, "2" = Femmina */
   gender: string;
   dateOfBirth: string;
-  /** 9-char comune code (Italian-born) or 9-char stato code (foreign-born) */
   placeOfBirth: string;
-  /** 9-char stato code */
   citizenship: string;
-  /** 5-char tipdoc code — omit for FAMILIARE/MEMBRO_GRUPPO */
-  documentType?: string;
-  documentNumber?: string;
-  /** 9-char comune or stato code — omit for FAMILIARE/MEMBRO_GRUPPO */
-  documentPlaceOfIssue?: string;
   isPrimaryGuest: boolean;
-  travellerType?: TravellerType;
   travelPurpose?: string;
 }
 
@@ -120,13 +79,6 @@ export interface StayResponse {
   checkoutEmailFailed: boolean;
   /** Error message from the most recent failed checkout email attempt; null once resolved. */
   checkoutEmailFailureReason?: string | null;
-}
-
-/** Summary of unresolved Alloggiati Web submission failures for the caller's hotel. */
-export interface AlloggiatiFailureSummaryResponse {
-  failedCount: number;
-  mostRecentFailureAt?: string | null;
-  mostRecentFailureReason?: string | null;
 }
 
 export interface HotelSettingsRequest {

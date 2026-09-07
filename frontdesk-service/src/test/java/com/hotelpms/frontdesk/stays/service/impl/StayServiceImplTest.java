@@ -204,11 +204,17 @@ class StayServiceImplTest {
                     return rates;
                 });
 
+        // Exercise the opt-in Italian integration in this legacy service suite.
+        // StayAlloggiatiCoordinatorTest verifies the disabled Mexico runtime.
         stayService = new StayServiceImpl(
                 stayRepository, stayMapper, guestClient, roomService,
                 new StayCheckInValidator(guestClient, reservationService, roomService),
                 new StayBillingCoordinator(billingClient, roomService, stayRepository, reservationService, ratePricingService),
-                new StayAlloggiatiCoordinator(alloggiatiWebSenderService, hotelSettingsService, stayRepository),
+                new StayAlloggiatiCoordinator(
+                        alloggiatiWebSenderService,
+                        hotelSettingsService,
+                        stayRepository,
+                        true),
                 new StayNotificationCoordinator(
                         notificationClient, guestClient, billingClient, hotelSettingsService, stayRepository),
                 new StayReservationSync(reservationService, stayRepository));

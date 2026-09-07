@@ -16,8 +16,6 @@ vi.mock('react-i18next', () => {
 vi.mock('../services/stayService', () => ({
   stayService: {
     getAllStays: vi.fn(),
-    downloadAlloggiatiJson: vi.fn(),
-    downloadAlloggiatiReport: vi.fn(),
     retryInvoiceCreation: vi.fn(),
     retryCheckoutEmail: vi.fn(),
   },
