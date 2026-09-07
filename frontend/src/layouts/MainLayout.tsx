@@ -8,6 +8,7 @@ import { M3Button } from '../components/m3/M3Button';
 import { UserMenu } from '../components/UserMenu';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useSettingsStore } from '../store/settingsStore';
+import { useBrand } from '../hooks/useBrand';
 import * as FocusTrapModule from 'focus-trap-react';
 const FocusTrap = FocusTrapModule.default ?? FocusTrapModule;
 
@@ -122,6 +123,7 @@ DrawerNavItem.displayName = 'DrawerNavItem';
 export const MainLayout = () => {
   const { t } = useTranslation('common');
   const { user, logout } = useAuthStore();
+  const { hotelName, logoUrl } = useBrand();
   const navigate = useNavigate();
   const loadHotelSettings = useSettingsStore((state) => state.loadHotelSettings);
 
@@ -175,9 +177,13 @@ export const MainLayout = () => {
             <nav className="relative flex flex-col w-72 max-w-[85vw] h-full bg-surface rounded-r-shape-lg shadow-elevation-3 animate-slide-in-right overflow-y-auto">
               <div className="flex items-center gap-3 px-4 pt-5 pb-3">
                 <div className="flex items-center justify-center w-10 h-10 bg-primary-container rounded-shape-lg">
-                  <MaterialIcon name="apartment" size={24} className="text-on-primary-container" />
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="" className="max-h-8 object-contain" />
+                  ) : (
+                    <MaterialIcon name="hotel" size={24} className="text-on-primary-container" />
+                  )}
                 </div>
-                <span className="text-lg font-display font-bold text-on-surface">Hotel PMS</span>
+                <span className="text-lg font-display font-bold text-on-surface">{hotelName}</span>
               </div>
 
               <div className="flex-1 pt-2 pb-4 space-y-0.5">
@@ -213,7 +219,11 @@ export const MainLayout = () => {
       {/* ── Desktop Navigation Rail ─────────────────── */}
       <aside className="hidden md:flex flex-col items-center md:fixed md:left-0 md:top-0 md:h-full w-24 flex-shrink-0 glass-surface border-r border-outline-variant/50 py-4 gap-1 overflow-y-auto [scrollbar-gutter:stable] md:z-20">
         <div className="flex items-center justify-center w-14 h-14 mb-3 bg-primary-container rounded-shape-lg">
-          <MaterialIcon name="apartment" size={28} className="text-on-primary-container" />
+          {logoUrl ? (
+            <img src={logoUrl} alt={hotelName} className="max-h-10 object-contain" />
+          ) : (
+            <MaterialIcon name="hotel" size={28} className="text-on-primary-container" />
+          )}
         </div>
 
         <nav className="flex flex-col items-center gap-0.5 flex-1 w-full">

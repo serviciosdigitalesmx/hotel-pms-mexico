@@ -1,7 +1,6 @@
 import { useCallback, memo } from 'react';
 import { billingService } from '../../services/billingService';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useToastStore } from '../../store/toastStore';
 
 const ICON_STYLE: React.CSSProperties = { fontSize: 18 };
 import { useTranslation } from 'react-i18next';
@@ -35,27 +34,13 @@ const chargeTypeIcon: Record<ChargeType, string> = {
   EXTRA: 'add_circle',
 };
 
-export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) => {
+export const InvoiceDetailModal = memo(({ invoice, onClose }: Props) => {
   const { t, i18n } = useTranslation(['billing', 'common']);
   const currency = useSettingsStore((state) => state.currency);
-  const addToast = useToastStore((state) => state.addToast);
 
   const handleDownloadPdf = useCallback(() => {
     billingService.downloadPdf(invoice.id);
   }, [invoice.id]);
-
-  const handleDocumentTypeChange = useCallback(async () => {
-    const documentType = invoice.documentType === 'FATTURA' ? 'RICEVUTA' : 'FATTURA';
-    try {
-      const updated = await billingService.updateDocumentType(invoice.id, documentType);
-      onUpdated?.(updated);
-      addToast('document_type_updated', 'success');
-    } catch (error) {
-      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      addToast(detail || 'document_type_update_failed', 'error');
-    }
-  }, [addToast, invoice.documentType, invoice.id, onUpdated]);
-
 
   const formatCurrency = useCallback(
     (val: number) =>
@@ -177,20 +162,6 @@ export const InvoiceDetailModal = memo(({ invoice, onClose, onUpdated }: Props) 
           )}
         </section>
       </div>
-
-      {invoice.status !== 'CANCELLED' && (
-        <section aria-labelledby="document-type-heading" className="border-t border-outline-variant pt-4 mt-4">
-          <h3 id="document-type-heading" className="text-xs font-medium text-on-surface-variant uppercase tracking-wide mb-2">
-            {t('document_type', { ns: 'billing' })}
-          </h3>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-on-surface">{t(`document_type_${invoice.documentType.toLowerCase()}`, { ns: 'billing' })}</span>
-            <button type="button" onClick={handleDocumentTypeChange} className="text-primary text-sm font-medium">
-              {t(`switch_to_${invoice.documentType === 'FATTURA' ? 'ricevuta' : 'fattura'}`, { ns: 'billing' })}
-            </button>
-          </div>
-        </section>
-      )}
 
       {/* PDF download action */}
       <div className="flex justify-end pt-2 border-t border-outline-variant mt-4">

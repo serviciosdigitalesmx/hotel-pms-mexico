@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import i18n from '../i18n';
 import { stayService } from '../services/stayService';
+import { DEFAULT_BRAND } from '../config/branding';
 
 export type FontScale = 'small' | 'normal' | 'large';
 export type ContrastMode = 'normal' | 'high';
@@ -46,6 +47,8 @@ const getInitialFontScale = (): FontScale => {
 };
 
 interface SettingsState {
+  hotelName: string;
+  logoUrl: string;
   contrast: ContrastMode;
   fontScale: FontScale;
   currency: string;
@@ -66,6 +69,8 @@ export const useSettingsStore = create<SettingsState>(() => {
   applyFontScale(initialFontScale);
 
   return {
+    hotelName: DEFAULT_BRAND.name,
+    logoUrl: DEFAULT_BRAND.logoUrl,
     contrast: initialContrast,
     fontScale: initialFontScale,
     currency: DEFAULT_CURRENCY,
@@ -86,6 +91,8 @@ export const useSettingsStore = create<SettingsState>(() => {
       const settings = await stayService.getHotelSettings();
       const locale = settings.locale || DEFAULT_LOCALE;
       useSettingsStore.setState({
+        hotelName: settings.hotelName || DEFAULT_BRAND.name,
+        logoUrl: settings.logoUrl || DEFAULT_BRAND.logoUrl,
         currency: settings.currency || DEFAULT_CURRENCY,
         locale,
         timezone: settings.timezone || DEFAULT_TIMEZONE,
