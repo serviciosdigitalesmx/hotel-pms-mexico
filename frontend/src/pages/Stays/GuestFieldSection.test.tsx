@@ -1,9 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import { GuestFieldSection } from './GuestFieldSection';
 import { emptyGuest } from './stayGuestFieldHelpers';
-import { stayService } from '../../services/stayService';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -20,34 +19,16 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
 }));
 
-vi.mock('../../services/stayService');
-
-const ITALIA_STATO = { codice: '100000100', descrizione: 'ITALIA' };
-const FRANCIA_STATO = { codice: '109000100', descrizione: 'FRANCIA' };
-const STATI = [ITALIA_STATO, FRANCIA_STATO];
-const PASOR_TIPDOC = { codice: 'PASOR', descrizione: 'PASSAPORTO ORDINARIO' };
-const TIPDOC = [PASOR_TIPDOC];
-const FIANO_COMUNE = { codice: '412058036', descrizione: 'FIANO ROMANO', provincia: 'RM' };
-const GUEST_WITH_DOC = { ...emptyGuest(false), documentType: 'PASOR', documentNumber: 'X123' };
-const GUEST_WITHOUT_DOC_TYPE = { ...emptyGuest(false), travellerType: 'FAMILIARE' as const };
-
 describe('GuestFieldSection', () => {
   const onChange = vi.fn();
   const onRemove = vi.fn();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(stayService.searchLookupComuni).mockResolvedValue([FIANO_COMUNE]);
-  });
-
-  it('renders the base required fields', () => {
+  it('renders the México guest fields', () => {
     render(
       <GuestFieldSection
         guest={emptyGuest(true)}
         index={0}
         canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
         onRemove={onRemove}
         onChange={onChange}
       />,
@@ -56,52 +37,10 @@ describe('GuestFieldSection', () => {
     expect(screen.getByLabelText(/label_last_name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/label_gender/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/label_date_of_birth/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/label_guest_type/i)).toBeInTheDocument();
-  });
-
-  it('shows a plain guest heading without numbering or badges', () => {
-    render(
-      <GuestFieldSection
-        guest={emptyGuest(true)}
-        index={0}
-        canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    expect(screen.getByRole('heading', { name: 'guest_label' })).toBeInTheDocument();
-    expect(screen.queryByText('guest_badge_primary')).not.toBeInTheDocument();
-  });
-
-  it('shows the remove button only when canRemove is true, and calls onRemove with the index', () => {
-    const { rerender } = render(
-      <GuestFieldSection
-        guest={emptyGuest(false)}
-        index={2}
-        canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    expect(screen.queryByText('btn_remove')).not.toBeInTheDocument();
-
-    rerender(
-      <GuestFieldSection
-        guest={emptyGuest(false)}
-        index={2}
-        canRemove
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    fireEvent.click(screen.getByText('btn_remove'));
-    expect(onRemove).toHaveBeenCalledWith(2);
+    expect(screen.getByLabelText(/label_place_of_birth/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/label_citizenship/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/label_guest_type/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/label_doc_type/i)).not.toBeInTheDocument();
   });
 
   it('calls onChange with the field name/value on simple text field edits', () => {
@@ -110,8 +49,6 @@ describe('GuestFieldSection', () => {
         guest={emptyGuest(true)}
         index={0}
         canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
         onRemove={onRemove}
         onChange={onChange}
       />,
@@ -120,98 +57,18 @@ describe('GuestFieldSection', () => {
     expect(onChange).toHaveBeenCalledWith(0, { firstName: 'Mario' });
   });
 
-  it('clears document fields when switching to a traveller type without a document', () => {
+  it('calls onRemove when the remove button is clicked', () => {
     render(
       <GuestFieldSection
-        guest={GUEST_WITH_DOC}
-        index={1}
+        guest={emptyGuest(false)}
+        index={2}
         canRemove
-        stati={STATI}
-        tipdoc={TIPDOC}
         onRemove={onRemove}
         onChange={onChange}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/label_guest_type/i), { target: { value: 'FAMILIARE' } });
-    expect(onChange).toHaveBeenCalledWith(1, {
-      travellerType: 'FAMILIARE', documentType: '', documentNumber: '', documentPlaceOfIssue: '',
-    });
-  });
-
-  it('keeps document fields untouched when switching between document-requiring types', () => {
-    render(
-      <GuestFieldSection
-        guest={emptyGuest(true)}
-        index={0}
-        canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    fireEvent.change(screen.getByLabelText(/label_guest_type/i), { target: { value: 'CAPOFAMIGLIA' } });
-    expect(onChange).toHaveBeenCalledWith(0, { travellerType: 'CAPOFAMIGLIA' });
-  });
-
-  it('does not render document fields for a traveller type without a document', () => {
-    render(
-      <GuestFieldSection
-        guest={GUEST_WITHOUT_DOC_TYPE}
-        index={1}
-        canRemove
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    expect(screen.queryByLabelText(/label_doc_number/i)).not.toBeInTheDocument();
-  });
-
-  it('stores the selected country directly as place of birth', async () => {
-    render(
-      <GuestFieldSection
-        guest={emptyGuest(true)}
-        index={0}
-        canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    expect(screen.queryByLabelText(/label_comune_nascita/i)).not.toBeInTheDocument();
-
-    const statoNascita = screen.getByLabelText(/label_stato_nascita/i);
-    fireEvent.change(statoNascita, { target: { value: 'ITALIA' } });
-    const option = await screen.findByRole('option', { name: /ITALIA/ });
-    fireEvent.mouseDown(option);
-
-    expect(onChange).toHaveBeenCalledWith(0, {
-      _statoDiNascita: '100000100', placeOfBirth: '100000100',
-    });
-    expect(screen.queryByLabelText(/label_comune_nascita/i)).not.toBeInTheDocument();
-  });
-
-  it('sets placeOfBirth directly to the stato codice when born outside Italy', async () => {
-    render(
-      <GuestFieldSection
-        guest={emptyGuest(true)}
-        index={0}
-        canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
-        onRemove={onRemove}
-        onChange={onChange}
-      />,
-    );
-    const statoNascita = screen.getByLabelText(/label_stato_nascita/i);
-    fireEvent.change(statoNascita, { target: { value: 'FRANCIA' } });
-    const option = await screen.findByRole('option', { name: /FRANCIA/ });
-    fireEvent.mouseDown(option);
-
-    expect(onChange).toHaveBeenCalledWith(0, { _statoDiNascita: '109000100', placeOfBirth: '109000100' });
+    fireEvent.click(screen.getByText('btn_remove'));
+    expect(onRemove).toHaveBeenCalledWith(2);
   });
 
   it('has no accessibility violations', async () => {
@@ -220,8 +77,6 @@ describe('GuestFieldSection', () => {
         guest={emptyGuest(true)}
         index={0}
         canRemove={false}
-        stati={STATI}
-        tipdoc={TIPDOC}
         onRemove={onRemove}
         onChange={onChange}
       />,

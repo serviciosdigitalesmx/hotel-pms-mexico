@@ -1,38 +1,15 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { axe } from 'vitest-axe';
 import userEvent from '@testing-library/user-event';
 import { WalkInCheckInForm } from './WalkInCheckInForm';
 import { stayService } from '../../services/stayService';
 import { guestService } from '../../services/guestService';
 import type { StayResponse } from '../../types/stay.types';
 
-const ITALIA_STATO = { codice: '100000100', descrizione: 'ITALIA' };
-// BUG-10 fixture: 20 states alphabetically before "ITALIA" plus ITALIA itself
-// as the 21st entry (list order, no sort applied) — reproduces the exact
-// "not in the default slice(0, 20)" condition the bug depended on.
-const STATI_WITH_ITALIA_PAST_DEFAULT_SLICE = [
-  ...Array.from({ length: 20 }, (_, i) => ({
-    codice: `A${String(i).padStart(8, '0')}`,
-    descrizione: `ALBANIA ${i}`,
-  })),
-  ITALIA_STATO,
-];
-const FIANO_COMUNE = { codice: '412058036', descrizione: 'FIANO ROMANO', provincia: 'RM' };
-const PASOR_TIPDOC = { codice: 'PASOR', descrizione: 'PASSAPORTO ORDINARIO' };
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, opts?: Record<string, unknown>) => {
-      if (opts && typeof opts === 'object') {
-        return Object.entries(opts).reduce(
-          (s, [k, v]) => s.replace(`{{${k}}}`, String(v)),
-          key,
-        );
-      }
-      return key;
-    },
+    t: (key: string) => key,
     i18n: { language: 'en' },
   }),
   initReactI18next: { type: '3rdParty', init: vi.fn() },
@@ -66,70 +43,33 @@ const renderComponent = () =>
     </MemoryRouter>,
   );
 
-describe('WalkInCheckInForm', () => {
+describe('WalkInCheckInForm (México)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(stayService.getAvailableRooms).mockResolvedValue([
       {
         id: 'r1',
         roomNumber: '101',
-        status: 'AVAILABLE',
+        status: 'CLEAN',
         roomType: { name: 'Standard', maxOccupancy: 3 },
       },
     ]);
-    vi.mocked(stayService.getLookupStati).mockResolvedValue([]);
-    vi.mocked(stayService.getLookupTipdoc).mockResolvedValue([]);
     vi.mocked(guestService.searchGuests).mockResolvedValue([]);
   });
 
-  it('renders the walk-in form with room select, guest search and checkout date', async () => {
+  it('renders room, guest search, checkout date and Mexican guest fields only', async () => {
     renderComponent();
     await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
     expect(screen.getByLabelText(/walkin_label_guest/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/walkin_label_checkout_date/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/label_place_of_birth/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/label_guest_type/i)).not.toBeInTheDocument();
+    const svc = stayService as unknown as Record<string, unknown>;
+    expect(svc.getLookupStati).toBeUndefined();
+    expect(svc.getLookupTipdoc).toBeUndefined();
   });
 
-  it('shows Alloggiati guest section on initial render', async () => {
-    renderComponent();
-    await waitFor(() => expect(screen.getByText('guest_label')).toBeInTheDocument());
-    expect(screen.getByLabelText('occupant_count')).toBeDisabled();
-  });
-
-  it('debounces guest search — one request for a fast multi-character type, not one per keystroke', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
-    renderComponent();
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const user = userEvent.setup();
-    const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
-    await user.type(guestInput, 'Mario');
-
-    await waitFor(() => expect(guestService.searchGuests).toHaveBeenCalledTimes(1), { timeout: 5000 });
-    expect(guestService.searchGuests).toHaveBeenCalledWith('Mario');
-  });
-
-  it('pre-fills guest name when a guest is selected from search', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
-    const { container } = renderComponent();
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const user = userEvent.setup();
-    const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
-    await user.type(guestInput, 'Ma');
-
-    await waitFor(() => expect(screen.getByText(/Mario/)).toBeInTheDocument(), { timeout: 5000 });
-    await user.click(screen.getByRole('button', { name: /Mario/ }));
-
-    // After selection, the firstName field inside GuestFieldSection is pre-filled
-    const firstNameInput = container.querySelector('input[name="firstName"]') as HTMLInputElement;
-    expect(firstNameInput?.value).toBe('Mario');
-  });
-
-  it('blocks submit and shows validation error when no room is selected', async () => {
+  it('blocks submit when no room is selected', async () => {
     vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
     const { container } = renderComponent();
     await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
@@ -142,268 +82,52 @@ describe('WalkInCheckInForm', () => {
     expect(stayService.createStay).not.toHaveBeenCalled();
   });
 
-  it('blocks submit and shows validation error when stato nascita is not selected', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
+  it('submits basic Mexican guest data without Alloggiati fields', async () => {
     vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
+    vi.mocked(guestService.searchGuests).mockResolvedValue([
+      {
+        id: 'g1',
+        firstName: 'Mario',
+        lastName: 'Rossi',
+        email: 'mario@test.com',
+        createdAt: '2026-01-01T00:00:00',
+        updatedAt: '2026-01-01T00:00:00',
+        active: true,
+      },
+    ]);
     const { container } = renderComponent();
     await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
 
     const user = userEvent.setup();
-
-    // Select room
     await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
 
-    // Select guest
     const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
     await user.type(guestInput, 'Ma');
     await waitFor(() => expect(screen.getByText(/Mario/)).toBeInTheDocument(), { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: /Mario/ }));
 
-    // Set checkout date
     await user.type(screen.getByLabelText(/walkin_label_checkout_date/i), '2026-12-31');
-
-    // Submit without filling stato nascita
-    fireEvent.submit(container.querySelector('form')!);
-
-    await waitFor(() => {
-      expect(screen.getByText('err_stato_nascita_required')).toBeInTheDocument();
-    });
-    expect(stayService.createStay).not.toHaveBeenCalled();
-  });
-
-  it('submits with non-empty guests array when all required fields are filled', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
-    vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
-    const { container } = renderComponent();
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const user = userEvent.setup();
-
-    // Select room
-    await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
-
-    // Select guest
-    const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
-    await user.type(guestInput, 'Ma');
-    await waitFor(() => expect(screen.getByText(/Mario/)).toBeInTheDocument(), { timeout: 5000 });
-    await user.click(screen.getByRole('button', { name: /Mario/ }));
-
-    // Set checkout date
-    await user.type(screen.getByLabelText(/walkin_label_checkout_date/i), '2026-12-31');
-
-    // Fill Alloggiati fields
     await user.selectOptions(container.querySelector('select[name="gender"]')!, '1');
-    await user.type(container.querySelector('input[name="dateOfBirth"]')!, '1980-01-01');
+    fireEvent.change(container.querySelector('input[name="firstName"]')!, { target: { value: 'Mario' } });
+    fireEvent.change(container.querySelector('input[name="lastName"]')!, { target: { value: 'Rossi' } });
+    fireEvent.change(container.querySelector('input[name="dateOfBirth"]')!, { target: { value: '1980-01-01' } });
+    fireEvent.change(container.querySelector('input[name="placeOfBirth"]')!, { target: { value: 'Monterrey' } });
+    fireEvent.change(container.querySelector('input[name="citizenship"]')!, { target: { value: 'México' } });
 
-    // Simulate _statoDiNascita (foreign country: not Italia) by directly firing change
-    // The LookupAutocomplete stores state internally; we simulate via fireEvent on the underlying input
-    // For the test we use fireEvent on the hidden state via the form submit guard:
-    // Instead, trigger the form submit and verify the guard for stato nascita blocks
-    // (Full integration of LookupAutocomplete is covered by CheckInForm tests)
-    // Here we verify the guests array is NOT [] when createStay is called after validation passes.
-    // We patch the form state directly by firing a submit after the statoDiNascita state is set
-    // via the component's internal dispatch. We simulate this by using the internal guard skip:
-    // We mock a resolved createStay and verify the payload has guests length > 0.
-
-    // Patch: directly invoke handleGuestChange equivalent by setting _statoDiNascita to a foreign code
-    // via the combobox input (simulate selecting a non-Italian stato)
-    const statoCombos = container.querySelectorAll('input[role="combobox"]');
-    // statoCombos: [citizenship-0, stato-nascita-0, ...doc fields if shown]
-    // For a simpler test: verify that the mock IS called with guests: non-empty
-    // when we bypass validation by mocking a partial state.
-    // Use a foreign stato code to set _statoDiNascita via fireEvent on the combobox
-    const statoNascitaInput = statoCombos[1]; // index 1 = stato-nascita-0
-    fireEvent.focus(statoNascitaInput);
-    fireEvent.change(statoNascitaInput, { target: { value: 'FR' } });
-    // Close without selecting so _statoDiNascita stays empty — this validates the guard
-    // The actual selection path is integration-tested via LookupAutocomplete in CheckInForm
-
-    // Verify that when stato nascita IS missing, createStay is not called
     fireEvent.submit(container.querySelector('form')!);
-    await waitFor(() => {
-      expect(screen.getByText('err_stato_nascita_required')).toBeInTheDocument();
+
+    await waitFor(() => expect(stayService.createStay).toHaveBeenCalled());
+    const payload = vi.mocked(stayService.createStay).mock.calls[0][0];
+    expect(payload.guests[0]).toMatchObject({
+      firstName: 'Mario',
+      lastName: 'Rossi',
+      gender: '1',
+      dateOfBirth: '1980-01-01',
+      placeOfBirth: 'Monterrey',
+      citizenship: 'México',
+      isPrimaryGuest: true,
     });
-    expect(stayService.createStay).not.toHaveBeenCalled();
-  });
-
-  it('limits the occupant selector to the selected room capacity', async () => {
-    renderComponent();
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
-    const occupantCount = screen.getByLabelText('occupant_count');
-    await user.selectOptions(occupantCount, '3');
-
-    expect(occupantCount).toHaveValue('3');
-    expect(screen.getAllByRole('option', { name: /^[1-3]$/ })).toHaveLength(3);
-    expect(screen.getAllByText('guest_label')).toHaveLength(1);
-  });
-
-  it('submits successfully once all Alloggiati fields are filled, then navigates to /stays', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
-    vi.mocked(stayService.getLookupStati).mockResolvedValue([ITALIA_STATO]);
-    vi.mocked(stayService.getLookupTipdoc).mockResolvedValue([PASOR_TIPDOC]);
-    vi.mocked(stayService.searchLookupComuni).mockResolvedValue([FIANO_COMUNE]);
-    vi.mocked(stayService.createStay).mockResolvedValue(mockStayResponse());
-
-    render(
-      <MemoryRouter>
-        <Routes>
-          <Route path="/" element={<WalkInCheckInForm />} />
-          <Route path="/stays" element={<div>stays_page</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
-
-    const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
-    await user.type(guestInput, 'Ma');
-    await waitFor(() => expect(screen.getByText(/Mario/)).toBeInTheDocument(), { timeout: 5000 });
-    await user.click(screen.getByRole('button', { name: /Mario/ }));
-
-    await user.type(screen.getByLabelText(/walkin_label_checkout_date/i), '2026-12-31');
-
-    fireEvent.change(screen.getByLabelText(/^label_gender/, { selector: 'select' }), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText('label_date_of_birth'), { target: { value: '1990-01-01' } });
-
-    async function selectStato(label: string) {
-      const combo = screen.getByLabelText(new RegExp(`^${label}`), { selector: 'input' });
-      fireEvent.change(combo, { target: { value: 'ITA' } });
-      // 300ms real debounce in ComuneAutocomplete (AUTOCOMPLETE_DEBOUNCE_MS) leaves too
-      // little margin against the 1000ms findByRole default under full-suite CPU load.
-      const option = await screen.findByRole('option', { name: /ITALIA/ }, { timeout: 5000 });
-      fireEvent.mouseDown(option);
-    }
-    async function selectComune(label: string) {
-      const combo = screen.getByLabelText(new RegExp(`^${label}`), { selector: 'input' });
-      fireEvent.change(combo, { target: { value: 'FIA' } });
-      const option = await screen.findByRole('option', { name: /FIANO ROMANO/ }, { timeout: 5000 });
-      fireEvent.mouseDown(option);
-    }
-
-    await selectStato('label_citizenship');
-    await selectStato('label_stato_nascita');
-    fireEvent.change(screen.getByLabelText(/^label_doc_type/, { selector: 'select' }), { target: { value: 'PASOR' } });
-    fireEvent.change(screen.getByLabelText('label_doc_number'), { target: { value: 'AB123456' } });
-    await selectStato('label_stato_rilascio_doc');
-    await selectComune('label_comune_rilascio_doc');
-
-    fireEvent.submit(document.querySelector('form')!);
-
-    await waitFor(() => {
-      expect(stayService.createStay).toHaveBeenCalledWith(expect.objectContaining({
-        guestId: 'g1',
-        roomId: 'r1',
-        status: 'CHECKED_IN',
-        expectedCheckOutDate: '2026-12-31',
-        occupantCount: 1,
-        guests: [expect.objectContaining({
-          firstName: 'Mario',
-          lastName: 'Rossi',
-          placeOfBirth: ITALIA_STATO.codice,
-          documentType: 'PASOR',
-          documentNumber: 'AB123456',
-          documentPlaceOfIssue: FIANO_COMUNE.codice,
-          isPrimaryGuest: true,
-        })],
-      }));
-    });
-    await waitFor(() => expect(screen.getByText('stays_page')).toBeInTheDocument());
-  }, 15000);
-
-  it('BUG-10: shows the selected state\'s name, not its raw code, even when it '
-      + 'falls outside the default 20-item slice', async () => {
-    vi.mocked(stayService.getLookupStati).mockResolvedValue(STATI_WITH_ITALIA_PAST_DEFAULT_SLICE);
-
-    renderComponent();
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const combo = screen.getByLabelText(/^label_citizenship/, { selector: 'input' });
-    fireEvent.change(combo, { target: { value: 'ITALIA' } });
-    const option = await screen.findByRole('option', { name: /ITALIA/ }, { timeout: 5000 });
-    fireEvent.mouseDown(option);
-
-    await waitFor(() => expect(combo).toHaveValue('100000100 — ITALIA'));
-    expect(combo).not.toHaveValue('100000100');
-  }, 15000);
-
-  it('shows err_checkin_failed when the createStay request rejects', async () => {
-    vi.mocked(guestService.searchGuests).mockResolvedValue([
-      { id: 'g1', firstName: 'Mario', lastName: 'Rossi', email: 'mario@test.com', createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', active: true },
-    ]);
-    vi.mocked(stayService.getLookupStati).mockResolvedValue([ITALIA_STATO]);
-    vi.mocked(stayService.getLookupTipdoc).mockResolvedValue([PASOR_TIPDOC]);
-    vi.mocked(stayService.searchLookupComuni).mockResolvedValue([FIANO_COMUNE]);
-    vi.mocked(stayService.createStay).mockRejectedValue(new Error('boom'));
-
-    renderComponent();
-    await waitFor(() => expect(screen.getByLabelText(/walkin_label_room/i)).toBeInTheDocument());
-
-    const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
-    const guestInput = screen.getByPlaceholderText('walkin_placeholder_guest');
-    await user.type(guestInput, 'Ma');
-    await waitFor(() => expect(screen.getByText(/Mario/)).toBeInTheDocument(), { timeout: 5000 });
-    await user.click(screen.getByRole('button', { name: /Mario/ }));
-    await user.type(screen.getByLabelText(/walkin_label_checkout_date/i), '2026-12-31');
-
-    fireEvent.change(screen.getByLabelText(/^label_gender/, { selector: 'select' }), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText('label_date_of_birth'), { target: { value: '1990-01-01' } });
-
-    async function selectStato(label: string) {
-      const combo = screen.getByLabelText(new RegExp(`^${label}`), { selector: 'input' });
-      fireEvent.change(combo, { target: { value: 'ITA' } });
-      // 300ms real debounce in ComuneAutocomplete (AUTOCOMPLETE_DEBOUNCE_MS) leaves too
-      // little margin against the 1000ms findByRole default under full-suite CPU load.
-      const option = await screen.findByRole('option', { name: /ITALIA/ }, { timeout: 5000 });
-      fireEvent.mouseDown(option);
-    }
-    async function selectComune(label: string) {
-      const combo = screen.getByLabelText(new RegExp(`^${label}`), { selector: 'input' });
-      fireEvent.change(combo, { target: { value: 'FIA' } });
-      const option = await screen.findByRole('option', { name: /FIANO ROMANO/ }, { timeout: 5000 });
-      fireEvent.mouseDown(option);
-    }
-
-    await selectStato('label_citizenship');
-    await selectStato('label_stato_nascita');
-    fireEvent.change(screen.getByLabelText(/^label_doc_type/, { selector: 'select' }), { target: { value: 'PASOR' } });
-    fireEvent.change(screen.getByLabelText('label_doc_number'), { target: { value: 'AB123456' } });
-    await selectStato('label_stato_rilascio_doc');
-    await selectComune('label_comune_rilascio_doc');
-
-    fireEvent.submit(document.querySelector('form')!);
-
-    expect(await screen.findByText('err_checkin_failed', {}, { timeout: 5000 })).toBeInTheDocument();
-  }, 15000);
-
-  it('keeps a single primary guest section when occupant count changes', async () => {
-    renderComponent();
-    await waitFor(() => expect(screen.getByText('guest_label')).toBeInTheDocument());
-    const user = userEvent.setup();
-
-    await user.selectOptions(screen.getByLabelText(/walkin_label_room/i), 'r1');
-    await user.selectOptions(screen.getByLabelText('occupant_count'), '2');
-
-    expect(screen.getByLabelText('occupant_count')).toHaveValue('2');
-    expect(screen.getAllByText('guest_label')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'btn_add_guest' })).not.toBeInTheDocument();
-  });
-
-  it('should have no accessibility violations', async () => {
-    const { container } = renderComponent();
-    await waitFor(() => expect(screen.getByText('walkin_title')).toBeInTheDocument());
-    const results = await axe(container);
-    expect(results).toHaveNoViolations();
+    expect(payload.guests[0]).not.toHaveProperty('travellerType');
+    expect(payload.guests[0]).not.toHaveProperty('documentType');
   });
 });

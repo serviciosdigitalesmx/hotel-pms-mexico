@@ -6,29 +6,13 @@ import { MaterialIcon } from '../../components/MaterialIcon';
 import { M3Button } from '../../components/m3/M3Button';
 import { stayService } from '../../services/stayService';
 import { guestService } from '../../services/guestService';
-import type {
-  AlloggiatiStato,
-  AlloggiatiTipdoc,
-  StayGuestRequest,
-  StayRequest,
-  TravellerType,
-} from '../../types/stay.types';
-import type { DocumentType } from '../../types/guest.types';
+import type { StayGuestRequest, StayRequest } from '../../types/stay.types';
 import { GuestFieldSection } from './GuestFieldSection';
 import {
   emptyGuest,
-  TYPES_WITHOUT_DOC,
-  validateAlloggiatiGuests,
+  validateCheckInGuests,
 } from './stayGuestFieldHelpers';
 import type { IdentifiableGuest } from './stayGuestFieldHelpers';
-
-const mapDocType = (dt: DocumentType): string => {
-  switch (dt) {
-    case 'PASSPORT': return 'PASOR';
-    case 'ID_CARD':  return 'CARTE';
-    default:         return '';
-  }
-};
 
 interface CheckInState {
   guestId: string;
@@ -51,8 +35,6 @@ export const CheckInForm = memo(() => {
   const [error, setError] = useState<string | null>(null);
   const [prefillFields, setPrefillFields] = useState<string[]>([]);
   const [prefillSource, setPrefillSource] = useState<'stay' | 'profile' | null>(null);
-  const [stati, setStati] = useState<AlloggiatiStato[]>([]);
-  const [tipdoc, setTipdoc] = useState<AlloggiatiTipdoc[]>([]);
 
   const initialCount = state?.expectedGuests && state.expectedGuests > 0 ? state.expectedGuests : 1;
   const maxOccupancy = Math.max(1, state?.maxOccupancy || initialCount);
@@ -62,11 +44,6 @@ export const CheckInForm = memo(() => {
     () => Array.from({ length: maxOccupancy }, (_, index) => index + 1),
     [maxOccupancy],
   );
-
-  useEffect(() => {
-    stayService.getLookupStati().then(setStati).catch(() => { /* non-blocking */ });
-    stayService.getLookupTipdoc().then(setTipdoc).catch(() => { /* non-blocking */ });
-  }, []);
 
   const guestId = state?.guestId;
   useEffect(() => {
@@ -88,16 +65,12 @@ export const CheckInForm = memo(() => {
         if (lastPrimary.dateOfBirth)  { updates.dateOfBirth  = lastPrimary.dateOfBirth;  filled.push('dateOfBirth'); }
         if (lastPrimary.citizenship)  { updates.citizenship  = lastPrimary.citizenship;  filled.push('citizenship'); }
         if (lastPrimary.placeOfBirth) { updates.placeOfBirth = lastPrimary.placeOfBirth; filled.push('placeOfBirth'); }
-        if (lastPrimary.travellerType){ updates.travellerType= lastPrimary.travellerType; filled.push('travellerType'); }
       }
 
       const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
       if (profile) {
-        const doc = profile.identityDocuments?.[0];
         if (!updates.firstName    && profile.firstName)    { updates.firstName    = profile.firstName;           filled.push('firstName'); }
         if (!updates.lastName     && profile.lastName)     { updates.lastName     = profile.lastName;            filled.push('lastName'); }
-        if (!updates.documentType   && doc?.documentType)   { updates.documentType   = mapDocType(doc.documentType); filled.push('documentType'); }
-        if (!updates.documentNumber && doc?.documentNumber) { updates.documentNumber = doc.documentNumber;           filled.push('documentNumber'); }
       }
 
       if (Object.keys(updates).length === 0) return;
@@ -133,7 +106,7 @@ export const CheckInForm = memo(() => {
       return;
     }
 
-    const issue = validateAlloggiatiGuests(guests, t);
+    const issue = validateCheckInGuests(guests, t);
     if (issue) {
       setError(issue);
       return;
@@ -141,24 +114,16 @@ export const CheckInForm = memo(() => {
 
     try {
       setLoading(true);
-      const apiGuests: StayGuestRequest[] = guests.map(g => {
-        const withoutDoc = TYPES_WITHOUT_DOC.includes(g.travellerType as TravellerType);
-        return {
-          firstName: g.firstName,
-          lastName: g.lastName,
-          gender: g.gender,
-          dateOfBirth: g.dateOfBirth,
-          placeOfBirth: g.placeOfBirth,
-          citizenship: g.citizenship,
-          // Explicitly exclude doc fields for FAMILIARE/MEMBRO_GRUPPO per tracciato rules
-          documentType: withoutDoc ? undefined : (g.documentType || undefined),
-          documentNumber: withoutDoc ? undefined : (g.documentNumber || undefined),
-          documentPlaceOfIssue: withoutDoc ? undefined : (g.documentPlaceOfIssue || undefined),
-          isPrimaryGuest: g.isPrimaryGuest,
-          travellerType: g.travellerType || undefined,
-          travelPurpose: g.travelPurpose || undefined,
-        };
-      });
+      const apiGuests: StayGuestRequest[] = guests.map(g => ({
+        firstName: g.firstName,
+        lastName: g.lastName,
+        gender: g.gender,
+        dateOfBirth: g.dateOfBirth,
+        placeOfBirth: g.placeOfBirth,
+        citizenship: g.citizenship,
+        isPrimaryGuest: g.isPrimaryGuest,
+        travelPurpose: g.travelPurpose || undefined,
+      }));
 
       const request: StayRequest = {
         reservationId,
@@ -224,8 +189,6 @@ export const CheckInForm = memo(() => {
           guest={guests[0]}
           index={0}
           canRemove={false}
-          stati={stati}
-          tipdoc={tipdoc}
           onRemove={handleGuestRemove}
           onChange={handleGuestChange}
         />

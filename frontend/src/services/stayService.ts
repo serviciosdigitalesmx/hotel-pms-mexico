@@ -1,9 +1,5 @@
 import api from './api';
 import type {
-  AlloggiatiComune,
-  AlloggiatiFailureSummaryResponse,
-  AlloggiatiStato,
-  AlloggiatiTipdoc,
   AvailableRoom,
   HotelSettingsRequest,
   HotelSettingsResponse,
@@ -57,67 +53,11 @@ export const stayService = {
     return response.data;
   },
 
-  downloadAlloggiatiReport: async (date: string): Promise<void> => {
-    const response = await api.get(`${BASE_PATH}/reports/alloggiati`, {
-      params: { date },
-      responseType: 'blob',
-    });
-    const blob = new Blob([response.data as BlobPart], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `alloggiati-${date}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-  },
-
   getLastCompletedStayForGuest: async (guestId: string): Promise<StayResponse | null> => {
     const response = await api.get<StayResponse>(`${BASE_PATH}/guest/${guestId}/latest`, {
       validateStatus: (s) => s === 200 || s === 204,
     });
     return response.status === 204 ? null : response.data;
-  },
-
-  downloadAlloggiatiJson: async (date: string): Promise<void> => {
-    const response = await api.get(`${BASE_PATH}/reports/alloggiati/json`, {
-      params: { date },
-      responseType: 'blob',
-    });
-    const blob = new Blob([response.data as BlobPart], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `alloggiati-${date}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  },
-
-  getLookupStati: async (): Promise<AlloggiatiStato[]> => {
-    const response = await api.get<AlloggiatiStato[]>(`${BASE_PATH}/lookup/stati`);
-    return response.data;
-  },
-
-  searchLookupComuni: async (q: string, provincia?: string): Promise<AlloggiatiComune[]> => {
-    const response = await api.get<AlloggiatiComune[]>(`${BASE_PATH}/lookup/comuni`, {
-      params: { q, provincia },
-    });
-    return response.data;
-  },
-
-  submitAlloggiatiReport: async (date: string): Promise<void> => {
-    await api.post(`${BASE_PATH}/reports/alloggiati/submit`, null, { params: { date } });
-  },
-
-  getLookupTipdoc: async (): Promise<AlloggiatiTipdoc[]> => {
-    const response = await api.get<AlloggiatiTipdoc[]>(`${BASE_PATH}/lookup/tipdoc`);
-    return response.data;
-  },
-
-  getAlloggiatiFailureSummary: async (): Promise<AlloggiatiFailureSummaryResponse> => {
-    const response = await api.get<AlloggiatiFailureSummaryResponse>(
-      `${BASE_PATH}/reports/alloggiati/failures/summary`,
-    );
-    return response.data;
   },
 
   getAvailableRooms: async (): Promise<AvailableRoom[]> => {
