@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Reversible Native Image variant for guest-service.
 # The JVM image remains guest-service/Dockerfile.
-FROM ghcr.io/graalvm/native-image-community:24.0.2 AS builder
+FROM ghcr.io/graalvm/native-image-community:25.0.2 AS builder
 ARG NATIVE_QUICK_BUILD=false
 ARG CONFIG_SERVER_URL=http://127.0.0.1:8888
 ARG CONFIG_SERVER_USERNAME=configuser
