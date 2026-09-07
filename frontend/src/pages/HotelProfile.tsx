@@ -7,6 +7,7 @@ import { MaterialIcon } from '../components/MaterialIcon';
 import { M3Button } from '../components/m3/M3Button';
 import { M3Card } from '../components/m3/M3Card';
 import { useToastStore } from '../store/toastStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { getErrorMessage } from '../utils/errorMessage';
 
 const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i;
@@ -64,9 +65,9 @@ ProfileField.displayName = 'ProfileField';
 export function HotelProfile() {
   const { t } = useTranslation('admin');
   const { addToast } = useToastStore();
+  const loadHotelSettings = useSettingsStore((state) => state.loadHotelSettings);
 
   const [form, setForm] = useState<HotelSettingsRequest>({
-    alloggiatiAutoSend: false,
     hotelName: '',
     address: '',
     vatNumber: '',
@@ -80,16 +81,10 @@ export function HotelProfile() {
     locale: 'es-MX',
     timezone: 'America/Monterrey',
     publicSlug: '',
-    alloggiatiUsername: '',
-    alloggiatiPassword: '',
-    alloggiatiWsKey: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [alloggiatiCredentialsConfigured, setAlloggiatiCredentialsConfigured] = useState(false);
-  const [showAlloggiatiPassword, setShowAlloggiatiPassword] = useState(false);
-  const [showAlloggiatiWsKey, setShowAlloggiatiWsKey] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const profileSchema = useMemo(() => z.object({
@@ -105,7 +100,6 @@ export function HotelProfile() {
       .getHotelSettings()
       .then((s: HotelSettingsResponse) => {
         setForm({
-          alloggiatiAutoSend: s.alloggiatiAutoSend,
           hotelName: s.hotelName ?? '',
           address: s.address ?? '',
           vatNumber: s.vatNumber ?? '',
@@ -119,11 +113,7 @@ export function HotelProfile() {
           locale: s.locale ?? 'es-MX',
           timezone: s.timezone ?? 'America/Monterrey',
           publicSlug: s.publicSlug ?? '',
-          alloggiatiUsername: s.alloggiatiUsername ?? '',
-          alloggiatiPassword: '',
-          alloggiatiWsKey: '',
         });
-        setAlloggiatiCredentialsConfigured(s.alloggiatiCredentialsConfigured);
       })
       .catch(() => addToast(t('err_profile_save'), 'error'))
       .finally(() => setLoading(false));
@@ -133,13 +123,6 @@ export function HotelProfile() {
     (field: keyof HotelSettingsRequest) =>
       (e: React.ChangeEvent<HTMLInputElement>) =>
         setForm((prev) => ({ ...prev, [field]: e.target.value })),
-    [],
-  );
-
-  const handleCheckboxChange = useCallback(
-    (field: keyof HotelSettingsRequest) =>
-      (e: React.ChangeEvent<HTMLInputElement>) =>
-        setForm((prev) => ({ ...prev, [field]: e.target.checked })),
     [],
   );
 
@@ -163,11 +146,7 @@ export function HotelProfile() {
     setSaving(true);
     try {
       await stayService.updateHotelSettings({ ...form, ...result.data });
-      setForm((prev) => ({ ...prev, alloggiatiPassword: '', alloggiatiWsKey: '' }));
-      setAlloggiatiCredentialsConfigured(
-        Boolean(form.alloggiatiUsername?.trim() || form.alloggiatiPassword?.trim() || form.alloggiatiWsKey?.trim())
-          || alloggiatiCredentialsConfigured,
-      );
+      void loadHotelSettings();
       addToast(t('toast_profile_saved'), 'success');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
@@ -180,15 +159,7 @@ export function HotelProfile() {
     } finally {
       setSaving(false);
     }
-  }, [form, profileSchema, addToast, t, alloggiatiCredentialsConfigured]);
-
-  const toggleAlloggiatiPassword = useCallback(() => {
-    setShowAlloggiatiPassword((visible) => !visible);
-  }, []);
-
-  const toggleAlloggiatiWsKey = useCallback(() => {
-    setShowAlloggiatiWsKey((visible) => !visible);
-  }, []);
+  }, [form, profileSchema, addToast, t, loadHotelSettings]);
 
   const handleSaveClick = useCallback(() => {
     void handleSave();
@@ -322,64 +293,6 @@ export function HotelProfile() {
           type="url"
         />
 
-        <section className="space-y-3" aria-labelledby="alloggiati-credentials-title">
-          <h2 id="alloggiati-credentials-title" className="text-lg font-medium text-on-surface">
-            {t('section_title_alloggiati_credentials')}
-          </h2>
-          <p className="text-sm text-on-surface-variant">{t('hint_alloggiati_credentials')}</p>
-          <label className="flex items-start gap-3 text-sm text-on-surface">
-            <input
-              type="checkbox"
-              checked={Boolean(form.alloggiatiAutoSend)}
-              onChange={handleCheckboxChange('alloggiatiAutoSend')}
-              aria-label={t('label_alloggiati_auto_send')}
-              className="mt-1"
-            />
-            <span>
-              <span className="block font-medium">{t('label_alloggiati_auto_send')}</span>
-              <span className="block text-on-surface-variant">{t('hint_alloggiati_auto_send')}</span>
-            </span>
-          </label>
-          <ProfileField
-            id="profile-alloggiati-username"
-            label={t('label_alloggiati_username')}
-            value={form.alloggiatiUsername ?? ''}
-            placeholder={t('placeholder_alloggiati_username')}
-            onChange={handleChange('alloggiatiUsername')}
-            autoComplete="username"
-          />
-          <div className="relative">
-            <ProfileField
-              id="profile-alloggiati-password"
-              label={t('label_alloggiati_password')}
-              value={form.alloggiatiPassword ?? ''}
-              placeholder={t(alloggiatiCredentialsConfigured ? 'placeholder_alloggiati_credential_configured' : 'placeholder_alloggiati_credential_unconfigured')}
-              onChange={handleChange('alloggiatiPassword')}
-              type={showAlloggiatiPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-            />
-            <button type="button" aria-label="show_password" onClick={toggleAlloggiatiPassword} className="absolute right-2 top-7">
-              <MaterialIcon name={showAlloggiatiPassword ? 'visibility_off' : 'visibility'} size={20} />
-            </button>
-          </div>
-          <div className="relative">
-            <ProfileField
-              id="profile-alloggiati-ws-key"
-              label={t('label_alloggiati_ws_key')}
-              value={form.alloggiatiWsKey ?? ''}
-              placeholder={t(alloggiatiCredentialsConfigured ? 'placeholder_alloggiati_credential_configured' : 'placeholder_alloggiati_credential_unconfigured')}
-              onChange={handleChange('alloggiatiWsKey')}
-              type={showAlloggiatiWsKey ? 'text' : 'password'}
-              autoComplete="new-password"
-            />
-            <button type="button" aria-label="show_password" onClick={toggleAlloggiatiWsKey} className="absolute right-2 top-7">
-              <MaterialIcon name={showAlloggiatiWsKey ? 'visibility_off' : 'visibility'} size={20} />
-            </button>
-          </div>
-          <p className="text-sm text-on-surface-variant">
-            {t(alloggiatiCredentialsConfigured ? 'status_alloggiati_credentials_configured' : 'status_alloggiati_credentials_not_configured')}
-          </p>
-        </section>
       </M3Card>
 
       <div className="flex justify-end">

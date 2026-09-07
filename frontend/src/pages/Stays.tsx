@@ -92,7 +92,7 @@ export const Stays = memo(() => {
       setTotalPages(data.totalPages);
     } catch (err: unknown) {
       const message = getErrorMessage(err, t('failed_load_stays'));
-      setError(message === 'alloggiati_failed' ? t('alloggiati_failed') : message);
+      setError(message);
     } finally {
       setLoading(false);
     }

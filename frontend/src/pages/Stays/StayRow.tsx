@@ -77,11 +77,6 @@ export const StayRow = memo(({
       </M3TableCell>
       <M3TableCell>
         <div className="flex flex-col items-start gap-1">
-          {stay.alloggiatiSendFailed && (
-            <span className="inline-flex items-center gap-1" title={stay.alloggiatiFailureReason ?? undefined}>
-              <M3StatusChip label={t('alloggiati_failed')} tone="error" />
-            </span>
-          )}
           {stay.invoiceCreationFailed && (
             <span className="inline-flex items-center gap-1" title={stay.invoiceCreationFailureReason ?? undefined}>
               <M3StatusChip label={t('invoice_creation_failed')} tone="error" />

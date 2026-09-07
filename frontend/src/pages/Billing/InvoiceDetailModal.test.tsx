@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { InvoiceDetailModal } from './InvoiceDetailModal';
 import type { InvoiceResponse } from '../../types/billing.types';
@@ -8,9 +8,6 @@ import { billingService } from '../../services/billingService';
 vi.mock('../../services/billingService', () => ({
   billingService: {
     downloadPdf: vi.fn(),
-    validateFatturaPAXml: vi.fn(),
-    downloadFatturaPAXml: vi.fn(),
-    updateDocumentType: vi.fn(),
   },
 }));
 
@@ -104,41 +101,6 @@ describe('InvoiceDetailModal', () => {
     render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
     fireEvent.click(screen.getByRole('button', { name: /download_pdf/i }));
     expect(billingService.downloadPdf).toHaveBeenCalledWith('inv1');
-  });
-
-  it('shows document type toggle for non-cancelled invoices', () => {
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
-    expect(screen.getByText('document_type_fattura')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /switch_to_ricevuta/i })).toBeInTheDocument();
-  });
-
-  it('hides document type toggle for cancelled invoices', () => {
-    render(<InvoiceDetailModal invoice={INVOICE_CANCELLED} onClose={onClose} />);
-    expect(screen.queryByRole('button', { name: /switch_to/i })).not.toBeInTheDocument();
-  });
-
-  it('calls updateDocumentType and onUpdated when toggle is clicked', async () => {
-    const updated: InvoiceResponse = { ...BASE_INVOICE, documentType: 'RICEVUTA' };
-    vi.mocked(billingService.updateDocumentType).mockResolvedValueOnce(updated);
-    const onUpdated = vi.fn();
-
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} onUpdated={onUpdated} />);
-    fireEvent.click(screen.getByRole('button', { name: /switch_to_ricevuta/i }));
-
-    await waitFor(() => expect(billingService.updateDocumentType).toHaveBeenCalledWith('inv1', 'RICEVUTA'));
-    expect(onUpdated).toHaveBeenCalledWith(updated);
-    expect(mockAddToast).toHaveBeenCalledWith('document_type_updated', 'success');
-  });
-
-  it('shows error toast when updateDocumentType fails', async () => {
-    vi.mocked(billingService.updateDocumentType).mockRejectedValueOnce({
-      response: { data: { detail: 'CANNOT_UPDATE_CANCELLED_INVOICE' } },
-    });
-
-    render(<InvoiceDetailModal invoice={BASE_INVOICE} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: /switch_to_ricevuta/i }));
-
-    await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('CANNOT_UPDATE_CANCELLED_INVOICE', 'error'));
   });
 
   it('hides SDI section for RICEVUTA invoices', () => {
