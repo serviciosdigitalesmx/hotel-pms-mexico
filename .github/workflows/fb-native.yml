@@ -120,7 +120,7 @@ jobs:
           docker build --tag hotel-pms/fb-service-jvm:ci --file fb-service/Dockerfile .
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # A single build step selects Ob or O2. Gate-only changes to already
       # proven code can dispatch O2 directly without another quick compilation.
