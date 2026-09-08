@@ -337,7 +337,7 @@ export const SettingsSystem = () => {
 
         <div>
           <label htmlFor="ai-instructions" className="block text-sm font-medium text-on-surface mb-1">
-            Instrucciones del Hotel Palmas
+            Instrucciones del establecimiento
           </label>
           <textarea
             id="ai-instructions"

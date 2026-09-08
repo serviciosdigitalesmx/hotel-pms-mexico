@@ -41,7 +41,7 @@
   "label_vat_number": "RFC",
   "label_fiscal_code": "Tax ID",
   "label_logo_url": "Logo URL (optional)",
-  "placeholder_hotel_name": "e.g. Hotel Palmas",
+  "placeholder_hotel_name": "Your property name",
   "placeholder_address": "Street, number and neighborhood",
   "placeholder_vat_number": "12 or 13 characters",
   "placeholder_fiscal_code": "Tax identifier",
