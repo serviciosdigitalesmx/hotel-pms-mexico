@@ -27,8 +27,8 @@ vi.mock('../store/toastStore', () => ({
 
 let mockRole: string | undefined = undefined;
 vi.mock('../store/authStore', () => ({
-  useAuthStore: (selector: (s: { user: { role: string | undefined } | null }) => unknown) =>
-    selector({ user: mockRole ? { role: mockRole } : null }),
+  useAuthStore: Object.assign((selector: (s: { user: { role: string | undefined } | null }) => unknown) =>
+    selector({ user: mockRole ? { role: mockRole } : null }), { subscribe: vi.fn() }),
 }));
 
 vi.mock('./Restaurant/OrderFormModal', () => ({
