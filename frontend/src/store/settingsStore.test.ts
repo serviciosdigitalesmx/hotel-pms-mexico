@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from './authStore';
 import { useSettingsStore } from './settingsStore';
 import { stayService } from '../services/stayService';
+import i18n from '../i18n';
 import type { HotelSettingsResponse } from '../types/stay.types';
 
 vi.mock('../services/stayService', () => ({
@@ -32,6 +33,24 @@ describe('tenant settings session isolation', () => {
     vi.mocked(stayService.getHotelSettings).mockResolvedValue(tenantSettings('Tenant B'));
     await useSettingsStore.getState().loadHotelSettings();
     expect(useSettingsStore.getState().hotelName).toBe('Tenant B');
+  });
+
+  it('preserves device accessibility preferences while clearing tenant identity', () => {
+    login('a');
+    const settings = useSettingsStore.getState();
+    settings.setContrast('high');
+    settings.setFontScale('large');
+    settings.setLanguage('es');
+    login('b');
+    expect(useSettingsStore.getState()).toMatchObject({
+      hotelName: 'PMS', logoUrl: '', contrast: 'high', fontScale: 'large',
+    });
+    expect(document.documentElement.getAttribute('data-contrast')).toBe('high');
+    expect(document.documentElement.style.getPropertyValue('--md-font-scale')).toBe('18px');
+    expect(localStorage.getItem('hotel-pms-contrast')).toBe('high');
+    expect(i18n.changeLanguage).toHaveBeenCalledWith('es');
+    settings.setContrast('normal');
+    settings.setFontScale('normal');
   });
 
   it('ignores a late response from A after B has loaded its own settings', async () => {
