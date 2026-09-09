@@ -129,7 +129,7 @@ export const MainLayout = () => {
 
   useEffect(() => {
     void loadHotelSettings().catch(() => undefined);
-  }, [loadHotelSettings]);
+  }, [loadHotelSettings, user]);
 
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
