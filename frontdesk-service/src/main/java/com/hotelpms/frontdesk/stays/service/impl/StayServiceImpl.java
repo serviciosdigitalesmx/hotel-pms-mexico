@@ -26,11 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.lang.NonNull;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,8 +37,7 @@ import java.util.UUID;
  * <p>Orchestrates the check-in/check-out saga; each concern that isn't core stay
  * state has its own collaborator in this package: {@link StayCheckInValidator}
  * (guest/reservation/room validation), {@link StayBillingCoordinator} (folio +
- * room charge), {@link StayAlloggiatiCoordinator} (Alloggiati Web submission),
- * {@link StayNotificationCoordinator} (checkout email), and
+ * room charge), {@link StayNotificationCoordinator} (checkout email), and
  * {@link StayReservationSync} (parent-reservation status reconciliation). This
  * class stays the single {@code @Service} implementing {@link StayService} — the
  * public contract doesn't change, only how the work behind it is organized.
