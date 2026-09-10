@@ -1,6 +1,5 @@
 package com.hotelpms.guest.service.impl;
 
-import com.hotelpms.guest.client.AlloggiatiComuniClient;
 import com.hotelpms.guest.client.BillingServiceClient;
 import com.hotelpms.guest.client.ReservationClient;
 import com.hotelpms.guest.client.StayServiceClient;
@@ -71,7 +70,6 @@ public class GuestServiceImpl implements GuestService {
     private final ReservationClient reservationClient;
     private final StayServiceClient stayServiceClient;
     private final BillingServiceClient billingServiceClient;
-    private final AlloggiatiComuniClient alloggiatiComuniClient;
     private final GuestPrivacySettingsService privacySettingsService;
 
     /**
@@ -83,7 +81,6 @@ public class GuestServiceImpl implements GuestService {
     @Override
     @Transactional
     public GuestResponse createGuest(final GuestRequest request) {
-        validateComune(request.comune(), request.provincia());
         final UUID hotelId = extractHotelId();
         final Guest entity = guestMapper.toEntity(request);
         normalizeMexicoGuest(entity);
@@ -137,7 +134,6 @@ public class GuestServiceImpl implements GuestService {
     @Override
     @Transactional
     public GuestResponse updateGuest(final UUID id, final GuestRequest request) {
-        validateComune(request.comune(), request.provincia());
         final UUID hotelId = extractHotelId();
         final Guest guest = Objects.requireNonNull(resolveGuest(id, hotelId));
         guestMapper.updateEntityFromRequest(request, guest);
@@ -184,35 +180,6 @@ public class GuestServiceImpl implements GuestService {
             guest.setBillingEmail(
                     guest.getBillingEmail().trim()
                             .toLowerCase(java.util.Locale.ROOT));
-        }
-    }
-
-    /**
-     * Validates that Comune and Provincia are either both absent (guest has no
-     * Italian structured address yet) or both present and matching a real, active
-     * municipality per the Alloggiati Web reference data owned by frontdesk-service
-     * (P0-1) — the same source already used for police check-in reporting (F2).
-     *
-     * @param comune    the comune name, or {@code null}
-     * @param provincia the 2-letter province code, or {@code null}
-     * @throws GuestValidationException if exactly one of the two is present, or the
-     *                                   pair doesn't match a real active comune
-     */
-    private void validateComune(final String comune, final String provincia) {
-        final boolean hasComune = comune != null && !comune.isBlank();
-        final boolean hasProvincia = provincia != null && !provincia.isBlank();
-        if (!hasComune && !hasProvincia) {
-            return;
-        }
-        if (!hasComune || !hasProvincia) {
-            throw new GuestValidationException("COMUNE_AND_PROVINCIA_MUST_BE_PROVIDED_TOGETHER");
-        }
-        final boolean matches = alloggiatiComuniClient.searchComuni(
-                        comune, Objects.requireNonNull(provincia).toUpperCase(java.util.Locale.ROOT))
-                .stream()
-                .anyMatch(c -> c.descrizione().equalsIgnoreCase(comune));
-        if (!matches) {
-            throw new GuestValidationException("COMUNE_NOT_FOUND_FOR_PROVINCIA");
         }
     }
 

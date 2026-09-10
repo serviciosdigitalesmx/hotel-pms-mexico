@@ -12,14 +12,6 @@ eureka:
   client:
     enabled: false
 
-# México runtime default: Alloggiati remains disabled. This kills the startup
-# catalog downloader and the automatic PII sender regardless of any
-# hotel-level alloggiatiAutoSend flag left over from the Italian data model.
-hotel-pms:
-  alloggiati:
-    enabled: false
-
-
 # Internal HMAC security - injected by setup-hmac-secret script
 internal:
   hmac:

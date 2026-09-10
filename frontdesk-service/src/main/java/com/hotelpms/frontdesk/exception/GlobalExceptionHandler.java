@@ -120,40 +120,6 @@ public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
     }
 
     /**
-     * Handles AlloggiatiRowLimitExceededException (export exceeds the 1 000-row
-     * Portale Alloggiati Web upload limit).
-     *
-     * @param ex the exception
-     * @return the problem detail
-     */
-    @ExceptionHandler(AlloggiatiRowLimitExceededException.class)
-    public ProblemDetail handleAlloggiatiRowLimitExceededException(final AlloggiatiRowLimitExceededException ex) {
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
-        problemDetail.setTitle("Alloggiati Row Limit Exceeded");
-        problemDetail.setType(errorType("alloggiati-row-limit-exceeded"));
-        problemDetail.setProperty(TIMESTAMP_FIELD, Instant.now());
-        return problemDetail;
-    }
-
-    /**
-     * Handles AlloggiatiValidationException (domain coherence violation in stay
-     * guest data, e.g. FAMILIARE without CAPOFAMIGLIA).
-     *
-     * @param ex the exception
-     * @return the problem detail
-     */
-    @ExceptionHandler(AlloggiatiValidationException.class)
-    public ProblemDetail handleAlloggiatiValidationException(final AlloggiatiValidationException ex) {
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
-        problemDetail.setTitle("Alloggiati Validation Error");
-        problemDetail.setType(errorType("alloggiati-validation"));
-        problemDetail.setProperty(TIMESTAMP_FIELD, Instant.now());
-        return problemDetail;
-    }
-
-    /**
      * Handles IllegalStateException (e.g., check-out on a non-CHECKED_IN stay,
      * check-in on a reservation with an invalid status).
      *

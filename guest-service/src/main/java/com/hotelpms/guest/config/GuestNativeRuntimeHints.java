@@ -1,6 +1,5 @@
 package com.hotelpms.guest.config;
 
-import com.hotelpms.guest.client.AlloggiatiComuniClient;
 import com.hotelpms.guest.client.BillingServiceClient;
 import com.hotelpms.guest.client.ReservationClient;
 import com.hotelpms.guest.client.StayServiceClient;
@@ -27,7 +26,6 @@ public final class GuestNativeRuntimeHints implements RuntimeHintsRegistrar {
     public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
         hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
         BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
-        registerFeignProxy(hints, AlloggiatiComuniClient.class);
         registerFeignProxy(hints, BillingServiceClient.class);
         registerFeignProxy(hints, ReservationClient.class);
         registerFeignProxy(hints, StayServiceClient.class);

@@ -13,7 +13,7 @@ import com.hotelpms.frontdesk.exception.BadRequestException;
 import com.hotelpms.frontdesk.exception.ExternalServiceException;
 import com.hotelpms.frontdesk.stays.domain.HotelSettings;
 import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
-import com.hotelpms.frontdesk.stays.security.AlloggiatiCredentialEncryptor;
+import com.hotelpms.frontdesk.security.SecretEncryptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -74,7 +74,7 @@ public class AssistantService {
             .build();
 
     private final HotelSettingsRepository hotelSettingsRepository;
-    private final AlloggiatiCredentialEncryptor credentialEncryptor;
+    private final SecretEncryptor credentialEncryptor;
     private final AssistantToolCatalog toolCatalog;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;

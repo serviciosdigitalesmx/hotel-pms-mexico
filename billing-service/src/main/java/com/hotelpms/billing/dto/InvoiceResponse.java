@@ -2,7 +2,6 @@ package com.hotelpms.billing.dto;
 
 import com.hotelpms.billing.domain.DocumentType;
 import com.hotelpms.billing.domain.InvoiceStatus;
-import com.hotelpms.billing.domain.SdiStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,7 +36,6 @@ public record InvoiceResponse(
         UUID guestId,
         UUID stayId,
         DocumentType documentType,
-        SdiStatus sdiStatus,
         List<PaymentResponse> payments,
         List<ChargeResponse> charges) {
 
