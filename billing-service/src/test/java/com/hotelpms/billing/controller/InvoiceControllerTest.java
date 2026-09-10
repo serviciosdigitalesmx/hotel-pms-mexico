@@ -6,17 +6,14 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hotelpms.billing.domain.ChargeType;
 import com.hotelpms.billing.domain.DocumentType;
 import com.hotelpms.billing.domain.InvoiceStatus;
-import com.hotelpms.billing.domain.SdiStatus;
 import com.hotelpms.billing.dto.ChargeRequest;
 import com.hotelpms.billing.dto.ChargeResponse;
 import com.hotelpms.billing.dto.DocumentTypeRequest;
 import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.InvoiceSearchResultResponse;
-import com.hotelpms.billing.dto.SdiStatusRequest;
 import com.hotelpms.billing.dto.StayInvoiceRequest;
 import com.hotelpms.billing.exception.GlobalExceptionHandler;
 import com.hotelpms.billing.exception.NotFoundException;
-import com.hotelpms.billing.service.FatturaPAService;
 import com.hotelpms.billing.service.InvoiceService;
 import com.hotelpms.billing.service.PdfInvoiceService;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,9 +67,6 @@ class InvoiceControllerTest {
 
     private static final String PATH_PDF = "/{id}/pdf";
     private static final String PATH_DOCUMENT_TYPE = "/{id}/document-type";
-    private static final String PATH_FATTURA_PA = "/{id}/fatturaPA";
-    private static final String PATH_SDI_STATUS = "/{id}/sdi-status";
-    private static final String PATH_EXPORT = "/export";
     private static final String HEADER_CONTENT_DISPOSITION = "Content-Disposition";
     private static final String ATTACHMENT = "attachment";
     private static final String INV_NUMBER = "INV-001";
@@ -87,9 +81,6 @@ class InvoiceControllerTest {
 
     @Mock
     private PdfInvoiceService pdfInvoiceService;
-
-    @Mock
-    private FatturaPAService fatturaPAService;
 
     @InjectMocks
     private InvoiceController invoiceController;
@@ -117,7 +108,7 @@ class InvoiceControllerTest {
                 INVOICE_ID, HOTEL_ID, INV_NUMBER, null,
                 AMOUNT_100, InvoiceStatus.ISSUED,
                 RESERVATION_ID, GUEST_ID, null,
-                null, null, List.of(), List.of());
+                null, List.of(), List.of());
     }
 
     @Test
@@ -196,7 +187,7 @@ class InvoiceControllerTest {
                 INVOICE_ID, HOTEL_ID, "INV-002", null,
                 BigDecimal.ZERO, InvoiceStatus.ISSUED,
                 RESERVATION_ID, GUEST_ID, STAY_ID,
-                null, null, List.of(), List.of());
+                null, List.of(), List.of());
         when(invoiceService.createInvoiceForStay(any(StayInvoiceRequest.class))).thenReturn(stayInvoice);
 
         mockMvc.perform(post(BASE_URL + PATH_STAY)
@@ -236,7 +227,7 @@ class InvoiceControllerTest {
                 INVOICE_ID, HOTEL_ID, INV_NUMBER, null,
                 AMOUNT_100, InvoiceStatus.ISSUED,
                 RESERVATION_ID, GUEST_ID, null,
-                DocumentType.RICEVUTA, null, List.of(), List.of());
+                DocumentType.RICEVUTA, List.of(), List.of());
         when(invoiceService.updateDocumentType(eq(INVOICE_ID), eq(DocumentType.RICEVUTA))).thenReturn(updated);
 
         mockMvc.perform(patch(BASE_URL + PATH_DOCUMENT_TYPE, INVOICE_ID)
@@ -244,63 +235,6 @@ class InvoiceControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.documentType").value("RICEVUTA"));
-    }
-
-    @Test
-    void shouldGetFatturaPAXmlReturn200() throws Exception {
-        final byte[] xmlBytes = "<?xml version=\"1.0\"?><FatturaElettronica/>".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        when(fatturaPAService.generateXml(INVOICE_ID)).thenReturn(xmlBytes);
-
-        mockMvc.perform(get(BASE_URL + PATH_FATTURA_PA, INVOICE_ID))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HEADER_CONTENT_DISPOSITION,
-                        org.hamcrest.Matchers.containsString(ATTACHMENT)));
-    }
-
-    @Test
-    void shouldGetBatchExportZipDefaultsToDryRun() throws Exception {
-        final byte[] zipBytes = {0x50, 0x4B, 0x03, 0x04}; // PK.. — ZIP magic bytes
-        when(fatturaPAService.generateBatchZip(SEARCH_DATE_FROM, SEARCH_DATE_TO, true)).thenReturn(zipBytes);
-
-        mockMvc.perform(get(BASE_URL + PATH_EXPORT)
-                        .param("from", SEARCH_DATE_FROM.toString())
-                        .param("to", SEARCH_DATE_TO.toString()))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HEADER_CONTENT_DISPOSITION,
-                        org.hamcrest.Matchers.containsString(ATTACHMENT)))
-                .andExpect(content().bytes(zipBytes));
-    }
-
-    @Test
-    void shouldGetBatchExportZipConfirmedReturn200() throws Exception {
-        final byte[] zipBytes = {0x50, 0x4B, 0x03, 0x04}; // PK.. — ZIP magic bytes
-        when(fatturaPAService.generateBatchZip(SEARCH_DATE_FROM, SEARCH_DATE_TO, false)).thenReturn(zipBytes);
-
-        mockMvc.perform(get(BASE_URL + PATH_EXPORT)
-                        .param("from", SEARCH_DATE_FROM.toString())
-                        .param("to", SEARCH_DATE_TO.toString())
-                        .param("confirm", "true"))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HEADER_CONTENT_DISPOSITION,
-                        org.hamcrest.Matchers.containsString(ATTACHMENT)))
-                .andExpect(content().bytes(zipBytes));
-    }
-
-    @Test
-    void shouldUpdateSdiStatusReturn200() throws Exception {
-        final SdiStatusRequest request = new SdiStatusRequest(SdiStatus.SENT);
-        final InvoiceResponse updated = new InvoiceResponse(
-                INVOICE_ID, HOTEL_ID, INV_NUMBER, null,
-                AMOUNT_100, InvoiceStatus.ISSUED,
-                RESERVATION_ID, GUEST_ID, null,
-                DocumentType.FATTURA, SdiStatus.SENT, List.of(), List.of());
-        when(invoiceService.updateSdiStatus(eq(INVOICE_ID), eq(SdiStatus.SENT))).thenReturn(updated);
-
-        mockMvc.perform(patch(BASE_URL + PATH_SDI_STATUS, INVOICE_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sdiStatus").value("SENT"));
     }
 
     @Test
