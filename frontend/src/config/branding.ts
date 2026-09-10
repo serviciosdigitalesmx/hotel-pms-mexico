@@ -4,10 +4,9 @@ export interface BrandConfig {
 }
 
 /**
- * Default product brand. Every component reads branding from this config or
- * from the hotel's persisted settings; no layout hardcodes a hotel name/logo.
+ * Neutral fallback only. Tenant identity comes from authenticated hotel settings.
  */
 export const DEFAULT_BRAND: BrandConfig = {
-  name: 'Hotel Palmas',
+  name: 'PMS',
   logoUrl: '',
 };

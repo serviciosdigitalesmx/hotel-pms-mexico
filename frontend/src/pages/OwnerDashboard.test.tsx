@@ -22,7 +22,7 @@ vi.mock('../store/toastStore', () => ({
 
 const mockUseAuthStore = vi.fn();
 vi.mock('../store/authStore', () => ({
-  useAuthStore: () => mockUseAuthStore(),
+  useAuthStore: Object.assign(() => mockUseAuthStore(), { subscribe: vi.fn() }),
 }));
 
 describe('OwnerDashboard', () => {

@@ -30,7 +30,7 @@ vi.mock('../store/settingsStore', () => ({
   useSettingsStore: (selector: (state: {
     hotelName: string; logoUrl: string; loadHotelSettings: () => Promise<void>;
   }) => unknown) =>
-    selector({ hotelName: 'Hotel Palmas', logoUrl: '', loadHotelSettings: vi.fn().mockResolvedValue(undefined) }),
+    selector({ hotelName: 'Tenant A', logoUrl: '', loadHotelSettings: vi.fn().mockResolvedValue(undefined) }),
 }));
 
 const ROOT_ENTRY = ['/'];

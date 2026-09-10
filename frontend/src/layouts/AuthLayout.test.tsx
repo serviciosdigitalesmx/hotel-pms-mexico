@@ -10,7 +10,7 @@ vi.mock('react-i18next', () => ({
 }));
 vi.mock('../store/settingsStore', () => ({
   useSettingsStore: (selector: (state: { hotelName: string; logoUrl: string }) => unknown) =>
-    selector({ hotelName: 'Hotel Palmas', logoUrl: '' }),
+    selector({ hotelName: 'Tenant A', logoUrl: '' }),
 }));
 
 const ROOT_ENTRY = ['/login'];
@@ -30,7 +30,8 @@ describe('AuthLayout', () => {
   it('renders the skip-link, branding, and the routed page content', () => {
     renderLayout();
     expect(screen.getByText('skip_to_main')).toHaveAttribute('href', '#main-content');
-    expect(screen.getByText('Hotel Palmas')).toBeInTheDocument();
+    expect(screen.getByText('hotel_pms')).toBeInTheDocument();
+    expect(screen.queryByText('Tenant A')).not.toBeInTheDocument();
     expect(screen.getByText('property_management_system')).toBeInTheDocument();
     expect(screen.getByText('Login Form')).toBeInTheDocument();
   });

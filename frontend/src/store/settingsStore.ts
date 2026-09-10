@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import i18n from '../i18n';
 import { stayService } from '../services/stayService';
 import { DEFAULT_BRAND } from '../config/branding';
+import { useAuthStore } from './authStore';
 
 export type FontScale = 'small' | 'normal' | 'large';
 export type ContrastMode = 'normal' | 'high';
@@ -17,6 +18,15 @@ const STORAGE_KEY_FONT = 'hotel-pms-font-scale';
 const DEFAULT_CURRENCY = 'MXN';
 const DEFAULT_LOCALE = 'es-MX';
 const DEFAULT_TIMEZONE = 'America/Monterrey';
+
+let sessionVersion = 0;
+const tenantDefaults = {
+  hotelName: DEFAULT_BRAND.name,
+  logoUrl: DEFAULT_BRAND.logoUrl,
+  currency: DEFAULT_CURRENCY,
+  locale: DEFAULT_LOCALE,
+  timezone: DEFAULT_TIMEZONE,
+};
 
 const applyContrast = (mode: ContrastMode) => {
   const root = document.documentElement;
@@ -88,7 +98,9 @@ export const useSettingsStore = create<SettingsState>(() => {
       i18n.changeLanguage(lang);
     },
     loadHotelSettings: async () => {
+      const requestedSession = sessionVersion;
       const settings = await stayService.getHotelSettings();
+      if (requestedSession !== sessionVersion) return;
       const locale = settings.locale || DEFAULT_LOCALE;
       useSettingsStore.setState({
         hotelName: settings.hotelName || DEFAULT_BRAND.name,
@@ -100,4 +112,13 @@ export const useSettingsStore = create<SettingsState>(() => {
       await i18n.changeLanguage(locale.split('-')[0]);
     },
   };
+});
+
+// Clear tenant data synchronously at every session transition and discard any
+// settings response that was started by the previous session.
+useAuthStore.subscribe((state, previous) => {
+  if (state.user !== previous.user) {
+    sessionVersion += 1;
+    useSettingsStore.setState(tenantDefaults);
+  }
 });
