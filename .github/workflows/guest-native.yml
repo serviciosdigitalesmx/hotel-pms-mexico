@@ -62,7 +62,7 @@ jobs:
             ${{ runner.os }}-jvm21-dependencies-
 
       - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-disabled: true
 
