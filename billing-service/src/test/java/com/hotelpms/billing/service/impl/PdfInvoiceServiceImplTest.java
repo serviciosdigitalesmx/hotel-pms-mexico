@@ -124,7 +124,7 @@ class PdfInvoiceServiceImplTest {
                 LocalDateTime.of(ISSUE_YEAR, ISSUE_MONTH, ISSUE_DAY, ISSUE_HOUR, 0),
                 AMOUNT_150, InvoiceStatus.PAID,
                 RESERVATION_ID, GUEST_ID, null,
-                DocumentType.RICEVUTA, null, List.of(), List.of());
+                DocumentType.RICEVUTA, List.of(), List.of());
         when(invoiceService.getInvoice(INVOICE_ID)).thenReturn(ricevuta);
 
         pdfInvoiceService.generateInvoicePdf(INVOICE_ID);
@@ -140,7 +140,7 @@ class PdfInvoiceServiceImplTest {
                 INVOICE_ID, HOTEL_ID, "INV-001", null,
                 AMOUNT_150, InvoiceStatus.ISSUED,
                 RESERVATION_ID, GUEST_ID, null,
-                null, null, List.of(), List.of());
+                null, List.of(), List.of());
         when(invoiceService.getInvoice(INVOICE_ID)).thenReturn(invoice);
 
         pdfInvoiceService.generateInvoicePdf(INVOICE_ID);
@@ -218,7 +218,7 @@ class PdfInvoiceServiceImplTest {
                 INVOICE_ID, HOTEL_ID, "INV-001", null,
                 AMOUNT_150, InvoiceStatus.ISSUED,
                 RESERVATION_ID, GUEST_ID, null,
-                DocumentType.FATTURA, null, List.of(), List.of());
+                DocumentType.FATTURA, List.of(), List.of());
         when(invoiceService.getInvoice(INVOICE_ID)).thenReturn(invoice);
 
         pdfInvoiceService.generateInvoicePdf(INVOICE_ID);
@@ -252,6 +252,6 @@ class PdfInvoiceServiceImplTest {
                 LocalDateTime.of(ISSUE_YEAR, ISSUE_MONTH, ISSUE_DAY, ISSUE_HOUR, 0),
                 totalAmount, InvoiceStatus.PAID,
                 RESERVATION_ID, GUEST_ID, null,
-                DocumentType.FATTURA, null, payments, charges);
+                DocumentType.FATTURA, payments, charges);
     }
 }
