@@ -21,7 +21,6 @@ import java.util.UUID;
  * @param guestId        the associated guest UUID
  * @param stayId         the associated stay UUID (null for manually created invoices)
  * @param documentType   whether this is a fiscal invoice (FATTURA) or non-fiscal receipt (RICEVUTA)
- * @param sdiStatus      SDI transmission lifecycle state (only relevant for FATTURA)
  * @param payments       the list of payments made against this invoice
  * @param charges        the list of line-item charges on this invoice
  */
@@ -52,7 +51,6 @@ public record InvoiceResponse(
      * @param guestId        the associated guest UUID
      * @param stayId         the associated stay UUID
      * @param documentType   the document type (FATTURA or RICEVUTA)
-     * @param sdiStatus      the SDI status
      * @param payments       the list of payments made against this invoice
      * @param charges        the list of line-item charges on this invoice
      */
