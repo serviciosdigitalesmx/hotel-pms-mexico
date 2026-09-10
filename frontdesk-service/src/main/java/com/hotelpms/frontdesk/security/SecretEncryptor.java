@@ -10,6 +10,12 @@ import org.springframework.stereotype.Component;
 public final class SecretEncryptor {
     private final TextEncryptor encryptor;
 
+    /**
+     * Creates an encryptor using the configured key and salt.
+     *
+     * @param key encryption key
+     * @param salt encryption salt
+     */
     public SecretEncryptor(
             @Value("${security.secrets.encryption-key:change-me}") final String key,
             @Value("${security.secrets.encryption-salt:00000000000000000000000000000000}") final String salt) {
@@ -18,6 +24,7 @@ public final class SecretEncryptor {
 
     /**
      * Encrypts a non-blank secret.
+     *
      * @param plaintext secret in plain text
      * @return encrypted secret, or null for blank input
      */
@@ -27,6 +34,7 @@ public final class SecretEncryptor {
 
     /**
      * Decrypts a non-blank secret.
+     *
      * @param ciphertext encrypted secret
      * @return plain text secret, or null for blank input
      */
