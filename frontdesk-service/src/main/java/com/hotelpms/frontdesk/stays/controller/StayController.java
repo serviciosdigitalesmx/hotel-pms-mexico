@@ -1,24 +1,17 @@
 package com.hotelpms.frontdesk.stays.controller;
 
 import com.hotelpms.frontdesk.stays.dto.GuestLastStayResponse;
-import com.hotelpms.frontdesk.stays.dto.AlloggiatiFailureSummaryResponse;
-import com.hotelpms.frontdesk.stays.dto.AlloggiatiRowDto;
 import com.hotelpms.frontdesk.stays.dto.StayRequest;
 import com.hotelpms.frontdesk.stays.dto.StayResponse;
 import com.hotelpms.frontdesk.stays.dto.StaySummaryResponse;
 import com.hotelpms.frontdesk.stays.service.StayService;
-import com.hotelpms.frontdesk.stays.service.AlloggiatiReportService;
-import com.hotelpms.frontdesk.stays.service.AlloggiatiWebSenderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,14 +24,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Objects;
 import java.util.List;
 import java.time.LocalDate;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -48,15 +39,12 @@ import java.util.UUID;
 @RequestMapping("/api/v1/stays")
 @RequiredArgsConstructor
 public class StayController {
-    private static final String DENY_ALL = "denyAll()";
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
     private static final String ROLE_CHECK_IN = "hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')";
 
     private final StayService stayService;
-    private final AlloggiatiReportService alloggiatiReportService;
-    private final AlloggiatiWebSenderService alloggiatiWebSenderService;
 
     /**
      * Endpoint to check in a guest and create a stay.
@@ -152,83 +140,6 @@ public class StayController {
         return stayService.getLastCompletedStayForGuest(guestId, Objects.requireNonNull(extractHotelId()))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
-    }
-
-    /**
-     * Generates and downloads the Italian Alloggiati Web police report for all
-     * guests who checked in on the given date, scoped to the caller's hotel.
-     *
-     * @param date the check-in date in YYYY-MM-DD format
-     * @return the downloadable fixed-width text report
-     */
-    @PreAuthorize(DENY_ALL)
-    @GetMapping("/reports/alloggiati")
-    @SuppressWarnings("PMD.LooseCoupling")
-    public ResponseEntity<byte[]> downloadAlloggiatiReport(
-            @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate date) {
-        final String content = alloggiatiReportService.generateReport(date, Objects.requireNonNull(extractHotelId()));
-        final byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_PLAIN);
-        headers.setContentDisposition(
-                ContentDisposition.attachment()
-                        .filename("alloggiati-" + date + ".txt")
-                        .build());
-        headers.setContentLength(bytes.length);
-
-        return ResponseEntity.ok().headers(headers).body(bytes);
-    }
-
-    /**
-     * Generates and downloads the Alloggiati data as a structured JSON export
-     * for integration with channel managers, accounting software, and BI tools.
-     *
-     * @param date the check-in date in YYYY-MM-DD format
-     * @return the downloadable JSON array of guest arrival records
-     */
-    @PreAuthorize(DENY_ALL)
-    @GetMapping("/reports/alloggiati/json")
-    @SuppressWarnings("PMD.LooseCoupling")
-    public ResponseEntity<List<AlloggiatiRowDto>> downloadAlloggiatiJson(
-            @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate date) {
-        final List<AlloggiatiRowDto> rows =
-                alloggiatiReportService.generateJsonReport(date, Objects.requireNonNull(extractHotelId()));
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentDisposition(
-                ContentDisposition.attachment()
-                        .filename("alloggiati-" + date + ".json")
-                        .build());
-        return ResponseEntity.ok().headers(headers).body(rows);
-    }
-
-    /**
-     * Submits the Alloggiati Web report for the given date to the Polizia di Stato
-     * portal over a TLS-verified HTTPS channel (T-STAY-03).
-     *
-     * @param date the check-in date in YYYY-MM-DD format
-     * @return 200 OK on successful transmission
-     */
-    @PreAuthorize(DENY_ALL)
-    @PostMapping("/reports/alloggiati/submit")
-    public ResponseEntity<Void> submitAlloggiatiReport(
-            @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate date) {
-        final UUID hotelId = Objects.requireNonNull(extractHotelId());
-        alloggiatiWebSenderService.submitReport(date, hotelId);
-        stayService.markAlloggiatiSentForDate(date, hotelId);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * Returns a summary of unresolved Alloggiati Web submission failures for the
-     * caller's hotel, used to drive the Dashboard alert banner.
-     *
-     * @return the failure summary
-     */
-    @PreAuthorize(DENY_ALL)
-    @GetMapping("/reports/alloggiati/failures/summary")
-    public ResponseEntity<AlloggiatiFailureSummaryResponse> getAlloggiatiFailureSummary() {
-        return ResponseEntity.ok(stayService.getAlloggiatiFailureSummary(Objects.requireNonNull(extractHotelId())));
     }
 
     /**

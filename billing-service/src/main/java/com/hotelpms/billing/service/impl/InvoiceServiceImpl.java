@@ -5,7 +5,6 @@ import com.hotelpms.billing.client.dto.GuestResponse;
 import com.hotelpms.billing.domain.ChargeType;
 import com.hotelpms.billing.domain.DocumentType;
 import com.hotelpms.billing.domain.Invoice;
-import com.hotelpms.billing.domain.SdiStatus;
 import com.hotelpms.billing.domain.InvoiceCharge;
 import com.hotelpms.billing.domain.InvoiceSequence;
 import com.hotelpms.billing.domain.InvoiceStatus;
@@ -293,31 +292,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
         assertNotFiscallyLocked(invoice);
         invoice.setDocumentType(documentType);
-        final Invoice saved = invoiceRepository.save(Objects.requireNonNull(invoice));
-        return invoiceMapper.toResponse(Objects.requireNonNull(saved));
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    @Transactional
-    public InvoiceResponse updateSdiStatus(@NonNull final UUID invoiceId,
-                                            @NonNull final SdiStatus sdiStatus) {
-        log.info("Updating SDI status for invoice {} to {}", invoiceId, sdiStatus);
-        final UUID hotelId = resolveHotelId();
-        final Invoice invoice = invoiceRepository.findByIdAndHotelId(invoiceId, hotelId)
-                .orElseThrow(() -> new NotFoundException(INVOICE_NOT_FOUND));
-        if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
-            throw new InvoiceConflictException("CANNOT_UPDATE_CANCELLED_INVOICE");
-        }
-        if (invoice.getDocumentType() != DocumentType.FATTURA) {
-            throw new InvoiceConflictException("SDI_ONLY_VALID_FOR_FATTURA");
-        }
-        // Deliberately NOT behind assertNotFiscallyLocked: sdiStatus is transmission
-        // bookkeeping (NOT_SENT/SENT/ACCEPTED/REJECTED), never read by
-        // FatturaPAServiceImpl when building the XML — recording it is the operator's
-        // natural *next* step right after generateXml() locks the invoice, so blocking
-        // it here would make the field permanently stuck at its default forever.
-        invoice.setSdiStatus(sdiStatus);
         final Invoice saved = invoiceRepository.save(Objects.requireNonNull(invoice));
         return invoiceMapper.toResponse(Objects.requireNonNull(saved));
     }

@@ -512,15 +512,6 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - APPLICATION_CONFIG_GUEST_SERVICE_URL=http://guest-service:8083
       - INTERNAL_HMAC_SECRET=${INTERNAL_HMAC_SECRET}
-      # T-STAY-03: PS portal credentials — real values injected via .env in production
-      # Obtain WsKey from: portal login -> account icon -> "Chiave Web Service"
-      - ALLOGGIATI_USERNAME=${ALLOGGIATI_USERNAME:-ci_placeholder_user}
-      - ALLOGGIATI_PASSWORD=${ALLOGGIATI_PASSWORD:-ci_placeholder_password}
-      - ALLOGGIATI_WS_KEY=${ALLOGGIATI_WS_KEY:-ci_placeholder_wskey}
-      - ALLOGGIATI_DRY_RUN=${ALLOGGIATI_DRY_RUN:-true}
-      # Encrypts per-hotel Alloggiati credentials at rest (P8) — salt MUST be hex.
-      - ALLOGGIATI_CREDENTIALS_ENCRYPTION_KEY=${ALLOGGIATI_CREDENTIALS_ENCRYPTION_KEY:-ci_placeholder_encryption_key}
-      - ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT=${ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT:-deadbeefdeadbeefdeadbeefdeadbeef}
       - JAVA_TOOL_OPTIONS=-Xmx384m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError
     depends_on:
       postgres:

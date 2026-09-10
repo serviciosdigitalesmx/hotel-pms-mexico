@@ -8,9 +8,7 @@ import com.hotelpms.billing.dto.GuestInvoiceCheckResponse;
 import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.InvoiceSearchResultResponse;
 import com.hotelpms.billing.dto.InvoiceSummaryResponse;
-import com.hotelpms.billing.dto.SdiStatusRequest;
 import com.hotelpms.billing.dto.StayInvoiceRequest;
-import com.hotelpms.billing.service.FatturaPAService;
 import com.hotelpms.billing.service.InvoiceService;
 import com.hotelpms.billing.service.PdfInvoiceService;
 import jakarta.validation.Valid;
@@ -63,7 +61,6 @@ public class InvoiceController {
     private static final String DENY_ALL = "denyAll()";
 
     private final InvoiceService invoiceService;
-    private final FatturaPAService fatturaPAService;
     private final PdfInvoiceService pdfInvoiceService;
 
     /**
@@ -235,95 +232,6 @@ public class InvoiceController {
         log.info("REST request to set document type {} on invoice {}", request.documentType(), id);
         final InvoiceResponse response = invoiceService.updateDocumentType(id, request.documentType());
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Generates a FatturaPA FPR12 XML document for the given FATTURA invoice.
-     * Returns 409 if the invoice is CANCELLED or has documentType=RICEVUTA.
-     *
-     * @param id the invoice UUID
-     * @return UTF-8 encoded XML bytes with {@code Content-Disposition: attachment} header
-     */
-    @GetMapping(value = "/{id}/fatturaPA", produces = "application/xml;charset=UTF-8")
-    @PreAuthorize(DENY_ALL)
-    public ResponseEntity<byte[]> getFatturaPAXml(@NonNull @PathVariable final UUID id) {
-        log.info("REST request to generate FatturaPA XML for invoice {}", id);
-        final byte[] xml = fatturaPAService.generateXml(id);
-        final ContentDisposition disposition = ContentDisposition.attachment()
-                .filename(XML_FILENAME_PREFIX + id + XML_EXTENSION)
-                .build();
-        return ResponseEntity.ok()
-                .headers(h -> h.setContentDisposition(disposition))
-                .body(xml);
-    }
-
-    /**
-     * Preflight check for {@link #getFatturaPAXml}: runs every validation that
-     * endpoint would run, without generating a recorded export or locking the
-     * invoice. The real download is triggered via a hidden iframe (see the
-     * frontend's {@code billingService.downloadFatturaPAXml}), which has no way to
-     * observe an HTTP error response — the frontend calls this endpoint first so a
-     * legitimate rejection (e.g. incomplete guest address) surfaces as a visible
-     * error instead of a silent no-op.
-     *
-     * @param id the invoice UUID
-     * @return 200 with no body if generation would succeed
-     */
-    @GetMapping("/{id}/fatturaPA/validate")
-    @PreAuthorize(DENY_ALL)
-    public ResponseEntity<Void> validateFatturaPAXml(@NonNull @PathVariable final UUID id) {
-        fatturaPAService.validateXmlGeneration(id);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * Updates the SDI transmission status for a FATTURA invoice.
-     * Returns 409 if the invoice is CANCELLED or has documentType=RICEVUTA.
-     *
-     * @param id      the invoice UUID
-     * @param request the new SDI status
-     * @return the updated invoice response
-     */
-    @PatchMapping("/{id}/sdi-status")
-    @PreAuthorize(DENY_ALL)
-    public ResponseEntity<InvoiceResponse> updateSdiStatus(
-            @NonNull @PathVariable final UUID id,
-            @NonNull @Valid @RequestBody final SdiStatusRequest request) {
-        log.info("REST request to set SDI status {} on invoice {}", request.sdiStatus(), id);
-        final InvoiceResponse response = invoiceService.updateSdiStatus(id, request.sdiStatus());
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Generates a ZIP archive with one FatturaPA XML per eligible invoice issued within
-     * the given period for the caller's hotel, plus a CSV index — the batch hand-off
-     * to the commercialista/third-party accounting software.
-     *
-     * <p>Defaults to a dry-run preview: nothing is recorded and no invoice is
-     * locked unless {@code confirm=true} is passed explicitly. A single {@code GET}
-     * without that flag can therefore never surprise an operator by permanently
-     * locking a whole period's invoices.
-     *
-     * @param from    inclusive lower bound (day) on invoice issue date
-     * @param to      inclusive upper bound (day) on invoice issue date
-     * @param confirm {@code true} to actually record and lock every eligible
-     *                invoice; omitted or {@code false} for a preview
-     * @return ZIP bytes with {@code Content-Disposition: attachment} header
-     */
-    @GetMapping(value = "/export", produces = "application/zip")
-    @PreAuthorize(DENY_ALL)
-    public ResponseEntity<byte[]> exportBatch(
-            @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate from,
-            @NonNull @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) final LocalDate to,
-            @RequestParam(defaultValue = "false") final boolean confirm) {
-        log.info("REST request for FatturaPA batch export from {} to {} (confirm={})", from, to, confirm);
-        final byte[] zip = fatturaPAService.generateBatchZip(from, to, !confirm);
-        final ContentDisposition disposition = ContentDisposition.attachment()
-                .filename(ZIP_FILENAME_PREFIX + from + "_" + to + ZIP_EXTENSION)
-                .build();
-        return ResponseEntity.ok()
-                .headers(h -> h.setContentDisposition(disposition))
-                .body(zip);
     }
 
     private UUID extractHotelId() {

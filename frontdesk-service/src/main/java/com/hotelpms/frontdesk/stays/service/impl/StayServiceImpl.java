@@ -9,7 +9,6 @@ import com.hotelpms.frontdesk.rooms.domain.RoomStatus;
 import com.hotelpms.frontdesk.rooms.service.RoomService;
 import com.hotelpms.frontdesk.stays.domain.Stay;
 import com.hotelpms.frontdesk.stays.domain.StayStatus;
-import com.hotelpms.frontdesk.stays.dto.AlloggiatiFailureSummaryResponse;
 import com.hotelpms.frontdesk.stays.dto.GuestLastStayResponse;
 import com.hotelpms.frontdesk.stays.dto.StayRequest;
 import com.hotelpms.frontdesk.stays.dto.StayResponse;
@@ -68,7 +67,6 @@ public class StayServiceImpl implements StayService {
     private final RoomService roomService;
     private final StayCheckInValidator stayCheckInValidator;
     private final StayBillingCoordinator stayBillingCoordinator;
-    private final StayAlloggiatiCoordinator stayAlloggiatiCoordinator;
     private final StayNotificationCoordinator stayNotificationCoordinator;
     private final StayReservationSync stayReservationSync;
 
@@ -122,7 +120,6 @@ public class StayServiceImpl implements StayService {
 
         // Non-blocking steps: execute only after OCCUPIED is confirmed
         stayBillingCoordinator.openInvoiceForStay(savedStay);
-        stayAlloggiatiCoordinator.sendAlloggiatiIfEnabled(savedStay);
 
         // Non-blocking: only update reservation if this is a reservation-based check-in
         if (savedStay.getReservationId() != null) {
@@ -233,33 +230,6 @@ public class StayServiceImpl implements StayService {
                 .map(stayMapper::toDto);
     }
 
-    /**
-     * Marks every stay checked in on {@code date} for {@code hotelId} as successfully sent,
-     * clearing any prior failure state. Called after a successful manual
-     * "Invia a Questura" submission ({@code POST /reports/alloggiati/submit}), which today
-     * is the only recovery path for a failed automatic send — without this, the per-stay
-     * badge would keep showing FAILED forever even after staff successfully resubmitted
-     * the day's report by hand.
-     *
-     * @param date    the check-in date that was just (re-)submitted
-     * @param hotelId the hotel UUID (tenant isolation)
-     */
-    @Override
-    @Transactional
-    public void markAlloggiatiSentForDate(@NonNull final LocalDate date, @NonNull final UUID hotelId) {
-        final LocalDateTime start = date.atStartOfDay();
-        final LocalDateTime end = date.plusDays(1).atStartOfDay();
-        final List<Stay> stays = stayRepository.findByActualCheckInTimeBetweenAndHotelId(start, end, hotelId);
-        for (final Stay stay : stays) {
-            stay.setAlloggiatiSent(true);
-            stay.setAlloggiatiSendFailed(false);
-            stay.setAlloggiatiFailureReason(null);
-        }
-        stayRepository.saveAll(Objects.requireNonNull(stays));
-        log.info("[STAY] ALLOGGIATI_MANUAL_SUBMIT_RECORDED | date={} | hotelId={} | staysUpdated={}",
-                date, hotelId, stays.size());
-    }
-
     /** {@inheritDoc} */
     @Override
     @Transactional
@@ -285,19 +255,6 @@ public class StayServiceImpl implements StayService {
         }
         stayNotificationCoordinator.sendCheckoutEmailIfPossible(stay, invoice);
         return stayMapper.toDto(stay);
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    @Transactional(readOnly = true)
-    public AlloggiatiFailureSummaryResponse getAlloggiatiFailureSummary(@NonNull final UUID hotelId) {
-        final List<Stay> failed = stayRepository.findByHotelIdAndAlloggiatiSendFailedTrue(hotelId);
-        final Optional<Stay> mostRecent = failed.stream()
-                .max(Comparator.comparing((@NonNull Stay s) -> s.getActualCheckInTime()));
-        return new AlloggiatiFailureSummaryResponse(
-                failed.size(),
-                mostRecent.map((@NonNull Stay s) -> s.getActualCheckInTime()).orElse(null),
-                mostRecent.map((@NonNull Stay s) -> s.getAlloggiatiFailureReason()).orElse(null));
     }
 
     private void markRoomOccupied(final Stay stay) {

@@ -4,15 +4,13 @@ import com.hotelpms.frontdesk.exception.BadRequestException;
 import com.hotelpms.frontdesk.stays.domain.HotelSettings;
 import com.hotelpms.frontdesk.stays.dto.HotelSettingsRequest;
 import com.hotelpms.frontdesk.stays.dto.HotelSettingsResponse;
-import com.hotelpms.frontdesk.stays.repository.AlloggiatiComuneRepository;
 import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
-import com.hotelpms.frontdesk.stays.security.AlloggiatiCredentialEncryptor;
+import com.hotelpms.frontdesk.security.SecretEncryptor;
 import com.hotelpms.frontdesk.stays.service.HotelSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -24,8 +22,7 @@ import java.util.UUID;
 public class HotelSettingsServiceImpl implements HotelSettingsService {
 
     private final HotelSettingsRepository hotelSettingsRepository;
-    private final AlloggiatiCredentialEncryptor alloggiatiCredentialEncryptor;
-    private final AlloggiatiComuneRepository alloggiatiComuneRepository;
+    private final SecretEncryptor secretEncryptor;
 
     /** {@inheritDoc} */
     @Override
@@ -67,10 +64,10 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
             settings.setAlloggiatiUsername(request.alloggiatiUsername());
         }
         if (request.alloggiatiPassword() != null && !request.alloggiatiPassword().isBlank()) {
-            settings.setAlloggiatiPasswordEncrypted(alloggiatiCredentialEncryptor.encrypt(request.alloggiatiPassword()));
+            settings.setAlloggiatiPasswordEncrypted(secretEncryptor.encrypt(request.alloggiatiPassword()));
         }
         if (request.alloggiatiWsKey() != null && !request.alloggiatiWsKey().isBlank()) {
-            settings.setAlloggiatiWsKeyEncrypted(alloggiatiCredentialEncryptor.encrypt(request.alloggiatiWsKey()));
+            settings.setAlloggiatiWsKeyEncrypted(secretEncryptor.encrypt(request.alloggiatiWsKey()));
         }
         if (request.sendReservationConfirmedEmail() != null) {
             settings.setSendReservationConfirmedEmail(request.sendReservationConfirmedEmail());
@@ -129,7 +126,7 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
             settings.setAiModel(request.aiModel().trim());
         }
         if (request.aiApiKey() != null && !request.aiApiKey().isBlank()) {
-            settings.setAiApiKeyEncrypted(alloggiatiCredentialEncryptor.encrypt(request.aiApiKey()));
+            settings.setAiApiKeyEncrypted(secretEncryptor.encrypt(request.aiApiKey()));
         }
         if (request.aiInstructions() != null) {
             settings.setAiInstructions(request.aiInstructions());
@@ -150,9 +147,6 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
     private void validateComune(final String comune, final String provincia) {
         if (comune == null || comune.isBlank() || provincia == null || provincia.isBlank()) {
             throw new BadRequestException("COMUNE_AND_PROVINCIA_MUST_BE_PROVIDED_TOGETHER");
-        }
-        if (!alloggiatiComuneRepository.existsActiveByComuneAndProvincia(comune, provincia, LocalDate.now())) {
-            throw new BadRequestException("COMUNE_NOT_FOUND_FOR_PROVINCIA");
         }
     }
 

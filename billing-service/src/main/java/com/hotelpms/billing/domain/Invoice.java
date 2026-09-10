@@ -88,11 +88,6 @@ public class Invoice {
     @Column(name = "document_type", nullable = false)
     private DocumentType documentType = DocumentType.FATTURA;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "sdi_status", nullable = false)
-    private SdiStatus sdiStatus = SdiStatus.NOT_SENT;
-
     private UUID reservationId;
 
     @Column(nullable = false)

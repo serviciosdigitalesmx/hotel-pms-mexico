@@ -13,7 +13,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
  *
  * <p>Consolidates the former {@code inventory-service}, {@code reservation-service} and
  * {@code stay-service} into a single deployable covering the room lifecycle bounded
- * context (rooms, reservations, stays, hotel settings, Alloggiati Web). See ADR-001 in
+ * context (rooms, reservations, stays and hotel settings). See ADR-001 in
  * {@code backup/DECISIONS.md}.
  */
 @SpringBootApplication
