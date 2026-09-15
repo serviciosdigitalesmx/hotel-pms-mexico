@@ -5,7 +5,6 @@ import com.hotelpms.billing.client.dto.GuestSearchPageResponse;
 import com.hotelpms.billing.domain.DocumentType;
 import com.hotelpms.billing.domain.Invoice;
 import com.hotelpms.billing.domain.InvoiceStatus;
-import com.hotelpms.billing.domain.SdiStatus;
 import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.InvoiceSearchResultResponse;
 import com.hotelpms.billing.dto.StayInvoiceRequest;
@@ -155,14 +154,13 @@ class InvoiceServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("Created invoice defaults to ISSUED / FATTURA / NOT_SENT")
+    @DisplayName("Created invoice defaults to ISSUED / FATTURA")
     void createdInvoiceHasCorrectDefaultState() {
         final InvoiceResponse response = invoiceService.createInvoiceForStay(
                 new StayInvoiceRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()));
 
         assertEquals(InvoiceStatus.ISSUED, response.status());
         assertEquals(DocumentType.FATTURA, response.documentType());
-        assertEquals(SdiStatus.NOT_SENT, response.sdiStatus());
     }
 
     @Test

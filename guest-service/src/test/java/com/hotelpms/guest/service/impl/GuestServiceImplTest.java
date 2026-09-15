@@ -1,10 +1,8 @@
 package com.hotelpms.guest.service.impl;
 
-import com.hotelpms.guest.client.AlloggiatiComuniClient;
 import com.hotelpms.guest.client.BillingServiceClient;
 import com.hotelpms.guest.client.ReservationClient;
 import com.hotelpms.guest.client.StayServiceClient;
-import com.hotelpms.guest.client.dto.AlloggiatiComuneClientResponse;
 import com.hotelpms.guest.client.dto.GuestInvoiceClientResponse;
 import com.hotelpms.guest.client.dto.GuestLastStayClientResponse;
 import com.hotelpms.guest.dto.request.GuestRequest;
@@ -12,7 +10,6 @@ import com.hotelpms.guest.dto.request.IdentityDocumentRequestDTO;
 import com.hotelpms.guest.dto.response.GuestResponse;
 import com.hotelpms.guest.dto.response.IdentityDocumentResponseDTO;
 import com.hotelpms.guest.exception.GuestConflictException;
-import com.hotelpms.guest.exception.GuestValidationException;
 import com.hotelpms.guest.exception.NotFoundException;
 import com.hotelpms.guest.mapper.GuestMapper;
 import com.hotelpms.guest.mapper.IdentityDocumentMapper;
@@ -68,8 +65,6 @@ class GuestServiceImplTest {
     private static final String TEST_CITY = "Anytown";
     private static final String TEST_COUNTRY = "Country";
     private static final String DOC_NUMBER = "AB123456";
-    private static final String COMUNE_ROMA = "Roma";
-    private static final String PROVINCIA_RM = "RM";
 
     @Mock
     private GuestRepository guestRepository;
@@ -94,9 +89,6 @@ class GuestServiceImplTest {
 
     @Mock
     private BillingServiceClient billingServiceClient;
-
-    @Mock
-    private AlloggiatiComuniClient alloggiatiComuniClient;
 
     @InjectMocks
     private GuestServiceImpl guestService;
@@ -183,53 +175,6 @@ class GuestServiceImplTest {
         assertEquals(guestId, result.id());
         assertEquals(TEST_FIRST_NAME, result.firstName());
         verify(guestRepository).save(nonNullGuest);
-    }
-
-    @Test
-    void shouldCreateGuestWithValidComuneAndProvincia() {
-        final GuestRequest requestWithAddress = new GuestRequest(
-                TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
-                TEST_PHONE, TEST_ADDRESS, TEST_CITY, TEST_COUNTRY, null,
-                null, null, null, null, null, null, null, null, null, null, null,
-                "00100", COMUNE_ROMA, PROVINCIA_RM);
-        final Guest nonNullGuest = Objects.requireNonNull(guest);
-        final GuestResponse nonNullGuestResponse = Objects.requireNonNull(guestResponse);
-
-        when(alloggiatiComuniClient.searchComuni(COMUNE_ROMA, PROVINCIA_RM))
-                .thenReturn(List.of(new AlloggiatiComuneClientResponse("058091", COMUNE_ROMA, PROVINCIA_RM)));
-        when(guestMapper.toEntity(requestWithAddress)).thenReturn(nonNullGuest);
-        when(guestRepository.save(nonNullGuest)).thenReturn(nonNullGuest);
-        when(guestMapper.toResponse(nonNullGuest)).thenReturn(nonNullGuestResponse);
-
-        final GuestResponse result = guestService.createGuest(requestWithAddress);
-
-        assertNotNull(result);
-        verify(guestRepository).save(nonNullGuest);
-    }
-
-    @Test
-    void shouldRejectGuestWithComuneNotMatchingAnyMunicipality() {
-        final GuestRequest requestWithBadComune = new GuestRequest(
-                TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
-                null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null,
-                null, "Cittainesistente", PROVINCIA_RM);
-
-        when(alloggiatiComuniClient.searchComuni("Cittainesistente", PROVINCIA_RM)).thenReturn(List.of());
-
-        assertThrows(GuestValidationException.class, () -> guestService.createGuest(requestWithBadComune));
-        verify(guestRepository, never()).save(any());
-    }
-
-    @Test
-    void shouldRejectGuestWithComuneButNoProvincia() {
-        final GuestRequest requestWithoutProvincia = new GuestRequest(
-                TEST_FIRST_NAME, TEST_LAST_NAME, TEST_EMAIL,
-                null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null,
-                null, COMUNE_ROMA, null);
-
-        assertThrows(GuestValidationException.class, () -> guestService.createGuest(requestWithoutProvincia));
     }
 
     @Test

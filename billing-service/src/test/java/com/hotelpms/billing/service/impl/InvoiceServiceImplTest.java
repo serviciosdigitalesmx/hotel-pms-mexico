@@ -6,7 +6,6 @@ import com.hotelpms.billing.client.dto.GuestSearchPageResponse;
 import com.hotelpms.billing.domain.ChargeType;
 import com.hotelpms.billing.domain.DocumentType;
 import com.hotelpms.billing.domain.Invoice;
-import com.hotelpms.billing.domain.SdiStatus;
 import com.hotelpms.billing.domain.InvoiceCharge;
 import com.hotelpms.billing.domain.InvoiceSequence;
 import com.hotelpms.billing.domain.InvoiceSequenceId;
@@ -134,7 +133,7 @@ class InvoiceServiceImplTest {
                 invoice.setId(invoiceId);
                 final InvoiceResponse expectedResponse = new InvoiceResponse(invoiceId, hotelId, INV_123, null,
                                 BigDecimal.TEN, InvoiceStatus.ISSUED, reservationId, guestId, null,
-                                null, null, List.of(), List.of());
+                                null, List.of(), List.of());
 
                 when(invoiceRepository.findByIdAndHotelId(Objects.requireNonNull(invoiceId), hotelId))
                                 .thenReturn(Optional.of(invoice));
@@ -183,7 +182,7 @@ class InvoiceServiceImplTest {
                         final Invoice i = inv.getArgument(0);
                         return new InvoiceResponse(i.getId(), hotelId, i.getInvoiceNumber(),
                                         LocalDateTime.now(), BigDecimal.ZERO, InvoiceStatus.ISSUED,
-                                        reservationId, guestId, stayId, null, null, List.of(), List.of());
+                                        reservationId, guestId, stayId, null, List.of(), List.of());
                 });
 
                 // Act
@@ -366,7 +365,7 @@ class InvoiceServiceImplTest {
                         final Invoice i = inv.getArgument(0);
                         return new InvoiceResponse(i.getId(), hotelId, i.getInvoiceNumber(),
                                         LocalDateTime.now(), BigDecimal.ZERO, InvoiceStatus.ISSUED,
-                                        reservationId, guestId, stayId, null, null, List.of(), List.of());
+                                        reservationId, guestId, stayId, null, List.of(), List.of());
                 });
 
                 // Act
@@ -477,7 +476,7 @@ class InvoiceServiceImplTest {
                         final Invoice i = inv.getArgument(0);
                         return new InvoiceResponse(i.getId(), hotelId, i.getInvoiceNumber(),
                                         LocalDateTime.now(), BigDecimal.ZERO, InvoiceStatus.ISSUED,
-                                        reservationId, guestId, stayId, null, null, List.of(), List.of());
+                                        reservationId, guestId, stayId, null, List.of(), List.of());
                 });
 
                 // Act
@@ -502,7 +501,7 @@ class InvoiceServiceImplTest {
                 invoice.setStatus(InvoiceStatus.ISSUED);
                 final InvoiceResponse expected = new InvoiceResponse(invoiceId, hotelId, INV_123, null,
                                 BigDecimal.TEN, InvoiceStatus.ISSUED, reservationId, guestId, null,
-                                DocumentType.RICEVUTA, null, List.of(), List.of());
+                                DocumentType.RICEVUTA, List.of(), List.of());
 
                 when(invoiceRepository.findByIdAndHotelId(invoiceId, hotelId)).thenReturn(Optional.of(invoice));
                 when(invoiceRepository.save(any(Invoice.class))).thenReturn(invoice);
@@ -575,48 +574,6 @@ class InvoiceServiceImplTest {
         }
 
         @Test
-        @DisplayName("Should update SDI status to SENT for a FATTURA invoice")
-        void shouldUpdateSdiStatusToSent() {
-                // Arrange
-                final UUID invoiceId = UUID.randomUUID();
-                final Invoice invoice = new Invoice();
-                invoice.setId(invoiceId);
-                invoice.setStatus(InvoiceStatus.ISSUED);
-                invoice.setDocumentType(DocumentType.FATTURA);
-                final InvoiceResponse expected = new InvoiceResponse(invoiceId, hotelId, INV_123, null,
-                                BigDecimal.TEN, InvoiceStatus.ISSUED, reservationId, guestId, null,
-                                DocumentType.FATTURA, SdiStatus.SENT, List.of(), List.of());
-
-                when(invoiceRepository.findByIdAndHotelId(invoiceId, hotelId)).thenReturn(Optional.of(invoice));
-                when(invoiceRepository.save(any(Invoice.class))).thenReturn(invoice);
-                when(invoiceMapper.toResponse(invoice)).thenReturn(expected);
-
-                // Act
-                final InvoiceResponse result = invoiceService.updateSdiStatus(invoiceId, SdiStatus.SENT);
-
-                // Assert
-                assertNotNull(result);
-                assertEquals(SdiStatus.SENT, result.sdiStatus());
-        }
-
-        @Test
-        @DisplayName("Should throw ConflictException when updating SDI status on RICEVUTA invoice")
-        void shouldThrowWhenUpdatingSdiStatusOnRicevuta() {
-                // Arrange
-                final UUID invoiceId = UUID.randomUUID();
-                final Invoice invoice = new Invoice();
-                invoice.setId(invoiceId);
-                invoice.setStatus(InvoiceStatus.ISSUED);
-                invoice.setDocumentType(DocumentType.RICEVUTA);
-
-                when(invoiceRepository.findByIdAndHotelId(invoiceId, hotelId)).thenReturn(Optional.of(invoice));
-
-                // Act & Assert
-                assertThrows(InvoiceConflictException.class,
-                                () -> invoiceService.updateSdiStatus(invoiceId, SdiStatus.SENT));
-        }
-
-        @Test
         @DisplayName("C12: searchInvoices with no query skips guest resolution and passes an empty guestIds list")
         void searchInvoicesWithNoQuerySkipsGuestResolution() {
                 // Arrange
@@ -626,7 +583,7 @@ class InvoiceServiceImplTest {
                 invoice.setGuestId(guestId);
                 final InvoiceResponse mapped = new InvoiceResponse(invoiceId, hotelId, INV_123, null,
                                 BigDecimal.TEN, InvoiceStatus.ISSUED, reservationId, guestId, null,
-                                null, null, List.of(), List.of());
+                                null, List.of(), List.of());
                 final PageRequest pageable = PageRequest.of(PAGE_ZERO, PAGE_SIZE_TWENTY);
 
                 when(invoiceRepository.searchInvoicesByHotelId(eq(hotelId), eq(InvoiceStatus.ISSUED), eq(null), eq(null),
@@ -717,7 +674,7 @@ class InvoiceServiceImplTest {
                 invoice.setGuestId(guestId);
                 final InvoiceResponse mapped = new InvoiceResponse(invoiceId, hotelId, INV_123, null,
                                 BigDecimal.TEN, InvoiceStatus.ISSUED, reservationId, guestId, null,
-                                null, null, List.of(), List.of());
+                                null, List.of(), List.of());
                 final PageRequest pageable = PageRequest.of(PAGE_ZERO, PAGE_SIZE_TWENTY);
 
                 when(invoiceRepository.searchInvoicesByHotelId(eq(hotelId), eq(null), eq(null), eq(null),

@@ -15,7 +15,6 @@ import com.hotelpms.guest.dto.response.IdentityDocumentResponseDTO;
 import com.hotelpms.guest.exception.GdprLegalHoldException;
 import com.hotelpms.guest.exception.GdprLegalHoldException.LegalBasis;
 import com.hotelpms.guest.exception.GuestConflictException;
-import com.hotelpms.guest.exception.GuestValidationException;
 import com.hotelpms.guest.exception.NotFoundException;
 import com.hotelpms.guest.mapper.GuestMapper;
 import com.hotelpms.guest.mapper.IdentityDocumentMapper;
