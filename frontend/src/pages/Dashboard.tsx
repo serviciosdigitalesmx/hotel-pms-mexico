@@ -115,12 +115,17 @@ export const Dashboard = () => {
 
   return (
     <div data-testid="dashboard-page">
-      <h1 data-testid="dashboard-heading" className="text-2xl font-display font-semibold text-on-surface">
-        {t('welcome_back', { name: user?.username })} 👋
-      </h1>
-      <p className="mt-1 text-sm font-body text-on-surface-variant">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Resumen de hoy</p>
+          <h1 data-testid="dashboard-heading" className="mt-1 text-2xl sm:text-3xl font-display font-semibold tracking-tight text-on-surface">
+            {t('welcome_back', { name: user?.username })} 👋
+          </h1>
+        </div>
+        <p className="text-sm font-body text-on-surface-variant sm:max-w-xs sm:text-right">
         {t('dashboard_subtitle')}
-      </p>
+        </p>
+      </div>
 
       {error ? (
         <div className="mt-8 flex items-center gap-3 px-4 py-3 rounded-shape-sm bg-error-container text-on-error-container">
@@ -133,13 +138,13 @@ export const Dashboard = () => {
           </div>
         </div>
       ) : (
-        <div className="mt-8 space-y-6">
+        <div className="mt-7 space-y-6">
           <div data-testid="stats-grid" className={gridClass}>
             {allStats.map((item) => (
-              <M3Card key={item.nameKey} variant="glass" className="overflow-hidden">
-                <div className="p-5">
+              <M3Card key={item.nameKey} variant="outlined" className="overflow-hidden bg-surface-container-lowest">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-center">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-shape-lg flex-shrink-0 ${item.containerClass}`}>
+                    <div className={`flex items-center justify-center w-11 h-11 rounded-shape-md flex-shrink-0 ${item.containerClass}`}>
                       <MaterialIcon name={item.icon} size={24} />
                     </div>
                     <div className="ml-4 flex-1 min-w-0">
@@ -156,7 +161,7 @@ export const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-surface-container-low px-5 py-3">
+                <div className="border-t border-outline-variant/50 bg-surface-container-low px-5 py-2">
                   <Link
                     to={item.href}
                     state={item.state}

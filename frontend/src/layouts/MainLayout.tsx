@@ -217,12 +217,12 @@ export const MainLayout = () => {
       )}
 
       {/* ── Desktop Navigation Rail ─────────────────── */}
-      <aside className="hidden md:flex flex-col items-center md:fixed md:left-0 md:top-0 md:h-full w-24 flex-shrink-0 glass-surface border-r border-outline-variant/50 py-4 gap-1 overflow-y-auto [scrollbar-gutter:stable] md:z-20">
-        <div className="flex items-center justify-center w-14 h-14 mb-3 bg-primary-container rounded-shape-lg">
+      <aside className="hidden md:flex flex-col items-center md:fixed md:left-0 md:top-0 md:h-full w-24 flex-shrink-0 bg-surface-container-lowest border-r border-outline-variant/70 py-4 gap-1 overflow-y-auto [scrollbar-gutter:stable] md:z-20">
+        <div className="flex items-center justify-center w-12 h-12 mb-4 bg-primary rounded-shape-md shadow-elevation-1">
           {logoUrl ? (
             <img src={logoUrl} alt={hotelName} className="max-h-10 object-contain" />
           ) : (
-            <MaterialIcon name="hotel" size={28} className="text-on-primary-container" />
+            <MaterialIcon name="hotel" size={26} className="text-on-primary" />
           )}
         </div>
 
@@ -254,7 +254,7 @@ export const MainLayout = () => {
       {/* ── Main content area ───────────────────────── */}
       <div className="flex flex-col flex-1 w-0 overflow-hidden md:ml-24">
         {/* Top Bar */}
-        <header className="relative z-10 flex-shrink-0 flex items-center h-16 glass-surface-elevated border-b border-outline-variant/30 shadow-elevation-1 px-4">
+        <header className="relative z-10 flex-shrink-0 flex items-center h-[4.5rem] bg-surface-container-lowest border-b border-outline-variant/60 px-4 sm:px-6">
           {/* Mobile hamburger */}
           <button
             type="button"
@@ -265,7 +265,9 @@ export const MainLayout = () => {
             <MaterialIcon name="menu" size={24} />
           </button>
 
-          <div className="flex-1" />
+          <div className="flex-1">
+            <span className="hidden lg:block text-xs font-medium uppercase tracking-[0.14em] text-on-surface-variant">Operación hotelera</span>
+          </div>
 
           {canCheckIn && (
             <M3Button icon="login" onClick={openCheckIn} className="mr-3">
@@ -294,7 +296,7 @@ export const MainLayout = () => {
         {/* Page content */}
         <main id="main-content" className="flex-1 relative overflow-y-auto focus:outline-none" tabIndex={-1}>
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
               <Outlet />
             </div>
           </div>
