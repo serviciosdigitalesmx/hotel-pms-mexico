@@ -24,6 +24,10 @@ const SYSTEM_ITEM: SettingsHubItem = {
   to: '/settings/system', icon: 'admin_panel_settings', titleKey: 'settings_section_system', descKey: 'settings_hub_system_desc',
 };
 
+const WHATSAPP_ITEM: SettingsHubItem = {
+  to: '/settings/whatsapp', icon: 'qr_code_2', titleKey: 'whatsapp_title', descKey: 'whatsapp_description',
+};
+
 // BUG-11 (docs/LIVE_E2E_AUDIT_2026-07.md): both routes existed and worked,
 // but neither had a link anywhere in the app — reachable only by typing the
 // URL from memory. Gated the same as SYSTEM_ITEM (ADMIN/OWNER only), which
@@ -66,7 +70,7 @@ export const Settings = () => {
 
   const items = useMemo(
     () => (isAdminOrOwner
-      ? [...SETTINGS_ITEMS, HOTEL_PROFILE_ITEM, ADMIN_USERS_ITEM, SYSTEM_ITEM]
+      ? [...SETTINGS_ITEMS, HOTEL_PROFILE_ITEM, ADMIN_USERS_ITEM, SYSTEM_ITEM, WHATSAPP_ITEM]
       : SETTINGS_ITEMS),
     [isAdminOrOwner]
   );
