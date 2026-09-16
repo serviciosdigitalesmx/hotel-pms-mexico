@@ -1,6 +1,7 @@
 # 🏨 Enterprise Hotel PMS
 
-[![CI Quality Gate](https://github.com/diegoandruccioli/hotel-pms/actions/workflows/ci.yml/badge.svg)](https://github.com/diegoandruccioli/hotel-pms/actions/workflows/ci.yml)
+[![CI Quality Gate](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/workflows/ci.yml/badge.svg)](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/workflows/ci.yml)
+[![Tenant Isolation](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/workflows/tenant-isolation.yml/badge.svg)](https://github.com/serviciosdigitalesmx/hotel-pms-mexico/actions/workflows/tenant-isolation.yml)
 [![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
@@ -37,6 +38,17 @@ This is a **production-grade enterprise PMS** validated for real hotel operation
 - Transactional email (reservation confirmation, checkout summary) via `notification-service`
 - Security hardening fully documented in `docs/security-report/report-secure-coding.tex`
 - CI pipeline (GitHub Actions): build, unit tests, Playwright E2E, Trivy image scan
+
+### Multi-hotel onboarding and WhatsApp
+
+- A root platform `ADMIN` creates hotels from **Settings → Platform hotels** (`/platform/hotels`). Each creation receives a new tenant UUID and an initial `OWNER`; the owner must change the temporary password on first login.
+- Hotel administrators and owners manage staff only inside their authenticated hotel. They cannot create tenants or select a client-supplied `hotelId`.
+- **Tenant onboarding and isolation** is a dedicated GitHub Actions gate. It builds the current JVM services, starts disposable databases and containers, provisions two hotels through the real platform API, signs in as both owners, and verifies that settings, rooms, and guests cannot cross tenants—even with forged tenant headers.
+- Each hotel links its WhatsApp number from `/settings/whatsapp`. Evolution instances are derived server-side as `pms-{hotelId}`; provider credentials never reach the browser. Linking a number does **not** activate automatic bot responses.
+- Evolution runs as shared infrastructure with isolated persistent storage. For local development use `docker-compose.yml` together with `docker-compose.evolution.yml`; production still requires private networking, persistent volumes, backups, secret rotation, and reconnect testing.
+- The public WhatsApp bot remains intentionally disabled until webhook authentication, idempotency, human handoff, retention, and PMS-only publishable-data policies are implemented and tested.
+
+Implementation and operating boundaries: [`docs/EVOLUTION_MULTITENANT_ROLLOUT.md`](docs/EVOLUTION_MULTITENANT_ROLLOUT.md).
 
 ### Stable
 

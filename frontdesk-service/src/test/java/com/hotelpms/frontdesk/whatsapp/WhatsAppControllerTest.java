@@ -27,20 +27,6 @@ class WhatsAppControllerTest {
     private WhatsAppController controller;
     private EvolutionService service;
 
-    @Configuration
-    @EnableMethodSecurity
-    static class TestConfig {
-        @Bean
-        EvolutionService evolution() {
-            return mock(EvolutionService.class);
-        }
-
-        @Bean
-        WhatsAppController controller(final EvolutionService service) {
-            return new WhatsAppController(service);
-        }
-    }
-
     @BeforeEach
     void setUp() {
         context = new AnnotationConfigApplicationContext(TestConfig.class);
@@ -76,5 +62,19 @@ class WhatsAppControllerTest {
                 "staff", null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
         authentication.setDetails(hotel.toString());
         SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    @Configuration
+    @EnableMethodSecurity
+    static class TestConfig {
+        @Bean
+        EvolutionService evolution() {
+            return mock(EvolutionService.class);
+        }
+
+        @Bean
+        WhatsAppController controller(final EvolutionService service) {
+            return new WhatsAppController(service);
+        }
     }
 }

@@ -18,15 +18,30 @@ import java.util.UUID;
 public class WhatsAppController {
     private final EvolutionService evolution;
 
+    /**
+     * Builds the tenant-scoped controller.
+     *
+     * @param evolution private Evolution adapter
+     */
     public WhatsAppController(final EvolutionService evolution) {
         this.evolution = evolution;
     }
 
+    /**
+     * Returns safe WhatsApp connection status for the current hotel.
+     *
+     * @return uncached connection status
+     */
     @GetMapping
     public ResponseEntity<EvolutionService.Connection> status() {
         return response(evolution.status(hotelId()));
     }
 
+    /**
+     * Starts pairing and returns an uncached PNG QR for the current hotel.
+     *
+     * @return safe pairing result
+     */
     @PostMapping("/connect")
     public ResponseEntity<EvolutionService.Connection> connect() {
         return response(evolution.connect(hotelId()));
