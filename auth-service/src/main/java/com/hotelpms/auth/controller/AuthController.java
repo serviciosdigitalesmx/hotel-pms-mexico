@@ -236,6 +236,7 @@ public class AuthController {
             meBody.put("sub", username);
             meBody.put("username", username);
             meBody.put("role", role);
+            meBody.put("hotelId", jwtService.extractHotelId(token).toString());
             meBody.put("mustChangePassword", mustChange);
             return ResponseEntity.ok(meBody);
         } catch (final JwtException | IllegalArgumentException e) {

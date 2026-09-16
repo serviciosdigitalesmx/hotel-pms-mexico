@@ -7,7 +7,7 @@
 - Instancia Evolution reservada: `pms-{hotelId}`. Usar un despliegue Evolution dedicado al PMS para evitar colisiones con instancias ajenas.
 - Clave global sólo en backend; respuestas limitadas a estado e imagen QR, con `Cache-Control: no-store`.
 - Sin sincronización completa de historial, recibos de lectura, webhooks ni respuestas automáticas en esta etapa.
-- Pendiente verificar con la versión instalada de Evolution y escanear desde el teléfono del hotel. No se considera vinculado por compilar ni por mostrar esta página.
+- La instancia local se vinculó mediante el QR y la pantalla mostró «WhatsApp conectado». Esto no activa el bot ni sustituye una prueba de reconexión tras reiniciar Evolution.
 
 ## Configuración del operador
 
@@ -17,11 +17,17 @@ Evolution puede vivir en la infraestructura compartida con almacenamiento persis
 Contrato de referencia: https://github.com/evolution-foundation/docs-evolution/blob/main/openapi/openapi-v2.json
 Se usan `POST /instance/create`, `GET /instance/connect/{instance}` y `GET /instance/connectionState/{instance}`. Verificar que la versión desplegada devuelve `base64` PNG en la conexión; las variantes que sólo devuelven `code` necesitan un generador QR local antes de habilitar esta integración.
 
-## Lo que significa crear otro hotel
+## Alta de hoteles: primera etapa local
 
-La gestión actual de usuarios conserva el `hotelId` del administrador autenticado. Crear OWNER en esa pantalla no crea un tenant. ADMIN tampoco es un administrador global de plataforma.
+La gestión normal de usuarios conserva el `hotelId` del administrador autenticado. Crear OWNER en esa pantalla no crea un tenant.
 
-Falta una administración de plataforma separada: alta de hotel con UUID nuevo, estado de aprovisionamiento, perfil/configuración y dueño invitado; activación sólo después de completar todas las etapas. Reintentos idempotentes deben recuperar altas parciales entre servicios. La invitación debe expirar y establecer la contraseña sin exponerla al operador.
+El panel `/platform/hotels` usa el tenant raíz `00000000-0000-0000-0000-000000000001` como operador de plataforma. Sólo un usuario ADMIN de ese tenant puede usar `GET/POST /api/v1/auth/platform/hotels`; el gateway firma el hotel autenticado y auth-service vuelve a verificarlo. El alta crea un UUID nuevo, un registro de hotel y un usuario OWNER con obligación de cambiar su contraseña inicial dentro de una transacción de auth-service. Un administrador de cualquier otro hotel recibe 403.
+
+La ficha operativa se completa posteriormente al entrar como dueño en `/profile/hotel`: nombre, dirección, zona horaria, políticas, habitaciones y tarifas. No se crea automáticamente información inventada en otros servicios. El registro de plataforma y la ficha operativa pertenecen a bases de datos de servicios distintos; no hay transacción distribuida.
+
+No se han creado hoteles reales ni usuarios reales durante esta implementación. Para dar de alta Hotel SB todavía hacen falta el usuario y correo reales del dueño y una contraseña temporal elegida localmente por el operador; no compartir credenciales por chat. El dueño cambia la contraseña en su primer acceso.
+
+Sigue pendiente sustituir la contraseña temporal por una invitación con caducidad, incorporar estado de aprovisionamiento/suspensión y automatizar los pasos entre servicios con reintentos idempotentes.
 
 Infraestructura compartida no significa datos compartidos. Cada hotel necesita usuarios, habitaciones, tarifas, disponibilidad, documentos, configuración, conversaciones, instancia Evolution y límites aislados. El soporte de un dueño con varios hoteles requeriría membresías y selección explícita de hotel; el modelo actual asigna un hotel por cuenta.
 

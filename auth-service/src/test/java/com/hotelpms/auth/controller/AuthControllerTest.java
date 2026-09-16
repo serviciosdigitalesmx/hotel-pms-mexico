@@ -178,13 +178,16 @@ class AuthControllerTest {
         when(jwtService.extractUsername(TEST_TOKEN)).thenReturn(TEST_USERNAME);
         when(jwtService.extractClaim(eq(TEST_TOKEN), any())).thenReturn(ROLE_ADMIN);
         when(jwtService.isTokenValid(TEST_TOKEN)).thenReturn(true);
+        when(jwtService.extractHotelId(TEST_TOKEN)).thenReturn(
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"));
         when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.empty());
 
         mockMvc.perform(get(BASE_URL + PATH_ME)
                         .cookie(new Cookie(COOKIE_JWT, TEST_TOKEN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(TEST_USERNAME))
-                .andExpect(jsonPath("$.role").value(ROLE_ADMIN));
+                .andExpect(jsonPath("$.role").value(ROLE_ADMIN))
+                .andExpect(jsonPath("$.hotelId").value("00000000-0000-0000-0000-000000000001"));
     }
 
     @Test

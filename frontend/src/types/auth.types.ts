@@ -6,6 +6,7 @@ export interface LoginRequest {
 }
 
 export interface UserPayload {
+  hotelId?: string;
   sub: string;
   username: string;
   role: Role;

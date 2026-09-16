@@ -36,9 +36,11 @@ const SettingsAccessibility = lazy(() => import('./pages/Settings/SettingsAccess
 const SettingsAppearance = lazy(() => import('./pages/Settings/SettingsAppearance').then((m) => ({ default: m.SettingsAppearance })));
 const SettingsSystem = lazy(() => import('./pages/Settings/SettingsSystem').then((m) => ({ default: m.SettingsSystem })));
 const SettingsWhatsApp = lazy(() => import('./pages/Settings/SettingsWhatsApp').then((m) => ({ default: m.SettingsWhatsApp })));
+const PlatformHotels = lazy(() => import('./pages/PlatformHotels').then((m) => ({ default: m.PlatformHotels })));
 const Assistant = lazy(() => import('./pages/Assistant').then((m) => ({ default: m.Assistant })));
 
 const OWNER_ADMIN_ROLES = ['OWNER', 'ADMIN'] as const;
+const PLATFORM_ROLES = ['ADMIN'] as const;
 const CHECK_IN_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST'] as const;
 const RESTAURANT_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST', 'KITCHEN'] as const;
 const HOUSEKEEPING_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST', 'HOUSEKEEPER'] as const;
@@ -135,6 +137,9 @@ function App() {
                 <Route path="/profile/hotel" element={<HotelProfile />} />
                 <Route path="/settings/system" element={<SettingsSystem />} />
                 <Route path="/settings/whatsapp" element={<SettingsWhatsApp />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={PLATFORM_ROLES} />}>
+                <Route path="/platform/hotels" element={<PlatformHotels />} />
               </Route>
             </Route>
           </Route>

@@ -28,6 +28,10 @@ const WHATSAPP_ITEM: SettingsHubItem = {
   to: '/settings/whatsapp', icon: 'qr_code_2', titleKey: 'whatsapp_title', descKey: 'whatsapp_description',
 };
 
+const PLATFORM_ITEM: SettingsHubItem = {
+  to: '/platform/hotels', icon: 'domain_add', titleKey: 'platform_hotels', descKey: 'platform_intro',
+};
+
 // BUG-11 (docs/LIVE_E2E_AUDIT_2026-07.md): both routes existed and worked,
 // but neither had a link anywhere in the app — reachable only by typing the
 // URL from memory. Gated the same as SYSTEM_ITEM (ADMIN/OWNER only), which
@@ -64,15 +68,17 @@ export const Settings = () => {
   const { t } = useTranslation('settings');
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.user?.role);
+  const hotelId = useAuthStore((s) => s.user?.hotelId);
   const isAdminOrOwner = role === 'ADMIN' || role === 'OWNER';
+  const isPlatform = role === 'ADMIN' && hotelId === '00000000-0000-0000-0000-000000000001';
 
   const handleBack = useCallback(() => navigate(-1), [navigate]);
 
   const items = useMemo(
     () => (isAdminOrOwner
-      ? [...SETTINGS_ITEMS, HOTEL_PROFILE_ITEM, ADMIN_USERS_ITEM, SYSTEM_ITEM, WHATSAPP_ITEM]
+      ? [...SETTINGS_ITEMS, HOTEL_PROFILE_ITEM, ADMIN_USERS_ITEM, SYSTEM_ITEM, WHATSAPP_ITEM, ...(isPlatform ? [PLATFORM_ITEM] : [])]
       : SETTINGS_ITEMS),
-    [isAdminOrOwner]
+    [isAdminOrOwner, isPlatform]
   );
 
   return (

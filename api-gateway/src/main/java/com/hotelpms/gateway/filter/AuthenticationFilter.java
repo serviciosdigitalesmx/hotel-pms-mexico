@@ -279,6 +279,9 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      * @return {@code true} if the request is permitted, {@code false} otherwise
      */
     private static boolean isAccessAllowed(final String role, final String path, final HttpMethod method) {
+        if (path.startsWith("/api/v1/auth/platform/")) {
+            return "ADMIN".equals(role);
+        }
         if (role == null || !OPERATIONAL_ROLES.contains(role)) {
             return false;
         }

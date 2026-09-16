@@ -40,6 +40,19 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@userKeyResolver}"
 
+        - id: auth-service-platform
+          uri: "${GW_AUTH_SERVICE_URI:http://auth-service:8087}"
+          predicates:
+            - Path=/api/v1/auth/platform/**
+          filters:
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+
         - id: auth-service
           uri: "${GW_AUTH_SERVICE_URI:http://auth-service:8087}"
           predicates:
