@@ -27,12 +27,25 @@ public class PlatformHotelController {
     private static final UUID PLATFORM_HOTEL = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private final HotelOnboardingService onboarding;
 
+    /**
+     * Lists platform-registered hotels for the root administrator.
+     *
+     * @param hotelId authenticated hotel identifier
+     * @return hotel summaries
+     */
     @GetMapping
     public ResponseEntity<List<HotelSummary>> list(@RequestHeader("X-Auth-Hotel") final UUID hotelId) {
         verifyPlatform(hotelId);
         return ResponseEntity.ok(onboarding.list());
     }
 
+    /**
+     * Creates a hotel and its first owner under a new tenant ID.
+     *
+     * @param hotelId authenticated hotel identifier
+     * @param request validated onboarding details
+     * @return created hotel summary
+     */
     @PostMapping
     public ResponseEntity<HotelSummary> create(@RequestHeader("X-Auth-Hotel") final UUID hotelId,
                                                @Valid @RequestBody final CreateHotelRequest request) {

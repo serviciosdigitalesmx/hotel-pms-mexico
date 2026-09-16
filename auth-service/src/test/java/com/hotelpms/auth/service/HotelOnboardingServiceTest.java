@@ -19,6 +19,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,13 +27,14 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HotelOnboardingServiceTest {
-    @Mock HotelRegistryRepository hotels;
-    @Mock UserAccountRepository users;
-    @Mock PasswordEncoder passwords;
-    @InjectMocks HotelOnboardingService onboarding;
-
+    private static final String HOTEL_SLUG = "hotel-sb";
     private static final CreateHotelRequest REQUEST = new CreateHotelRequest(
-            "Hotel SB", "hotel-sb", "sb-owner", "owner@sb.example", "Initial123");
+            "Hotel SB", HOTEL_SLUG, "sb-owner", "owner@sb.example", "Initial123");
+
+    @Mock private HotelRegistryRepository hotels;
+    @Mock private UserAccountRepository users;
+    @Mock private PasswordEncoder passwords;
+    @InjectMocks private HotelOnboardingService onboarding;
 
     @Test
     void createsNewTenantWithOwnerForcedToChangePassword() {
@@ -42,17 +44,17 @@ class HotelOnboardingServiceTest {
         final var ownerCaptor = org.mockito.ArgumentCaptor.forClass(UserAccount.class);
         verify(hotels).save(hotelCaptor.capture());
         verify(users).save(ownerCaptor.capture());
-        assertEquals("hotel-sb", result.slug());
+        assertEquals(HOTEL_SLUG, result.slug());
         assertEquals(result.id(), ownerCaptor.getValue().getHotelId());
         assertNotEquals(UUID.fromString("00000000-0000-0000-0000-000000000001"), result.id());
         assertEquals(Role.OWNER, ownerCaptor.getValue().getRole());
         assertEquals("encoded", ownerCaptor.getValue().getPasswordHash());
-        assertEquals(true, ownerCaptor.getValue().isMustChangePassword());
+        assertTrue(ownerCaptor.getValue().isMustChangePassword());
     }
 
     @Test
     void duplicateSlugCreatesNoOwner() {
-        when(hotels.existsBySlug("hotel-sb")).thenReturn(true);
+        when(hotels.existsBySlug(HOTEL_SLUG)).thenReturn(true);
         assertThrows(DuplicateResourceException.class, () -> onboarding.create(REQUEST));
         verify(users, never()).save(any());
     }

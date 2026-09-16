@@ -29,6 +29,8 @@ No se han creado hoteles reales ni usuarios reales durante esta implementación.
 
 Sigue pendiente sustituir la contraseña temporal por una invitación con caducidad, incorporar estado de aprovisionamiento/suspensión y automatizar los pasos entre servicios con reintentos idempotentes.
 
+El workflow `Tenant onboarding and isolation` de GitHub Actions reconstruye los servicios JVM del commit, levanta bases y contenedores desechables y ejecuta `tenant-onboarding.spec.ts` contra el frontend y API reales. Da de alta dos hoteles por la ruta de plataforma, cambia las contraseñas iniciales de sus dueños y comprueba que usuarios, configuración, habitaciones y huéspedes no crucen el límite de tenant, incluso con cabeceras falsificadas. Este gate no necesita credenciales ni datos del PMS local y destruye sólo los volúmenes de su proyecto CI. No cubre aún documentos, cachés, Evolution ni colas; no sustituye la auditoría multitenant completa.
+
 Infraestructura compartida no significa datos compartidos. Cada hotel necesita usuarios, habitaciones, tarifas, disponibilidad, documentos, configuración, conversaciones, instancia Evolution y límites aislados. El soporte de un dueño con varios hoteles requeriría membresías y selección explícita de hotel; el modelo actual asigna un hotel por cuenta.
 
 ## Bot público: condiciones antes de activarlo

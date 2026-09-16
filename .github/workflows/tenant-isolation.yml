@@ -1,0 +1,88 @@
+name: Tenant onboarding and isolation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: tenant-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-jvm-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    env:
+      CI_PROJECT: pms-tenant-${{ github.run_id }}
+      NATIVE_STACK_MODE: jvm
+      POSTGRES_PASSWORD: tenant-ci-postgres-only
+      REDIS_PASSWORD: tenant-ci-redis-only
+      CONFIG_SERVER_PASSWORD: tenant-ci-config-only
+      INTERNAL_HMAC_SECRET: tenant-ci-hmac-secret-with-sufficient-length
+      JWT_SECRET: VGVuYW50Q0ktb25seS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
+      PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
+      CHROME_CHANNEL: chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: gradle
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build current-revision JVM services
+        run: |
+          ./gradlew \
+            :config-service:bootJar :api-gateway:bootJar :auth-service:bootJar \
+            :guest-service:bootJar :frontdesk-service:bootJar :billing-service:bootJar \
+            :fb-service:bootJar :notification-service:bootJar \
+            -x processAot -x processAotTest --no-daemon
+      - name: Install browser test dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          google-chrome --version
+      - name: Build current-revision Docker images
+        run: |
+          docker build -f config-service/Dockerfile -t hotel-pms/config-service-jvm:validated .
+          for service in api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service; do
+            docker build -f "$service/Dockerfile" -t "hotel-pms/$service-jvm:validated" .
+          done
+          docker build -f frontend/Dockerfile -t hotel-pms/frontend:stack-ci frontend
+      - name: Start disposable stack and verify health
+        run: |
+          docker compose --project-name "$CI_PROJECT" -f docker-compose.yml -f docker-compose.native-stack-ci.yml \
+            up -d --no-build --wait --wait-timeout 600 \
+            postgres redis config-server auth-service guest-service frontdesk-service \
+            billing-service fb-service notification-service api-gateway frontend mailpit
+          curl --fail --silent --show-error http://127.0.0.1:18080/ >/dev/null
+      - name: Verify two real hotel tenants through browser and API
+        working-directory: frontend
+        run: npx playwright test --config playwright-native.config.ts tenant-onboarding.spec.ts
+      - name: Capture failure diagnostics
+        if: failure()
+        run: |
+          docker compose --project-name "$CI_PROJECT" -f docker-compose.yml -f docker-compose.native-stack-ci.yml ps --all
+          docker compose --project-name "$CI_PROJECT" -f docker-compose.yml -f docker-compose.native-stack-ci.yml logs --tail=120 --no-color > tenant-stack-logs.txt || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: tenant-isolation-evidence
+          path: |
+            frontend/test-results/native-stack
+            tenant-stack-logs.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Remove only this run's disposable stack and volumes
+        if: always()
+        run: |
+          docker compose --project-name "$CI_PROJECT" -f docker-compose.yml -f docker-compose.native-stack-ci.yml down -v --remove-orphans

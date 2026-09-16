@@ -16,13 +16,16 @@ import java.util.UUID;
 @Getter
 @Setter
 public class HotelRegistry {
+    private static final int NAME_MAX_LENGTH = 160;
+    private static final int SLUG_MAX_LENGTH = 80;
+
     @Id
     private UUID id;
 
-    @Column(nullable = false, length = 160)
+    @Column(nullable = false, length = NAME_MAX_LENGTH)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 80)
+    @Column(nullable = false, unique = true, length = SLUG_MAX_LENGTH)
     private String slug;
 
     @Column(nullable = false)

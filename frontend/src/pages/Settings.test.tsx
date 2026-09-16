@@ -20,8 +20,9 @@ vi.mock('../store/authStore', () => ({
   useAuthStore: vi.fn(),
 }));
 
-const mockAuth = (role: string | undefined) => (selector: unknown) =>
-  (selector as (s: { user: { role: string } | null }) => unknown)({ user: role ? { role } : null });
+const mockAuth = (role: string | undefined, hotelId?: string) => (selector: unknown) =>
+  (selector as (s: { user: { role: string; hotelId?: string } | null }) => unknown)(
+    { user: role ? { role, hotelId } : null });
 
 const renderSettings = () => render(<MemoryRouter><Settings /></MemoryRouter>);
 
@@ -65,6 +66,17 @@ describe('Settings hub', () => {
     vi.mocked(useAuthStore).mockImplementation(mockAuth('OWNER'));
     renderSettings();
     expect(screen.getByRole('link', { name: /settings_section_system/ })).toHaveAttribute('href', '/settings/system');
+  });
+
+  it('shows platform onboarding only to the root ADMIN', () => {
+    vi.mocked(useAuthStore).mockImplementation(mockAuth('ADMIN', '00000000-0000-0000-0000-000000000001'));
+    const view = renderSettings();
+    expect(screen.getByRole('link', { name: /platform_hotels/ })).toHaveAttribute('href', '/platform/hotels');
+    view.unmount();
+
+    vi.mocked(useAuthStore).mockImplementation(mockAuth('ADMIN', '99999999-9999-9999-9999-999999999999'));
+    renderSettings();
+    expect(screen.queryByRole('link', { name: /platform_hotels/ })).not.toBeInTheDocument();
   });
 
   it('BUG-11: also shows Hotel Profile and User Management for ADMIN/OWNER, '

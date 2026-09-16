@@ -25,11 +25,22 @@ public class HotelOnboardingService {
     private final UserAccountRepository users;
     private final PasswordEncoder passwords;
 
+    /**
+     * Lists all registered hotels for a platform-authorized caller.
+     *
+     * @return hotel summaries
+     */
     @Transactional(readOnly = true)
     public List<HotelSummary> list() {
         return hotels.findAll().stream().map(this::summary).toList();
     }
 
+    /**
+     * Atomically inserts the hotel and its owner.
+     *
+     * @param request onboarding details
+     * @return created hotel summary
+     */
     @Transactional
     public HotelSummary create(final CreateHotelRequest request) {
         if (hotels.existsBySlug(request.slug())) {

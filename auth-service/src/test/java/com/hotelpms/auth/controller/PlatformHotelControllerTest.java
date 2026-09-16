@@ -22,21 +22,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 class PlatformHotelControllerTest {
-    private AnnotationConfigApplicationContext context;
-    private PlatformHotelController controller;
-    private HotelOnboardingService onboarding;
     private static final UUID ROOT = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final CreateHotelRequest REQUEST = new CreateHotelRequest(
             "Hotel SB", "hotel-sb", "sb-owner", "owner@sb.example", "Initial123");
 
-    @Configuration
-    @EnableMethodSecurity
-    static class TestConfig {
-        @Bean HotelOnboardingService onboarding() { return mock(HotelOnboardingService.class); }
-        @Bean PlatformHotelController controller(final HotelOnboardingService service) {
-            return new PlatformHotelController(service);
-        }
-    }
+    private AnnotationConfigApplicationContext context;
+    private PlatformHotelController controller;
+    private HotelOnboardingService onboarding;
 
     @BeforeEach
     void start() {
@@ -68,5 +60,19 @@ class PlatformHotelControllerTest {
     private static void authenticate(final String role) {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 "operator", null, List.of(new SimpleGrantedAuthority("ROLE_" + role))));
+    }
+
+    @Configuration
+    @EnableMethodSecurity
+    static class TestConfig {
+        @Bean
+        HotelOnboardingService onboarding() {
+            return mock(HotelOnboardingService.class);
+        }
+
+        @Bean
+        PlatformHotelController controller(final HotelOnboardingService service) {
+            return new PlatformHotelController(service);
+        }
     }
 }
