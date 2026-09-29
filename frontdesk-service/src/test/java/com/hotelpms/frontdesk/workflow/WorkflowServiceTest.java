@@ -53,6 +53,13 @@ class WorkflowServiceTest {
         verifyNoInteractions(definitions, states, transitions);
     }
 
+    @Test void lowercaseRoleLabelsCannotBeUsedAsTransitionPermissions() {
+        assertThrows(BadRequestException.class, () -> service.addTransition(tenant, workflowId,
+                new com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.AddTransitionRequest(
+                        "received", "diagnosing", "diagnose", "role_owner")));
+        verifyNoInteractions(definitions, states, transitions);
+    }
+
     @Test void staleOrRepeatedTransitionCannotWriteAnotherAudit() {
         allowTransition(true, false);
         when(instances.findLockedByHotelIdAndWorkflowIdAndAggregateId(tenant, workflowId, aggregate))
