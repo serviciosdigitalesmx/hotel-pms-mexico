@@ -38,6 +38,12 @@ class WorkflowPermissionTest {
         verifyNoInteractions(service);
     }
 
+    @Test void adminLabelWithoutExplicitPermissionIsDenied() {
+        authenticate("ROLE_ADMIN");
+        assertThrows(AccessDeniedException.class, () -> controller.create(new CreateWorkflowRequest("repair", "Repair")));
+        verifyNoInteractions(service);
+    }
+
     @Test void explicitManagePermissionAllowsCreation() {
         authenticate("workflows.manage");
         var request = new CreateWorkflowRequest("repair", "Repair");
