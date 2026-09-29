@@ -27,7 +27,7 @@ class WorkflowServiceTest {
         when(definitions.findLockedByIdAndHotelId(workflowId, tenant)).thenReturn(Optional.of(workflow));
         WorkflowState from = new WorkflowState(workflow, "received", "Received", SemanticPhase.INTAKE, initial, terminal);
         WorkflowState to = new WorkflowState(workflow, "diagnosing", "Diagnosing", SemanticPhase.DIAGNOSIS, false, false);
-        when(transitions.findByWorkflowIdAndFromStateKeyAndKey(workflowId, "received", "diagnose"))
+        when(transitions.findByTenantAndWorkflowIdAndFromStateKeyAndKey(tenant, workflowId, "received", "diagnose"))
                 .thenReturn(Optional.of(new WorkflowTransition(workflow, from, to, "diagnose", "workflow.transition")));
     }
 

@@ -7,8 +7,8 @@ import com.hotelpms.frontdesk.exception.*; import com.hotelpms.frontdesk.workflo
  @Transactional public WorkflowTransition transition(UUID hotel,UUID workflowId,TransitionRequest r,String actor){
      definitions.findLockedByIdAndHotelId(workflowId,hotel)
              .orElseThrow(()->new NotFoundException("Workflow not found"));
-     WorkflowTransition t=transitions.findByWorkflowIdAndFromStateKeyAndKey(
-             workflowId,r.fromStateKey(),r.transitionKey())
+     WorkflowTransition t=transitions.findByTenantAndWorkflowIdAndFromStateKeyAndKey(
+             hotel,workflowId,r.fromStateKey(),r.transitionKey())
              .orElseThrow(()->new ConflictException("Transition is not allowed from current state"));
      WorkflowInstance instance=instances.findLockedByHotelIdAndWorkflowIdAndAggregateId(hotel,workflowId,r.aggregateId())
              .orElseGet(()->{
