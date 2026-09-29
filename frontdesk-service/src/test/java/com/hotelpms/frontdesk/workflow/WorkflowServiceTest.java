@@ -2,6 +2,7 @@ package com.hotelpms.frontdesk.workflow;
 
 import com.hotelpms.frontdesk.exception.ConflictException;
 import com.hotelpms.frontdesk.exception.NotFoundException;
+import com.hotelpms.frontdesk.exception.BadRequestException;
 import com.hotelpms.frontdesk.workflow.domain.*;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.TransitionRequest;
 import com.hotelpms.frontdesk.workflow.repository.*;
@@ -36,6 +37,13 @@ class WorkflowServiceTest {
         service.transition(tenant, workflowId, request, "technician");
         verify(instances).save(argThat(i -> i.getStateKey().equals("diagnosing")));
         verify(audits).save(any(WorkflowTransitionAudit.class));
+    }
+
+    @Test void roleLabelsCannotBeUsedAsTransitionPermissions() {
+        assertThrows(BadRequestException.class, () -> service.addTransition(tenant, workflowId,
+                new com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.AddTransitionRequest(
+                        "received", "diagnosing", "diagnose", "ROLE_OWNER")));
+        verifyNoInteractions(definitions, states, transitions);
     }
 
     @Test void staleOrRepeatedTransitionCannotWriteAnotherAudit() {
