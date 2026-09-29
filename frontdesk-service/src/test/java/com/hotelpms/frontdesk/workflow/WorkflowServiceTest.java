@@ -52,6 +52,15 @@ class WorkflowServiceTest {
         verifyNoInteractions(instances, transitions, audits);
     }
 
+    @Test void foreignTenantCannotReadWorkflowDefinition() {
+        UUID foreignTenant = UUID.randomUUID();
+        when(definitions.findByIdAndHotelIdAndActiveTrue(workflowId, foreignTenant)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> service.definition(foreignTenant, workflowId));
+        verify(definitions).findByIdAndHotelIdAndActiveTrue(workflowId, foreignTenant);
+        verifyNoInteractions(states, transitions, instances, audits);
+    }
+
     @Test void missingInstanceCannotStartHalfwayThroughWorkflow() {
         allowTransition(false, false);
         assertThrows(ConflictException.class, () -> service.transition(tenant, workflowId, request, "technician"));

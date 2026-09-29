@@ -32,6 +32,7 @@ class WorkflowConcurrencyTest {
         try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
              var statement = connection.createStatement()) {
             statement.execute(Files.readString(Path.of("src/main/resources/db/migration/V25__add_configurable_workflows.sql")));
+            statement.execute(Files.readString(Path.of("src/main/resources/db/migration/V26__enforce_workflow_instance_identity.sql")));
         }
         context = new AnnotationConfigApplicationContext(DatabaseConfig.class);
     }
