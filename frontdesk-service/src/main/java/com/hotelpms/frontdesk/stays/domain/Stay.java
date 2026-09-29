@@ -73,6 +73,25 @@ public class Stay {
     @Column(name = "guest_id", nullable = false)
     private UUID guestId;
 
+    /** Historical device identity captured when the stay/order was created. */
+    @Column(name = "device_id")
+    private UUID deviceId;
+
+    @Column(name = "device_category")
+    private String deviceCategory;
+
+    @Column(name = "device_manufacturer")
+    private String deviceManufacturer;
+
+    @Column(name = "device_model")
+    private String deviceModel;
+
+    @Column(name = "device_serial_number")
+    private String deviceSerialNumber;
+
+    @Column(name = "device_imei")
+    private String deviceImei;
+
     /**
      * The ID of the room associated with this stay.
      */
