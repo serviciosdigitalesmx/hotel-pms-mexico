@@ -10,7 +10,7 @@ import com.hotelpms.frontdesk.exception.*; import com.hotelpms.frontdesk.workflo
      WorkflowTransition t=transitions.findByWorkflowIdAndFromStateKeyAndKey(
              workflowId,r.fromStateKey(),r.transitionKey())
              .orElseThrow(()->new ConflictException("Transition is not allowed from current state"));
-     WorkflowInstance instance=instances.findByHotelIdAndWorkflowIdAndAggregateId(hotel,workflowId,r.aggregateId())
+     WorkflowInstance instance=instances.findLockedByHotelIdAndWorkflowIdAndAggregateId(hotel,workflowId,r.aggregateId())
              .orElseGet(()->{
                  if(!t.getFromState().isInitialState())
                      throw new ConflictException("A new workflow instance must start at its initial state");

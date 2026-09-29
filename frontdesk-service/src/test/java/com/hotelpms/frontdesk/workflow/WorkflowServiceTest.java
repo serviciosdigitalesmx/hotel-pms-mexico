@@ -40,7 +40,7 @@ class WorkflowServiceTest {
 
     @Test void staleOrRepeatedTransitionCannotWriteAnotherAudit() {
         allowTransition(true, false);
-        when(instances.findByHotelIdAndWorkflowIdAndAggregateId(tenant, workflowId, aggregate))
+        when(instances.findLockedByHotelIdAndWorkflowIdAndAggregateId(tenant, workflowId, aggregate))
                 .thenReturn(Optional.of(new WorkflowInstance(tenant, workflowId, aggregate, "diagnosing")));
         assertThrows(ConflictException.class, () -> service.transition(tenant, workflowId, request, "technician"));
         verify(instances, never()).save(any());
