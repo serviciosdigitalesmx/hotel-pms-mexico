@@ -4,7 +4,7 @@ import com.hotelpms.frontdesk.exception.*; import com.hotelpms.frontdesk.workflo
  @Transactional public WorkflowDefinition create(UUID hotel,CreateWorkflowRequest r){return definitions.save(new WorkflowDefinition(hotel,r.verticalKey(),r.name()));}
  @Transactional public WorkflowState addState(UUID hotel,UUID workflowId,AddStateRequest r){WorkflowDefinition w=definition(hotel,workflowId); return states.save(new WorkflowState(w,r.key(),r.label(),r.semanticPhase(),r.initialState(),r.terminalState()));}
  @Transactional public WorkflowTransition addTransition(UUID hotel,UUID workflowId,AddTransitionRequest r){
-     if(r.requiredPermission()==null || r.requiredPermission().isBlank() || r.requiredPermission().startsWith("ROLE_"))
+     if(r.requiredPermission()==null || r.requiredPermission().isBlank() || isRoleLabel(r.requiredPermission()))
          throw new BadRequestException("Workflow transitions require an explicit permission authority");
      WorkflowDefinition w=definition(hotel,workflowId); WorkflowState from=states.findByWorkflowIdAndKey(workflowId,r.fromStateKey()).orElseThrow(()->new NotFoundException("Workflow state not found")); WorkflowState to=states.findByWorkflowIdAndKey(workflowId,r.toStateKey()).orElseThrow(()->new NotFoundException("Workflow state not found")); return transitions.save(new WorkflowTransition(w,from,to,r.transitionKey(),r.requiredPermission()));}
  @Transactional public WorkflowTransition transition(UUID hotel,UUID workflowId,TransitionRequest r,String actor){
@@ -28,4 +28,5 @@ import com.hotelpms.frontdesk.exception.*; import com.hotelpms.frontdesk.workflo
      return t;
  }
  @Transactional public WorkflowDefinition definition(UUID hotel,UUID id){return definitions.findByIdAndHotelIdAndActiveTrue(id,hotel).orElseThrow(()->new NotFoundException("Workflow not found"));}
+ private boolean isRoleLabel(String permission){String normalized=permission.trim().toUpperCase(Locale.ROOT);return normalized.startsWith("ROLE_")||normalized.equals("ADMIN")||normalized.equals("OWNER");}
  public List<WorkflowState> states(UUID hotel,UUID id){definition(hotel,id);return states.findAllByWorkflowId(id);} public List<WorkflowTransition> transitions(UUID hotel,UUID id){definition(hotel,id);return transitions.findAllByWorkflowId(id);} }
