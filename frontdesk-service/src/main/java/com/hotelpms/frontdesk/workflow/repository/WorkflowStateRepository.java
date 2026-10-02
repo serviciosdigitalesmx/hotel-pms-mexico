@@ -1,0 +1,4 @@
+package com.hotelpms.frontdesk.workflow.repository;
+import jakarta.persistence.LockModeType;
+import com.hotelpms.frontdesk.workflow.domain.*; import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param; import java.util.*;
+public interface WorkflowStateRepository extends JpaRepository<WorkflowState,UUID>{ List<WorkflowState> findAllByWorkflowId(UUID workflowId); Optional<WorkflowState> findByWorkflowIdAndKey(UUID workflowId,String key); @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select s from WorkflowState s join fetch s.workflow w where s.workflow.id=:workflowId and s.key=:key and w.hotelId=:hotelId and w.active=true") Optional<WorkflowState> findLocked(@Param("workflowId") UUID workflowId,@Param("key") String key,@Param("hotelId") UUID hotelId); }

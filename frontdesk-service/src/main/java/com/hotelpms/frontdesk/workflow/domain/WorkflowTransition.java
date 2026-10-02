@@ -1,0 +1,6 @@
+package com.hotelpms.frontdesk.workflow.domain;
+import jakarta.persistence.*; import java.util.UUID;
+@Entity @Table(name="workflow_transitions") public class WorkflowTransition {
+ @Id @GeneratedValue(strategy=GenerationType.UUID) private UUID id; @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="workflow_id",nullable=false) private WorkflowDefinition workflow; @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="from_state_id",nullable=false) private WorkflowState fromState; @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="to_state_id",nullable=false) private WorkflowState toState; @Column(name="transition_key",nullable=false) private String key; @Column(name="required_permission",nullable=false) private String requiredPermission;
+ protected WorkflowTransition() {} public WorkflowTransition(WorkflowDefinition w,WorkflowState from,WorkflowState to,String key,String permission){this.workflow=w;this.fromState=from;this.toState=to;this.key=key;this.requiredPermission=permission;} public WorkflowState getFromState(){return fromState;} public WorkflowState getToState(){return toState;} public String getKey(){return key;} public String getRequiredPermission(){return requiredPermission;}
+}
