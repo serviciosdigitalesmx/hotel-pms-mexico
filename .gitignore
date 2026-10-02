@@ -61,3 +61,8 @@ frontend/bash.exe.stackdump
 
 # ── Playwright MCP ───────────────────────────────────────────────────────────
 .playwright-mcp/
+
+# Agent factory runtime artifacts
+.agent-orchestration/state.lock
+.agent-orchestration/logs/
+.agent-orchestration/results/

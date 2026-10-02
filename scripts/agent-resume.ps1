@@ -1,0 +1,1 @@
+Set-Location (Split-Path $PSScriptRoot -Parent); Remove-Item .agent-orchestration\STOP -Force -ErrorAction SilentlyContinue; & scripts/agent-status.ps1; Write-Output 'RESUMABLE: set DEEPSEEK_API_KEY in this PowerShell process, then run .\scripts\agent-start.ps1.'

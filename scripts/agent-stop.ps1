@@ -1,0 +1,1 @@
+Set-Location (Split-Path $PSScriptRoot -Parent); Set-Content .agent-orchestration\STOP ([DateTime]::UtcNow.ToString('o')); Write-Output 'STOP REQUESTED: Ralph stops after the active task and its gates; state remains resumable.'

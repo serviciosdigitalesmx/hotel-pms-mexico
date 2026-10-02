@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "integration_branch": "main",
+  "max_workers": 1,
+  "max_retries": 2,
+  "lease_minutes": 120,
+  "state_file": ".agent-orchestration/state.json",
+  "lock_file": ".agent-orchestration/state.lock",
+  "worktree_root": "../hotel-pms-mexico-workers",
+  "provider": "deepseek-direct",
+  "provider_command": "scripts/deepseek-agent.ps1",
+  "model": "deepseek-v4-pro",
+  "api_base": "https://api.deepseek.com",
+  "api_key_env": "DEEPSEEK_API_KEY",
+  "ralph": {"detected": true, "interface": "orchestrator loop over DeepSeek tool calls, worker contract, task specs, and validation gates", "executable": "scripts/ralph-loop.ps1", "max_turns_per_task": 80},
+  "quality_gates": ["scripts/worker-validate.ps1", "scripts/integration-validate.ps1"]
+}
