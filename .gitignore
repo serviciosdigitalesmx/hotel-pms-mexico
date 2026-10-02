@@ -66,3 +66,10 @@ frontend/bash.exe.stackdump
 .agent-orchestration/state.lock
 .agent-orchestration/logs/
 .agent-orchestration/results/
+.agent-orchestration/state.json
+.agent-orchestration/provider-state.json
+.agent-orchestration/*.lease
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
