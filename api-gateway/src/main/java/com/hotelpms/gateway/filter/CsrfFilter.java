@@ -79,6 +79,11 @@ public class CsrfFilter implements GlobalFilter, Ordered {
             "/api/v1/auth/login",
             "/api/v1/auth/refresh");
 
+    private static final String PUBLIC_BOOKING_PREFIX = "/api/public/hotels/";
+    private static final String PUBLIC_PORTAL_PREFIX = "/api/public/portal/";
+    private static final String PUBLIC_AUTH_PREFIX = "/api/v1/auth/public/";
+
+
     /**
      * Validates the Double Submit Cookie token on every mutating request.
      *
@@ -97,7 +102,9 @@ public class CsrfFilter implements GlobalFilter, Ordered {
         }
 
         final String path = request.getPath().value();
-        if (EXCLUDED_PATHS.contains(path)) {
+        if (EXCLUDED_PATHS.contains(path) || "/api/v1/auth/register".equals(path)
+                || path.startsWith(PUBLIC_AUTH_PREFIX) || isPublicBookingPath(path)
+                || path.startsWith(PUBLIC_PORTAL_PREFIX)) {
             return chain.filter(exchange);
         }
 
@@ -121,6 +128,11 @@ public class CsrfFilter implements GlobalFilter, Ordered {
 
         return chain.filter(exchange);
     }
+
+    private static boolean isPublicBookingPath(final String path) {
+        return path.startsWith(PUBLIC_BOOKING_PREFIX) && path.endsWith("/reservations");
+    }
+
 
     /**
      * Returns {@code HIGHEST_PRECEDENCE + 2}, placing this filter immediately
