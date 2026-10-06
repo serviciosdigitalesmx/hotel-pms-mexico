@@ -11,8 +11,8 @@ RUN microdnf install -y findutils \
     && microdnf clean all
 COPY . .
 
-RUN --mount=type=cache,target=/root/.gradle \
-    --mount=type=cache,target=/root/.m2 \
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
+    --mount=type=cache,target=/root/.m2,sharing=locked \
     chmod +x ./gradlew \
     && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \
     && CONFIG_SERVER_PASSWORD=build-only-config-password \

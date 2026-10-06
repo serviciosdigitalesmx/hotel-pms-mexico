@@ -13,7 +13,7 @@ RUN microdnf install -y curl findutils \
     && microdnf clean all
 COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
 COPY . .
-RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked <<'EOF'
 set -eu
 chmod +x ./gradlew
 find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +

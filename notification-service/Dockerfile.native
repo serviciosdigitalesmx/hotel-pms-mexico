@@ -6,7 +6,7 @@ WORKDIR /workspace
 RUN microdnf install -y findutils \
     && microdnf clean all
 COPY . .
-RUN --mount=type=cache,target=/root/.gradle \
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     chmod +x ./gradlew \
     && sed -i 's#configserver:${CONFIG_SERVER_URL:#optional:configserver:${CONFIG_SERVER_URL:#' notification-service/src/main/resources/application.yml \
     && find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} + \

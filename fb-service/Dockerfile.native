@@ -18,7 +18,7 @@ RUN microdnf install -y curl findutils \
 COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
 COPY . .
 
-RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked <<'EOF'
 set -eu
 chmod +x ./gradlew
 # The GraalVM builder is JDK 24; the source remains a Java 21 application and

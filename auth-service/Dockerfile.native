@@ -18,7 +18,7 @@ COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
 COPY . .
 
 # This is the only nativeCompile/native-image invocation in this runner.
-RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked <<'EOF'
 set -eu
 chmod +x ./gradlew
 find . -name build.gradle.kts -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/' {} +

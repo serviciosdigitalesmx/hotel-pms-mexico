@@ -10,6 +10,13 @@
 .ralph-add/
 scripts/ci/
 frontend/
+frontend/node_modules/
+frontend/node_modules/**
+frontend/**
+**/build/
+!config-service/build/
+!config-service/build/libs/
+!config-service/build/libs/*-SNAPSHOT.jar
 docs/
 backup/
 argos
@@ -20,3 +27,5 @@ argos-local
 **/.env.*
 *.backup-*
 *.env.backup-*
+**/node_modules/
+frontend/

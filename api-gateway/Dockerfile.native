@@ -18,7 +18,7 @@ COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
 COPY api-gateway ./api-gateway
 
-RUN --mount=type=cache,target=/root/.gradle <<'EOF'
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked <<'EOF'
 set -eu
 chmod +x ./gradlew
 # GraalVM 24 is the builder JDK. Align the module toolchain only inside this

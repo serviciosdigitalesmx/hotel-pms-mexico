@@ -1,0 +1,160 @@
+name: Publish Fixi Native Images
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'api-gateway/**'
+      - 'auth-service/**'
+      - 'billing-service/**'
+      - 'config-service/**'
+      - 'fb-service/**'
+      - 'frontdesk-service/**'
+      - 'guest-service/**'
+      - 'notification-service/**'
+      - 'common-web-lib/**'
+      - 'internal-auth-lib/**'
+      - 'pdf-template-engine/**'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - 'docker-compose.native.yml'
+      - '.github/workflows/native-images.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: fixi
+
+jobs:
+  publish:
+    name: Build and publish Native images sequentially
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Prepare config-server artifact for dependent Native builds
+        env:
+          SPRING_PROFILES_ACTIVE: native
+          CONFIG_SERVER_USERNAME: configuser
+          CONFIG_SERVER_PASSWORD: ci-config-password
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :config-service:bootJar --no-daemon --stacktrace --max-workers=2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish config-server
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: config-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-config-server:${{ github.sha }}
+          cache-from: type=gha,scope=native-config-server
+          cache-to: type=gha,mode=max,scope=native-config-server
+
+      - name: Build and publish auth-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: auth-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-auth-service:${{ github.sha }}
+          cache-from: type=gha,scope=native-auth-service
+          cache-to: type=gha,mode=max,scope=native-auth-service
+
+      - name: Build and publish api-gateway
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api-gateway/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-api-gateway:${{ github.sha }}
+          cache-from: type=gha,scope=native-api-gateway
+          cache-to: type=gha,mode=max,scope=native-api-gateway
+
+      - name: Build and publish guest-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: guest-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-guest-service:${{ github.sha }}
+          cache-from: type=gha,scope=native-guest-service
+          cache-to: type=gha,mode=max,scope=native-guest-service
+
+      - name: Build and publish frontdesk-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontdesk-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-frontdesk-service:${{ github.sha }}
+          cache-from: type=gha,scope=native-frontdesk-service
+          cache-to: type=gha,mode=max,scope=native-frontdesk-service
+
+      - name: Build and publish billing-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: billing-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-billing-service:${{ github.sha }}
+          cache-from: type=gha,scope=native-billing-service
+          cache-to: type=gha,mode=max,scope=native-billing-service
+
+      - name: Build and publish fb-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: fb-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-fb-service:${{ github.sha }}
+          cache-from: type=gha,scope=native-fb-service
+          cache-to: type=gha,mode=max,scope=native-fb-service
+
+      - name: Build and publish notification-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: notification-service/Dockerfile.native
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-notification-service:${{ github.sha }}
+          cache-from: type=gha,scope=native-notification-service
+          cache-to: type=gha,mode=max,scope=native-notification-service
+
+      - name: Publish native-latest aliases from main only
+        if: github.ref == 'refs/heads/main'
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for service in config-server auth-service api-gateway guest-service frontdesk-service billing-service fb-service notification-service; do
+            docker buildx imagetools create \
+              --tag "${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-${service}:native-latest" \
+              "${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-${service}:${SHA}"
+          done

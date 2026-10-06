@@ -8,6 +8,10 @@
 .ralph-add/
 scripts/ci/
 frontend/
+frontend/node_modules/
+frontend/node_modules/**
+frontend/**
+**/build/
 docs/
 # Runtime recipes and Compose overrides are not inputs to nativeCompile.
 # BuildKit still reads the selected Dockerfile when it is excluded from COPY.
@@ -23,3 +27,5 @@ argos-local
 .env.*
 **/.env
 **/.env.*
+**/node_modules/
+frontend/

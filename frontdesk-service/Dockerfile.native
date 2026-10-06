@@ -19,8 +19,8 @@ RUN microdnf install -y curl findutils freetype fontconfig libX11 libXext libXi 
 COPY config-service/build/libs/*-SNAPSHOT.jar /tmp/config-server.jar
 COPY . .
 
-RUN --mount=type=cache,target=/root/.gradle \
-    --mount=type=cache,target=/root/.m2/repository <<'EOF'
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
+    --mount=type=cache,target=/root/.m2/repository,sharing=locked <<'EOF'
 set -eu
 chmod +x ./gradlew
 
