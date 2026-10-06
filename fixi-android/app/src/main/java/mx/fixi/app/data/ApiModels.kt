@@ -9,3 +9,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class Customer(val id: String? = null, val firstName: String? = null, val lastName: String? = null, val email: String? = null, val phone: String? = null)
 @Serializable data class Device(val id: String? = null, val brand: String? = null, val model: String? = null, val serialNumber: String? = null, val customerId: String? = null)
 @Serializable data class PageResponse<T>(val content: List<T> = emptyList(), val totalElements: Long = 0, val totalPages: Int = 0)
+@Serializable data class Diagnostic(val id: String? = null, val orderId: String? = null, val summary: String? = null, val status: String? = null)
+@Serializable data class Quotation(val id: String? = null, val orderId: String? = null, val status: String? = null, val total: Double? = null)
+@Serializable data class TimelineEvent(val id: String? = null, val type: String? = null, val description: String? = null, val createdAt: String? = null)
+@Serializable data class RepairTest(val id: String? = null, val orderId: String? = null, val name: String? = null, val passed: Boolean? = null)
+@Serializable data class InventoryProduct(val id: String? = null, val sku: String? = null, val name: String? = null, val quantity: Double? = null)

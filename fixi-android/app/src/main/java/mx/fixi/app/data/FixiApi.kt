@@ -5,6 +5,9 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import okhttp3.MultipartBody
 
 interface FixiApi {
     @POST("api/v1/auth/login") suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
@@ -15,4 +18,9 @@ interface FixiApi {
     @GET("api/v1/customers") suspend fun customers(): Response<PageResponse<Customer>>
     @GET("api/v1/customers/{id}") suspend fun customer(@Path("id") id: String): Response<Customer>
     @GET("api/v1/customers/{customerId}/devices") suspend fun devices(@Path("customerId") customerId: String): Response<List<Device>>
+    @GET("api/v1/service-orders/{id}") suspend fun serviceOrder(@Path("id") id: String): Response<ServiceOrder>
+    @GET("api/v1/service-orders/{id}/timeline") suspend fun timeline(@Path("id") id: String): Response<List<TimelineEvent>>
+    @GET("api/v1/service-orders/{id}/tests") suspend fun tests(@Path("id") id: String): Response<List<RepairTest>>
+    @GET("api/v1/inventory/products") suspend fun inventory(): Response<List<InventoryProduct>>
+    @Multipart @POST("api/v1/documents") suspend fun uploadEvidence(@Part file: MultipartBody.Part): Response<Unit>
 }
