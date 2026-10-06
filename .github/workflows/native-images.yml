@@ -2,26 +2,6 @@ name: Publish Fixi Native Images
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'api-gateway/**'
-      - 'auth-service/**'
-      - 'billing-service/**'
-      - 'config-service/**'
-      - 'fb-service/**'
-      - 'frontdesk-service/**'
-      - 'guest-service/**'
-      - 'notification-service/**'
-      - 'common-web-lib/**'
-      - 'internal-auth-lib/**'
-      - 'pdf-template-engine/**'
-      - 'gradle/**'
-      - 'gradlew'
-      - 'settings.gradle.kts'
-      - 'build.gradle.kts'
-      - 'docker-compose.native.yml'
-      - '.github/workflows/native-images.yml'
 
 permissions:
   contents: read
