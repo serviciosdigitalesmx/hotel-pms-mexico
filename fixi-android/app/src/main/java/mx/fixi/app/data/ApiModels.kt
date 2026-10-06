@@ -14,3 +14,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class TimelineEvent(val id: String? = null, val type: String? = null, val description: String? = null, val createdAt: String? = null)
 @Serializable data class RepairTest(val id: String? = null, val orderId: String? = null, val name: String? = null, val passed: Boolean? = null)
 @Serializable data class InventoryProduct(val id: String? = null, val sku: String? = null, val name: String? = null, val quantity: Double? = null)
+@Serializable data class CustomerRequest(val firstName: String, val lastName: String, val email: String? = null, val phone: String? = null)
+@Serializable data class DeviceRequest(val brand: String, val model: String, val serialNumber: String? = null, val customerId: String)
+@Serializable data class ServiceOrderRequest(val customerId: String, val deviceId: String, val reportedFailure: String, val branchId: String? = null)
+@Serializable data class ActionResponse(val message: String? = null, val status: String? = null)
+@Serializable data class Branch(val id: String? = null, val name: String? = null, val code: String? = null)
