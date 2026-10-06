@@ -29,10 +29,11 @@ import mx.fixi.app.data.ServiceOrder
 
 @Composable private fun Home(vm: FixiViewModel) {
     var section by remember { mutableStateOf("dashboard") }
-    Scaffold(topBar={ TopAppBar(title={Text("Fixi")}, actions={ TextButton({vm.logout()}){Text("Salir")} })}, bottomBar={ NavigationBar { listOf("dashboard" to "Inicio","customers" to "Clientes","inventory" to "Inventario").forEach { (key,label) -> NavigationBarItem(section==key,{section=key},icon={},label={Text(label)}) } }}) { pad ->
+    Scaffold(topBar={ TopAppBar(title={Text("Fixi")}, actions={ TextButton({vm.logout()}){Text("Salir")} })}, bottomBar={ NavigationBar { listOf("dashboard" to "Inicio","customers" to "Clientes","inventory" to "Inventario","profile" to "Perfil").forEach { (key,label) -> NavigationBarItem(section==key,{section=key},icon={},label={Text(label)}) } }}) { pad ->
         when(section) {
             "customers" -> CustomersScreen()
             "inventory" -> InventoryScreen()
+            "profile" -> ProfileScreen(vm.user)
             else -> LazyColumn(Modifier.padding(pad).padding(16.dp)) {
             item { Text("Dashboard", style=MaterialTheme.typography.headlineMedium); Text("Tenant: ${vm.user?.tenantId ?: "actual"}"); Spacer(Modifier.height(20.dp)); Text("Órdenes de servicio", style=MaterialTheme.typography.titleLarge); Spacer(Modifier.height(8.dp)) }
             items(vm.orders) { OrderCard(it) }
@@ -43,4 +44,12 @@ import mx.fixi.app.data.ServiceOrder
         }
     }
 }
+
+@Composable private fun ProfileScreen(user: mx.fixi.app.data.UserResponse?) {
+    Scaffold(topBar={TopAppBar(title={Text("Perfil")})}) { pad -> Column(Modifier.padding(pad).padding(20.dp)) {
+        Text(user?.email ?: user?.username ?: "Usuario", style=MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp)); Text("Tenant: ${user?.tenantId ?: "No disponible"}"); Text("Sucursal: ${user?.branchId ?: "No disponible"}")
+        Spacer(Modifier.height(16.dp)); Text("Roles", style=MaterialTheme.typography.titleMedium); Text(user?.roles?.joinToString().orEmpty().ifBlank { "Sin roles" })
+        Spacer(Modifier.height(16.dp)); Text("Capabilities", style=MaterialTheme.typography.titleMedium); Text(user?.capabilities?.joinToString().orEmpty().ifBlank { "Sin capabilities" })
+    } } }
 @Composable private fun OrderCard(order: ServiceOrder) { Card(Modifier.fillMaxWidth().padding(vertical=5.dp)) { Column(Modifier.padding(16.dp)){ Text(order.orderNumber ?: order.id ?: "Orden", style=MaterialTheme.typography.titleMedium); Text(order.status ?: "Sin estado"); Text(order.customerName ?: "Cliente pendiente"); Text(order.deviceDescription ?: "Equipo pendiente") } } }
