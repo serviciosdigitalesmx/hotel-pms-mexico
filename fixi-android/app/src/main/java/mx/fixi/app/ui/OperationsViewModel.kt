@@ -7,7 +7,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import mx.fixi.app.data.*
 import javax.inject.Inject
-import okhttp3.MultipartBody
 
 @HiltViewModel class OperationsViewModel @Inject constructor(private val api: FixiApi): ViewModel() {
     var customers by mutableStateOf<List<Customer>>(emptyList()); private set
@@ -30,7 +29,7 @@ import okhttp3.MultipartBody
     fun updateOrder(id: String, status: String, diagnosis: String, workLog: String) = call { val r=api.updateServiceOrder(id, ServiceOrderUpdateRequest(status, diagnosis.ifBlank{null}, workLog.ifBlank{null})); if(!r.isSuccessful) error="No se pudo actualizar la orden (${r.code()})" else { selectedOrder=r.body(); message="Orden actualizada" } }
     fun quote(id: String, solution: String, minutes: Int, labor: Double, parts: Double, tax: Double) = call { val r=api.quote(id, QuotationRequest(solution,minutes,labor,parts,tax)); if(!r.isSuccessful) error="No se pudo guardar la cotización (${r.code()})" else { selectedOrder=r.body(); message="Cotización guardada" } }
     fun addTest(id: String, name: String, passed: Boolean, notes: String) = call { val r=api.addTest(id, RepairTestRequest(name,passed,notes.ifBlank{null})); if(!r.isSuccessful) error="No se pudo guardar la prueba (${r.code()})" else { tests=tests + listOfNotNull(r.body()); message="Prueba guardada" } }
-    fun uploadEvidence(file: MultipartBody.Part) = call { val r=api.uploadEvidence(file); if(!r.isSuccessful) error="No se pudo subir la evidencia (${r.code()})" else message="Evidencia subida" }
+    fun addEvidence(orderId: String, fileName: String, contentType: String, storageKey: String) = call { val r=api.addEvidence(DocumentEvidenceRequest(serviceOrderId=orderId,fileName=fileName,contentType=contentType,storageKey=storageKey,accessLevel="STAFF")); if(!r.isSuccessful) error="No se pudo registrar la evidencia (${r.code()})" else { evidence=evidence+listOfNotNull(r.body()); message="Evidencia registrada" } }
     fun orderAction(id: String, action: String) = call { val r=when(action){"authorize"->api.authorize(id,AuthorizationRequest("Autorización registrada desde Fixi Android"));"reject"->api.reject(id,AuthorizationRequest("Rechazo registrado desde Fixi Android"));else->api.deliver(id)}; if(!r.isSuccessful) error="Acción no permitida (${r.code()})" else { selectedOrder=r.body() ?: selectedOrder; message="Acción aplicada" } }
     fun loadBranches() = call { branches=api.branches().body().orEmpty() }
     private fun call(block: suspend () -> Unit) = viewModelScope.launch { loading=true; error=null; runCatching { block() }.onFailure { error = "No se pudo cargar la información (${it.message ?: "error de red"})" }; loading=false }
