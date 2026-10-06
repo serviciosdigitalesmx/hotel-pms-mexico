@@ -29,6 +29,11 @@ import mx.fixi.app.data.ServiceOrder
 
 @Composable private fun Home(vm: FixiViewModel) {
     var section by remember { mutableStateOf("dashboard") }
+    var selectedOrderId by remember { mutableStateOf<String?>(null) }
+    if (selectedOrderId != null) {
+        OrderDetailScreen(selectedOrderId!!)
+        return
+    }
     Scaffold(topBar={ TopAppBar(title={Text("Fixi")}, actions={ TextButton({vm.logout()}){Text("Salir")} })}, bottomBar={ NavigationBar { listOf("dashboard" to "Inicio","customers" to "Clientes","inventory" to "Inventario","profile" to "Perfil").forEach { (key,label) -> NavigationBarItem(section==key,{section=key},icon={},label={Text(label)}) } }}) { pad ->
         when(section) {
             "customers" -> CustomersScreen()
@@ -36,7 +41,7 @@ import mx.fixi.app.data.ServiceOrder
             "profile" -> ProfileScreen(vm.user)
             else -> LazyColumn(Modifier.padding(pad).padding(16.dp)) {
             item { Text("Dashboard", style=MaterialTheme.typography.headlineMedium); Text("Tenant: ${vm.user?.tenantId ?: "actual"}"); Spacer(Modifier.height(20.dp)); Text("Órdenes de servicio", style=MaterialTheme.typography.titleLarge); Spacer(Modifier.height(8.dp)) }
-            items(vm.orders) { OrderCard(it) }
+            items(vm.orders) { OrderCard(it) { selectedOrderId = it.id } }
             if (vm.orders.isEmpty() && !vm.busy) item { Text("No hay órdenes disponibles", modifier=Modifier.padding(vertical=24.dp)) }
             item { Button({vm.loadOrders()}, enabled=!vm.busy, modifier=Modifier.fillMaxWidth()) { Text("Actualizar") } }
             vm.error?.let { item { Text(it, color=MaterialTheme.colorScheme.error) } }
@@ -52,4 +57,4 @@ import mx.fixi.app.data.ServiceOrder
         Spacer(Modifier.height(16.dp)); Text("Roles", style=MaterialTheme.typography.titleMedium); Text(user?.roles?.joinToString().orEmpty().ifBlank { "Sin roles" })
         Spacer(Modifier.height(16.dp)); Text("Capabilities", style=MaterialTheme.typography.titleMedium); Text(user?.capabilities?.joinToString().orEmpty().ifBlank { "Sin capabilities" })
     } } }
-@Composable private fun OrderCard(order: ServiceOrder) { Card(Modifier.fillMaxWidth().padding(vertical=5.dp)) { Column(Modifier.padding(16.dp)){ Text(order.orderNumber ?: order.id ?: "Orden", style=MaterialTheme.typography.titleMedium); Text(order.status ?: "Sin estado"); Text(order.customerName ?: "Cliente pendiente"); Text(order.deviceDescription ?: "Equipo pendiente") } } }
+@Composable private fun OrderCard(order: ServiceOrder, onClick: () -> Unit) { Card(onClick=onClick, modifier=Modifier.fillMaxWidth().padding(vertical=5.dp)) { Column(Modifier.padding(16.dp)){ Text(order.orderNumber ?: order.id ?: "Orden", style=MaterialTheme.typography.titleMedium); Text(order.status ?: "Sin estado"); Text(order.customerName ?: "Cliente pendiente"); Text(order.deviceDescription ?: "Equipo pendiente") } } }

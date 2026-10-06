@@ -9,6 +9,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import okhttp3.MultipartBody
 import retrofit2.http.PUT
+import retrofit2.http.PATCH
 
 interface FixiApi {
     @POST("api/v1/auth/login") suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
@@ -27,8 +28,12 @@ interface FixiApi {
     @POST("api/v1/customers") suspend fun createCustomer(@Body request: CustomerRequest): Response<Customer>
     @POST("api/v1/customers/{customerId}/devices") suspend fun createDevice(@Path("customerId") customerId: String, @Body request: DeviceRequest): Response<Device>
     @POST("api/v1/service-orders") suspend fun createServiceOrder(@Body request: ServiceOrderRequest): Response<ServiceOrder>
-    @POST("api/v1/service-orders/{id}/authorize") suspend fun authorize(@Path("id") id: String): Response<ActionResponse>
-    @POST("api/v1/service-orders/{id}/reject") suspend fun reject(@Path("id") id: String): Response<ActionResponse>
+    @PATCH("api/v1/service-orders/{id}") suspend fun updateServiceOrder(@Path("id") id: String, @Body request: ServiceOrderUpdateRequest): Response<ServiceOrder>
+    @POST("api/v1/service-orders/{id}/authorize") suspend fun authorize(@Path("id") id: String, @Body request: AuthorizationRequest): Response<ServiceOrder>
+    @POST("api/v1/service-orders/{id}/reject") suspend fun reject(@Path("id") id: String, @Body request: AuthorizationRequest): Response<ServiceOrder>
+    @POST("api/v1/service-orders/{id}/quotation") suspend fun quote(@Path("id") id: String, @Body request: QuotationRequest): Response<ServiceOrder>
+    @POST("api/v1/service-orders/{id}/tests") suspend fun addTest(@Path("id") id: String, @Body request: RepairTestRequest): Response<RepairTest>
     @POST("api/v1/service-orders/{id}/deliver") suspend fun deliver(@Path("id") id: String): Response<ActionResponse>
+    @GET("api/v1/documents/order/{order}") suspend fun evidence(@Path("order") order: String): Response<List<Evidence>>
     @GET("api/v1/auth/branches") suspend fun branches(): Response<List<Branch>>
 }
