@@ -19,6 +19,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class ServiceOrderRequest(val customerId: String, val deviceId: String, val reportedFailure: String, val branchId: String? = null)
 @Serializable data class ActionResponse(val message: String? = null, val status: String? = null)
 @Serializable data class Branch(val id: String? = null, val name: String? = null, val code: String? = null)
+@Serializable data class SelectBranchRequest(val branchId: String)
 @Serializable data class AuthorizationRequest(val evidence: String)
 @Serializable data class QuotationRequest(val proposedSolution: String, val estimatedMinutes: Int, val laborAmount: Double, val partsAmount: Double, val taxAmount: Double)
 @Serializable data class RepairTestRequest(val testName: String, val passed: Boolean, val notes: String? = null, val technicianId: String? = null)

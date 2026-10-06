@@ -36,4 +36,5 @@ interface FixiApi {
     @POST("api/v1/service-orders/{id}/deliver") suspend fun deliver(@Path("id") id: String): Response<ActionResponse>
     @GET("api/v1/documents/order/{order}") suspend fun evidence(@Path("order") order: String): Response<List<Evidence>>
     @GET("api/v1/auth/branches") suspend fun branches(): Response<List<Branch>>
+    @POST("api/v1/auth/select-branch") suspend fun selectBranch(@Body request: SelectBranchRequest): Response<Unit>
 }

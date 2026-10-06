@@ -20,4 +20,5 @@ import javax.inject.Inject
     private suspend fun loadMe(){ api.me().body()?.let { user=it } }
     fun loadOrders() = viewModelScope.launch { busy=true; runCatching { val r=api.serviceOrders(); if(r.isSuccessful) orders=r.body().orEmpty() else error="No se pudieron cargar las órdenes (${r.code()})" }.onFailure { error="No hay conexión con Fixi" }; busy=false }
     fun logout() = viewModelScope.launch { runCatching { api.logout() }; session.clear(); loggedIn=false; user=null; orders=emptyList() }
+    fun selectBranch(branchId: String) = viewModelScope.launch { busy=true; error=null; runCatching { val r=api.selectBranch(SelectBranchRequest(branchId)); if(!r.isSuccessful) error="No se pudo cambiar de sucursal (${r.code()})" else { loadMe(); loadOrders() } }.onFailure { error="No se pudo cambiar de sucursal" }; busy=false }
 }

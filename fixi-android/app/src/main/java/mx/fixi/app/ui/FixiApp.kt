@@ -38,7 +38,7 @@ import mx.fixi.app.data.ServiceOrder
         when(section) {
             "customers" -> CustomersScreen()
             "inventory" -> InventoryScreen()
-            "profile" -> ProfileScreen(vm.user)
+            "profile" -> ProfileScreen(vm)
             else -> LazyColumn(Modifier.padding(pad).padding(16.dp)) {
             item { Text("Dashboard", style=MaterialTheme.typography.headlineMedium); Text("Tenant: ${vm.user?.tenantId ?: "actual"}"); Spacer(Modifier.height(20.dp)); Text("Órdenes de servicio", style=MaterialTheme.typography.titleLarge); Spacer(Modifier.height(8.dp)) }
             items(vm.orders) { OrderCard(it) { selectedOrderId = it.id } }
@@ -50,11 +50,15 @@ import mx.fixi.app.data.ServiceOrder
     }
 }
 
-@Composable private fun ProfileScreen(user: mx.fixi.app.data.UserResponse?) {
+@Composable private fun ProfileScreen(vm: FixiViewModel) {
+    val user = vm.user
+    var branchId by remember { mutableStateOf("") }
     Scaffold(topBar={TopAppBar(title={Text("Perfil")})}) { pad -> Column(Modifier.padding(pad).padding(20.dp)) {
         Text(user?.email ?: user?.username ?: "Usuario", style=MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(16.dp)); Text("Tenant: ${user?.tenantId ?: "No disponible"}"); Text("Sucursal: ${user?.branchId ?: "No disponible"}")
         Spacer(Modifier.height(16.dp)); Text("Roles", style=MaterialTheme.typography.titleMedium); Text(user?.roles?.joinToString().orEmpty().ifBlank { "Sin roles" })
         Spacer(Modifier.height(16.dp)); Text("Capabilities", style=MaterialTheme.typography.titleMedium); Text(user?.capabilities?.joinToString().orEmpty().ifBlank { "Sin capabilities" })
+        Spacer(Modifier.height(16.dp)); OutlinedTextField(branchId,{branchId=it},Modifier.fillMaxWidth(),label={Text("ID de sucursal")}); Button({vm.selectBranch(branchId)},enabled=branchId.isNotBlank()&&!vm.busy){Text("Cambiar sucursal")}
+        vm.error?.let { Text(it,color=MaterialTheme.colorScheme.error) }
     } } }
 @Composable private fun OrderCard(order: ServiceOrder, onClick: () -> Unit) { Card(onClick=onClick, modifier=Modifier.fillMaxWidth().padding(vertical=5.dp)) { Column(Modifier.padding(16.dp)){ Text(order.orderNumber ?: order.id ?: "Orden", style=MaterialTheme.typography.titleMedium); Text(order.status ?: "Sin estado"); Text(order.customerName ?: "Cliente pendiente"); Text(order.deviceDescription ?: "Equipo pendiente") } } }
