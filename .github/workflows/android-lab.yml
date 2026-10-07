@@ -9,13 +9,12 @@ on:
       - '.github/workflows/android-lab.yml'
       - 'docker-compose.yml'
       - 'docker-compose.native-stack-ci.yml'
-      - 'docker-compose.native.yml'
-      - 'scripts/ci/load-native-stack-images.sh'
-      - 'docs/native-stack-images.json'
+      - 'docker-compose.android-lab.yml'
 
 permissions:
   contents: read
   actions: read
+  packages: read
 
 concurrency:
   group: fixi-android-lab
@@ -42,12 +41,16 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - name: Load verified Native images
-        run: bash scripts/ci/load-native-stack-images.sh
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Start real Native backend
         run: |
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
-            -f docker-compose.yml -f docker-compose.native-stack-ci.yml \
+            -f docker-compose.yml -f docker-compose.android-lab.yml \
             up -d --no-build --wait --wait-timeout 600 \
             postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service
           curl --fail --retry 20 --retry-delay 3 http://127.0.0.1:18000/actuator/health
@@ -82,9 +85,9 @@ jobs:
         if: always()
         run: |
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
-            -f docker-compose.yml -f docker-compose.native-stack-ci.yml ps --all > backend-containers.txt || true
+            -f docker-compose.yml -f docker-compose.android-lab.yml ps --all > backend-containers.txt || true
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
-            -f docker-compose.yml -f docker-compose.native-stack-ci.yml logs --no-color > backend.log || true
+            -f docker-compose.yml -f docker-compose.android-lab.yml logs --no-color > backend.log || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -99,4 +102,4 @@ jobs:
           if-no-files-found: warn
       - name: Destroy disposable backend lab
         if: always()
-        run: docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.native-stack-ci.yml down -v --remove-orphans
+        run: docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.android-lab.yml down -v --remove-orphans

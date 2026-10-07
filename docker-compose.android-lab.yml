@@ -1,0 +1,26 @@
+# GitHub-hosted Android lab override. Uses the published Native images directly.
+services:
+  config-server:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-config-server:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18888:8888", "127.0.0.1:18100:8090"]
+  api-gateway:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-api-gateway:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18000:8080", "127.0.0.1:18101:8090"]
+  auth-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-auth-service:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18087:8087", "127.0.0.1:18102:8090"]
+  guest-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-guest-service:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18083:8083", "127.0.0.1:18103:8090"]
+  frontdesk-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-frontdesk-service:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18081:8081", "127.0.0.1:18104:8090"]
+  billing-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-billing-service:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18085:8085", "127.0.0.1:18105:8090"]
+  fb-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-fb-service:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18086:8086", "127.0.0.1:18106:8090"]
+  notification-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-notification-service:${FIXI_NATIVE_TAG:-native-latest}
+    ports: ["127.0.0.1:18088:8088", "127.0.0.1:18107:8090"]
