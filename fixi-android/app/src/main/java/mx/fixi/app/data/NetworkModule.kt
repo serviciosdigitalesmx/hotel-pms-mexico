@@ -1,5 +1,6 @@
 package mx.fixi.app.data
 
+import mx.fixi.app.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,7 +19,7 @@ import javax.inject.Singleton
 @Module @InstallIn(SingletonComponent::class) object NetworkModule {
     @Provides @Singleton fun cookieJar(): CookieJar = object : CookieJar {
         private val cookies = mutableListOf<Cookie>()
-        override fun saveFromResponse(url: HttpUrl, values: List<Cookie>) { synchronized(cookies) { cookies.removeAll { it.name in values.map(Cookie::name) }; cookies.addAll(values) } }
+        override fun saveFromResponse(url: HttpUrl, values: List<Cookie>) { synchronized(cookies) { cookies.removeAll { cookie -> cookie.name in values.map { value: Cookie -> value.name } }; cookies.addAll(values) } }
         override fun loadForRequest(url: HttpUrl): List<Cookie> = synchronized(cookies) { cookies.filter { it.matches(url) } }
     }
     @Provides @Singleton fun api(jar: CookieJar): FixiApi {
