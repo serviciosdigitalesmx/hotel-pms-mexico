@@ -1,6 +1,7 @@
 package com.hotelpms.auth;
 
 import com.hotelpms.auth.config.AuthNativeRuntimeHints;
+import com.hotelpms.auth.config.MailConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
