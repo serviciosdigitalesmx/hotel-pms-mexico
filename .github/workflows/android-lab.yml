@@ -59,7 +59,7 @@ jobs:
               docker inspect auth-service || true
               exit 1
             }
-          curl --fail --retry 20 --retry-delay 3 http://127.0.0.1:18000/actuator/health
+          curl --fail --retry 20 --retry-delay 3 http://127.0.0.1:18101/actuator/health/liveness
       - name: Configure Android SDK and build APK
         working-directory: fixi-android
         run: |
