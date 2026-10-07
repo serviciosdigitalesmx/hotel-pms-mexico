@@ -1,5 +1,11 @@
 # GitHub-hosted Android lab override. Uses the published Native images directly.
 services:
+  postgres:
+    build: !reset null
+    image: postgres:15-alpine
+  redis:
+    build: !reset null
+    image: redis:7-alpine
   config-server:
     image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-config-server:${FIXI_NATIVE_TAG:-native-latest}
     ports: ["127.0.0.1:18888:8888", "127.0.0.1:18100:8090"]
