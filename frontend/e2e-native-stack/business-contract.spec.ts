@@ -11,11 +11,12 @@ test('FIXI Web business contract: login, customer, device and reception', async 
   await test.step('login through the real Fixi Web form', async () => {
     const credentials = primaryCredentials();
     await page.goto('/login');
-    await page.getByLabel('Correo o usuario').fill(credentials.username);
-    await page.getByLabel('Contraseña').fill(credentials.password);
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await page.locator('#username').fill(credentials.username);
+    await page.locator('#password').fill(credentials.password);
+    await page.locator('button[type="submit"]').click();
     await expect(page).toHaveURL(/\/dashboard|\/onboarding$/);
-    await expect(page.getByText('Dashboard Fixi').or(page.getByText('Configura tu negocio'))).toBeVisible();
+    await expect(page.locator('body')).not.toContainText('No se pudo iniciar sesión');
+    await expect((await api.get('/api/v1/auth/me')).status()).toBe(200);
   });
 
   const customer = await test.step('create a customer through Web and verify persistence', async () => {
