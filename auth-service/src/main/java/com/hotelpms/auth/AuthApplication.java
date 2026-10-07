@@ -5,12 +5,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /** Main class for the Auth Service application. */
 @SpringBootApplication
 @EnableFeignClients
 @EnableJpaAuditing
+@Import(MailConfig.class)
 @ImportRuntimeHints(AuthNativeRuntimeHints.class)
 public class AuthApplication {
   /** Dummy instance method to prevent PMD and Checkstyle from treating this as a utility class. */
