@@ -75,11 +75,31 @@ class AuthServiceImplTest {
     @Mock
     private LoginAttemptService loginAttemptService;
 
+    @Mock
+    private BranchAccessService branchAccessService;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
     private UserAccount testUser;
     private LoginRequest loginRequest;
+
+    @Test
+    void selectBranchRequiresMembershipAndIssuesBranchScopedTokens() {
+        final UUID branchId = UUID.randomUUID();
+        testUser.setId(UUID.randomUUID());
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(jwtService.generateToken(TEST_USER, Role.GUEST, TEST_HOTEL_ID, branchId,
+                TEST_TOKEN_VERSION, false)).thenReturn(MOCK_TOKEN);
+        when(jwtService.generateRefreshToken(TEST_USER, Role.GUEST, TEST_HOTEL_ID, branchId,
+                TEST_TOKEN_VERSION, false)).thenReturn(MOCK_REFRESH_TOKEN);
+
+        final AuthResponse result = authService.selectBranch(TEST_USER, TEST_HOTEL_ID, branchId);
+
+        assertEquals(MOCK_TOKEN, result.token());
+        assertEquals(MOCK_REFRESH_TOKEN, result.refreshToken());
+        verify(branchAccessService).assertUserCanSelectBranch(testUser.getId(), TEST_HOTEL_ID, branchId);
+    }
 
     @BeforeEach
     void setUp() {

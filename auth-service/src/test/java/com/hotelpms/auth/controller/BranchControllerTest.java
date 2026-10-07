@@ -47,6 +47,8 @@ class BranchControllerTest {
     private static final UUID HOTEL_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID BRANCH_ID = UUID.fromString("00000000-0000-0000-0000-00000000000a");
     private static final String USERNAME = "owner1";
+    private static final String MAIN = "Main";
+    private static final String NORTH = "North";
 
     @Mock
     private BranchAccessService branchAccessService;
@@ -87,7 +89,7 @@ class BranchControllerTest {
     @Test
     void listBranchesReturns200WhenCapabilityAllowed() throws Exception {
         final TenantBranchResponse branch = new TenantBranchResponse(
-                BRANCH_ID, HOTEL_ID, "Main", true, LocalDateTime.now());
+                BRANCH_ID, HOTEL_ID, MAIN, true, LocalDateTime.now());
         when(branchAccessService.listBranches(HOTEL_ID)).thenReturn(List.of(branch));
 
         mockMvc.perform(get(BASE_URL)
@@ -119,11 +121,11 @@ class BranchControllerTest {
     }
 
     @Test
-    void getBranchReturns200WhenTenantAndBranchMatch() throws Exception {
+    void branchLookupReturns200WhenTenantAndBranchMatch() throws Exception {
         final TenantBranch branch = TenantBranch.builder()
                 .id(BRANCH_ID)
                 .hotelId(HOTEL_ID)
-                .name("Main")
+                .name(MAIN)
                 .active(true)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -137,16 +139,16 @@ class BranchControllerTest {
                         }))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hotelId").value(HOTEL_ID.toString()))
-                .andExpect(jsonPath("$.name").value("Main"));
+                .andExpect(jsonPath("$.name").value(MAIN));
     }
 
     @Test
     void createBranchReturns201WhenCapabilityAllowed() throws Exception {
         final TenantBranchResponse response = new TenantBranchResponse(
-                BRANCH_ID, HOTEL_ID, "North", true, LocalDateTime.now());
-        when(branchAccessService.createBranch(eq(HOTEL_ID), eq("North"), eq(USERNAME)))
+                BRANCH_ID, HOTEL_ID, NORTH, true, LocalDateTime.now());
+        when(branchAccessService.createBranch(eq(HOTEL_ID), eq(NORTH), eq(USERNAME)))
                 .thenReturn(response);
-        final CreateBranchRequest request = new CreateBranchRequest("North");
+        final CreateBranchRequest request = new CreateBranchRequest(NORTH);
 
         mockMvc.perform(post(BASE_URL)
                         .header(HEADER_HOTEL, HOTEL_ID.toString())
@@ -157,7 +159,7 @@ class BranchControllerTest {
                             return req;
                         }))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("North"))
+                .andExpect(jsonPath("$.name").value(NORTH))
                 .andExpect(jsonPath("$.hotelId").value(HOTEL_ID.toString()));
 
         verify(capabilityService).requireCapability(USERNAME, HOTEL_ID, Capability.BRANCHES_MANAGE);
@@ -168,7 +170,7 @@ class BranchControllerTest {
         doThrow(new AccessDeniedException("CAPABILITY_ACCESS_DENIED"))
                 .when(capabilityService)
                 .requireCapability(USERNAME, HOTEL_ID, Capability.BRANCHES_MANAGE);
-        final CreateBranchRequest request = new CreateBranchRequest("North");
+        final CreateBranchRequest request = new CreateBranchRequest(NORTH);
 
         mockMvc.perform(post(BASE_URL)
                         .header(HEADER_HOTEL, HOTEL_ID.toString())

@@ -10,6 +10,8 @@ import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.GlobalExceptionHandler;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.service.UserManagementService;
+import com.hotelpms.auth.service.CapabilityService;
+import com.hotelpms.internalauth.contracts.Capability;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -59,6 +62,9 @@ class UserManagementControllerTest {
 
     @Mock
     private UserManagementService userManagementService;
+
+    @Mock
+    private CapabilityService capabilityService;
 
     @InjectMocks
     private UserManagementController userManagementController;
@@ -102,6 +108,27 @@ class UserManagementControllerTest {
         mockMvc.perform(get(BASE_URL).header(HEADER_HOTEL, HOTEL_ID.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].username").value(NEW_USERNAME));
+    }
+
+    @Test
+    void shouldRejectUserManagementWhenUsersManageCapabilityIsMissing() throws Exception {
+        doThrow(new AccessDeniedException("Capability access denied"))
+                .when(capabilityService)
+                .requireCapability(ADMIN_USERNAME, HOTEL_ID, Capability.USERS_MANAGE);
+
+        mockMvc.perform(get(BASE_URL).header(HEADER_HOTEL, HOTEL_ID.toString()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldRejectUserManagementForAnotherTenant() throws Exception {
+        final UUID anotherTenant = UUID.randomUUID();
+        doThrow(new AccessDeniedException("Tenant access denied"))
+                .when(capabilityService)
+                .requireCapability(ADMIN_USERNAME, anotherTenant, Capability.USERS_MANAGE);
+
+        mockMvc.perform(get(BASE_URL).header(HEADER_HOTEL, anotherTenant.toString()))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -39,6 +39,8 @@ class BranchAccessServiceImplTest {
     private static final UUID BRANCH_B = UUID.fromString("00000000-0000-0000-0000-00000000000b");
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
     private static final String USERNAME = "owner1";
+    private static final String MAIN = "Main";
+    private static final String NORTH = "North";
 
     @Mock
     private TenantBranchRepository branchRepository;
@@ -60,7 +62,7 @@ class BranchAccessServiceImplTest {
         branchA = TenantBranch.builder()
                 .id(BRANCH_A)
                 .hotelId(HOTEL_A)
-                .name("Main")
+                .name(MAIN)
                 .active(true)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -74,7 +76,7 @@ class BranchAccessServiceImplTest {
     }
 
     @Test
-    void getBranchForTenantReturnsBranchWhenTenantMatches() {
+    void branchLookupReturnsBranchWhenTenantMatches() {
         when(branchRepository.findByIdAndHotelId(BRANCH_A, HOTEL_A)).thenReturn(Optional.of(branchA));
 
         final TenantBranch result = branchAccessService.getBranchForTenant(HOTEL_A, BRANCH_A);
@@ -84,7 +86,7 @@ class BranchAccessServiceImplTest {
     }
 
     @Test
-    void getBranchForTenantThrowsNotFoundWhenBranchBelongsToAnotherTenant() {
+    void branchLookupThrowsNotFoundWhenBranchBelongsToAnotherTenant() {
         when(branchRepository.findByIdAndHotelId(BRANCH_A, HOTEL_B)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> branchAccessService.getBranchForTenant(HOTEL_B, BRANCH_A),
@@ -115,16 +117,16 @@ class BranchAccessServiceImplTest {
 
     @Test
     void createBranchRejectsDuplicateNameInSameTenant() {
-        when(branchRepository.existsByHotelIdAndNameIgnoreCase(HOTEL_A, "Main")).thenReturn(true);
+        when(branchRepository.existsByHotelIdAndNameIgnoreCase(HOTEL_A, MAIN)).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class,
-                () -> branchAccessService.createBranch(HOTEL_A, "Main", USERNAME));
+                () -> branchAccessService.createBranch(HOTEL_A, MAIN, USERNAME));
         verify(branchRepository, never()).save(any(TenantBranch.class));
     }
 
     @Test
     void createBranchCreatesTenantBranchAndMembershipForRequestingUser() {
-        when(branchRepository.existsByHotelIdAndNameIgnoreCase(HOTEL_A, "North")).thenReturn(false);
+        when(branchRepository.existsByHotelIdAndNameIgnoreCase(HOTEL_A, NORTH)).thenReturn(false);
         when(userAccountRepository.findByUsername(USERNAME)).thenReturn(Optional.of(user));
         when(branchRepository.save(any(TenantBranch.class))).thenAnswer(invocation -> {
             final TenantBranch unsaved = invocation.getArgument(0);
@@ -132,12 +134,12 @@ class BranchAccessServiceImplTest {
             return unsaved;
         });
 
-        final TenantBranchResponse response = branchAccessService.createBranch(HOTEL_A, "North", USERNAME);
+        final TenantBranchResponse response = branchAccessService.createBranch(HOTEL_A, NORTH, USERNAME);
 
         final ArgumentCaptor<TenantBranch> branchCaptor = ArgumentCaptor.forClass(TenantBranch.class);
         verify(branchRepository).save(branchCaptor.capture());
         assertThat(branchCaptor.getValue().getHotelId()).isEqualTo(HOTEL_A);
-        assertThat(branchCaptor.getValue().getName()).isEqualTo("North");
+        assertThat(branchCaptor.getValue().getName()).isEqualTo(NORTH);
 
         final ArgumentCaptor<UserBranchMembership> membershipCaptor =
                 ArgumentCaptor.forClass(UserBranchMembership.class);
@@ -146,7 +148,7 @@ class BranchAccessServiceImplTest {
         assertThat(membershipCaptor.getValue().getHotelId()).isEqualTo(HOTEL_A);
 
         assertThat(response.hotelId()).isEqualTo(HOTEL_A);
-        assertThat(response.name()).isEqualTo("North");
+        assertThat(response.name()).isEqualTo(NORTH);
     }
 
     @Test

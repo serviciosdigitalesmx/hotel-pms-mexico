@@ -1,4 +1,2 @@
-/**
- * Service interfaces for authentication business logic.
- */
+/** Service interfaces for authentication business logic. */
 package com.hotelpms.auth.service;

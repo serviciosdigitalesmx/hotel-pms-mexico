@@ -1,7 +1,11 @@
 package com.hotelpms.auth.repository;
 
-import com.hotelpms.internalauth.architecture.TenantScopeExempt;
 import com.hotelpms.auth.domain.UserAccount;
+import com.hotelpms.internalauth.architecture.TenantScopeExempt;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -9,176 +13,195 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-/**
- * Spring Data JPA repository for the {@link UserAccount} entity.
- */
+/** Spring Data JPA repository for the {@link UserAccount} entity. */
 @Repository
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
 
-    /**
-     * Finds a user account by its username.
-     *
-     * @param username the username to search for
-     * @return an {@link Optional} containing the user account if found, empty
-     *         otherwise
-     */
-    @TenantScopeExempt(reason = "Login lookup happens before the caller's hotel is known — "
-            + "the username is the only credential available at this point in the auth flow. "
-            + "Usernames are globally unique across the platform by design (one login identity "
-            + "per person, not per hotel).")
-    Optional<UserAccount> findByUsername(String username);
+  /**
+   * Finds a user account by its username.
+   *
+   * @param username the username to search for
+   * @return an {@link Optional} containing the user account if found, empty otherwise
+   */
+  @TenantScopeExempt(
+      reason =
+          "Login lookup happens before the caller's hotel is known — "
+              + "the username is the only credential available at this point in the auth flow. "
+              + "Usernames are globally unique across the platform by design (one login identity "
+              + "per person, not per hotel).")
+  Optional<UserAccount> findByUsername(String username);
 
-    /**
-     * Checks if a user account exists by its email.
-     *
-     * @param email the email to check
-     * @return true if an account with the specified email exists, false otherwise
-     */
-    @TenantScopeExempt(reason = "Registration-time uniqueness check, global by design — an "
-            + "email can only ever back one account on the whole platform, same as findByUsername.")
-    boolean existsByEmail(String email);
+  @TenantScopeExempt(reason = "Password recovery lookup occurs before authentication")
+  Optional<UserAccount> findByEmailIgnoreCase(String email);
 
-    /**
-     * Checks if a user account exists by its username.
-     *
-     * @param username the username to check
-     * @return true if an account with the specified username exists, false otherwise
-     */
-    @TenantScopeExempt(reason = "Registration-time uniqueness check, global by design — "
-            + "same as existsByEmail.")
-    boolean existsByUsername(String username);
+  /**
+   * Checks if a user account exists by its email.
+   *
+   * @param email the email to check
+   * @return true if an account with the specified email exists, false otherwise
+   */
+  @TenantScopeExempt(
+      reason =
+          "Registration-time uniqueness check, global by design — an email can only ever back one"
+              + " account on the whole platform, same as findByUsername.")
+  boolean existsByEmail(String email);
 
-    /**
-     * Returns all active users belonging to the given hotel.
-     *
-     * @param hotelId the hotel UUID
-     * @return list of active user accounts for the hotel
-     */
-    List<UserAccount> findAllByHotelId(UUID hotelId);
+  /**
+   * Checks if a user account exists by its username.
+   *
+   * @param username the username to check
+   * @return true if an account with the specified username exists, false otherwise
+   */
+  @TenantScopeExempt(
+      reason = "Registration-time uniqueness check, global by design — " + "same as existsByEmail.")
+  boolean existsByUsername(String username);
 
-    /**
-     * Returns every account for the hotel, including inactive accounts.
-     *
-     * <p>Native SQL is required because UserAccount has
-     * {@code @SQLRestriction("active = true")}.</p>
-     *
-     * @param hotelId the hotel UUID
-     * @return all active and inactive accounts for the hotel
-     */
-    @Query(value = """
-            SELECT *
-            FROM user_account
-            WHERE hotel_id = :hotelId
-            ORDER BY active DESC, username ASC
-            """, nativeQuery = true)
-    List<UserAccount> findAllByHotelIdIncludingInactive(
-            @Param("hotelId") UUID hotelId);
+  /**
+   * Returns all active users belonging to the given hotel.
+   *
+   * @param hotelId the hotel UUID
+   * @return list of active user accounts for the hotel
+   */
+  List<UserAccount> findAllByHotelId(UUID hotelId);
 
-    /**
-     * Global username uniqueness check including inactive accounts.
-     *
-     * @param username the username to check
-     * @return whether the username exists
-     */
-    @TenantScopeExempt(reason = "Username uniqueness is global and must include inactive accounts.")
-    @Query(value = """
-            SELECT EXISTS(
-                SELECT 1
-                FROM user_account
-                WHERE username = :username
-            )
-            """, nativeQuery = true)
-    boolean existsByUsernameIncludingInactive(
-            @Param("username") String username);
+  /**
+   * Returns every account for the hotel, including inactive accounts.
+   *
+   * <p>Native SQL is required because UserAccount has {@code @SQLRestriction("active = true")}.
+   *
+   * @param hotelId the hotel UUID
+   * @return all active and inactive accounts for the hotel
+   */
+  @Query(
+      value =
+          """
+          SELECT *
+          FROM user_account
+          WHERE hotel_id = :hotelId
+          ORDER BY active DESC, username ASC
+          """,
+      nativeQuery = true)
+  List<UserAccount> findAllByHotelIdIncludingInactive(@Param("hotelId") UUID hotelId);
 
-    /**
-     * Global e-mail uniqueness check including inactive accounts.
-     *
-     * @param email the e-mail to check
-     * @return whether the e-mail exists
-     */
-    @TenantScopeExempt(reason = "Email uniqueness is global and must include inactive accounts.")
-    @Query(value = """
-            SELECT EXISTS(
-                SELECT 1
-                FROM user_account
-                WHERE email = :email
-            )
-            """, nativeQuery = true)
-    boolean existsByEmailIncludingInactive(
-            @Param("email") String email);
+  /**
+   * Global username uniqueness check including inactive accounts.
+   *
+   * @param username the username to check
+   * @return whether the username exists
+   */
+  @TenantScopeExempt(reason = "Username uniqueness is global and must include inactive accounts.")
+  @Query(
+      value =
+          """
+          SELECT EXISTS(
+              SELECT 1
+              FROM user_account
+              WHERE username = :username
+          )
+          """,
+      nativeQuery = true)
+  boolean existsByUsernameIncludingInactive(@Param("username") String username);
 
-    /**
-     * Finds an active user by id scoped to a hotel (prevents cross-tenant access).
-     *
-     * @param id      the user UUID
-     * @param hotelId the hotel UUID
-     * @return the user if found and active within that hotel
-     */
-    Optional<UserAccount> findByIdAndHotelId(UUID id, UUID hotelId);
+  /**
+   * Global e-mail uniqueness check including inactive accounts.
+   *
+   * @param email the e-mail to check
+   * @return whether the e-mail exists
+   */
+  @TenantScopeExempt(reason = "Email uniqueness is global and must include inactive accounts.")
+  @Query(
+      value =
+          """
+          SELECT EXISTS(
+              SELECT 1
+              FROM user_account
+              WHERE email = :email
+          )
+          """,
+      nativeQuery = true)
+  boolean existsByEmailIncludingInactive(@Param("email") String email);
 
-    /**
-     * Finds a user by id scoped to a hotel, including inactive (soft-deleted)
-     * accounts (BUG-12, {@code docs/LIVE_E2E_AUDIT_2026-07.md}).
-     *
-     * <p>{@link UserAccount} carries {@code @SQLRestriction("active = true")} at
-     * the class level, which Hibernate injects into every HQL-derived query for
-     * the entity — including inherited methods like {@code findById}. A native
-     * query is the one thing {@code @SQLRestriction} does not intercept, which
-     * is the only way to legitimately look up a deactivated account (e.g. to
-     * reactivate it). Kept hotel-scoped so this bypass can never become a
-     * cross-tenant read.</p>
-     *
-     * @param id      the user UUID
-     * @param hotelId the hotel UUID
-     * @return the user if found within that hotel, active or not
-     */
-    @Query(value = "SELECT * FROM user_account WHERE id = :id AND hotel_id = :hotelId", nativeQuery = true)
-    Optional<UserAccount> findByIdAndHotelIdIncludingInactive(@Param("id") UUID id, @Param("hotelId") UUID hotelId);
+  /**
+   * Finds an active user by id scoped to a hotel (prevents cross-tenant access).
+   *
+   * @param id the user UUID
+   * @param hotelId the hotel UUID
+   * @return the user if found and active within that hotel
+   */
+  Optional<UserAccount> findByIdAndHotelId(UUID id, UUID hotelId);
 
-    /**
-     * Physically deletes an INACTIVE account from the given hotel.
-     *
-     * <p>This intentionally bypasses UserAccount {@code @SQLDelete}, which
-     * otherwise converts repository deletes into soft deletes.</p>
-     *
-     * @param id the user UUID
-     * @param hotelId the hotel UUID
-     * @return number of deleted rows
-     */
-    @Transactional
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = """
-            DELETE FROM user_account
-            WHERE id = :id
-              AND hotel_id = :hotelId
-              AND active = false
-            """, nativeQuery = true)
-    int hardDeleteInactiveByIdAndHotelId(
-            @Param("id") UUID id,
-            @Param("hotelId") UUID hotelId);
+  /**
+   * Finds a user by id scoped to a hotel, including inactive (soft-deleted) accounts (BUG-12,
+   * {@code docs/LIVE_E2E_AUDIT_2026-07.md}).
+   *
+   * <p>{@link UserAccount} carries {@code @SQLRestriction("active = true")} at the class level,
+   * which Hibernate injects into every HQL-derived query for the entity — including inherited
+   * methods like {@code findById}. A native query is the one thing {@code @SQLRestriction} does not
+   * intercept, which is the only way to legitimately look up a deactivated account (e.g. to
+   * reactivate it). Kept hotel-scoped so this bypass can never become a cross-tenant read.
+   *
+   * @param id the user UUID
+   * @param hotelId the hotel UUID
+   * @return the user if found within that hotel, active or not
+   */
+  @Query(
+      value = "SELECT * FROM user_account WHERE id = :id AND hotel_id = :hotelId",
+      nativeQuery = true)
+  Optional<UserAccount> findByIdAndHotelIdIncludingInactive(
+      @Param("id") UUID id, @Param("hotelId") UUID hotelId);
 
-    /**
-     * Atomically increments the failed-login counter and sets the lock expiry.
-     * Runs in its own transaction so the update is committed even when the caller
-     * rolls back (e.g. after throwing BadCredentialsException).
-     *
-     * @param username   the account username
-     * @param attempts   the new failed-attempts value
-     * @param lockedUntil the lock expiry (null = not yet locked)
-     */
-    @TenantScopeExempt(reason = "Updates the account already resolved by findByUsername earlier "
-            + "in the same login attempt — username uniquely identifies one account platform-wide, "
-            + "so there is no other-hotel account this could touch instead.")
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    @Modifying
-    @Query("UPDATE UserAccount u SET u.failedAttempts = :attempts, u.lockedUntil = :lockedUntil WHERE u.username = :username")
-    void updateFailedAttempts(@Param("username") String username,
-                              @Param("attempts") int attempts,
-                              @Param("lockedUntil") Instant lockedUntil);
+  @TenantScopeExempt(reason = "Single-use account tokens resolve an inactive account by opaque user id")
+  @Query(value = "SELECT * FROM user_account WHERE id = :id", nativeQuery = true)
+  Optional<UserAccount> findByIdIncludingInactive(@Param("id") UUID id);
+
+  @TenantScopeExempt(reason = "Verification resend must resolve an inactive unverified account")
+  @Query(value = "SELECT * FROM user_account WHERE lower(email) = lower(:email)", nativeQuery = true)
+  Optional<UserAccount> findByEmailIncludingInactive(@Param("email") String email);
+
+  /**
+   * Physically deletes an INACTIVE account from the given hotel.
+   *
+   * <p>This intentionally bypasses UserAccount {@code @SQLDelete}, which otherwise converts
+   * repository deletes into soft deletes.
+   *
+   * @param id the user UUID
+   * @param hotelId the hotel UUID
+   * @return number of deleted rows
+   */
+  @Transactional
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          """
+          DELETE FROM user_account
+          WHERE id = :id
+            AND hotel_id = :hotelId
+            AND active = false
+          """,
+      nativeQuery = true)
+  int hardDeleteInactiveByIdAndHotelId(@Param("id") UUID id, @Param("hotelId") UUID hotelId);
+
+  /**
+   * Atomically increments the failed-login counter and sets the lock expiry. Runs in its own
+   * transaction so the update is committed even when the caller rolls back (e.g. after throwing
+   * BadCredentialsException).
+   *
+   * @param username the account username
+   * @param attempts the new failed-attempts value
+   * @param lockedUntil the lock expiry (null = not yet locked)
+   */
+  @TenantScopeExempt(
+      reason =
+          "Updates the account already resolved by findByUsername earlier in the same login attempt"
+              + " — username uniquely identifies one account platform-wide, so there is no"
+              + " other-hotel account this could touch instead.")
+  @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+  @Modifying
+  @Query(
+      "UPDATE UserAccount u SET u.failedAttempts = :attempts, u.lockedUntil = :lockedUntil WHERE"
+          + " u.username = :username")
+  void updateFailedAttempts(
+      @Param("username") String username,
+      @Param("attempts") int attempts,
+      @Param("lockedUntil") Instant lockedUntil);
 }

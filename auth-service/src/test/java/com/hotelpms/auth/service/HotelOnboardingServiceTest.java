@@ -6,6 +6,7 @@ import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.CreateHotelRequest;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.repository.HotelRegistryRepository;
+import com.hotelpms.auth.repository.TenantCapabilityRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class HotelOnboardingServiceTest {
@@ -32,6 +33,7 @@ class HotelOnboardingServiceTest {
             "Hotel SB", HOTEL_SLUG, "sb-owner", "owner@sb.example", "Initial123");
 
     @Mock private HotelRegistryRepository hotels;
+    @Mock private TenantCapabilityRepository capabilities;
     @Mock private UserAccountRepository users;
     @Mock private PasswordEncoder passwords;
     @InjectMocks private HotelOnboardingService onboarding;
@@ -44,6 +46,7 @@ class HotelOnboardingServiceTest {
         final var ownerCaptor = org.mockito.ArgumentCaptor.forClass(UserAccount.class);
         verify(hotels).save(hotelCaptor.capture());
         verify(users).save(ownerCaptor.capture());
+        verify(capabilities).saveAll(any());
         assertEquals(HOTEL_SLUG, result.slug());
         assertEquals(result.id(), ownerCaptor.getValue().getHotelId());
         assertNotEquals(UUID.fromString("00000000-0000-0000-0000-000000000001"), result.id());

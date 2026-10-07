@@ -1,4 +1,2 @@
-/**
- * Authentication service package.
- */
+/** Authentication service package. */
 package com.hotelpms.auth;

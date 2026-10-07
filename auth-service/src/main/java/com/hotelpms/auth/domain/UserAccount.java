@@ -2,13 +2,16 @@ package com.hotelpms.auth.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,13 +22,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-/**
- * Domain entity representing a user account in the authentication service.
- */
+/** Domain entity representing a user account in the authentication service. */
 @Entity
 @Table(name = "user_account")
 @Data
@@ -37,63 +34,68 @@ import java.util.UUID;
 @SQLRestriction("active = true")
 public class UserAccount {
 
-    private static final int MAX_USERNAME_LENGTH = 50;
-    private static final int MAX_EMAIL_LENGTH = 100;
+  private static final int MAX_USERNAME_LENGTH = 50;
+  private static final int MAX_EMAIL_LENGTH = 100;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
-    @Column(nullable = false, unique = true, length = MAX_USERNAME_LENGTH)
-    private String username;
+  @Column(nullable = false, unique = true, length = MAX_USERNAME_LENGTH)
+  private String username;
 
-    @Column(nullable = false)
-    private String passwordHash;
+  @Column(nullable = false)
+  private String passwordHash;
 
-    @Column(nullable = false, unique = true, length = MAX_EMAIL_LENGTH)
-    private String email;
+  @Column(nullable = false, unique = true, length = MAX_EMAIL_LENGTH)
+  private String email;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+  @Column(length = 160)
+  private String fullName;
 
-    @Column(nullable = false)
-    private UUID hotelId;
+  @Builder.Default
+  @Column(nullable = false)
+  private boolean emailVerified = true;
 
-    @Builder.Default
-    @Column(nullable = false)
-    private boolean active = true;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private Role role;
 
-    /**
-     * When {@code true} the user must change their password before using the system.
-     * Set automatically for admin-created accounts and for the default seeded ADMIN.
-     * Default is {@code false}: users who self-register are not forced to change.
-     */
-    @Column(nullable = false)
-    private boolean mustChangePassword;
+  @Column(nullable = false)
+  private UUID hotelId;
 
-    /**
-     * Monotonically incrementing counter embedded in the JWT {@code tv} claim.
-     *
-     * <p>Incrementing this value (on password change) invalidates all previously
-     * issued tokens for this user. {@code AuthServiceImpl.refresh()} rejects
-     * any refresh token whose {@code tv} claim does not match the value cached
-     * in Redis under {@code user:tv:<username>} (T-AUTH-04 residuo).</p>
-     */
-    @Column(nullable = false)
-    private int tokenVersion;
+  @Builder.Default
+  @Column(nullable = false)
+  private boolean active = true;
 
-    @Column(nullable = false)
-    private int failedAttempts;
+  /**
+   * When {@code true} the user must change their password before using the system. Set
+   * automatically for admin-created accounts and for the default seeded ADMIN. Default is {@code
+   * false}: users who self-register are not forced to change.
+   */
+  @Column(nullable = false)
+  private boolean mustChangePassword;
 
-    @Column
-    private Instant lockedUntil;
+  /**
+   * Monotonically incrementing counter embedded in the JWT {@code tv} claim.
+   *
+   * <p>Incrementing this value (on password change) invalidates all previously issued tokens for
+   * this user. {@code AuthServiceImpl.refresh()} rejects any refresh token whose {@code tv} claim
+   * does not match the value cached in Redis under {@code user:tv:<username>} (T-AUTH-04 residuo).
+   */
+  @Column(nullable = false)
+  private int tokenVersion;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @Column(nullable = false)
+  private int failedAttempts;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @Column private Instant lockedUntil;
+
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
+
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
 }

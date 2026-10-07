@@ -3,6 +3,10 @@ package com.hotelpms.auth.config;
 import com.hotelpms.internalauth.security.InternalAuthFilter;
 import com.hotelpms.internalauth.security.NonceStore;
 import com.hotelpms.internalauth.security.RedisNonceStore;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,128 +20,139 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import lombok.SneakyThrows;
 
-/**
- * Core Spring Security configuration for the authentication service.
- */
+/** Core Spring Security configuration for the authentication service. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final String AUTH_PUBLIC_ENDPOINTS = "/api/v1/auth/login";
-    private static final String AUTH_REGISTER = "/api/v1/auth/register";
-    private static final String AUTH_REFRESH = "/api/v1/auth/refresh";
-    private static final String AUTH_LOGOUT = "/api/v1/auth/logout";
-    private static final String AUTH_CHANGE_PW = "/api/v1/auth/change-password";
-    private static final String AUTH_ME = "/api/v1/auth/me";
-    private static final String ACTUATOR = "/actuator";
+  private static final String AUTH_PUBLIC_ENDPOINTS = "/api/v1/auth/login";
+  private static final String AUTH_REGISTER = "/api/v1/auth/register";
+  private static final String AUTH_PUBLIC = "/api/v1/auth/public";
+  private static final String AUTH_REFRESH = "/api/v1/auth/refresh";
+  private static final String AUTH_LOGOUT = "/api/v1/auth/logout";
+  private static final String AUTH_CHANGE_PW = "/api/v1/auth/change-password";
+  private static final String AUTH_ME = "/api/v1/auth/me";
+  private static final String ACTUATOR = "/actuator";
 
-    /**
-     * Path prefixes exempt from {@link InternalAuthFilter} HMAC validation:
-     * the public auth endpoints (called directly by the frontend, never
-     * routed through the gateway) plus actuator. Shared between the filter
-     * and {@code authorizeHttpRequests} below so the two lists cannot drift
-     * apart the way they previously did (AUDIT_ANALISI_2026-07.md item 2).
-     */
-    private static final List<String> HMAC_EXEMPT_PATH_PREFIXES = List.of(
-            AUTH_PUBLIC_ENDPOINTS, AUTH_REGISTER, AUTH_REFRESH,
-            AUTH_LOGOUT, AUTH_CHANGE_PW, AUTH_ME, ACTUATOR);
+  /**
+   * Path prefixes exempt from {@link InternalAuthFilter} HMAC validation: the public auth endpoints
+   * (called directly by the frontend, never routed through the gateway) plus actuator. Shared
+   * between the filter and {@code authorizeHttpRequests} below so the two lists cannot drift apart
+   * the way they previously did (AUDIT_ANALISI_2026-07.md item 2).
+   */
+  private static final List<String> HMAC_EXEMPT_PATH_PREFIXES =
+      List.of(
+          AUTH_PUBLIC_ENDPOINTS,
+          AUTH_REGISTER,
+          AUTH_PUBLIC,
+          AUTH_REFRESH,
+          AUTH_LOGOUT,
+          AUTH_CHANGE_PW,
+          AUTH_ME,
+          ACTUATOR);
 
-    // Argon2id parameters — exercise A04:2025, T-AUTH-03 (memory-hard KDF)
-    private static final int ARGON2_SALT_LEN = 16; // bytes
-    private static final int ARGON2_HASH_LEN = 32; // bytes
-    private static final int ARGON2_PARALLELISM = 1;
-    private static final int ARGON2_MEMORY = 19 * 1024; // 19 MiB in KiB
-    private static final int ARGON2_ITERATIONS = 2;
-    // BCrypt kept for lazy-rehash migration of pre-existing hashes
-    private static final int BCRYPT_LEGACY_STRENGTH = 12;
+  // Argon2id parameters — exercise A04:2025, T-AUTH-03 (memory-hard KDF)
+  private static final int ARGON2_SALT_LEN = 16; // bytes
+  private static final int ARGON2_HASH_LEN = 32; // bytes
+  private static final int ARGON2_PARALLELISM = 1;
+  private static final int ARGON2_MEMORY = 19 * 1024; // 19 MiB in KiB
+  private static final int ARGON2_ITERATIONS = 2;
+  // BCrypt kept for lazy-rehash migration of pre-existing hashes
+  private static final int BCRYPT_LEGACY_STRENGTH = 12;
 
-    private final String hmacSecret;
+  private final String hmacSecret;
 
-    /**
-     * Constructs the security config with the shared HMAC secret (for InternalAuthFilter).
-     *
-     * @param hmacSecret the internal shared secret from {@code internal.hmac.secret}
-     */
-    public SecurityConfig(@Value("${internal.hmac.secret}") final String hmacSecret) {
-        this.hmacSecret = hmacSecret;
-    }
+  /**
+   * Constructs the security config with the shared HMAC secret (for InternalAuthFilter).
+   *
+   * @param hmacSecret the internal shared secret from {@code internal.hmac.secret}
+   */
+  public SecurityConfig(@Value("${internal.hmac.secret}") final String hmacSecret) {
+    this.hmacSecret = hmacSecret;
+  }
 
-    /**
-     * Provides the nonce store used by {@link InternalAuthFilter} to detect
-     * replayed internal requests (T-GW-08).
-     *
-     * @param redisTemplate the shared Redis client, autoconfigured by
-     *                      {@code spring-boot-starter-data-redis}
-     * @return a Redis-backed {@link NonceStore}
-     */
-    @Bean
-    public NonceStore nonceStore(final StringRedisTemplate redisTemplate) {
-        return new RedisNonceStore(redisTemplate);
-    }
+  /**
+   * Provides the nonce store used by {@link InternalAuthFilter} to detect replayed internal
+   * requests (T-GW-08).
+   *
+   * @param redisTemplate the shared Redis client, autoconfigured by {@code
+   *     spring-boot-starter-data-redis}
+   * @return a Redis-backed {@link NonceStore}
+   */
+  @Bean
+  public NonceStore nonceStore(final StringRedisTemplate redisTemplate) {
+    return new RedisNonceStore(redisTemplate);
+  }
 
-    /**
-     * Configures the main Spring Security filter chain.
-     * Public auth endpoints are permit-all; the /users management paths require
-     * HMAC-verified gateway headers via InternalAuthFilter.
-     *
-     * @param http       the {@link HttpSecurity} builder
-     * @param nonceStore the nonce store used for anti-replay checks (T-GW-08)
-     * @return the configured {@link SecurityFilterChain}
-     * @throws Exception if an error occurs during configuration
-     */
-    @Bean
-    @SneakyThrows(Exception.class)
-    @SuppressWarnings("null")
-    public SecurityFilterChain securityFilterChain(final HttpSecurity http, final NonceStore nonceStore) {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(
-                                AUTH_PUBLIC_ENDPOINTS, AUTH_REGISTER,
-                                AUTH_REFRESH, AUTH_LOGOUT,
-                                AUTH_CHANGE_PW, AUTH_ME,
-                                "/actuator/**")
-                        .permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(new InternalAuthFilter(hmacSecret, nonceStore, HMAC_EXEMPT_PATH_PREFIXES),
-                        UsernamePasswordAuthenticationFilter.class);
+  /**
+   * Configures the main Spring Security filter chain. Public auth endpoints are permit-all; the
+   * /users management paths require HMAC-verified gateway headers via InternalAuthFilter.
+   *
+   * @param http the {@link HttpSecurity} builder
+   * @param nonceStore the nonce store used for anti-replay checks (T-GW-08)
+   * @return the configured {@link SecurityFilterChain}
+   * @throws Exception if an error occurs during configuration
+   */
+  @Bean
+  @SneakyThrows(Exception.class)
+  @SuppressWarnings("null")
+  public SecurityFilterChain securityFilterChain(
+      final HttpSecurity http, final NonceStore nonceStore) {
+    http.csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            authz ->
+                authz
+                    .requestMatchers(
+                        AUTH_PUBLIC_ENDPOINTS,
+                        AUTH_REGISTER,
+                        "/api/v1/auth/public/**",
+                        AUTH_REFRESH,
+                        AUTH_LOGOUT,
+                        AUTH_CHANGE_PW,
+                        AUTH_ME,
+                        "/actuator/**")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .addFilterBefore(
+            new InternalAuthFilter(hmacSecret, nonceStore, HMAC_EXEMPT_PATH_PREFIXES),
+            UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+    return http.build();
+  }
 
-    /**
-     * Provides the password encoder bean (T-AUTH-03, A04:2025 — Cryptographic Failures).
-     *
-     * <p>New passwords are hashed with <b>Argon2id</b> (memory-hard KDF, resistant to
-     * GPU/ASIC brute-force): 19 MiB memory, 2 iterations, parallelism 1 — parameters
-     * matching the course exercise specification.</p>
-     *
-     * <p>A {@link DelegatingPasswordEncoder} wraps both Argon2id (default) and BCrypt
-     * (legacy). Hashes stored without a {@code {prefix}} are treated as BCrypt.
-     * The lazy-rehash mechanism in {@code AuthServiceImpl.login()} upgrades
-     * every BCrypt hash to Argon2id on the owner's next successful login,
-     * with zero downtime and no forced password resets.</p>
-     *
-     * @return a {@link DelegatingPasswordEncoder} defaulting to Argon2id
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        final Map<String, PasswordEncoder> encoders = new HashMap<>();
-        encoders.put("argon2", new Argon2PasswordEncoder(
-                ARGON2_SALT_LEN, ARGON2_HASH_LEN,
-                ARGON2_PARALLELISM, ARGON2_MEMORY, ARGON2_ITERATIONS));
-        encoders.put("bcrypt", new BCryptPasswordEncoder(BCRYPT_LEGACY_STRENGTH));
-        return new DelegatingPasswordEncoder("argon2", encoders);
-    }
+  /**
+   * Provides the password encoder bean (T-AUTH-03, A04:2025 — Cryptographic Failures).
+   *
+   * <p>New passwords are hashed with <b>Argon2id</b> (memory-hard KDF, resistant to GPU/ASIC
+   * brute-force): 19 MiB memory, 2 iterations, parallelism 1 — parameters matching the course
+   * exercise specification.
+   *
+   * <p>A {@link DelegatingPasswordEncoder} wraps both Argon2id (default) and BCrypt (legacy).
+   * Hashes stored without a {@code {prefix}} are treated as BCrypt. The lazy-rehash mechanism in
+   * {@code AuthServiceImpl.login()} upgrades every BCrypt hash to Argon2id on the owner's next
+   * successful login, with zero downtime and no forced password resets.
+   *
+   * @return a {@link DelegatingPasswordEncoder} defaulting to Argon2id
+   */
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    final Map<String, PasswordEncoder> encoders = new HashMap<>();
+    encoders.put(
+        "argon2",
+        new Argon2PasswordEncoder(
+            ARGON2_SALT_LEN,
+            ARGON2_HASH_LEN,
+            ARGON2_PARALLELISM,
+            ARGON2_MEMORY,
+            ARGON2_ITERATIONS));
+    encoders.put("bcrypt", new BCryptPasswordEncoder(BCRYPT_LEGACY_STRENGTH));
+    return new DelegatingPasswordEncoder("argon2", encoders);
+  }
 }

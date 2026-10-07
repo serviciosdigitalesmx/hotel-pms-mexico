@@ -6,161 +6,172 @@ import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.UserAccountRepository;
+import java.time.Duration;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.UUID;
-
-/**
- * Default implementation of {@link UserManagementService}.
- */
+/** Default implementation of {@link UserManagementService}. */
 @SuppressWarnings("null")
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserManagementServiceImpl implements UserManagementService {
 
-    private static final Duration REFRESH_TOKEN_TTL = Duration.ofDays(7);
-    private static final String MSG_USER_NOT_FOUND = "USER_NOT_FOUND";
+  private static final Duration REFRESH_TOKEN_TTL = Duration.ofDays(7);
+  private static final String MSG_USER_NOT_FOUND = "USER_NOT_FOUND";
 
-    private final UserAccountRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final RefreshTokenService refreshTokenService;
+  private final UserAccountRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
+  private final RefreshTokenService refreshTokenService;
 
-    /** {@inheritDoc} */
-    @Override
-    @Transactional(readOnly = true)
-    public List<UserResponse> listUsers(final UUID hotelId) {
-        return userRepository.findAllByHotelIdIncludingInactive(hotelId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+  /** {@inheritDoc} */
+  @Override
+  @Transactional(readOnly = true)
+  public List<UserResponse> listUsers(final UUID hotelId) {
+    return userRepository.findAllByHotelIdIncludingInactive(hotelId).stream()
+        .map(this::toResponse)
+        .toList();
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  @Transactional
+  public UserResponse createUser(final UUID hotelId, final CreateUserRequest request) {
+    if (request.role() == com.hotelpms.auth.domain.Role.ADMIN
+        || request.role() == com.hotelpms.auth.domain.Role.OWNER) {
+      throw new org.springframework.security.access.AccessDeniedException("PRIVILEGED_ROLE_NOT_ASSIGNABLE");
+    }
+    if (userRepository.existsByUsernameIncludingInactive(request.username())) {
+      throw new DuplicateResourceException("USERNAME_ALREADY_EXISTS");
+    }
+    if (userRepository.existsByEmailIncludingInactive(request.email())) {
+      throw new DuplicateResourceException("EMAIL_ALREADY_EXISTS");
     }
 
-    /** {@inheritDoc} */
-    @Override
-    @Transactional
-    public UserResponse createUser(final UUID hotelId, final CreateUserRequest request) {
-        if (userRepository.existsByUsernameIncludingInactive(request.username())) {
-            throw new DuplicateResourceException("USERNAME_ALREADY_EXISTS");
-        }
-        if (userRepository.existsByEmailIncludingInactive(request.email())) {
-            throw new DuplicateResourceException("EMAIL_ALREADY_EXISTS");
-        }
+    final UserAccount user =
+        UserAccount.builder()
+            .username(request.username())
+            .passwordHash(passwordEncoder.encode(request.password()))
+            .email(request.email())
+            .role(request.role())
+            .hotelId(hotelId)
+            .mustChangePassword(true)
+            .active(true)
+            .build();
 
-        final UserAccount user = UserAccount.builder()
-                .username(request.username())
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .email(request.email())
-                .role(request.role())
-                .hotelId(hotelId)
-                .mustChangePassword(true)
-                .active(true)
-                .build();
+    userRepository.save(user);
+    log.info(
+        "[AUTH] USER_CREATED | username={} | role={} | hotelId={}",
+        user.getUsername(),
+        user.getRole(),
+        hotelId);
+    return toResponse(user);
+  }
 
-        userRepository.save(user);
-        log.info("[AUTH] USER_CREATED | username={} | role={} | hotelId={}", user.getUsername(), user.getRole(), hotelId);
-        return toResponse(user);
+  /** {@inheritDoc} */
+  @Override
+  @Transactional
+  public UserResponse deactivateUser(
+      final UUID hotelId, final UUID targetUserId, final String requestingUser) {
+    final UserAccount target =
+        userRepository
+            .findByIdAndHotelId(targetUserId, hotelId)
+            .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+
+    if (target.getUsername().equals(requestingUser)) {
+      throw new IllegalStateException("CANNOT_DEACTIVATE_SELF");
     }
 
-    /** {@inheritDoc} */
-    @Override
-    @Transactional
-    public UserResponse deactivateUser(final UUID hotelId, final UUID targetUserId,
-            final String requestingUser) {
-        final UserAccount target = userRepository.findByIdAndHotelId(targetUserId, hotelId)
-                .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+    target.setActive(false);
+    userRepository.save(target);
+    log.info("[AUTH] USER_DEACTIVATED | userId={} | by={}", targetUserId, requestingUser);
+    return toResponse(target);
+  }
 
-        if (target.getUsername().equals(requestingUser)) {
-            throw new IllegalStateException("CANNOT_DEACTIVATE_SELF");
-        }
+  /** {@inheritDoc} */
+  @Override
+  @Transactional
+  public UserResponse activateUser(final UUID hotelId, final UUID targetUserId) {
+    final UserAccount target =
+        userRepository
+            .findByIdAndHotelIdIncludingInactive(targetUserId, hotelId)
+            .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
 
-        target.setActive(false);
-        userRepository.save(target);
-        log.info("[AUTH] USER_DEACTIVATED | userId={} | by={}", targetUserId, requestingUser);
-        return toResponse(target);
+    target.setActive(true);
+    userRepository.save(target);
+    log.info("[AUTH] USER_ACTIVATED | userId={}", targetUserId);
+    return toResponse(target);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  @Transactional
+  public void deleteUserPermanently(
+      final UUID hotelId, final UUID targetUserId, final String requestingUser) {
+
+    final UserAccount target =
+        userRepository
+            .findByIdAndHotelIdIncludingInactive(targetUserId, hotelId)
+            .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+
+    if (target.getUsername().equals(requestingUser)) {
+      throw new IllegalStateException("CANNOT_DELETE_SELF");
     }
 
-    /** {@inheritDoc} */
-    @Override
-    @Transactional
-    public UserResponse activateUser(final UUID hotelId, final UUID targetUserId) {
-        final UserAccount target = userRepository.findByIdAndHotelIdIncludingInactive(targetUserId, hotelId)
-                .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
-
-        target.setActive(true);
-        userRepository.save(target);
-        log.info("[AUTH] USER_ACTIVATED | userId={}", targetUserId);
-        return toResponse(target);
+    if (target.isActive()) {
+      throw new IllegalStateException("USER_MUST_BE_DEACTIVATED_FIRST");
     }
 
-    /** {@inheritDoc} */
-    @Override
-    @Transactional
-    public void deleteUserPermanently(
-            final UUID hotelId,
-            final UUID targetUserId,
-            final String requestingUser) {
+    final int deleted = userRepository.hardDeleteInactiveByIdAndHotelId(targetUserId, hotelId);
 
-        final UserAccount target =
-                userRepository.findByIdAndHotelIdIncludingInactive(targetUserId, hotelId)
-                        .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
-
-        if (target.getUsername().equals(requestingUser)) {
-            throw new IllegalStateException("CANNOT_DELETE_SELF");
-        }
-
-        if (target.isActive()) {
-            throw new IllegalStateException("USER_MUST_BE_DEACTIVATED_FIRST");
-        }
-
-        final int deleted =
-                userRepository.hardDeleteInactiveByIdAndHotelId(targetUserId, hotelId);
-
-        if (deleted != 1) {
-            throw new IllegalStateException("USER_DELETE_FAILED");
-        }
-
-        log.info(
-                "[AUTH] USER_PERMANENTLY_DELETED | userId={} | username={} | by={} | hotelId={}",
-                targetUserId,
-                target.getUsername(),
-                requestingUser,
-                hotelId);
+    if (deleted != 1) {
+      throw new IllegalStateException("USER_DELETE_FAILED");
     }
 
-    /** {@inheritDoc} */
-    @Override
-    @Transactional
-    public void resetPassword(final UUID hotelId, final UUID targetUserId, final String newPassword) {
-        final UserAccount target = userRepository.findByIdAndHotelId(targetUserId, hotelId)
-                .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+    log.info(
+        "[AUTH] USER_PERMANENTLY_DELETED | userId={} | username={} | by={} | hotelId={}",
+        targetUserId,
+        target.getUsername(),
+        requestingUser,
+        hotelId);
+  }
 
-        target.setPasswordHash(passwordEncoder.encode(newPassword));
-        target.setMustChangePassword(true);
-        target.setTokenVersion(target.getTokenVersion() + 1);
-        userRepository.save(target);
+  /** {@inheritDoc} */
+  @Override
+  @Transactional
+  public void resetPassword(final UUID hotelId, final UUID targetUserId, final String newPassword) {
+    final UserAccount target =
+        userRepository
+            .findByIdAndHotelId(targetUserId, hotelId)
+            .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
 
-        refreshTokenService.storeTokenVersion(target.getUsername(), target.getTokenVersion(),
-                REFRESH_TOKEN_TTL);
+    target.setPasswordHash(passwordEncoder.encode(newPassword));
+    target.setMustChangePassword(true);
+    target.setTokenVersion(target.getTokenVersion() + 1);
+    userRepository.save(target);
 
-        log.info("[AUTH] PASSWORD_RESET | userId={} | newTokenVersion={}", targetUserId,
-                target.getTokenVersion());
-    }
+    refreshTokenService.storeTokenVersion(
+        target.getUsername(), target.getTokenVersion(), REFRESH_TOKEN_TTL);
 
-    private UserResponse toResponse(final UserAccount u) {
-        return new UserResponse(
-                u.getId(),
-                u.getUsername(),
-                u.getEmail(),
-                u.getRole().name(),
-                u.isActive(),
-                u.isMustChangePassword(),
-                u.getCreatedAt());
-    }
+    log.info(
+        "[AUTH] PASSWORD_RESET | userId={} | newTokenVersion={}",
+        targetUserId,
+        target.getTokenVersion());
+  }
+
+  private UserResponse toResponse(final UserAccount u) {
+    return new UserResponse(
+        u.getId(),
+        u.getUsername(),
+        u.getEmail(),
+        u.getRole().name(),
+        u.isActive(),
+        u.isMustChangePassword(),
+        u.getCreatedAt());
+  }
 }

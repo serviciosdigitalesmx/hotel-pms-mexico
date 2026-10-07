@@ -3,65 +3,72 @@ package com.hotelpms.auth.service;
 import com.hotelpms.auth.dto.AuthResponse;
 import com.hotelpms.auth.dto.ChangePasswordRequest;
 import com.hotelpms.auth.dto.LoginRequest;
+import java.util.UUID;
 
-/**
- * Service interface for authentication operations.
- */
+/** Service interface for authentication operations. */
 public interface AuthService {
 
-    /**
-     * Authenticates a user and returns a new token pair.
-     *
-     * <p>Enforces a brute-force lockout keyed on (username, clientIp) — see
-     * {@link LoginAttemptService} — so an attacker repeatedly failing a known
-     * username cannot lock that account out for its legitimate owner (Finding #4,
-     * security-report.md).</p>
-     *
-     * @param request  the login request containing username and password
-     * @param clientIp the trusted client IP (from the gateway-injected
-     *                 {@code X-Client-IP} header), used as the lockout's second factor
-     * @return an {@link AuthResponse} containing a fresh access token and refresh token
-     */
-    AuthResponse login(LoginRequest request, String clientIp);
+  /**
+   * Authenticates a user and returns a new token pair.
+   *
+   * <p>Enforces a brute-force lockout keyed on (username, clientIp) — see {@link
+   * LoginAttemptService} — so an attacker repeatedly failing a known username cannot lock that
+   * account out for its legitimate owner (Finding #4, security-report.md).
+   *
+   * @param request the login request containing username and password
+   * @param clientIp the trusted client IP (from the gateway-injected {@code X-Client-IP} header),
+   *     used as the lockout's second factor
+   * @return an {@link AuthResponse} containing a fresh access token and refresh token
+   */
+  AuthResponse login(LoginRequest request, String clientIp);
 
-    /**
-     * Validates the given refresh token, blacklists it, and issues a new token pair (rotation).
-     *
-     * <p>Implements T-AUTH-04: on every successful refresh the old refresh token
-     * JTI is added to the Redis blacklist, preventing token reuse even if the
-     * value is intercepted.</p>
-     *
-     * @param refreshToken the current refresh JWT read from the cookie
-     * @return an {@link AuthResponse} with a new access token and a newly rotated refresh token
-     */
-    AuthResponse refresh(String refreshToken);
+  /**
+   * Validates membership and issues a branch-scoped token pair.
+   *
+   * @param username authenticated username
+   * @param tenantId authenticated tenant identifier
+   * @param branchId requested branch identifier
+   * @return branch-scoped authentication response
+   */
+  AuthResponse selectBranch(String username, UUID tenantId, UUID branchId);
 
-    /**
-     * Blacklists the given refresh token so it cannot be used again (logout path).
-     *
-     * <p>Ignores tokens that are already expired or have an invalid signature —
-     * they are inherently unusable and need no blacklist entry.</p>
-     *
-     * @param refreshToken the refresh JWT value to invalidate
-     */
-    void invalidateRefreshToken(String refreshToken);
+  /**
+   * Validates the given refresh token, blacklists it, and issues a new token pair (rotation).
+   *
+   * <p>Implements T-AUTH-04: on every successful refresh the old refresh token JTI is added to the
+   * Redis blacklist, preventing token reuse even if the value is intercepted.
+   *
+   * @param refreshToken the current refresh JWT read from the cookie
+   * @return an {@link AuthResponse} with a new access token and a newly rotated refresh token
+   */
+  AuthResponse refresh(String refreshToken);
 
-    /**
-     * Changes the password for the authenticated user and invalidates all existing sessions
-     * (T-AUTH-04 residuo).
-     *
-     * <p>The caller must supply the current password as a second authentication factor,
-     * preventing an attacker with a stolen access token from silently replacing credentials.
-     * After a successful change, {@code UserAccount.tokenVersion} is incremented and the new
-     * value is cached in Redis. Any previously issued refresh token carries the old {@code tv}
-     * claim and will be rejected at the next rotation attempt.</p>
-     *
-     * <p>A fresh token pair (with the updated {@code tv}) is returned so the requesting
-     * session remains active without forcing the owner to log in again.</p>
-     *
-     * @param username the authenticated user's username (extracted from the access token)
-     * @param request  the change-password request containing current and new passwords
-     * @return a fresh {@link AuthResponse} with new access and refresh tokens
-     */
-    AuthResponse changePassword(String username, ChangePasswordRequest request);
+  /**
+   * Blacklists the given refresh token so it cannot be used again (logout path).
+   *
+   * <p>Ignores tokens that are already expired or have an invalid signature — they are inherently
+   * unusable and need no blacklist entry.
+   *
+   * @param refreshToken the refresh JWT value to invalidate
+   */
+  void invalidateRefreshToken(String refreshToken);
+
+  /**
+   * Changes the password for the authenticated user and invalidates all existing sessions
+   * (T-AUTH-04 residuo).
+   *
+   * <p>The caller must supply the current password as a second authentication factor, preventing an
+   * attacker with a stolen access token from silently replacing credentials. After a successful
+   * change, {@code UserAccount.tokenVersion} is incremented and the new value is cached in Redis.
+   * Any previously issued refresh token carries the old {@code tv} claim and will be rejected at
+   * the next rotation attempt.
+   *
+   * <p>A fresh token pair (with the updated {@code tv}) is returned so the requesting session
+   * remains active without forcing the owner to log in again.
+   *
+   * @param username the authenticated user's username (extracted from the access token)
+   * @param request the change-password request containing current and new passwords
+   * @return a fresh {@link AuthResponse} with new access and refresh tokens
+   */
+  AuthResponse changePassword(String username, ChangePasswordRequest request);
 }

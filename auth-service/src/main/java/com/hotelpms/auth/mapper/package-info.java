@@ -1,4 +1,2 @@
-/**
- * MapStruct mappers for the authentication service.
- */
+/** MapStruct mappers for the authentication service. */
 package com.hotelpms.auth.mapper;

@@ -11,17 +11,37 @@ import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/** Stores a tenant-specific capability setting. */
 @Entity
 @Table(name = "tenant_capability")
 @IdClass(TenantCapability.Key.class)
 @Data
 @NoArgsConstructor
 public class TenantCapability {
-    @Id @Column(name = "tenant_id") private UUID tenantId;
-    @Id @Column(name = "capability_key", length = 120) private String capabilityKey;
-    @Column(nullable = false) private boolean enabled;
-    @Column(name = "limit_value") private Long limitValue;
-    @Column(name = "updated_at", nullable = false) private LocalDateTime updatedAt;
+  private static final int CAPABILITY_KEY_LENGTH = 120;
 
-    public record Key(UUID tenantId, String capabilityKey) implements Serializable { }
+  @Id
+  @Column(name = "tenant_id")
+  private UUID tenantId;
+
+  @Id
+  @Column(name = "capability_key", length = CAPABILITY_KEY_LENGTH)
+  private String capabilityKey;
+
+  @Column(nullable = false)
+  private boolean enabled;
+
+  @Column(name = "limit_value")
+  private Long limitValue;
+
+  @Column(name = "updated_at", nullable = false)
+  private LocalDateTime updatedAt;
+
+  /**
+   * Composite identifier for a tenant capability.
+   *
+   * @param tenantId tenant identifier
+   * @param capabilityKey capability key
+   */
+  public record Key(UUID tenantId, String capabilityKey) implements Serializable { }
 }

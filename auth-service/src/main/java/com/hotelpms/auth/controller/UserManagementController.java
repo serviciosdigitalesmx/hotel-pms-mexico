@@ -3,15 +3,19 @@ package com.hotelpms.auth.controller;
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.ResetPasswordRequest;
 import com.hotelpms.auth.dto.UserResponse;
+import com.hotelpms.auth.service.CapabilityService;
 import com.hotelpms.auth.service.UserManagementService;
+import com.hotelpms.internalauth.contracts.Capability;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,13 +27,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.UUID;
-
 /**
- * REST controller for ADMIN/OWNER user management within a hotel.
- * All endpoints are scoped to the requesting admin's hotelId (from X-Auth-Hotel)
- * to prevent cross-tenant access.
+ * REST controller for ADMIN/OWNER user management within a hotel. All endpoints are scoped to the
+ * requesting admin's hotelId (from X-Auth-Hotel) to prevent cross-tenant access.
  *
  * <p>Base path: {@code /api/v1/auth/users}
  */
@@ -39,115 +39,124 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserManagementController {
 
-    private static final String ROLE_ADMIN_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
-    private static final String HEADER_HOTEL = "X-Auth-Hotel";
+  private static final String HEADER_HOTEL = "X-Auth-Hotel";
 
-    private final UserManagementService userManagementService;
+  private final UserManagementService userManagementService;
+  private final CapabilityService capabilityService;
 
-    /**
-     * Lists all active users for the requesting admin's hotel.
-     *
-     * @param hotelId the hotel UUID from the gateway-injected header
-     * @return list of user summaries
-     */
-    @GetMapping
-    @PreAuthorize(ROLE_ADMIN_OWNER)
-    public ResponseEntity<List<UserResponse>> listUsers(
-            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId) {
-        return ResponseEntity.ok(userManagementService.listUsers(UUID.fromString(hotelId)));
-    }
+  /**
+   * Lists all active users for the requesting admin's hotel.
+   *
+   * @param hotelId the hotel UUID from the gateway-injected header
+   * @param auth authenticated administrator
+   * @return list of user summaries
+   */
+  @GetMapping
+  public ResponseEntity<List<UserResponse>> listUsers(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId, final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    return ResponseEntity.ok(userManagementService.listUsers(UUID.fromString(hotelId)));
+  }
 
-    /**
-     * Creates a new user within the requesting admin's hotel.
-     * The new account is flagged {@code mustChangePassword=true}.
-     *
-     * @param hotelId the hotel UUID from the gateway-injected header
-     * @param request the creation payload
-     * @return the created user (HTTP 201)
-     */
-    @PostMapping
-    @PreAuthorize(ROLE_ADMIN_OWNER)
-    public ResponseEntity<UserResponse> createUser(
-            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
-            @NonNull @Valid @RequestBody final CreateUserRequest request) {
-        final UserResponse created = userManagementService.createUser(UUID.fromString(hotelId), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
+  /**
+   * Creates a new user within the requesting admin's hotel. The new account is flagged {@code
+   * mustChangePassword=true}.
+   *
+   * @param hotelId the hotel UUID from the gateway-injected header
+   * @param request the creation payload
+   * @param auth authenticated administrator
+   * @return the created user (HTTP 201)
+   */
+  @PostMapping
+  public ResponseEntity<UserResponse> createUser(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @Valid @RequestBody final CreateUserRequest request,
+      final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    final UserResponse created =
+        userManagementService.createUser(UUID.fromString(hotelId), request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(created);
+  }
 
-    /**
-     * Deactivates (soft-deletes) a user account.
-     *
-     * @param hotelId    the hotel UUID from the gateway-injected header
-     * @param userId     the target user's UUID
-     * @param auth       the Spring Security authentication (contains the requesting username)
-     * @return the updated user summary
-     */
-    @PatchMapping("/{userId}/deactivate")
-    @PreAuthorize(ROLE_ADMIN_OWNER)
-    public ResponseEntity<UserResponse> deactivateUser(
-            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
-            @NonNull @PathVariable final UUID userId,
-            @NonNull final Authentication auth) {
-        return ResponseEntity.ok(
-                userManagementService.deactivateUser(UUID.fromString(hotelId), userId, auth.getName()));
-    }
+  /**
+   * Deactivates (soft-deletes) a user account.
+   *
+   * @param hotelId the hotel UUID from the gateway-injected header
+   * @param userId the target user's UUID
+   * @param auth the Spring Security authentication (contains the requesting username)
+   * @return the updated user summary
+   */
+  @PatchMapping("/{userId}/deactivate")
+  public ResponseEntity<UserResponse> deactivateUser(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @PathVariable final UUID userId,
+      final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    return ResponseEntity.ok(
+        userManagementService.deactivateUser(UUID.fromString(hotelId), userId, auth.getName()));
+  }
 
-    /**
-     * Reactivates a previously deactivated user account.
-     *
-     * @param hotelId the hotel UUID from the gateway-injected header
-     * @param userId  the target user's UUID
-     * @return the updated user summary
-     */
-    @PatchMapping("/{userId}/activate")
-    @PreAuthorize(ROLE_ADMIN_OWNER)
-    public ResponseEntity<UserResponse> activateUser(
-            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
-            @NonNull @PathVariable final UUID userId) {
-        return ResponseEntity.ok(
-                userManagementService.activateUser(UUID.fromString(hotelId), userId));
-    }
+  /**
+   * Reactivates a previously deactivated user account.
+   *
+   * @param hotelId the hotel UUID from the gateway-injected header
+   * @param userId the target user's UUID
+   * @param auth authenticated administrator
+   * @return the updated user summary
+   */
+  @PatchMapping("/{userId}/activate")
+  public ResponseEntity<UserResponse> activateUser(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @PathVariable final UUID userId,
+      final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    return ResponseEntity.ok(userManagementService.activateUser(UUID.fromString(hotelId), userId));
+  }
 
-    /**
-     * Permanently deletes a previously deactivated user.
-     *
-     * <p>Active accounts cannot be permanently deleted: they must first be
-     * explicitly deactivated.</p>
-     *
-     * @param hotelId the hotel UUID from the gateway-injected header
-     * @param userId the target user's UUID
-     * @param auth the authenticated administrator
-     */
-    @DeleteMapping("/{userId}")
-    @PreAuthorize(ROLE_ADMIN_OWNER)
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(
-            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
-            @NonNull @PathVariable final UUID userId,
-            @NonNull final Authentication auth) {
+  /**
+   * Permanently deletes a previously deactivated user.
+   *
+   * <p>Active accounts cannot be permanently deleted: they must first be explicitly deactivated.
+   *
+   * @param hotelId the hotel UUID from the gateway-injected header
+   * @param userId the target user's UUID
+   * @param auth the authenticated administrator
+   */
+  @DeleteMapping("/{userId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteUser(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @PathVariable final UUID userId,
+      final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    userManagementService.deleteUserPermanently(UUID.fromString(hotelId), userId, auth.getName());
+  }
 
-        userManagementService.deleteUserPermanently(
-                UUID.fromString(hotelId),
-                userId,
-                auth.getName());
-    }
+  /**
+   * Resets a user's password to an admin-supplied value and forces a mandatory change on next login
+   * ({@code mustChangePassword=true}). All existing sessions for the target user are invalidated
+   * via token-version increment.
+   *
+   * @param hotelId the hotel UUID from the gateway-injected header
+   * @param userId the target user's UUID
+   * @param request the new password payload
+   * @param auth authenticated administrator
+   */
+  @PatchMapping("/{userId}/reset-password")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void resetPassword(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @PathVariable final UUID userId,
+      @NonNull @Valid @RequestBody final ResetPasswordRequest request,
+      final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    userManagementService.resetPassword(UUID.fromString(hotelId), userId, request.newPassword());
+  }
 
-    /**
-     * Resets a user's password to an admin-supplied value and forces a mandatory
-     * change on next login ({@code mustChangePassword=true}). All existing sessions
-     * for the target user are invalidated via token-version increment.
-     *
-     * @param hotelId the hotel UUID from the gateway-injected header
-     * @param userId  the target user's UUID
-     * @param request the new password payload
-     */
-    @PatchMapping("/{userId}/reset-password")
-    @PreAuthorize(ROLE_ADMIN_OWNER)
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void resetPassword(
-            @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
-            @NonNull @PathVariable final UUID userId,
-            @NonNull @Valid @RequestBody final ResetPasswordRequest request) {
-        userManagementService.resetPassword(UUID.fromString(hotelId), userId, request.newPassword());
-    }
+  private void requireUsersManage(final String hotelId, final Authentication auth) {
+    final Authentication principal =
+        auth == null ? SecurityContextHolder.getContext().getAuthentication() : auth;
+    capabilityService.requireCapability(
+        principal.getName(), UUID.fromString(hotelId), Capability.USERS_MANAGE);
+  }
 }

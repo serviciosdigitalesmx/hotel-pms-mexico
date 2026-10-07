@@ -7,19 +7,17 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 /**
- * Request payload for an ADMIN or OWNER creating a new user within their hotel.
- * The hotelId is taken from the authenticated request (X-Auth-Hotel), not from this DTO.
+ * Request payload for an ADMIN or OWNER creating a new user within their hotel. The hotelId is
+ * taken from the authenticated request (X-Auth-Hotel), not from this DTO.
  *
  * @param username the new user's login handle
  * @param password the initial password (at least 8 chars, 1 uppercase, 1 digit)
- * @param email    the new user's email address
- * @param role     the role to assign (RECEPTIONIST, OWNER, etc.)
+ * @param email the new user's email address
+ * @param role the role to assign (RECEPTIONIST, OWNER, etc.)
  */
 public record CreateUserRequest(
-        @NotBlank String username,
-        @NotBlank @Pattern(
-                regexp = "^(?=.*[A-Z])(?=.*[0-9]).{8,}$",
-                message = "PASSWORD_TOO_WEAK") String password,
-        @NotBlank @Email String email,
-        @NotNull Role role) {
-}
+    @NotBlank String username,
+    @NotBlank @Pattern(regexp = "^(?=.*[A-Z])(?=.*[0-9]).{8,}$", message = "PASSWORD_TOO_WEAK")
+        String password,
+    @NotBlank @Email String email,
+    @NotNull Role role) { }

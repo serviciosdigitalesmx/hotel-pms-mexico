@@ -9,6 +9,7 @@ import com.hotelpms.auth.dto.LoginRequest;
 import com.hotelpms.auth.exception.BadCredentialsException;
 import com.hotelpms.auth.exception.GlobalExceptionHandler;
 import com.hotelpms.auth.repository.UserAccountRepository;
+import com.hotelpms.auth.repository.HotelRegistryRepository;
 import com.hotelpms.auth.service.AuthService;
 import com.hotelpms.auth.service.JwtService;
 import jakarta.servlet.http.Cookie;
@@ -62,6 +63,9 @@ class AuthControllerTest {
 
     @Mock
     private UserAccountRepository userRepository;
+
+    @Mock
+    private HotelRegistryRepository hotelRepository;
 
     @InjectMocks
     private AuthController authController;
@@ -181,6 +185,8 @@ class AuthControllerTest {
         when(jwtService.extractHotelId(TEST_TOKEN)).thenReturn(
                 java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"));
         when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.empty());
+        when(hotelRepository.findById(java.util.UUID.fromString(
+                "00000000-0000-0000-0000-000000000001"))).thenReturn(Optional.empty());
 
         mockMvc.perform(get(BASE_URL + PATH_ME)
                         .cookie(new Cookie(COOKIE_JWT, TEST_TOKEN)))
