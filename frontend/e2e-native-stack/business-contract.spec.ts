@@ -14,8 +14,12 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     await testInfo.attach('login-url.txt', { body: `${page.url()}\n${await page.title()}`, contentType: 'text/plain' });
     await testInfo.attach('login-page.html', { body: await page.content(), contentType: 'text/html' });
     await testInfo.attach('login-page.png', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
-    const username = page.getByLabel('Correo o usuario').or(page.locator('input[name="username"]')).first();
-    const password = page.getByLabel('Contraseña').or(page.locator('input[name="password"]')).first();
+    const username = page.getByLabel('Correo o usuario')
+      .or(page.locator('input[autocomplete="username"]'))
+      .or(page.locator('input[name="username"]')).first();
+    const password = page.getByLabel('Contraseña')
+      .or(page.locator('input[autocomplete="current-password"]'))
+      .or(page.locator('input[name="password"]')).first();
     await expect(username, `Login UI did not render the username control at ${page.url()}`).toBeVisible();
     await expect(password, `Login UI did not render the password control at ${page.url()}`).toBeVisible();
     await username.fill(credentials.username);
