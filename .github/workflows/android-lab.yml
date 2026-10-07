@@ -86,8 +86,8 @@ jobs:
             adb install -r fixi-android/app/build/outputs/apk/ci/debug/*.apk
             adb shell am force-stop mx.fixi.app
             adb shell monkey -p mx.fixi.app 1
-            adb shell uiautomator dump /sdcard/fixi-ui.xml
-            adb pull /sdcard/fixi-ui.xml ../fixi-ui.xml
+            adb shell uiautomator dump /sdcard/fixi-ui.xml || true
+            adb pull /sdcard/fixi-ui.xml ../fixi-ui.xml || true
             adb logcat -d -t 200 > ../fixi-logcat.txt
       - name: Collect backend and emulator evidence
         if: always()
