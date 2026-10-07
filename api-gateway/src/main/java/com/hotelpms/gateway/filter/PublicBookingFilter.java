@@ -6,7 +6,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -23,7 +22,8 @@ import java.util.UUID;
  *
  * The browser never chooses X-Auth-Hotel.
  */
-@Component
+// Explicit bean name follows Spring Cloud Gateway's *GatewayFilterFactory
+// convention while retaining the historical class name and test API.
 public class PublicBookingFilter
         extends AbstractGatewayFilterFactory<PublicBookingFilter.Config> {
 
@@ -202,58 +202,27 @@ public class PublicBookingFilter
             final org.springframework.web.server.ServerWebExchange exchange,
             final org.springframework.cloud.gateway.filter.GatewayFilterChain chain,
             final String hotelId) {
-
-        final String timestamp =
-                String.valueOf(System.currentTimeMillis());
-
-        final String nonce =
-                UUID.randomUUID().toString();
-
-        final String signature =
-                computeHmac(
-                        hotelId,
-                        timestamp,
-                        nonce);
-
-        final ServerHttpRequest request =
-                exchange.getRequest()
-                        .mutate()
-                        .headers(headers -> {
-                            headers.remove(HEADER_USER);
-                            headers.remove(HEADER_ROLE);
-                            headers.remove(HEADER_HOTEL);
-                            headers.remove(HEADER_SIGNATURE);
-                            headers.remove(HEADER_TIMESTAMP);
-                            headers.remove(HEADER_NONCE);
-
-                            // Remove the old temporary client-controlled
-                            // hotel selector if somebody still sends it.
-                            headers.remove("X-Public-Hotel-Id");
-                        })
-                        .header(
-                                HEADER_USER,
-                                PUBLIC_USER)
-                        .header(
-                                HEADER_ROLE,
-                                PUBLIC_ROLE)
-                        .header(
-                                HEADER_HOTEL,
-                                hotelId)
-                        .header(
-                                HEADER_SIGNATURE,
-                                signature)
-                        .header(
-                                HEADER_TIMESTAMP,
-                                timestamp)
-                        .header(
-                                HEADER_NONCE,
-                                nonce)
-                        .build();
-
-        return chain.filter(
-                exchange.mutate()
-                        .request(request)
-                        .build());
+        final String timestamp = String.valueOf(System.currentTimeMillis());
+        final String nonce = UUID.randomUUID().toString();
+        final String signature = computeHmac(hotelId, timestamp, nonce);
+        final ServerHttpRequest request = exchange.getRequest().mutate()
+                .headers(headers -> {
+                    headers.remove(HEADER_USER);
+                    headers.remove(HEADER_ROLE);
+                    headers.remove(HEADER_HOTEL);
+                    headers.remove(HEADER_SIGNATURE);
+                    headers.remove(HEADER_TIMESTAMP);
+                    headers.remove(HEADER_NONCE);
+                    headers.remove("X-Public-Hotel-Id");
+                })
+                .header(HEADER_USER, PUBLIC_USER)
+                .header(HEADER_ROLE, PUBLIC_ROLE)
+                .header(HEADER_HOTEL, hotelId)
+                .header(HEADER_SIGNATURE, signature)
+                .header(HEADER_TIMESTAMP, timestamp)
+                .header(HEADER_NONCE, nonce)
+                .build();
+        return chain.filter(exchange.mutate().request(request).build());
     }
 
     private static String extractSlug(final String path) {
