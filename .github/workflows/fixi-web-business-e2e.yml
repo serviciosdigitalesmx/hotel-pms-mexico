@@ -1,0 +1,91 @@
+name: Fixi Web Business E2E
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fixi-web-business-e2e.yml'
+      - 'frontend/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.native.yml'
+      - 'docker-compose.web-business-e2e.yml'
+      - 'docs/fixi-business-contract.md'
+      - 'docs/fixi-legacy-parity-matrix.md'
+      - 'scripts/ci/**'
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: fixi-web-business-e2e
+  cancel-in-progress: true
+
+jobs:
+  business-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GHCR_OWNER: serviciosdigitalesmx
+      FIXI_NATIVE_TAG: native-latest
+      POSTGRES_PASSWORD: fixi-web-ci-postgres
+      REDIS_PASSWORD: fixi-web-ci-redis
+      CONFIG_SERVER_PASSWORD: fixi-web-ci-config
+      INTERNAL_HMAC_SECRET: fixi-web-ci-hmac-secret-with-sufficient-length
+      JWT_SECRET: TmF0aXZlQXV0aC1jaS1qd3Qtc2VjcmV0LXdpdGgtc3VmaWNpZW50LWxlbmd0aA==
+      NATIVE_ADMIN_USERNAME: e2e-live-other-hotel-admin
+      NATIVE_ADMIN_PASSWORD: password
+      PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
+      NATIVE_API_BASE_URL: http://127.0.0.1:18080
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull the eight published Native services
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.native.yml pull \
+            config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service
+      - name: Build the production frontend image
+        run: docker build --tag hotel-pms/frontend:business-ci frontend
+      - name: Start isolated Native stack
+        run: |
+          docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" \
+            -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.web-business-e2e.yml \
+            up -d --no-build --wait --wait-timeout 600 \
+            postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service frontend
+      - name: Install browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci --prefer-offline --fetch-retries=2
+          npx playwright install --with-deps chromium
+      - name: Run the real Web Business Contract
+        working-directory: frontend
+        run: npx playwright test --config playwright-native.config.ts e2e-native-stack/business-contract.spec.ts
+      - name: Collect business E2E evidence
+        if: always()
+        run: |
+          mkdir -p build/fixi-web-business-e2e
+          docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.web-business-e2e.yml ps --all > build/fixi-web-business-e2e/containers.txt || true
+          docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.web-business-e2e.yml logs --no-color > build/fixi-web-business-e2e/backend.log || true
+          cp -R frontend/test-results/native-stack build/fixi-web-business-e2e/ 2>/dev/null || true
+          cp -R frontend/playwright-report build/fixi-web-business-e2e/ 2>/dev/null || true
+          printf 'FIXI WEB BUSINESS E2E\n' > build/fixi-web-business-e2e/business-e2e-report
+          printf 'workflow=%s\n' "$GITHUB_RUN_ID" >> build/fixi-web-business-e2e/business-e2e-report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: business-e2e-report
+          path: build/fixi-web-business-e2e
+          if-no-files-found: warn
+      - name: Destroy isolated stack
+        if: always()
+        run: docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.web-business-e2e.yml down -v --remove-orphans
