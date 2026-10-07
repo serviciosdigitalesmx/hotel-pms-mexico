@@ -52,7 +52,11 @@ jobs:
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
             -f docker-compose.yml -f docker-compose.android-lab.yml \
             up -d --no-build --wait --wait-timeout 600 \
-            postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service
+            postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service || {
+              docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.android-lab.yml logs --no-color auth-service || true
+              docker inspect auth-service || true
+              exit 1
+            }
           curl --fail --retry 20 --retry-delay 3 http://127.0.0.1:18000/actuator/health
       - name: Configure Android SDK and build APK
         working-directory: fixi-android
