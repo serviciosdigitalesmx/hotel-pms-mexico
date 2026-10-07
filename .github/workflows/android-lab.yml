@@ -10,6 +10,7 @@ on:
       - 'docker-compose.yml'
       - 'docker-compose.native-stack-ci.yml'
       - 'docker-compose.android-lab.yml'
+      - 'auth-service/src/main/resources/db/migration/**'
 
 permissions:
   contents: read
