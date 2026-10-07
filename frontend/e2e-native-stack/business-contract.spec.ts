@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { baseURL, json, PmsApi, primaryCredentials, status, uniqueTag } from './support';
 
