@@ -1,4 +1,7 @@
 services:
+  postgres:
+    build: !reset null
+    image: postgres:15-alpine
   frontend:
     build: !reset null
     image: hotel-pms/frontend:business-ci
