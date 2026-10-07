@@ -16,6 +16,7 @@ android { namespace = "mx.fixi.app"; compileSdk = 35
     productFlavors {
         create("local") { dimension = "environment"; buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"") }
         create("debugApi") { dimension = "environment"; buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"") }
+        create("ci") { dimension = "environment"; buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:18000/\"") }
         create("releaseApi") { dimension = "environment"; buildConfigField("String", "API_BASE_URL", "\"https://api.fixi.mx/\"") }
     }
     kotlinOptions { jvmTarget = "17" }
