@@ -1,4 +1,5 @@
 name: Fixi Android real backend lab
+# Uses the latest published Native image after each backend image release.
 
 on:
   workflow_dispatch:
