@@ -58,10 +58,16 @@ jobs:
         run: docker build --tag hotel-pms/frontend:business-ci frontend
       - name: Start isolated Native stack
         run: |
-          docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" \
+          compose=(docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" \
             -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.web-business-e2e.yml \
-            up -d --no-build --wait --wait-timeout 600 \
-            postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service frontend
+          )
+          "${compose[@]}" up -d --no-build --wait --wait-timeout 600 \
+            postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service frontend || {
+              echo 'Web Business E2E stack failed to become ready.'
+              "${compose[@]}" ps --all || true
+              "${compose[@]}" logs --no-color --tail=200 || true
+              exit 1
+            }
       - name: Install browser dependencies
         working-directory: frontend
         run: |
