@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { baseURL, json, PmsApi, primaryCredentials, status, uniqueTag } from './support';
 
-test('FIXI Web business contract: login, customer, device and reception', async ({ page }) => {
+test('FIXI Web business contract: login, customer, device and reception', async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const tag = uniqueTag();
   const email = `${tag}@business.test`;
@@ -10,9 +10,16 @@ test('FIXI Web business contract: login, customer, device and reception', async 
 
   await test.step('login through the real Fixi Web form', async () => {
     const credentials = primaryCredentials();
-    await page.goto('/login');
-    await page.locator('#username').fill(credentials.username);
-    await page.locator('#password').fill(credentials.password);
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await testInfo.attach('login-url.txt', { body: `${page.url()}\n${await page.title()}`, contentType: 'text/plain' });
+    await testInfo.attach('login-page.html', { body: await page.content(), contentType: 'text/html' });
+    await testInfo.attach('login-page.png', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+    const username = page.getByLabel('Correo o usuario').or(page.locator('input[name="username"]')).first();
+    const password = page.getByLabel('Contraseña').or(page.locator('input[name="password"]')).first();
+    await expect(username, `Login UI did not render the username control at ${page.url()}`).toBeVisible();
+    await expect(password, `Login UI did not render the password control at ${page.url()}`).toBeVisible();
+    await username.fill(credentials.username);
+    await password.fill(credentials.password);
     await page.locator('button[type="submit"]').click();
     await expect(page).toHaveURL(/\/dashboard|\/onboarding$/);
     await expect(page.locator('body')).not.toContainText('No se pudo iniciar sesión');
