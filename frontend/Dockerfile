@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && corepack prepare pnpm@12.10.1 --activate && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm exec tsc -p tsconfig.fixi.json --noEmit
