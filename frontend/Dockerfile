@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm config set dangerouslyAllowAllBuilds true && pnpm install --no-frozen-lockfile
+RUN corepack enable && corepack prepare pnpm@12.10.1 --activate && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm exec tsc -p tsconfig.fixi.json --noEmit
 RUN pnpm exec vite build

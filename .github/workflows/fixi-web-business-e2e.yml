@@ -70,8 +70,10 @@ jobs:
         working-directory: frontend
         run: |
           corepack enable
-          pnpm install --no-frozen-lockfile
-          pnpm exec playwright install chromium || npx --yes playwright@1.58.2 install chromium
+          corepack prepare pnpm@12.10.1 --activate
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install chromium
+          node -e "const { chromium } = require('playwright'); chromium.launch({headless:true}).then(async b=>{await b.close(); console.log('Chromium headless smoke: PASS')}).catch(e=>{console.error(e); process.exit(1)})"
       - name: Run the real Web Business Contract
         working-directory: frontend
         run: pnpm exec playwright test --config playwright-native.config.ts e2e-native-stack/business-contract.spec.ts
