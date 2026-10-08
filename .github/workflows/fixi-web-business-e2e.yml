@@ -71,7 +71,7 @@ jobs:
         run: |
           corepack enable
           pnpm install --no-frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright install chromium
       - name: Run the real Web Business Contract
         working-directory: frontend
         run: pnpm exec playwright test --config playwright-native.config.ts e2e-native-stack/business-contract.spec.ts
