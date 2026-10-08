@@ -1,155 +1,30 @@
-import { useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthLayout } from './layouts/AuthLayout';
-import { MainLayout } from './layouts/MainLayout';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { useAuthStore } from './store/authStore';
-import { authService } from './services/authService';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcon } from './components/MaterialIcon';
+import { BrowserRouter as Router } from 'react-router-dom'
+import { ThemeProvider } from '@/components/theme-provider'
+import { SidebarConfigProvider } from '@/contexts/sidebar-context'
+import { AppRouter } from '@/components/router/app-router'
+import { useEffect } from 'react'
+import { initGTM } from '@/utils/analytics'
 
-const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
-const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
-const Guests = lazy(() => import('./pages/Guests').then((m) => ({ default: m.Guests })));
-const Reservations = lazy(() => import('./pages/Reservations').then((m) => ({ default: m.Reservations })));
-const ReservationForm = lazy(() => import('./pages/Reservations/ReservationForm').then((m) => ({ default: m.ReservationForm })));
-const Quotations = lazy(() => import('./pages/Quotations').then((m) => ({ default: m.Quotations })));
-const QuotationForm = lazy(() => import('./pages/Quotations/QuotationForm').then((m) => ({ default: m.QuotationForm })));
-const QuotationDetail = lazy(() => import('./pages/Quotations/QuotationDetail').then((m) => ({ default: m.QuotationDetail })));
-const CheckInForm = lazy(() => import('./pages/Stays/CheckInForm').then((m) => ({ default: m.CheckInForm })));
-const WalkInCheckInForm = lazy(() => import('./pages/Stays/WalkInCheckInForm').then((m) => ({ default: m.WalkInCheckInForm })));
-const AdminUsers = lazy(() => import('./pages/AdminUsers').then((m) => ({ default: m.AdminUsers })));
-const HotelProfile = lazy(() => import('./pages/HotelProfile').then((m) => ({ default: m.HotelProfile })));
-const Stays = lazy(() => import('./pages/Stays').then((m) => ({ default: m.Stays })));
-const Billing = lazy(() => import('./pages/Billing').then((m) => ({ default: m.Billing })));
-const Restaurant = lazy(() => import('./pages/Restaurant').then((m) => ({ default: m.Restaurant })));
-const CalendarPlanning = lazy(() => import('./pages/CalendarPlanning').then((m) => ({ default: m.CalendarPlanning })));
-const Housekeeping = lazy(() => import('./pages/Housekeeping').then((m) => ({ default: m.Housekeeping })));
-const OwnerDashboard = lazy(() => import('./pages/OwnerDashboard').then((m) => ({ default: m.OwnerDashboard })));
-const Rooms = lazy(() => import('./pages/Rooms').then((m) => ({ default: m.Rooms })));
-const RateCalendar = lazy(() => import('./pages/Rates/RateCalendar').then((m) => ({ default: m.RateCalendar })));
-const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const SettingsProfile = lazy(() => import('./pages/Settings/SettingsProfile').then((m) => ({ default: m.SettingsProfile })));
-const SettingsPassword = lazy(() => import('./pages/Settings/SettingsPassword').then((m) => ({ default: m.SettingsPassword })));
-const SettingsAccessibility = lazy(() => import('./pages/Settings/SettingsAccessibility').then((m) => ({ default: m.SettingsAccessibility })));
-const SettingsAppearance = lazy(() => import('./pages/Settings/SettingsAppearance').then((m) => ({ default: m.SettingsAppearance })));
-const SettingsSystem = lazy(() => import('./pages/Settings/SettingsSystem').then((m) => ({ default: m.SettingsSystem })));
-const SettingsWhatsApp = lazy(() => import('./pages/Settings/SettingsWhatsApp').then((m) => ({ default: m.SettingsWhatsApp })));
-const PlatformHotels = lazy(() => import('./pages/PlatformHotels').then((m) => ({ default: m.PlatformHotels })));
-const Assistant = lazy(() => import('./pages/Assistant').then((m) => ({ default: m.Assistant })));
-
-const OWNER_ADMIN_ROLES = ['OWNER', 'ADMIN'] as const;
-const PLATFORM_ROLES = ['ADMIN'] as const;
-const CHECK_IN_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST'] as const;
-const RESTAURANT_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST', 'KITCHEN'] as const;
-const HOUSEKEEPING_ROLES = ['OWNER', 'ADMIN', 'RECEPTIONIST', 'HOUSEKEEPER'] as const;
-
-const OperationalHome = () => {
-  const role = useAuthStore((state) => state.user?.role);
-  if (role === 'KITCHEN') return <Navigate to="/restaurant" replace />;
-  if (role === 'HOUSEKEEPER') return <Navigate to="/housekeeping" replace />;
-  return <Dashboard />;
-};
+// Get basename from environment (for deployment) or use empty string for development
+const basename = import.meta.env.VITE_BASENAME || ''
 
 function App() {
-  const { t } = useTranslation('common');
-  const checkAuth = useAuthStore((state) => state.checkAuth);
-  const isLoading = useAuthStore((state) => state.isLoading);
-
+  // Initialize GTM on app load
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const user = await authService.fetchMe();
-        checkAuth(user);
-      } catch {
-        checkAuth(null);
-      }
-    };
-    initAuth();
-  }, [checkAuth]);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center bg-surface">
-        <div className="flex flex-col items-center gap-3">
-          <MaterialIcon name="progress_activity" size={40} className="text-primary animate-spin" />
-          <p className="text-on-surface-variant font-body text-sm">{t('loading_session')}</p>
-        </div>
-      </div>
-    );
-  }
+    initGTM();
+  }, []);
 
   return (
-    <BrowserRouter>
-      <ErrorBoundary>
-      <Suspense fallback={
-        <div className="flex h-full items-center justify-center bg-surface">
-          <div className="flex flex-col items-center gap-3">
-            <MaterialIcon name="progress_activity" size={40} className="text-primary animate-spin" />
-            <p className="text-on-surface-variant font-body text-sm">{t('loading')}</p>
-          </div>
-        </div>
-      }>
-        <Routes>
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<Login />} />
-          </Route>
-
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<OperationalHome />} />
-              <Route path="/guests" element={<Guests />} />
-              <Route path="/reservations" element={<Reservations />} />
-              <Route path="/reservations/new" element={<ReservationForm />} />
-              <Route path="/reservations/:id" element={<ReservationForm />} />
-              <Route path="/reservations/edit/:id" element={<ReservationForm />} />
-              <Route path="/quotations" element={<Quotations />} />
-              <Route path="/quotations/new" element={<QuotationForm />} />
-              <Route path="/quotations/:id" element={<QuotationDetail />} />
-              <Route path="/quotations/:id/edit" element={<QuotationForm />} />
-              <Route path="/stays" element={<Stays />} />
-              <Route element={<ProtectedRoute allowedRoles={CHECK_IN_ROLES} />}>
-                <Route path="/stays/check-in/:reservationId" element={<CheckInForm />} />
-                <Route path="/stays/walk-in" element={<WalkInCheckInForm />} />
-              </Route>
-              <Route path="/billing" element={<Billing />} />
-              <Route element={<ProtectedRoute allowedRoles={RESTAURANT_ROLES} />}>
-                <Route path="/restaurant" element={<Restaurant />} />
-              </Route>
-              <Route element={<ProtectedRoute allowedRoles={CHECK_IN_ROLES} />}>
-                <Route path="/assistant" element={<Assistant />} />
-              </Route>
-              <Route path="/calendar" element={<CalendarPlanning />} />
-              <Route element={<ProtectedRoute allowedRoles={HOUSEKEEPING_ROLES} />}>
-                <Route path="/housekeeping" element={<Housekeeping />} />
-              </Route>
-              <Route path="/rooms" element={<Rooms />} />
-              <Route path="/rates" element={<RateCalendar />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/settings/profile" element={<SettingsProfile />} />
-              <Route path="/settings/password" element={<SettingsPassword />} />
-              <Route path="/settings/accessibility" element={<SettingsAccessibility />} />
-              <Route path="/settings/appearance" element={<SettingsAppearance />} />
-              <Route element={<ProtectedRoute allowedRoles={OWNER_ADMIN_ROLES} />}>
-                <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/profile/hotel" element={<HotelProfile />} />
-                <Route path="/settings/system" element={<SettingsSystem />} />
-                <Route path="/settings/whatsapp" element={<SettingsWhatsApp />} />
-              </Route>
-              <Route element={<ProtectedRoute allowedRoles={PLATFORM_ROLES} />}>
-                <Route path="/platform/hotels" element={<PlatformHotels />} />
-              </Route>
-            </Route>
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-      </ErrorBoundary>
-    </BrowserRouter>
-  );
+    <div className="font-sans antialiased" style={{ fontFamily: 'var(--font-inter)' }}>
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <SidebarConfigProvider>
+          <Router basename={basename}>
+            <AppRouter />
+          </Router>
+        </SidebarConfigProvider>
+      </ThemeProvider>
+    </div>
+  )
 }
 
-export default App;
+export default App

@@ -61,7 +61,14 @@ export async function receivedMail(request: APIRequestContext, info: TestInfo,
     // not in the body. Validate those details in the actual SMTP-delivered PDF.
     // The shell gate additionally checks both PDFs' text and embedded fonts.
     expect(invoice.expectedText.length).toBeGreaterThanOrEqual(5);
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', pdfPath, '-'], { timeout: 10_000 });
+    // Use the workspace Python runtime's pypdf extractor so the gate does not
+    // depend on an unpinned host Poppler installation.
+    const extractor = [
+      'from pypdf import PdfReader; import sys;',
+      'print("\\n".join(page.extract_text() or "" for page in PdfReader(sys.argv[1]).pages))',
+    ].join(' ');
+    const { stdout } = await promisify(execFile)(process.env.PYTHON ?? 'python',
+      ['-c', extractor, pdfPath], { timeout: 10_000 });
     for (const text of invoice.expectedText) expect(stdout, `SMTP invoice must contain ${text}`).toContain(text);
   }
 }

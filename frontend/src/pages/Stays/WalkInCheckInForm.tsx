@@ -66,6 +66,8 @@ export function WalkInCheckInForm() {
   const guestSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Async loading effect intentionally updates component state after the request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRoomsLoading(true);
     stayService
       .getAvailableRooms()

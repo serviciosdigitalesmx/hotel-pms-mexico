@@ -277,6 +277,13 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
       });
 
       await test.step('download invoice PDF and pay through UI; verify persisted payment and paid list', async () => {
+        // CASH payments are intentionally guarded by the billing invariant that
+        // a tenant must have an open register session. Establish that real
+        // operational precondition before exercising the payment UI.
+        const cashSession = await api.mutate('POST', '/api/v1/cash/sessions', { openingBalance: 0 });
+        // The native stack uses a persistent billing database between retries;
+        // an already-open tenant register is the same valid precondition.
+        expect([201, 400]).toContain(cashSession.status());
         await page.goto('/billing');
         const search = waitForApi(page, 'GET', '/api/v1/invoices/search', email);
         await page.getByRole('searchbox').fill(email);

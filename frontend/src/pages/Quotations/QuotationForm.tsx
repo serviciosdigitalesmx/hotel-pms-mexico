@@ -176,11 +176,15 @@ export const QuotationForm = () => {
   }, [t, isEditMode, id]);
 
   useEffect(() => {
+    // Async loading effect intentionally updates component state after the request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadInitialData();
   }, [loadInitialData]);
 
   useEffect(() => {
     if (!checkInDate || !checkOutDate || new Date(checkOutDate) <= new Date(checkInDate)) {
+      // Reset derived async state when the date range is invalid.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResolvedPrices(new Map());
       return;
     }

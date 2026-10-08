@@ -199,6 +199,8 @@ export const Reservations = () => {
 
   // Any filter/sort change invalidates the current page — always restart from page 0.
   useEffect(() => {
+    // Filter changes intentionally reset the server-side page.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(0);
   }, [debouncedSearch, sortField, sortDir, upcomingOnly]);
 
@@ -261,6 +263,8 @@ export const Reservations = () => {
   }, [addToast, t]);
 
   useEffect(() => {
+    // Async loading effect intentionally updates component state after the request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReservations();
   }, [loadReservations]);
 

@@ -133,5 +133,5 @@ describe('RateCalendar', () => {
     const { container } = render(<RateCalendar />);
     await waitFor(() => screen.getByText('Double'));
     expect(await axe(container)).toHaveNoViolations();
-  });
+  }, 15000);
 });

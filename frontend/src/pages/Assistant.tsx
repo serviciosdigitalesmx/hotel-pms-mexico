@@ -70,6 +70,8 @@ export const Assistant = () => {
           toolName: call.name,
         }];
         setMessages(withRejection);
+        // Recursive continuation intentionally references the stable callback being built.
+        // eslint-disable-next-line react-hooks/immutability
         await continueConversation(withRejection, round + 1);
       }
       return;

@@ -88,10 +88,14 @@ export const RateCalendar = () => {
   }, [currentMonth, t]);
 
   useEffect(() => {
+    // Async loading effect intentionally updates component state after the request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCalendar();
   }, [loadCalendar]);
 
   useEffect(() => {
+    // Reset selection when the displayed month changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelection(null);
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   }, [currentMonth]);

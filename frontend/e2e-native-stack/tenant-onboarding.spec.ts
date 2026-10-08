@@ -5,6 +5,7 @@ import type { SpringPage } from '../src/types/page.types';
 import { baseURL, json, otherCredentials, PmsApi, status, uniqueTag } from './support';
 
 type Hotel = { id: string; name: string; slug: string };
+type Branch = { id: string; hotelId: string; name: string; active: boolean };
 
 test('platform provisions two hotels and keeps owners, guests and settings isolated', async ({ browser }) => {
   test.setTimeout(180_000);
@@ -46,6 +47,33 @@ test('platform provisions two hotels and keeps owners, guests and settings isola
     expect(firstSettings.hotelId).toBe(firstHotel.id);
     expect(secondSettings.hotelId).toBe(secondHotel.id);
 
+    const firstIndustry = await json<{ tenantId: string; industryKey: string }>(
+      await first.mutate('PUT', '/api/v1/auth/industry-profile', {
+        industryKey: 'repair', enabledModulesJson: '["orders","inventory"]',
+        dynamicFieldsJson: '{}', formsLabelsJson: '{}', catalogsTemplatesJson: '{}',
+      }), 200);
+    expect(firstIndustry).toMatchObject({ tenantId: firstHotel.id, industryKey: 'repair' });
+    const secondIndustry = await json<{ tenantId: string; industryKey: string }>(
+      await second.get('/api/v1/auth/industry-profile'));
+    expect(secondIndustry.tenantId).toBe(secondHotel.id);
+    expect(secondIndustry.tenantId).not.toBe(firstIndustry.tenantId);
+    const spoofedIndustry = await json<{ tenantId: string }>(
+      await second.get('/api/v1/auth/industry-profile', { 'X-Auth-Hotel': firstHotel.id }));
+    expect(spoofedIndustry.tenantId).toBe(secondHotel.id);
+
+    const firstBranch = await json<Branch>(await first.mutate('POST', '/api/v1/auth/branches', {
+      name: `${tag} Branch A`,
+    }), 201);
+    expect(firstBranch.hotelId).toBe(firstHotel.id);
+    expect((await json<Branch[]>(await first.get('/api/v1/auth/branches')))
+      .map(branch => branch.id)).toContain(firstBranch.id);
+    expect((await json<Branch[]>(await second.get('/api/v1/auth/branches')))
+      .map(branch => branch.id)).not.toContain(firstBranch.id);
+    await status(await second.get(`/api/v1/auth/branches/${firstBranch.id}`), 404);
+    await status(await second.get(`/api/v1/auth/branches/${firstBranch.id}`, {
+      'X-Auth-Hotel': firstHotel.id,
+    }), 404);
+
     const roomType = await json<RoomTypeResponse>(await first.mutate('POST', '/api/v1/room-types', {
       name: `${tag} suite`, description: 'Tenant isolation fixture', maxOccupancy: 2, basePrice: 100,
     }), 201);
@@ -80,6 +108,33 @@ test('platform provisions two hotels and keeps owners, guests and settings isola
     expect(secondSearch.content.map(guest => guest.id)).not.toContain(firstGuest.id);
     const secondRooms = await json<SpringPage<RoomResponse>>(await second.get('/api/v1/rooms?page=0&size=200'));
     expect(secondRooms.content.map(candidate => candidate.id)).not.toContain(room.id);
+
+    const publicSlug = `${tag}-booking`;
+    await status(await first.mutate('PUT', '/api/v1/stays/settings', { publicSlug }), 200);
+    const publicContext = await browser.newContext({ baseURL });
+    try {
+      const publicResponse = await publicContext.request.post(
+        `${baseURL}/api/public/hotels/${publicSlug}/reservations`, {
+          headers: { 'Content-Type': 'application/json' },
+          data: JSON.stringify({
+            guestId: firstGuest.id,
+            expectedGuests: 1,
+            checkInDate: '2099-01-10',
+            checkOutDate: '2099-01-12',
+            status: 'PENDING',
+            lineItems: [{ roomId: room.id }],
+          }),
+        });
+      const publicBody = await publicResponse.text();
+      expect(publicResponse.status(), publicBody).toBe(201);
+      expect((JSON.parse(publicBody) as { guestId: string; status: string })).toMatchObject({
+        guestId: firstGuest.id,
+        status: 'PENDING',
+      });
+    } finally {
+      await publicContext.close();
+    }
+
   } finally {
     await platformContext.close();
     await firstContext.close();

@@ -148,6 +148,8 @@ export const Quotations = () => {
   }, [page, t]);
 
   useEffect(() => {
+    // Async loading effect intentionally updates component state after the request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadQuotations();
   }, [loadQuotations]);
 

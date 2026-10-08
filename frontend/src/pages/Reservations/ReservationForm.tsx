@@ -97,6 +97,8 @@ export const ReservationForm = () => {
   }, [id, t]);
 
   useEffect(() => {
+    // Async loading effect intentionally updates component state after the request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadInitialData();
   }, [loadInitialData]);
 
@@ -106,6 +108,8 @@ export const ReservationForm = () => {
   // instead of the flat, date-blind RoomType.basePrice.
   useEffect(() => {
     if (!checkInDate || !checkOutDate || new Date(checkOutDate) <= new Date(checkInDate)) {
+      // Reset derived async state when the date range is invalid.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResolvedPrices(new Map());
       return;
     }
