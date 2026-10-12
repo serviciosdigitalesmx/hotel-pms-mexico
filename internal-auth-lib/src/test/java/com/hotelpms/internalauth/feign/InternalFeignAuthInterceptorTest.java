@@ -76,7 +76,7 @@ class InternalFeignAuthInterceptorTest {
         final Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(hmacSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         final byte[] digest = mac.doFinal(
-                (username + ":" + role + ":" + hotelId + ":" + timestamp + ":" + nonce)
+                (username + ":" + role + ":" + hotelId + "::" + timestamp + ":" + nonce)
                         .getBytes(StandardCharsets.UTF_8));
         return HexFormat.of().formatHex(digest);
     }

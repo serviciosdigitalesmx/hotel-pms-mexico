@@ -58,6 +58,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private static final String HEADER_USER = "X-Auth-User";
     private static final String HEADER_ROLE = "X-Auth-Role";
     private static final String HEADER_HOTEL = "X-Auth-Hotel";
+    private static final String HEADER_BRANCH = "X-Auth-Branch";
     private static final String HEADER_SIGNATURE = "X-Internal-Signature";
     private static final String HEADER_TIMESTAMP = "X-Auth-Timestamp";
     private static final String HEADER_NONCE = "X-Auth-Nonce";
@@ -166,6 +167,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             final String username = claims.getSubject();
             final String role = claims.get("role", String.class);
             final String hotelId = claims.get("hotelId", String.class);
+            final String branchId = claims.get("branchId", String.class);
 
             if (hotelId == null || hotelId.isEmpty()) {
                 return this.onError(exchange, "JWT missing hotelId claim", HttpStatus.UNAUTHORIZED);
@@ -186,7 +188,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
             final String timestamp = String.valueOf(System.currentTimeMillis());
             final String nonce = UUID.randomUUID().toString();
-            final String signature = computeHmac(username, role, hotelId, timestamp, nonce);
+            final String signature = computeHmac(username, role, hotelId, branchId, timestamp, nonce);
 
             return chain.filter(exchange.mutate()
                     .request(request.mutate()
@@ -194,6 +196,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                                 headers.remove(HEADER_USER);
                                 headers.remove(HEADER_ROLE);
                                 headers.remove(HEADER_HOTEL);
+                                headers.remove(HEADER_BRANCH);
                                 headers.remove(HEADER_SIGNATURE);
                                 headers.remove(HEADER_TIMESTAMP);
                                 headers.remove(HEADER_NONCE);
@@ -201,6 +204,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                             .header(HEADER_USER, username)
                             .header(HEADER_ROLE, role)
                             .header(HEADER_HOTEL, hotelId)
+                            .headers(headers -> { if (branchId != null && !branchId.isBlank()) headers.set(HEADER_BRANCH, branchId); })
                             .header(HEADER_SIGNATURE, signature)
                             .header(HEADER_TIMESTAMP, timestamp)
                             .header(HEADER_NONCE, nonce)
@@ -233,6 +237,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      *                               never happen)
      */
     private String computeHmac(final String username, final String role, final String hotelId,
+            final String branchId,
             final String timestamp, final String nonce) {
         try {
             final Mac mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -240,7 +245,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                     hmacSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
             mac.init(keySpec);
             final byte[] digest = mac.doFinal(
-                    (username + ":" + role + ":" + hotelId + ":" + timestamp + ":" + nonce)
+                    (username + ":" + role + ":" + hotelId + ":" + (branchId == null ? "" : branchId)
+                            + ":" + timestamp + ":" + nonce)
                             .getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {

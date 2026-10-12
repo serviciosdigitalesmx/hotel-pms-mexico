@@ -39,6 +39,7 @@ public final class InternalFeignAuthInterceptor implements RequestInterceptor {
     private static final String HEADER_USER = "X-Auth-User";
     private static final String HEADER_ROLE = "X-Auth-Role";
     private static final String HEADER_HOTEL = "X-Auth-Hotel";
+    private static final String HEADER_BRANCH = "X-Auth-Branch";
     private static final String HEADER_SIGNATURE = "X-Internal-Signature";
     private static final String HEADER_TIMESTAMP = "X-Auth-Timestamp";
     private static final String HEADER_NONCE = "X-Auth-Nonce";
@@ -69,7 +70,7 @@ public final class InternalFeignAuthInterceptor implements RequestInterceptor {
         if (attrs != null) {
             signFromInboundRequest(template, attrs.getRequest());
         } else {
-            fallbackProvider.resolve().ifPresent(ctx -> sign(template, ctx.user(), ctx.role(), ctx.hotelId()));
+            fallbackProvider.resolve().ifPresent(ctx -> sign(template, ctx.user(), ctx.role(), ctx.hotelId(), ctx.branchId()));
         }
     }
 
@@ -77,20 +78,23 @@ public final class InternalFeignAuthInterceptor implements RequestInterceptor {
         final String user = request.getHeader(HEADER_USER);
         final String role = request.getHeader(HEADER_ROLE);
         final String hotel = request.getHeader(HEADER_HOTEL);
+        final String branch = request.getHeader(HEADER_BRANCH);
         if (StringUtils.hasText(user) && StringUtils.hasText(role) && StringUtils.hasText(hotel)) {
-            sign(template, user, role, hotel);
+            sign(template, user, role, hotel, branch);
         }
     }
 
-    private void sign(final RequestTemplate template, final String user, final String role, final String hotel) {
+    private void sign(final RequestTemplate template, final String user, final String role, final String hotel,
+            final String branch) {
         final String timestamp = String.valueOf(System.currentTimeMillis());
         final String nonce = UUID.randomUUID().toString();
         template.header(HEADER_USER, user);
         template.header(HEADER_ROLE, role);
         template.header(HEADER_HOTEL, hotel);
+        if (StringUtils.hasText(branch)) template.header(HEADER_BRANCH, branch);
         template.header(HEADER_TIMESTAMP, timestamp);
         template.header(HEADER_NONCE, nonce);
-        template.header(HEADER_SIGNATURE, computeHmac(user, role, hotel, timestamp, nonce));
+        template.header(HEADER_SIGNATURE, computeHmac(user, role, hotel, branch, timestamp, nonce));
     }
 
     /**
@@ -106,6 +110,7 @@ public final class InternalFeignAuthInterceptor implements RequestInterceptor {
      * @return hex-encoded HMAC digest
      */
     private String computeHmac(final String username, final String role, final String hotelId,
+            final String branchId,
             final String timestamp, final String nonce) {
         try {
             final Mac mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -113,7 +118,8 @@ public final class InternalFeignAuthInterceptor implements RequestInterceptor {
                     new SecretKeySpec(hmacSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
             mac.init(keySpec);
             final byte[] digest = mac.doFinal(
-                    (username + ":" + role + ":" + hotelId + ":" + timestamp + ":" + nonce)
+                    (username + ":" + role + ":" + hotelId + ":" + (branchId == null ? "" : branchId)
+                            + ":" + timestamp + ":" + nonce)
                             .getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (final NoSuchAlgorithmException | InvalidKeyException e) {

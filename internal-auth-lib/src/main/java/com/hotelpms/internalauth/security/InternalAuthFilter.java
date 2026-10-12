@@ -69,6 +69,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
     private static final String HEADER_USER = "X-Auth-User";
     private static final String HEADER_ROLE = "X-Auth-Role";
     private static final String HEADER_HOTEL = "X-Auth-Hotel";
+    private static final String HEADER_BRANCH = "X-Auth-Branch";
     private static final String HEADER_SIGNATURE = "X-Internal-Signature";
     private static final String HEADER_TIMESTAMP = "X-Auth-Timestamp";
     private static final String HEADER_NONCE = "X-Auth-Nonce";
@@ -136,6 +137,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
         final String username = request.getHeader(HEADER_USER);
         final String role = request.getHeader(HEADER_ROLE);
         final String hotelId = request.getHeader(HEADER_HOTEL);
+        final String branchId = request.getHeader(HEADER_BRANCH);
         final String signature = request.getHeader(HEADER_SIGNATURE);
         final String timestamp = request.getHeader(HEADER_TIMESTAMP);
         final String nonce = request.getHeader(HEADER_NONCE);
@@ -147,7 +149,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!isSignatureValid(username, role, hotelId, timestamp, nonce, signature)) {
+        if (!isSignatureValid(username, role, hotelId, branchId, timestamp, nonce, signature)) {
             // codeql[java/log-injection]: sanitizeForLog strips CR/LF below (CWE-117) — CodeQL's
             // standard query doesn't model this project's custom sanitizer as a taint sanitizer.
             LOG.warn("[InternalAuthFilter] HMAC signature mismatch for user={}", sanitizeForLog(username));
@@ -206,9 +208,10 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
      *         signature
      */
     private boolean isSignatureValid(final String username, final String role,
-            final String hotelId, final String timestamp, final String nonce, final String signature) {
+            final String hotelId, final String branchId, final String timestamp, final String nonce,
+            final String signature) {
         try {
-            final String expected = computeHmac(username, role, hotelId, timestamp, nonce);
+            final String expected = computeHmac(username, role, hotelId, branchId, timestamp, nonce);
             return MessageDigest.isEqual(
                     expected.getBytes(StandardCharsets.UTF_8),
                     signature.getBytes(StandardCharsets.UTF_8));
@@ -257,6 +260,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
      * @throws IllegalStateException if the JVM does not support HmacSHA256
      */
     private String computeHmac(final String username, final String role, final String hotelId,
+            final String branchId,
             final String timestamp, final String nonce) {
         try {
             final Mac mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -264,7 +268,8 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
                     hmacSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM);
             mac.init(keySpec);
             final byte[] digest = mac.doFinal(
-                    (username + ":" + role + ":" + hotelId + ":" + timestamp + ":" + nonce)
+                    (username + ":" + role + ":" + hotelId + ":" + (branchId == null ? "" : branchId)
+                            + ":" + timestamp + ":" + nonce)
                             .getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (final NoSuchAlgorithmException | InvalidKeyException e) {

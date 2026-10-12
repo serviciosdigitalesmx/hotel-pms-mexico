@@ -8,5 +8,8 @@ package com.hotelpms.internalauth.feign;
  * @param role    the role associated with {@code user}
  * @param hotelId the hotel UUID the call is scoped to
  */
-public record FeignAuthContext(String user, String role, String hotelId) {
+public record FeignAuthContext(String user, String role, String hotelId, String branchId) {
+    public FeignAuthContext(final String user, final String role, final String hotelId) {
+        this(user, role, hotelId, null);
+    }
 }
