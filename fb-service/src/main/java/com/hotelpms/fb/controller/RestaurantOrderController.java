@@ -2,6 +2,7 @@ package com.hotelpms.fb.controller;
 
 import com.hotelpms.fb.dto.RestaurantOrderRequest;
 import com.hotelpms.fb.dto.RestaurantOrderResponse;
+import com.hotelpms.fb.client.dto.PaymentRequest;
 import com.hotelpms.fb.service.RestaurantOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.lang.NonNull;
@@ -91,5 +93,31 @@ public class RestaurantOrderController {
         log.info("REST request to confirm restaurant order: {}", id);
         final RestaurantOrderResponse response = orderService.confirmOrder(id);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Pays a restaurant order.
+     *
+     * @param id order identifier.
+     * @param request payment details.
+     * @return updated order.
+     */
+    @PostMapping("/{id}/pay")
+    public ResponseEntity<RestaurantOrderResponse> payOrder(
+            @NonNull @PathVariable final UUID id, @Valid @RequestBody final PaymentRequest request) {
+        return ResponseEntity.ok(orderService.payOrder(id, request));
+    }
+
+    /**
+     * Refunds a restaurant order payment.
+     *
+     * @param id order identifier.
+     * @param reference refund reference.
+     * @return updated order.
+     */
+    @PostMapping("/{id}/refund")
+    public ResponseEntity<RestaurantOrderResponse> refundOrder(
+            @NonNull @PathVariable final UUID id, @RequestParam(defaultValue = "POS-REFUND") final String reference) {
+        return ResponseEntity.ok(orderService.refundOrder(id, reference));
     }
 }

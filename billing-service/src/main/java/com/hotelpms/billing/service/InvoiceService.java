@@ -9,125 +9,121 @@ import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.InvoiceSearchResultResponse;
 import com.hotelpms.billing.dto.InvoiceSummaryResponse;
 import com.hotelpms.billing.dto.StayInvoiceRequest;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
-
-/**
- * Service interface for managing Invoices.
- */
+/** Service interface for managing Invoices. */
 public interface InvoiceService {
 
-    /**
-     * Creates an invoice linked to a hotel stay, called by stay-service at check-in.
-     * The invoice is created with totalAmount=0 and status=ISSUED.
-     * Returns 409 if an open invoice already exists for the given stay.
-     *
-     * @param request the stay invoice creation request
-     * @return the created invoice response
-     */
-    InvoiceResponse createInvoiceForStay(@NonNull StayInvoiceRequest request);
+  /**
+   * Creates an invoice linked to a hotel stay, called by stay-service at check-in. The invoice is
+   * created with totalAmount=0 and status=ISSUED. Returns 409 if an open invoice already exists for
+   * the given stay.
+   *
+   * @param request the stay invoice creation request
+   * @return the created invoice response
+   */
+  InvoiceResponse createInvoiceForStay(@NonNull StayInvoiceRequest request);
 
-    /**
-     * Adds a charge to the open invoice for a stay.
-     * Updates Invoice.totalAmount atomically.
-     * Returns 404 if no ISSUED invoice exists for the stay in the caller's hotel (IDOR-safe).
-     * Returns 409 if the invoice is not in ISSUED status.
-     *
-     * @param stayId  the stay UUID used to look up the invoice
-     * @param request the charge details (type, description, amount, referenceId)
-     * @return the created charge response
-     */
-    ChargeResponse addCharge(@NonNull UUID stayId, @NonNull ChargeRequest request);
+  /**
+   * Adds a charge to the open invoice for a stay. Updates Invoice.totalAmount atomically. Returns
+   * 404 if no ISSUED invoice exists for the stay in the caller's hotel (IDOR-safe). Returns 409 if
+   * the invoice is not in ISSUED status.
+   *
+   * @param stayId the stay UUID used to look up the invoice
+   * @param request the charge details (type, description, amount, referenceId)
+   * @return the created charge response
+   */
+  ChargeResponse addCharge(@NonNull UUID stayId, @NonNull ChargeRequest request);
 
-    /**
-     * Retrieves an invoice by its ID.
-     *
-     * @param id the invoice UUID
-     * @return the invoice response
-     */
-    InvoiceResponse getInvoice(@NonNull UUID id);
+  /**
+   * Retrieves an invoice by its ID.
+   *
+   * @param id the invoice UUID
+   * @return the invoice response
+   */
+  InvoiceResponse getInvoice(@NonNull UUID id);
 
-    /**
-     * Retrieves a paginated list of invoices.
-     *
-     * @param pageable the pagination parameters
-     * @return a page of invoice responses
-     */
-    Page<InvoiceResponse> getAllInvoices(Pageable pageable);
+  /**
+   * Retrieves a paginated list of invoices.
+   *
+   * @param pageable the pagination parameters
+   * @return a page of invoice responses
+   */
+  Page<InvoiceResponse> getAllInvoices(Pageable pageable);
 
-    /**
-     * Combinable search over the caller's hotel invoices (C12): optional status,
-     * optional issue-date window, and an optional free-text query matched against
-     * the invoice number or the associated guest's name/email (resolved via a
-     * cross-service call to guest-service, since Invoice only stores a guestId).
-     * Every filter left {@code null} is skipped entirely, not treated as "no match".
-     * Results include {@code guestName}, batch-resolved for the returned page only.
-     *
-     * @param status   optional invoice status filter, or {@code null}
-     * @param query    optional free-text query (invoice number or guest name/email),
-     *                 or {@code null}/blank to skip it
-     * @param dateFrom optional lower bound on issue date (inclusive day), or {@code null}
-     * @param dateTo   optional upper bound on issue date (inclusive day), or {@code null}
-     * @param pageable pagination parameters
-     * @return a page of matching invoice search results, scoped to the authenticated hotel
-     */
-    Page<InvoiceSearchResultResponse> searchInvoices(
-            InvoiceStatus status, String query, LocalDate dateFrom, LocalDate dateTo, Pageable pageable);
+  /**
+   * Combinable search over the caller's hotel invoices (C12): optional status, optional issue-date
+   * window, and an optional free-text query matched against the invoice number or the associated
+   * guest's name/email (resolved via a cross-service call to guest-service, since Invoice only
+   * stores a guestId). Every filter left {@code null} is skipped entirely, not treated as "no
+   * match". Results include {@code guestName}, batch-resolved for the returned page only.
+   *
+   * @param status optional invoice status filter, or {@code null}
+   * @param query optional free-text query (invoice number or guest name/email), or {@code
+   *     null}/blank to skip it
+   * @param dateFrom optional lower bound on issue date (inclusive day), or {@code null}
+   * @param dateTo optional upper bound on issue date (inclusive day), or {@code null}
+   * @param pageable pagination parameters
+   * @return a page of matching invoice search results, scoped to the authenticated hotel
+   */
+  Page<InvoiceSearchResultResponse> searchInvoices(
+      InvoiceStatus status, String query, LocalDate dateFrom, LocalDate dateTo, Pageable pageable);
 
-    /**
-     * Retrieves the most recent invoice for a given reservation.
-     * Used by the stay-service during check-out to validate billing.
-     *
-     * @param reservationId the reservation UUID
-     * @return the latest invoice response
-     */
-    InvoiceResponse getLatestInvoiceByReservation(@NonNull UUID reservationId);
+  /**
+   * Retrieves the most recent invoice for a given reservation. Used by the stay-service during
+   * check-out to validate billing.
+   *
+   * @param reservationId the reservation UUID
+   * @return the latest invoice response
+   */
+  InvoiceResponse getLatestInvoiceByReservation(@NonNull UUID reservationId);
 
-    /**
-     * Returns the most recent invoice date for a guest within a hotel.
-     * Used internally by the guest-service GDPR legal-hold guard (T-GST-05)
-     * to verify whether the Codice Civile art. 2220 ten-year fiscal retention
-     * obligation has expired before anonymising a guest profile.
-     *
-     * @param guestId the guest UUID; must not be {@code null}
-     * @param hotelId the hotel UUID; must not be {@code null}
-     * @return response containing whether invoices exist and the most recent date
-     */
-    GuestInvoiceCheckResponse getLastInvoiceDateForGuest(@NonNull UUID guestId, @NonNull UUID hotelId);
+  /**
+   * Returns the most recent invoice date for a guest within a hotel. Used internally by the
+   * guest-service GDPR legal-hold guard (T-GST-05) to verify whether the Codice Civile art. 2220
+   * ten-year fiscal retention obligation has expired before anonymising a guest profile.
+   *
+   * @param guestId the guest UUID; must not be {@code null}
+   * @param hotelId the hotel UUID; must not be {@code null}
+   * @return response containing whether invoices exist and the most recent date
+   */
+  GuestInvoiceCheckResponse getLastInvoiceDateForGuest(
+      @NonNull UUID guestId, @NonNull UUID hotelId);
 
-    /**
-     * Returns all invoice summaries for a guest within a hotel, ordered by issue
-     * date descending. Used by the GDPR Art. 20 data-export endpoint.
-     *
-     * @param guestId the guest UUID; must not be {@code null}
-     * @param hotelId the hotel UUID; must not be {@code null}
-     * @return list of invoice summaries, most recent first
-     */
-    List<InvoiceSummaryResponse> getInvoiceHistoryForGuest(@NonNull UUID guestId, @NonNull UUID hotelId);
+  /**
+   * Returns all invoice summaries for a guest within a hotel, ordered by issue date descending.
+   * Used by the GDPR Art. 20 data-export endpoint.
+   *
+   * @param guestId the guest UUID; must not be {@code null}
+   * @param hotelId the hotel UUID; must not be {@code null}
+   * @return list of invoice summaries, most recent first
+   */
+  List<InvoiceSummaryResponse> getInvoiceHistoryForGuest(
+      @NonNull UUID guestId, @NonNull UUID hotelId);
 
-    /**
-     * Switches an invoice between fiscal (FATTURA) and non-fiscal (RICEVUTA) type.
-     * Rejected for CANCELLED invoices.
-     *
-     * @param invoiceId    the invoice UUID
-     * @param documentType the new document type
-     * @return the updated invoice response
-     */
-    InvoiceResponse updateDocumentType(@NonNull UUID invoiceId, @NonNull DocumentType documentType);
+  /**
+   * Switches an invoice between fiscal (FATTURA) and non-fiscal (RICEVUTA) type. Rejected for
+   * CANCELLED invoices.
+   *
+   * @param invoiceId the invoice UUID
+   * @param documentType the new document type
+   * @return the updated invoice response
+   */
+  InvoiceResponse updateDocumentType(@NonNull UUID invoiceId, @NonNull DocumentType documentType);
 
-    /**
-     * Returns all invoices for the caller's hotel with an issue date within the given
-     * inclusive day range. Used by the FatturaPA batch export to select which invoices
-     * to hand off to the commercialista for a given period.
-     *
-     * @param from inclusive lower bound (day) on issue date
-     * @param to   inclusive upper bound (day) on issue date
-     * @return matching invoices for the authenticated hotel, ordered by issue date ascending
-     */
-    List<InvoiceResponse> getInvoicesInPeriod(@NonNull LocalDate from, @NonNull LocalDate to);
+  /**
+   * Returns all invoices for the caller's hotel with an issue date within the given inclusive day
+   * range. Used by the FatturaPA batch export to select which invoices to hand off to the
+   * commercialista for a given period.
+   *
+   * @param from inclusive lower bound (day) on issue date
+   * @param to inclusive upper bound (day) on issue date
+   * @return matching invoices for the authenticated hotel, ordered by issue date ascending
+   */
+  List<InvoiceResponse> getInvoicesInPeriod(@NonNull LocalDate from, @NonNull LocalDate to);
 }

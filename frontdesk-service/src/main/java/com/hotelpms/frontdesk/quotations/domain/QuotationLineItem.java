@@ -10,6 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,21 +25,15 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
- * A single room offered within one {@link QuotationOption}, with the price
- * resolved (and frozen) server-side at creation time via
- * {@code RatePricingService} — same snapshot-once, never-recompute pattern as
- * {@code ReservationLineItem}.
+ * A single room offered within one {@link QuotationOption}, with the price resolved (and frozen)
+ * server-side at creation time via {@code RatePricingService} — same snapshot-once, never-recompute
+ * pattern as {@code ReservationLineItem}.
  *
- * <p>Carries both {@code quotation} and {@code quotationOption}: the option
- * is the real parent (cascade/orphanRemoval lives on that side, V11), but
- * {@code quotation_id} is kept populated too — it predates options (V10) and
- * dropping it would be a schema rewrite for a merely-redundant column, not a
- * behavior change.
+ * <p>Carries both {@code quotation} and {@code quotationOption}: the option is the real parent
+ * (cascade/orphanRemoval lives on that side, V11), but {@code quotation_id} is kept populated too —
+ * it predates options (V10) and dropping it would be a schema rewrite for a merely-redundant
+ * column, not a behavior change.
  */
 @Entity
 @Table(name = "quotation_line_items")
@@ -50,34 +47,34 @@ import java.util.UUID;
 @SQLRestriction("active = true")
 public class QuotationLineItem {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Setter(AccessLevel.NONE)
+  private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "quotation_id", nullable = false)
-    private Quotation quotation;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "quotation_id", nullable = false)
+  private Quotation quotation;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "quotation_option_id", nullable = false)
-    private QuotationOption quotationOption;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "quotation_option_id", nullable = false)
+  private QuotationOption quotationOption;
 
-    @Column(name = "room_id", nullable = false)
-    private UUID roomId;
+  @Column(name = "room_id", nullable = false)
+  private UUID roomId;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+  @Column(nullable = false, precision = 10, scale = 2)
+  private BigDecimal price;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean active = true;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
 }

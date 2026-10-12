@@ -12,6 +12,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,15 +30,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-/**
- * Reservation Domain Entity.
- */
+/** Reservation Domain Entity. */
 @Entity
 @Table(name = "reservations")
 @Getter
@@ -43,78 +40,80 @@ import java.util.UUID;
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 @SQLDelete(
-        sql = "UPDATE reservations SET active = false, version = version + 1 WHERE id = ? AND version = ?",
-        check = ResultCheckStyle.COUNT)
+    sql =
+        "UPDATE reservations SET active = false, version = version + 1 WHERE id = ? AND version ="
+            + " ?",
+    check = ResultCheckStyle.COUNT)
 @SQLRestriction("active = true")
 public class Reservation {
 
-    private static final int MAX_STATUS_LENGTH = 50;
+  private static final int MAX_STATUS_LENGTH = 50;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Setter(AccessLevel.NONE)
+  private UUID id;
 
-    @Version
-    @Column(nullable = false)
-    private Long version;
+  @Version
+  @Column(nullable = false)
+  private Long version;
 
-    @Column(name = "hotel_id")
-    private UUID hotelId;
+  @Column(name = "hotel_id")
+  private UUID hotelId;
 
-    @Column(name = "guest_id", nullable = false)
-    private UUID guestId;
+  @Column(name = "guest_id", nullable = false)
+  private UUID guestId;
 
-    @Column(name = "expected_guests", nullable = false)
-    private int expectedGuests;
+  @Column(name = "expected_guests", nullable = false)
+  private int expectedGuests;
 
-    @Column(name = "actual_guests", nullable = false)
-    @Builder.Default
-    // CHECKSTYLE: ExplicitInitialization OFF
-    @SuppressWarnings("PMD.RedundantFieldInitializer")
-    private int actualGuests = 0; // required by @Builder.Default
-    // CHECKSTYLE: ExplicitInitialization ON
+  @Column(name = "actual_guests", nullable = false)
+  @Builder.Default
+  // CHECKSTYLE: ExplicitInitialization OFF
+  @SuppressWarnings("PMD.RedundantFieldInitializer")
+  private int actualGuests = 0; // required by @Builder.Default
 
-    @Column(nullable = false)
-    private LocalDate checkInDate;
+  // CHECKSTYLE: ExplicitInitialization ON
 
-    @Column(nullable = false)
-    private LocalDate checkOutDate;
+  @Column(nullable = false)
+  private LocalDate checkInDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = MAX_STATUS_LENGTH)
-    private ReservationStatus status;
+  @Column(nullable = false)
+  private LocalDate checkOutDate;
 
-    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    @SQLRestriction("active = true")
-    private List<ReservationLineItem> lineItems = new ArrayList<>();
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = MAX_STATUS_LENGTH)
+  private ReservationStatus status;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+  @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
+  @SQLRestriction("active = true")
+  private List<ReservationLineItem> lineItems = new ArrayList<>();
 
-    /**
-     * Whether the most recent reservation-confirmed email attempt failed
-     * (notification-service circuit breaker open or call failed). Mirrors the
-     * Alloggiati failure-tracking pattern in {@code Stay} — cleared as soon as
-     * a retry succeeds.
-     */
-    @Column(name = "confirmation_email_failed", nullable = false)
-    private boolean confirmationEmailFailed;
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean active = true;
 
-    /**
-     * The reason for the most recent failed confirmation email attempt, for
-     * staff visibility. {@code null} once resolved.
-     */
-    @Column(name = "confirmation_email_failure_reason")
-    private String confirmationEmailFailureReason;
+  /**
+   * Whether the most recent reservation-confirmed email attempt failed (notification-service
+   * circuit breaker open or call failed). Mirrors the Alloggiati failure-tracking pattern in {@code
+   * Stay} — cleared as soon as a retry succeeds.
+   */
+  @Column(name = "confirmation_email_failed", nullable = false)
+  private boolean confirmationEmailFailed;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  /**
+   * The reason for the most recent failed confirmation email attempt, for staff visibility. {@code
+   * null} once resolved.
+   */
+  @Column(name = "confirmation_email_failure_reason")
+  private String confirmationEmailFailureReason;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
+
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
 }

@@ -92,6 +92,17 @@ if ($envContent -notmatch '(?m)^CONFIG_SERVER_PASSWORD=') {
     Write-Skip "CONFIG_SERVER_PASSWORD already in .env - skipping."
 }
 
+# Append REDIS_PASSWORD if not already present (idempotent). Redis is started
+# with --requirepass by Compose, so an unset value would make the container
+# restart indefinitely and leave dependent services without a nonce store.
+$envContent = Get-Content $ENV_FILE -Raw -Encoding UTF8
+if ($envContent -notmatch '(?m)^REDIS_PASSWORD=') {
+    Add-Content -Path $ENV_FILE -Value "REDIS_PASSWORD=$(New-RandomHex 24)" -Encoding UTF8
+    Write-Ok "REDIS_PASSWORD added to .env."
+} else {
+    Write-Skip "REDIS_PASSWORD already in .env - skipping."
+}
+
 # ── Step 2: Ensure .env is in .gitignore ──────────────────────────────────────
 Write-Step "Step 2 - .gitignore"
 

@@ -6,6 +6,7 @@ import com.hotelpms.frontdesk.quotations.dto.QuotationResponse;
 import com.hotelpms.frontdesk.quotations.service.QuotationService;
 import com.hotelpms.frontdesk.reservations.dto.ReservationResponse;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,146 +25,154 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 /**
  * Controller for quotations (preventivi). Reachable by every operational role
- * (RECEPTIONIST/ADMIN/OWNER) — creating and sending a quotation is
- * operationally equivalent to creating a reservation, which carries the same
- * access level.
+ * (RECEPTIONIST/ADMIN/OWNER) — creating and sending a quotation is operationally equivalent to
+ * creating a reservation, which carries the same access level.
  */
 @RestController
 @RequestMapping("/api/v1/quotations")
 @RequiredArgsConstructor
 public class QuotationController {
 
-    private static final String PDF_FILENAME_PREFIX = "preventivo-";
-    private static final String PDF_EXTENSION = ".pdf";
+  private static final String PDF_FILENAME_PREFIX = "preventivo-";
+  private static final String PDF_EXTENSION = ".pdf";
 
-    private final QuotationService quotationService;
+  private final QuotationService quotationService;
 
-    /**
-     * Creates a quotation.
-     *
-     * @param request the quotation details
-     * @return the created quotation
-     */
-    @PostMapping
-    public ResponseEntity<QuotationResponse> createQuotation(
-            @NonNull @Valid @RequestBody final QuotationRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(quotationService.createQuotation(request));
-    }
+  /**
+   * Creates a quotation.
+   *
+   * @param request the quotation details
+   *
+   * @return the created quotation
+   */
+  @PostMapping
+  public ResponseEntity<QuotationResponse> createQuotation(
+      @NonNull @Valid @RequestBody final QuotationRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(quotationService.createQuotation(request));
+  }
 
-    /**
-     * Replaces a quotation's details, only while it is still {@code DRAFT}.
-     *
-     * @param id      the quotation UUID
-     * @param request the replacement quotation details
-     * @return the updated quotation
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<QuotationResponse> updateQuotation(
-            @NonNull @PathVariable final UUID id, @NonNull @Valid @RequestBody final QuotationRequest request) {
-        return ResponseEntity.ok(quotationService.updateQuotation(id, request));
-    }
+  /**
+   * Replaces a quotation's details, only while it is still {@code DRAFT}.
+   *
+   * @param id the quotation UUID
+   *
+   * @param request the replacement quotation details
+   *
+   * @return the updated quotation
+   */
+  @PutMapping("/{id}")
+  public ResponseEntity<QuotationResponse> updateQuotation(
+      @NonNull @PathVariable final UUID id,
+      @NonNull @Valid @RequestBody final QuotationRequest request) {
+    return ResponseEntity.ok(quotationService.updateQuotation(id, request));
+  }
 
-    /**
-     * Duplicates a quotation into a new draft with current-rate prices.
-     *
-     * @param id the source quotation UUID
-     * @return the newly created draft
-     */
-    @PostMapping("/{id}/duplicate")
-    public ResponseEntity<QuotationResponse> duplicateQuotation(@NonNull @PathVariable final UUID id) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(quotationService.duplicateQuotation(id));
-    }
+  /**
+   * Duplicates a quotation into a new draft with current-rate prices.
+   *
+   * @param id the source quotation UUID
+   *
+   * @return the newly created draft
+   */
+  @PostMapping("/{id}/duplicate")
+  public ResponseEntity<QuotationResponse> duplicateQuotation(
+      @NonNull @PathVariable final UUID id) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(quotationService.duplicateQuotation(id));
+  }
 
-    /**
-     * Lists every active quotation for the caller's hotel, newest first.
-     *
-     * @param pageable pagination and sorting parameters
-     * @return a page of quotations
-     */
-    @GetMapping
-    public ResponseEntity<Page<QuotationResponse>> getAllQuotations(final Pageable pageable) {
-        return ResponseEntity.ok(quotationService.getAllQuotations(pageable));
-    }
+  /**
+   * Lists every active quotation for the caller's hotel, newest first.
+   *
+   * @param pageable pagination and sorting parameters
+   *
+   * @return a page of quotations
+   */
+  @GetMapping
+  public ResponseEntity<Page<QuotationResponse>> getAllQuotations(final Pageable pageable) {
+    return ResponseEntity.ok(quotationService.getAllQuotations(pageable));
+  }
 
-    /**
-     * Gets a quotation by id.
-     *
-     * @param id the quotation UUID
-     * @return the quotation
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<QuotationResponse> getQuotationById(@NonNull @PathVariable final UUID id) {
-        return ResponseEntity.ok(quotationService.getQuotationById(id));
-    }
+  /**
+   * Gets a quotation by id.
+   *
+   * @param id the quotation UUID
+   *
+   * @return the quotation
+   */
+  @GetMapping("/{id}")
+  public ResponseEntity<QuotationResponse> getQuotationById(@NonNull @PathVariable final UUID id) {
+    return ResponseEntity.ok(quotationService.getQuotationById(id));
+  }
 
-    /**
-     * Downloads the quotation PDF.
-     *
-     * @param id the quotation UUID
-     * @return the PDF bytes with {@code Content-Disposition: attachment}
-     */
-    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> getQuotationPdf(@NonNull @PathVariable final UUID id) {
-        final byte[] pdf = quotationService.getQuotationPdf(id);
-        final ContentDisposition disposition = ContentDisposition.attachment()
-                .filename(PDF_FILENAME_PREFIX + id + PDF_EXTENSION)
-                .build();
-        return ResponseEntity.ok()
-                .headers(h -> h.setContentDisposition(disposition))
-                .body(pdf);
-    }
+  /**
+   * Downloads the quotation PDF.
+   *
+   * @param id the quotation UUID
+   *
+   * @return the PDF bytes with {@code Content-Disposition: attachment}
+   */
+  @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+  public ResponseEntity<byte[]> getQuotationPdf(@NonNull @PathVariable final UUID id) {
+    final byte[] pdf = quotationService.getQuotationPdf(id);
+    final ContentDisposition disposition =
+        ContentDisposition.attachment().filename(PDF_FILENAME_PREFIX + id + PDF_EXTENSION).build();
+    return ResponseEntity.ok().headers(h -> h.setContentDisposition(disposition)).body(pdf);
+  }
 
-    /**
-     * Emails the quotation (with the PDF attached) to the guest or prospect.
-     *
-     * @param id the quotation UUID
-     * @return the updated quotation
-     */
-    @PostMapping("/{id}/send")
-    public ResponseEntity<QuotationResponse> sendQuotation(@NonNull @PathVariable final UUID id) {
-        return ResponseEntity.ok(quotationService.sendQuotationEmail(id));
-    }
+  /**
+   * Emails the quotation (with the PDF attached) to the guest or prospect.
+   *
+   * @param id the quotation UUID
+   *
+   * @return the updated quotation
+   */
+  @PostMapping("/{id}/send")
+  public ResponseEntity<QuotationResponse> sendQuotation(@NonNull @PathVariable final UUID id) {
+    return ResponseEntity.ok(quotationService.sendQuotationEmail(id));
+  }
 
-    /**
-     * Converts an accepted quotation into a reservation, honoring the frozen
-     * quoted price of the chosen option.
-     *
-     * @param id      the quotation UUID
-     * @param request the chosen option, required only when the quotation has
-     *                more than one; an absent body is valid otherwise
-     * @return the created reservation
-     */
-    @PostMapping("/{id}/convert")
-    public ResponseEntity<ReservationResponse> convertToReservation(
-            @NonNull @PathVariable final UUID id,
-            @RequestBody(required = false) final ConvertQuotationRequest request) {
-        final UUID optionId = request != null ? request.optionId() : null;
-        return ResponseEntity.ok(quotationService.convertToReservation(id, optionId));
-    }
+  /**
+   * Converts an accepted quotation into a reservation, honoring the frozen quoted price of the
+   * chosen option.
+   *
+   * @param id the quotation UUID
+   *
+   * @param request the chosen option, required only when the quotation has more than one; an absent
+   *     body is valid otherwise
+   *
+   * @return the created reservation
+   */
+  @PostMapping("/{id}/convert")
+  public ResponseEntity<ReservationResponse> convertToReservation(
+      @NonNull @PathVariable final UUID id,
+      @RequestBody(required = false) final ConvertQuotationRequest request) {
+    final UUID optionId = request != null ? request.optionId() : null;
+    return ResponseEntity.ok(quotationService.convertToReservation(id, optionId));
+  }
 
-    /**
-     * Marks a quotation as declined.
-     *
-     * @param id the quotation UUID
-     * @return the updated quotation
-     */
-    @PostMapping("/{id}/decline")
-    public ResponseEntity<QuotationResponse> declineQuotation(@NonNull @PathVariable final UUID id) {
-        return ResponseEntity.ok(quotationService.declineQuotation(id));
-    }
+  /**
+   * Marks a quotation as declined.
+   *
+   * @param id the quotation UUID
+   *
+   * @return the updated quotation
+   */
+  @PostMapping("/{id}/decline")
+  public ResponseEntity<QuotationResponse> declineQuotation(@NonNull @PathVariable final UUID id) {
+    return ResponseEntity.ok(quotationService.declineQuotation(id));
+  }
 
-    /**
-     * Soft-deletes a quotation.
-     *
-     * @param id the quotation UUID
-     */
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteQuotation(@NonNull @PathVariable final UUID id) {
-        quotationService.deleteQuotation(id);
-    }
+  /**
+   * Soft-deletes a quotation.
+   *
+   * @param id the quotation UUID
+   */
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteQuotation(@NonNull @PathVariable final UUID id) {
+    quotationService.deleteQuotation(id);
+  }
 }

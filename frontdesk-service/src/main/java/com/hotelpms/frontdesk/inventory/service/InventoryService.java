@@ -1,0 +1,258 @@
+package com.hotelpms.frontdesk.inventory.service;
+
+import com.hotelpms.frontdesk.inventory.domain.InventoryBalance;
+import com.hotelpms.frontdesk.audit.domain.AuditEvent;
+import com.hotelpms.frontdesk.audit.service.AuditEventService;
+import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
+import com.hotelpms.frontdesk.inventory.domain.StockReservation;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
+import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
+import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
+import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.web.multipart.MultipartFile;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** Type domain type. */
+@Service
+@RequiredArgsConstructor
+public class InventoryService {
+  private static final String INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK";
+  private final InventoryProductRepository products;
+  private final InventoryBalanceRepository balances;
+  private final AuditEventService auditEvents;
+  private final StockReservationRepository reservations;
+
+  /**
+   * Creates an inventory product.
+   *
+   * @param hotel tenant identifier
+   * @param r product request
+   * @return persisted product
+   */
+  @Transactional
+  public InventoryProduct product(final UUID hotel, final ProductRequest r) {
+    final InventoryProduct p = new InventoryProduct();
+    p.setHotelId(hotel);
+    p.setSku(r.sku().trim());
+    p.setName(r.name().trim());
+    p.setOptional(r.optional());
+    return products.save(p);
+  }
+
+  /**
+   * Applies an inventory movement.
+   *
+   * @param hotel tenant identifier
+   * @param r movement request
+   * @return updated balance
+   */
+  @Transactional
+  public InventoryBalance move(final UUID hotel, final MovementRequest r) {
+    final InventoryProduct p =
+        products
+            .findById(r.productId())
+            .filter(x -> x.getHotelId().equals(hotel))
+            .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+    final InventoryBalance b =
+        balances
+            .findByHotelIdAndBranchIdAndProductId(hotel, r.branchId(), p.getId())
+            .orElseGet(
+                () ->
+                    InventoryBalance.builder()
+                        .hotelId(hotel)
+                        .branchId(r.branchId())
+                        .productId(p.getId())
+                        .build());
+    final long next = b.getQuantity() + r.delta();
+    if (next < 0) {
+      throw new IllegalStateException(INSUFFICIENT_STOCK);
+    }
+    b.setQuantity(next);
+    final InventoryBalance saved = balances.save(b);
+    auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_MOVEMENT_RECORDED",
+        saved.getId(), null, "{\"branchId\":\"" + r.branchId() + "\",\"productId\":\""
+            + r.productId() + "\",\"quantity\":" + r.quantity() + "}");
+    return saved;
+  }
+
+  /**
+   * Reserves stock for a service order.
+   *
+   * @param hotel tenant identifier
+   * @param r reservation request
+   * @return reservation
+   */
+  @Transactional
+  public StockReservation reserve(final UUID hotel, final ReservationRequest r) {
+    final Optional<StockReservation> existing =
+        reservations.findByHotelIdAndServiceOrderIdAndProductId(
+            hotel, r.serviceOrderId(), r.productId());
+    if (existing.isPresent()) {
+      return existing.get();
+    }
+    final InventoryBalance b =
+        balances
+            .findByHotelIdAndBranchIdAndProductId(hotel, r.branchId(), r.productId())
+            .orElseThrow(() -> new IllegalStateException(INSUFFICIENT_STOCK));
+    if (b.getQuantity() < r.quantity()) {
+      throw new IllegalStateException(INSUFFICIENT_STOCK);
+    }
+    b.setQuantity(b.getQuantity() - r.quantity());
+    balances.save(b);
+    return reservations.save(
+        StockReservation.builder()
+            .hotelId(hotel)
+            .branchId(r.branchId())
+            .productId(r.productId())
+            .serviceOrderId(r.serviceOrderId())
+            .quantity(r.quantity())
+            .createdAt(java.time.LocalDateTime.now())
+            .build());
+  }
+
+  /**
+   * Releases a stock reservation.
+   *
+   * @param hotel tenant identifier
+   * @param order service order identifier
+   * @param product product identifier
+   * @return released reservation
+   */
+  @Transactional
+  public StockReservation release(final UUID hotel, final UUID order, final UUID product) {
+    final StockReservation r =
+        reservations
+            .findByHotelIdAndServiceOrderIdAndProductId(hotel, order, product)
+            .orElseThrow(() -> new IllegalArgumentException("RESERVATION_NOT_FOUND"));
+    if ("RELEASED".equals(r.getStatus())) {
+      return r;
+    }
+    final InventoryBalance b =
+        balances
+            .findByHotelIdAndBranchIdAndProductId(hotel, r.getBranchId(), r.getProductId())
+            .orElseThrow();
+    b.setQuantity(b.getQuantity() + r.getQuantity());
+    balances.save(b);
+    r.setStatus("RELEASED");
+    return reservations.save(r);
+  }
+
+  /**
+   * Lists products for a tenant.
+   *
+   * @param hotel tenant identifier
+   * @return products
+   */
+  @Transactional(readOnly = true)
+  public List<InventoryProduct> products(final UUID hotel) {
+    return products.findAllByHotelId(hotel);
+  }
+
+  /**
+   * Lists branch stock balances.
+   *
+   * @param hotel tenant identifier
+   * @param branch branch identifier
+   * @return balances
+   */
+  @Transactional(readOnly = true)
+  public List<InventoryBalance> stock(final UUID hotel, final UUID branch) {
+    return balances.findAllByHotelIdAndBranchId(hotel, branch);
+  }
+
+  /**
+   * Imports inventory products from CSV.
+   *
+   * @param hotel tenant identifier
+   * @param csv CSV content
+   * @return import summary
+   */
+  @Transactional
+  public ImportResult importCsv(final UUID hotel, final String csv) {
+    int imported = 0;
+    int rejected = 0;
+    final List<String> errors = new ArrayList<>();
+    final String[] rows = csv == null ? new String[0] : csv.split("\\R");
+    for (int i = 0; i < rows.length; i++) {
+      if (i == 0 && rows[i].toLowerCase(Locale.ROOT).startsWith("sku")) {
+        continue;
+      }
+      final String[] c = rows[i].split(",", -1);
+      if (c.length < 2 || c[0].isBlank() || c[1].isBlank()) {
+        rejected++;
+        errors.add("row " + (i + 1) + ": sku and name are required");
+        continue;
+      }
+      try {
+        product(hotel, new ProductRequest(c[0], c[1], c.length < 3 || Boolean.parseBoolean(c[2])));
+        imported++;
+      } catch (final IllegalArgumentException | IllegalStateException | DataAccessException ex) {
+        rejected++;
+        errors.add("row " + (i + 1) + ": " + ex.getMessage());
+      }
+    }
+    return new ImportResult(imported, rejected, errors);
+  }
+
+  /** Imports the first two columns of an XLSX catalog as SKU and product name. */
+  @Transactional
+  public ImportResult importXlsx(final UUID hotel, final MultipartFile file) {
+    int imported = 0;
+    int rejected = 0;
+    final List<String> errors = new ArrayList<>();
+    try (InputStream input = file.getInputStream(); var workbook = WorkbookFactory.create(input)) {
+      final var sheet = workbook.getSheetAt(0);
+      for (int rowIndex = 0; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+        final var row = sheet.getRow(rowIndex);
+        if (row == null) {
+          continue;
+        }
+        final String sku = row.getCell(0) == null ? "" : row.getCell(0).toString().trim();
+        final String name = row.getCell(1) == null ? "" : row.getCell(1).toString().trim();
+        if (rowIndex == 0 && "sku".equalsIgnoreCase(sku)) {
+          continue;
+        }
+        if (sku.isBlank() || name.isBlank()) {
+          rejected++;
+          errors.add("row " + (rowIndex + 1) + ": sku and name are required");
+          continue;
+        }
+        product(hotel, new ProductRequest(sku, name, false));
+        imported++;
+      }
+    } catch (final IOException | RuntimeException ex) {
+      throw new IllegalArgumentException("XLSX_IMPORT_FAILED", ex);
+    }
+    return new ImportResult(imported, rejected, errors);
+  }
+
+  /** Extracts supplier text from a PDF and imports simple SKU/name lines. */
+  @Transactional
+  public ImportResult importPdf(final UUID hotel, final MultipartFile file) {
+    try {
+      final byte[] bytes = file.getBytes();
+      try (var document = Loader.loadPDF(bytes)) {
+        final String text = new PDFTextStripper().getText(document);
+        return importCsv(hotel, text.replace('|', ',').replace(';', ','));
+      }
+    } catch (final IOException | RuntimeException ex) {
+      throw new IllegalArgumentException("PDF_IMPORT_FAILED", ex);
+    }
+  }
+}

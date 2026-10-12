@@ -12,6 +12,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,13 +26,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-/**
- * Represents a payment in the billing domain.
- */
+/** Represents a payment in the billing domain. */
 @Entity
 @Table(name = "payments")
 @Getter
@@ -42,35 +39,42 @@ import java.util.UUID;
 @SQLRestriction("active = true")
 public class Payment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
-    @Column(nullable = false)
-    private LocalDateTime paymentDate;
+  @Column(nullable = false)
+  private LocalDateTime paymentDate;
 
-    @Column(nullable = false)
-    private BigDecimal amount;
+  @Column(nullable = false)
+  private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PaymentMethod paymentMethod;
+  @Builder.Default
+  @Column(name = "reversed_amount", nullable = false)
+  private BigDecimal reversedAmount = BigDecimal.ZERO;
 
-    private String transactionReference;
+  @Column(name = "reversal_reference", length = 100)
+  private String reversalReference;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invoice_id", nullable = false)
-    private Invoice invoice;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private PaymentMethod paymentMethod;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  private String transactionReference;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "invoice_id", nullable = false)
+  private Invoice invoice;
 
-    @Builder.Default
-    @Column(nullable = false)
-    private boolean active = true;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
+
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
+
+  @Builder.Default
+  @Column(nullable = false)
+  private boolean active = true;
 }

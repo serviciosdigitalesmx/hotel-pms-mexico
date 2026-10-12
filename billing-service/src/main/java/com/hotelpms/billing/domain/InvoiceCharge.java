@@ -12,6 +12,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,13 +23,9 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
- * Represents a single line-item charge on an invoice (room night, F&amp;B order, extra).
- * Charges are immutable once added; the parent Invoice owns the aggregate.
+ * Represents a single line-item charge on an invoice (room night, F&amp;B order, extra). Charges
+ * are immutable once added; the parent Invoice owns the aggregate.
  */
 @Entity
 @Table(name = "invoice_charges")
@@ -38,45 +37,43 @@ import java.util.UUID;
 @EntityListeners(AuditingEntityListener.class)
 public class InvoiceCharge {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invoice_id", nullable = false)
-    private Invoice invoice;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "invoice_id", nullable = false)
+  private Invoice invoice;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ChargeType type;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private ChargeType type;
 
-    @Column(nullable = false)
-    private String description;
+  @Column(nullable = false)
+  private String description;
 
-    @Column(nullable = false)
-    private BigDecimal amount;
+  @Column(nullable = false)
+  private BigDecimal amount;
 
-    @Column(name = "vat_rate", nullable = false)
-    private BigDecimal vatRate;
+  @Column(name = "vat_rate", nullable = false)
+  private BigDecimal vatRate;
 
-    @Column(name = "reference_id")
-    private UUID referenceId;
+  @Column(name = "reference_id")
+  private UUID referenceId;
 
-    /**
-     * Optional per-night price, display/audit only — {@code amount} above
-     * remains the sole fiscally authoritative field. {@code null} when the
-     * caller has no single uniform per-night rate to report.
-     */
-    @Column(name = "unit_price")
-    private BigDecimal unitPrice;
+  /**
+   * Optional per-night price, display/audit only — {@code amount} above remains the sole fiscally
+   * authoritative field. {@code null} when the caller has no single uniform per-night rate to
+   * report.
+   */
+  @Column(name = "unit_price")
+  private BigDecimal unitPrice;
 
-    /**
-     * Optional number of nights this charge covers, display/audit only.
-     */
-    @Column(name = "nights")
-    private Integer nights;
+  /** Optional number of nights this charge covers, display/audit only. */
+  @Column(name = "nights")
+  private Integer nights;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 }

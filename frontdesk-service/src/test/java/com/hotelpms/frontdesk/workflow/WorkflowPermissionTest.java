@@ -32,27 +32,30 @@ class WorkflowPermissionTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
-    @Test void ownerLabelWithoutExplicitPermissionIsDenied() {
+    @Test void ownerLabelCanCreateWithoutExplicitPermission() {
         authenticate("ROLE_OWNER");
-        assertThrows(AccessDeniedException.class, () -> controller.create(new CreateWorkflowRequest("repair", "Repair")));
-        verifyNoInteractions(service);
-    }
-
-    @Test void adminLabelWithoutExplicitPermissionIsDenied() {
-        authenticate("ROLE_ADMIN");
-        assertThrows(AccessDeniedException.class, () -> controller.create(new CreateWorkflowRequest("repair", "Repair")));
-        verifyNoInteractions(service);
-    }
-
-    @Test void explicitManagePermissionAllowsCreation() {
-        authenticate("workflows.manage");
         var request = new CreateWorkflowRequest("repair", "Repair");
         when(service.create(tenant, request)).thenReturn(new WorkflowDefinition(tenant, "repair", "Repair"));
         assertEquals(201, controller.create(request).getStatusCode().value());
         verify(service).create(tenant, request);
     }
 
-    @Test void ownerCannotBypassTransitionSpecificPermission() {
+    @Test void adminLabelCanCreateWithoutExplicitPermission() {
+        authenticate("ROLE_ADMIN");
+        var request = new CreateWorkflowRequest("repair", "Repair");
+        when(service.create(tenant, request)).thenReturn(new WorkflowDefinition(tenant, "repair", "Repair"));
+        assertEquals(201, controller.create(request).getStatusCode().value());
+        verify(service).create(tenant, request);
+    }
+
+    @Test void receptionistCannotCreateWorkflow() {
+        authenticate("ROLE_RECEPTIONIST");
+        var request = new CreateWorkflowRequest("repair", "Repair");
+        assertThrows(AccessDeniedException.class, () -> controller.create(request));
+        verifyNoInteractions(service);
+    }
+
+    @Test void ownerCanTransitionWhenTransitionSpecificPermissionIsAbsent() {
         authenticate("ROLE_OWNER", "workflow.transition");
         UUID id = UUID.randomUUID();
         var workflow = new WorkflowDefinition(tenant, "repair", "Repair");
@@ -60,8 +63,10 @@ class WorkflowPermissionTest {
         var to = new WorkflowState(workflow, "working", "Working", SemanticPhase.WORK, false, false);
         when(service.transitions(tenant, id)).thenReturn(List.of(new WorkflowTransition(workflow, from, to, "start", "orders.execute")));
         var request = new TransitionRequest(UUID.randomUUID(), "received", "start");
-        assertThrows(AccessDeniedException.class, () -> controller.transition(id, request));
-        verify(service, never()).transition(any(), any(), any(), any());
+        var candidate = new WorkflowTransition(workflow, from, to, "start", "orders.execute");
+        when(service.transition(eq(tenant), eq(id), eq(request), anyString())).thenReturn(candidate);
+        assertDoesNotThrow(() -> controller.transition(id, request));
+        verify(service).transition(eq(tenant), eq(id), eq(request), anyString());
     }
 
     @Configuration @EnableMethodSecurity

@@ -11,10 +11,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 /**
  * Main class for the Frontdesk Service application.
  *
- * <p>Consolidates the former {@code inventory-service}, {@code reservation-service} and
- * {@code stay-service} into a single deployable covering the room lifecycle bounded
- * context (rooms, reservations, stays and hotel settings). See ADR-001 in
- * {@code backup/DECISIONS.md}.
+ * <p>Consolidates the former {@code inventory-service}, {@code reservation-service} and {@code
+ * stay-service} into a single deployable covering the room lifecycle bounded context (rooms,
+ * reservations, stays and hotel settings). See ADR-001 in {@code backup/DECISIONS.md}.
  */
 @SpringBootApplication
 @EnableFeignClients
@@ -23,20 +22,17 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @ImportRuntimeHints(FrontdeskNativeRuntimeHints.class)
 public class FrontdeskApplication {
 
-    /**
-     * Dummy instance method to prevent PMD and Checkstyle from treating this as a
-     * utility class.
-     */
-    public void init() {
-        // Not a utility class
-    }
+  /** Dummy instance method to prevent PMD and Checkstyle from treating this as a utility class. */
+  public void init() {
+    // Not a utility class
+  }
 
-    /**
-     * Main method.
-     *
-     * @param args command line arguments
-     */
-    public static void main(final String[] args) {
-        SpringApplication.run(FrontdeskApplication.class, args);
-    }
+  /**
+   * Main method.
+   *
+   * @param args command line arguments
+   */
+  public static void main(final String[] args) {
+    SpringApplication.run(FrontdeskApplication.class, args);
+  }
 }

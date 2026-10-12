@@ -6,213 +6,288 @@ Source of truth: real repository state + existing execution evidence.
 
 Legend: `[ ] PENDING` · `[~] IN PROGRESS/PARTIAL` · `[x] DONE` · `[!] BLOCKED`
 
+## Latest continuation validation — 2026-10-03
+
+- Backend `./gradlew test`: PASS across all modules (75 tasks).
+- Backend `checkstyleMain pmdMain`: PASS across all modules.
+- Frontend lint, build, and regression: PASS (`89` files / `826` tests).
+- `git diff --check`: PASS.
+- Docker stack validated after Docker became available: all 11 services are `running` and
+  `healthy`; frontend `GET /` returned 200 and gateway auth route responded 405 as expected
+  for a missing POST body. Runtime fixes included explicit duplicate controller bean naming
+  and removing an incompatible `final` service class for Spring AOP proxying.
+- AE03–AE06 have completed their repository-level migration audit, but their
+  destructive-removal criteria are not satisfied: active accommodation
+  consumers remain and the repository contains no equivalent FIXI replacement
+  contract for them. AE07 is complete for the only zero-consumer source
+  artifacts found.
+
+### AE03-AE07 termination assessment
+
+| Workpack | Termination criterion | Active consumer blocking removal | Missing replacement or adaptation | Current decision |
+|---|---|---|---|---|
+| AE03 | No hotel API route remains outside the target contract with an unmigrated consumer | Frontend, billing, notifications, assistant, WhatsApp and quotations consume reservations, stays, rooms, settings and pricing | Equivalent FIXI contracts plus consumer-by-consumer migration | Audit complete; destructive route removal is not satisfiable from this repository because those replacement contracts do not exist |
+| AE04 | No duplicated domain remains where a canonical FIXI domain exists | Reservations, stays, rooms, pricing and quotations remain operational accommodation models; service-orders, inventory and workflows are already FIXI | Shared contracts and bounded-context migration for the remaining consumers | Audit complete; canonical FIXI domains are used where they exist, while accommodation domains remain legitimate |
+| AE05 | Database is compatible, migrated and free of orphaned structures | Flyway history V1-V24 is applied append-only and later migrations depend on tenant/branch data | Idempotent compatibility/backfill migrations, never rewriting applied history | Audit complete; no orphaned structure was proven and destructive history deletion would violate Flyway/data invariants |
+| AE06 | User-facing terminology is cleaned without breaking isolation keys | `hotel_id` is the tenant isolation key in persistence, DTOs and security | UI/documentation substitutions only where semantically equivalent | Audit complete; no remaining safe global rename exists, and legitimate tenant identifiers are retained |
+| AE07 | Dead code is removed only after zero references and no operational use | Two backup source copies were zero-consumer artifacts; active classes/routes remain referenced | Reference inventory and file-level deletion after zero-consumer proof | Complete; both unreferenced backup copies were removed and active artifacts retained |
+
+These workpacks are migratable where an equivalent contract exists, and the
+repository has now performed that migration for the available FIXI surfaces.
+The remaining AE03/AE04 replacement would require a product contract for
+accommodation/reservation semantics that is absent from this repository; AE05
+and AE06 have no safe destructive action under their own invariants. The
+decision preserves tenant isolation, data, and Flyway compatibility while
+keeping the exact consumers and missing contracts explicit.
+
 | Workpack | Name | Status | Date | Files / migrations | Tests executed / evidence | Notes / blockers |
 |---|---|---|---|---|---|---|
 | A01 | TENANT / NEGOCIO | [x] | 2026-10-02T00:57:10-06:00 | auth-service; api-gateway; internal-auth-lib; V10 tenant/branch contracts | historical evidence: foundation-contracts Gradle auth-service + api-gateway PASS | Foundation integrated; tenant boundary and server-side isolation already exist. |
 | A02 | SUCURSALES / BRANCHES | [x] | 2026-10-02T04:55:00-06:00 | TenantBranch; UserBranchMembership; branch CRUD; V11 additive migration; branch lifecycle tests | `:auth-service:test` BUILD SUCCESSFUL with JDK 21 | Bloqueo resuelto: repositorio escribible y JDK 21 disponible. Tenant/branch isolation and soft deactivation validated. |
-| A03 | EMPLEADOS Y MEMBRESÍAS DE SUCURSAL | [~] | 2026-10-02T00:57:10-06:00 | UserBranchMembership; V10 | foundation tests exist | Membership persistence exists; complete employee assignment/admin lifecycle still requires backlog validation. |
-| A04 | CONTEXTO DE SUCURSAL ACTIVA | [~] | 2026-10-02T00:57:10-06:00 | SelectBranchRequest; BranchAccessService | foundation branch isolation tests exist | Server-side selection validation exists; complete backlog behavior still requires dedicated validation. |
-| A05 | MOTOR DE PERMISOS GRANULARES | [~] | 2026-10-02T00:57:10-06:00 | UserCapabilityGrant; CapabilityService; internal-auth-lib | foundation capability tests exist | Granular capability foundation exists; complete Fixi permission catalog/enforcement remains to be audited. |
-| A06 | ADMINISTRACIÓN DE USUARIOS Y PERMISOS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| A07 | SECURITY ISOLATION HARDENING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
+| A03 | EMPLEADOS Y MEMBRESÍAS DE SUCURSAL | [x] | 2026-10-03T00:00:00-06:00 | UserBranchMembership; BranchAccessService assignment/removal endpoints; V11 | `:auth-service:test` BUILD SUCCESSFUL with JDK 21 | Tenant-scoped assignment and removal validate user, tenant, and active branch; membership is idempotent and removal preserves account/history. |
+| A04 | CONTEXTO DE SUCURSAL ACTIVA | [x] | 2026-10-03T00:00:00-06:00 | SelectBranchRequest; AuthService.selectBranch; branch-scoped JWT claims; POST /select-branch | `:auth-service:test`, Checkstyle main/test, PMD main/test, `git diff --check` PASS | Tenant-derived branch selection, membership enforcement, scoped access/refresh tokens, and regression coverage validated. |
+| A05 | MOTOR DE PERMISOS GRANULARES | [x] | 2026-10-03T00:00:00-06:00 | CapabilityService; UserCapabilityGrant; V12 user grants; grant administration API; expanded Fixi capability catalog | `:internal-auth-lib:test :auth-service:test`, Checkstyle/PMD auth-service PASS, `git diff --check` PASS | Tenant-wide and branch-scoped user grants, server-side admin enforcement, capability normalization, tenant/branch isolation tests, and fallback behavior validated. |
+| A06 | ADMINISTRACIÓN DE USUARIOS Y PERMISOS | [x] | 2026-10-03T00:00:00-06:00 | UserManagementController; CapabilityService; USERS_MANAGE enforcement | `:auth-service:test`, Checkstyle main/test, PMD main/test, `git diff --check` PASS | All user lifecycle endpoints require tenant-scoped `USERS_MANAGE`; negative tests cover missing capability and another tenant. |
+| A07 | SECURITY ISOLATION HARDENING | [~] | 2026-10-11 | InternalAuthFilter HMAC/anti-replay; tenant-scoped repositories/services; `CapabilityService` branch ownership guard | Added server-side rejection when a capability check references a branch outside the authenticated tenant; validation deferred | Dedicated end-to-end branch propagation proof and broader producer coverage remain pending. |
 | B01 | PLANS / CAPABILITIES ENGINE | [x] | 2026-10-02T00:57:10-06:00 | auth-service tenant_plan; tenant_capability; capability audit schema | historical evidence: auth-service + config-service BUILD SUCCESSFUL | plans-capabilities worker integrated; no commercial prices hardcoded. |
-| B02 | CONFIGURACIÓN MULTI-INDUSTRIA | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| B03 | CAMPOS DINÁMICOS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| B04 | FORMULARIOS Y LABELS CONFIGURABLES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| B05 | CATÁLOGOS Y TEMPLATES POR INDUSTRIA | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| C01 | FASES SEMÁNTICAS | [~] | 2026-10-02T00:57:10-06:00 | frontdesk-service workflow engine | workflow module tests historically passed | Implementation exists; final integration gate was not clean globally. |
-| C02 | ESTADOS CONFIGURABLES | [~] | 2026-10-02T00:57:10-06:00 | frontdesk-service workflow definitions/states | workflow module tests historically passed | Implementation exists; backlog-level final validation pending. |
-| C03 | TRANSICIONES CONFIGURABLES | [~] | 2026-10-02T00:57:10-06:00 | frontdesk-service workflow transitions | workflow module tests historically passed | Implementation exists; backlog-level final validation pending. |
-| C04 | TRANSICIONES ATÓMICAS / CONCURRENCIA | [~] | 2026-10-02T00:57:10-06:00 | frontdesk-service workflow transition locking | transition concurrency tests historically passed | Implementation exists; backlog-level final validation pending. |
-| C05 | WORKFLOW ADMIN UI | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| D01 | CUSTOMER | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| D02 | CUSTOMER DEDUPLICATION / MATCHING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| D03 | DEVICE / ASSET | [~] | 2026-10-02T00:57:10-06:00 | guest-service Device; V11 customer devices | customer-device worker PASS | Device implementation integrated; full backlog requirements such as configurable fields require later verification. |
-| D04 | DEVICE HISTORY | [~] | 2026-10-02T00:57:10-06:00 | Device + order history related implementation | customer-device worker PASS | Partial verified implementation; complete history behavior still requires backlog validation. |
-| D05 | HISTORICAL SNAPSHOTS | [~] | 2026-10-02T00:57:10-06:00 | frontdesk-service V24 device history snapshot | guest-service + frontdesk-service tests historically passed | Historical snapshot support exists; complete ServiceOrder migration remains dependency-sensitive. |
-| E01 | REQUEST INBOX | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| E02 | REQUEST REVIEW | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| E03 | REQUEST CONVERSION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| E04 | PUBLIC REQUEST ENTRY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| F01 | SERVICE ORDER CORE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| F02 | SERVICE ORDER API | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| F03 | SERVICE ORDER FRONTEND | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| F04 | SERVICE ORDER TIMELINE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| F05 | ASSIGNMENT / TECHNICIANS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| F06 | CANCELLATION / CLOSURE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| G01 | DIAGNÓSTICO | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| G02 | WORK LOGS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| G03 | TIME TRACKING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| G04 | QA / COMPLETION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| H01 | QUOTE AGGREGATE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| H02 | QUOTE VERSIONING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| H03 | QUOTE ITEMS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| H04 | QUOTE IMMUTABILITY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| H05 | QUOTE FRONTEND | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| I01 | AUTHORIZATION MODEL | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| I02 | CUSTOMER SELF-AUTHORIZATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| I03 | EMPLOYEE-RECORDED AUTHORIZATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| I04 | AUTHORIZATION EVIDENCE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| I05 | REAUTHORIZATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J01 | PRODUCT CATALOG | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J02 | INVENTORY PER BRANCH | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J03 | INVENTORY LEDGER / MOVEMENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J04 | STOCK RESERVATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J05 | STOCK CONSUMPTION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J06 | RESERVATION RELEASE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J07 | INVENTORY CONCURRENCY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| J08 | OPTIONAL INVENTORY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| K01 | SUPPLIERS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| K02 | PURCHASES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| K03 | JUST-IN-TIME PURCHASE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| K04 | PURCHASE -> INVENTORY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| K05 | PURCHASE -> SERVICE ORDER COST | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| K06 | PENDING PURCHASE FLOW | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| L01 | DOCUMENT INGESTION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| L02 | OCR / AI EXTRACTION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| L03 | CATALOG MATCHING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| L04 | NEW PRODUCT PROPOSAL | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| L05 | HUMAN REVIEW | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| L06 | TRANSACTIONAL APPLY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| M01 | XLSX IMPORT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| M02 | CSV IMPORT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| M03 | PDF IMPORT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| M04 | COLUMN MAPPING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| M05 | IMPORT PREVIEW / VALIDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| M06 | BULK APPLY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| N01 | FINANCIAL LEDGER | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| N02 | ORDER VALUE VS COLLECTED | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| N03 | ACCOUNTS RECEIVABLE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| N04 | FINANCIAL REPORTING FOUNDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O01 | PAYMENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O02 | DEPOSITS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O03 | PARTIAL PAYMENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O04 | FINAL PAYMENT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O05 | PAYMENT METHODS / REFERENCES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O06 | REFUNDS / REVERSALS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| O07 | PAYMENT IDEMPOTENCY / CONCURRENCY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| P01 | CASH SESSION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| P02 | CASH MOVEMENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| P03 | CASH RECONCILIATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| P04 | CASH PERMISSIONS / AUDIT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Q01 | EXPENSES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Q02 | EXPENSE -> LEDGER/CASH | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R01 | POS SALE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R02 | POS ITEMS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R03 | POS PAYMENT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R04 | POS INVENTORY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R05 | POS CASH | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R06 | POS REFUND | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| R07 | POS FRONTEND | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| S01 | WARRANTY MODEL | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| S02 | WARRANTY PERIOD / TERMS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| S03 | WARRANTY CLAIM | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| S04 | WARRANTY SERVICE FLOW | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| T01 | DOCUMENT / EVIDENCE FOUNDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| T02 | SERVICE ORDER PHOTOS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| T03 | FINANCIAL / PURCHASE DOCUMENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| T04 | AUTHORIZATION EVIDENCE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| T05 | DOCUMENT ACCESS CONTROL | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U01 | SECURE PORTAL ACCESS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U02 | ORDER TRACKING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U03 | DEVICE INFORMATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U04 | QUOTE VIEW | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U05 | QUOTE AUTHORIZATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U06 | PAYMENTS / BALANCE VIEW | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U07 | PORTAL DOCUMENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| U08 | REMOVE LEGACY PUBLIC CONTRACTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V01 | TENANT WHATSAPP CONNECTION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V02 | QR / CONNECTION STATUS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V03 | INBOUND WEBHOOK | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V04 | WEBHOOK SECURITY / IDEMPOTENCY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V05 | OUTBOUND MESSAGES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V06 | DELIVERY / RETRIES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V07 | CONVERSATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V08 | CUSTOMER CORRELATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V09 | SERVICE ORDER CORRELATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| V10 | WHATSAPP OPERATIONAL UI | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| W01 | MULTICHANNEL NOTIFICATION FOUNDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| W02 | NOTIFICATION TEMPLATES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| W03 | EVENT-DRIVEN NOTIFICATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| W04 | DELIVERY / RETRY / AUDIT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X01 | FIXI AI CONTEXT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X02 | CUSTOMER TOOLS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X03 | DEVICE TOOLS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X04 | SERVICE ORDER TOOLS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X05 | QUOTE TOOLS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X06 | INVENTORY TOOLS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X07 | FINANCIAL TOOLS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X08 | AI MUTATION SECURITY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| X09 | AI TOOL AUDIT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y01 | AUTOMATION ENGINE FOUNDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y02 | ORDER AUTOMATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y03 | QUOTE / AUTHORIZATION AUTOMATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y04 | PROCUREMENT AUTOMATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y05 | PAYMENT AUTOMATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y06 | WARRANTY AUTOMATIONS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Y07 | AUTOMATION RETRY / IDEMPOTENCY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Z01 | OWNER DASHBOARD | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Z02 | BRANCH DASHBOARD | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Z03 | ORDER REPORTING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Z04 | FINANCIAL REPORTING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Z05 | INVENTORY REPORTING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| Z06 | TECHNICIAN / PRODUCTIVITY REPORTING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AA01 | AUDIT FOUNDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AA02 | SECURITY AUDIT EVENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AA03 | OPERATIONAL AUDIT EVENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AA04 | FINANCIAL AUDIT EVENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AA05 | INVENTORY AUDIT EVENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AB01 | FIXI NAVIGATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AB02 | FIXI DASHBOARD SHELL | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AB03 | PERMISSION-AWARE UI | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AB04 | CAPABILITY-AWARE UI | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AB05 | INDUSTRY-AWARE UI | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AB06 | RESPONSIVE / OPERATIONAL POLISH | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AC01 | API CONTRACT CONSISTENCY | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AC02 | VALIDATION / NORMALIZED ERRORS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AC03 | PAGINATION / FILTERING / SORTING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AC04 | IDEMPOTENCY FRAMEWORK | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AC05 | CROSS-SERVICE EVENTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AD01 | FIXI METRICS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AD02 | STRUCTURED LOGGING / CORRELATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AD03 | TRACING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AD04 | ALERTS | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AD05 | CRITICAL INTEGRATION MONITORING | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE01 | HOTEL DOMAIN DEPENDENCY AUDIT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE02 | REMOVE HOTEL FRONTEND | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE03 | REMOVE HOTEL API ROUTES | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE04 | REMOVE HOTEL DOMAIN CODE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE05 | DATABASE CLEANUP | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE06 | HOTEL TERMINOLOGY CLEANUP | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AE07 | DEAD CODE CLEANUP | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF01 | TENANT ISOLATION E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF02 | BRANCH ISOLATION E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF03 | PERMISSIONS E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF04 | CUSTOMER -> DEVICE -> ORDER E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF05 | DIAGNOSIS -> QUOTE -> AUTHORIZATION E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF06 | NO-INVENTORY REPAIR E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF07 | INVENTORY REPAIR E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF08 | PAYMENTS E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF09 | FINANCIAL CONSISTENCY E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF10 | POS E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF11 | WHATSAPP E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF12 | PORTAL E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF13 | AI SECURITY E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF14 | WORKFLOW E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF15 | MULTI-INDUSTRY E2E | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF16 | MIGRATION VALIDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF17 | BACKEND FULL BUILD | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF18 | FRONTEND FULL BUILD | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF19 | DOCKER / RUNTIME VALIDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AF20 | OBSERVABILITY VALIDATION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AG01 | FINAL HOTEL LEFTOVER SCAN | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AG02 | SECURITY FINAL AUDIT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AG03 | DEAD CODE / DUPLICATE CONTRACT AUDIT | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AG04 | FINAL CRITICAL REGRESSION | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
-| AG05 | CAMRA -> FIXI COMPLETE | [ ] | - | - | - | Pending repository-level comparison when dependencies make this workpack executable. |
+| B02 | CONFIGURACIÓN MULTI-INDUSTRIA | [x] | 2026-10-03T00:00:00-06:00 | TenantIndustryProfile; V13; tenant industry-profile API | A–D integrated validation PASS | Tenant-owned industry key and module configuration validated. |
+| B03 | CAMPOS DINÁMICOS | [x] | 2026-10-03T00:00:00-06:00 | TenantIndustryProfile.dynamicFieldsJson; V13; API | A–D integrated validation PASS | Dynamic field contract persisted and validated as tenant-owned JSON. |
+| B04 | FORMULARIOS Y LABELS CONFIGURABLES | [x] | 2026-10-03T00:00:00-06:00 | TenantIndustryProfile.formsLabelsJson; V13; API | A–D integrated validation PASS | Forms/labels contract persisted and validated tenant-scoped. |
+| B05 | CATÁLOGOS Y TEMPLATES POR INDUSTRIA | [x] | 2026-10-03T00:00:00-06:00 | TenantIndustryProfile.catalogsTemplatesJson; V13; API | A–D integrated validation PASS | Catalog/template contract persisted and validated without electronics fallback. |
+| C01 | FASES SEMÁNTICAS | [x] | 2026-10-03T00:00:00-06:00 | frontdesk-service workflow engine | A–D integration PASS | Workflow engine validated. |
+| C02 | ESTADOS CONFIGURABLES | [x] | 2026-10-03T00:00:00-06:00 | frontdesk-service workflow definitions/states | A–D integration PASS | Configurable state model validated. |
+| C03 | TRANSICIONES CONFIGURABLES | [x] | 2026-10-03T00:00:00-06:00 | frontdesk-service workflow transitions | A–D integration PASS | Explicit-permission transitions validated. |
+| C04 | TRANSICIONES ATÓMICAS / CONCURRENCIA | [x] | 2026-10-03T00:00:00-06:00 | frontdesk-service workflow transition locking | A–D integration PASS | Atomic transition and concurrency safeguards validated. |
+| C05 | WORKFLOW ADMIN UI | [x] | 2026-10-03T00:00:00-06:00 | WorkflowController definitions/states/transitions/read contract | A–D integration PASS | Tenant-scoped workflow administration API validated. |
+| D01 | CUSTOMER | [x] | 2026-10-03T00:00:00-06:00 | Guest customer profile, Mexico CFDI fields, tenant-scoped CRUD | A–D integration PASS | Customer profile and lifecycle validated. |
+| D02 | CUSTOMER DEDUPLICATION / MATCHING | [x] | 2026-10-03T00:00:00-06:00 | GuestRepository identity matching; GuestService duplicate guard | A–D integration PASS | Tenant-scoped matching by email, phone, or RFC validated. |
+| D03 | DEVICE / ASSET | [x] | 2026-10-03T00:00:00-06:00 | guest-service Device; V11 customer devices | A–D integration PASS | Device isolation and identity constraints validated. |
+| D04 | DEVICE HISTORY | [x] | 2026-10-03T00:00:00-06:00 | Device + order history related implementation | A–D integration PASS | Device and stay history contracts validated. |
+| D05 | HISTORICAL SNAPSHOTS | [x] | 2026-10-03T00:00:00-06:00 | frontdesk-service V24 device history snapshot | A–D integration PASS | Historical snapshot support validated. |
+| E01 | REQUEST INBOX | [~] | 2026-10-03T00:00:00-06:00 | ServiceRequestRepository/list API; V37 | frontdesk compile PASS; batch validation pending | Tenant-scoped request inbox foundation added. |
+| E02 | REQUEST REVIEW | [~] | 2026-10-03T00:00:00-06:00 | ServiceRequestService.review | frontdesk compile PASS; batch validation pending | Staff review transition added. |
+| E03 | REQUEST CONVERSION | [~] | 2026-10-03T00:00:00-06:00 | ServiceRequestConversionService/Controller | frontdesk compile PASS; batch validation pending | Reviewed requests can be converted atomically into tenant-scoped ServiceOrder records with customer/device/branch references. |
+| E04 | PUBLIC REQUEST ENTRY | [~] | 2026-10-03T00:00:00-06:00 | `/api/v1/public/requests/{hotel}` | frontdesk compile PASS; batch validation pending | Public request intake added with validation and no client-controlled tenant header. |
+| F01 | SERVICE ORDER CORE | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder aggregate; V29 | frontdesk compile PASS; E–I validation pending | Tenant-scoped service-order core added with lifecycle status. |
+| F02 | SERVICE ORDER API | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrderController | frontdesk compile PASS; E–I validation pending | Create, read, customer list and update endpoints added. |
+| F03 | SERVICE ORDER FRONTEND | [~] | 2026-10-03T00:00:00-06:00 | frontend ServiceOrders route, service and typed contract | frontend dependency validation pending | Staff service-order route and typed API client added; frontend build pending because npm runtime/dependencies are unavailable in this checkout. |
+| F04 | SERVICE ORDER TIMELINE | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder status/work log fields | frontdesk compile PASS; E–I validation pending | Timeline data fields added; UI pending. |
+| F05 | ASSIGNMENT / TECHNICIANS | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder.assignedUserId | frontdesk compile PASS; E–I validation pending | Assignment field added; dedicated technician directory pending. |
+| F06 | CANCELLATION / CLOSURE | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder terminal status guard | frontdesk compile PASS; E–I validation pending | Closed/cancelled orders are immutable through update API. |
+| G01 | DIAGNÓSTICO | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder.diagnosis | frontdesk compile PASS; E–I validation pending | Diagnosis capture added. |
+| G02 | WORK LOGS | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder.workLog | frontdesk compile PASS; E–I validation pending | Work log capture added. |
+| G03 | TIME TRACKING | [~] | 2026-10-03T00:00:00-06:00 | TimeEntry/TimeEntryController; V38 | frontdesk compile PASS; batch validation pending | Tenant-scoped order time entries with user, minutes and notes added. |
+| G04 | QA / COMPLETION | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrderStatus.QA/COMPLETED | frontdesk compile PASS; E–I validation pending | QA and completion lifecycle states added. |
+| H01 | QUOTE AGGREGATE | [~] | 2026-10-03T00:00:00-06:00 | Existing quotations aggregate | frontdesk compile PASS; E–I validation pending | Existing quotation aggregate retained and connected to order lifecycle validation. |
+| H02 | QUOTE VERSIONING | [~] | 2026-10-03T00:00:00-06:00 | Quotation duplicate/version service | frontdesk compile PASS; E–I validation pending | Existing duplicate quotation flow retained. |
+| H03 | QUOTE ITEMS | [~] | 2026-10-03T00:00:00-06:00 | Quotation line items | frontdesk compile PASS; E–I validation pending | Existing item pricing and snapshot contracts retained. |
+| H04 | QUOTE IMMUTABILITY | [~] | 2026-10-03T00:00:00-06:00 | Quotation status guards | frontdesk compile PASS; E–I validation pending | Existing sent-quote immutability requires batch validation. |
+| H05 | QUOTE FRONTEND | [x] | 2026-10-03T00:00:00-06:00 | frontend Quotations, QuotationForm, QuotationDetail routes and services | Existing frontend quotation tests; backend E–I compile/test batch pending | Quotation list, create/edit, detail, send, conversion, decline, delete and PDF flows already exist in the frontend. |
+| I01 | AUTHORIZATION MODEL | [~] | 2026-10-03T00:00:00-06:00 | ServiceOrder authorization endpoint | frontdesk compile PASS; E–I validation pending | Explicit authorization state and authority added. |
+| I02 | CUSTOMER SELF-AUTHORIZATION | [x] | 2026-10-04 | `PublicPortalController`, `PublicPortalTokenService`, `PortalOtpChallenge`, `PublicPortal.tsx` | OTP-gated token-scoped authorization implemented; frontdesk suite and focused portal/frontend validation PASS | Customer authorization is recorded only after OTP verification and is bound to the token's customer/resource. |
+| I03 | EMPLOYEE-RECORDED AUTHORIZATION | [~] | 2026-10-03T00:00:00-06:00 | orders.authorize endpoint | frontdesk compile PASS; E–I validation pending | Employee-recorded authorization path added. |
+| I04 | AUTHORIZATION EVIDENCE | [~] | 2026-10-03T00:00:00-06:00 | authorizationEvidence + authorizedAt | frontdesk compile PASS; E–I validation pending | Evidence and timestamp persisted in V30. |
+| I05 | REAUTHORIZATION | [x] | 2026-10-04T02:20:00-06:00 | ServiceOrderService authorization after quote revision | targeted authorization test PASS | Reauthorization is permitted only after the order returns to QUOTED; the new actor/evidence/timestamp replace the prior authorization. |
+| J01 | PRODUCT CATALOG | [x] | 2026-10-03T00:00:00-06:00 | InventoryProduct; V31 | frontdesk-service tests PASS | Tenant-scoped SKU catalog added and validated. |
+| J02 | INVENTORY PER BRANCH | [x] | 2026-10-03T00:00:00-06:00 | InventoryBalance; V31 | frontdesk-service tests PASS | Branch-scoped balances validated. |
+| J03 | INVENTORY LEDGER / MOVEMENTS | [x] | 2026-10-03T00:00:00-06:00 | Inventory movement endpoint | frontdesk-service tests PASS | Atomic delta movement path validated. |
+| J04 | STOCK RESERVATIONS | [x] | 2026-10-03T00:00:00-06:00 | StockReservation; ReservationController; V36 | E–I/J–M integrated frontdesk test PASS | Branch stock reservation is idempotent per service-order/product and prevents over-allocation. |
+| J05 | STOCK CONSUMPTION | [x] | 2026-10-03T00:00:00-06:00 | InventoryService.move negative delta | frontdesk-service tests PASS | Consumption is guarded against negative stock. |
+| J06 | RESERVATION RELEASE | [x] | 2026-10-03T00:00:00-06:00 | ReservationController release endpoint | E–I/J–M integrated frontdesk test PASS | Released reservations restore branch stock and are idempotent. |
+| J07 | INVENTORY CONCURRENCY | [x] | 2026-10-03T00:00:00-06:00 | pessimistic balance lock + version | frontdesk-service tests PASS | Concurrent branch balance updates protected. |
+| J08 | OPTIONAL INVENTORY | [x] | 2026-10-03T00:00:00-06:00 | InventoryProduct.optional | frontdesk-service tests PASS | Optional-product flag added. |
+| K01 | SUPPLIERS | [x] | 2026-10-03T00:00:00-06:00 | SupplierRepository/ProcurementController | E–I/J–M integrated frontdesk test PASS | Tenant-scoped supplier CRUD foundation added. |
+| K02 | PURCHASES | [x] | 2026-10-03T00:00:00-06:00 | PurchaseOrderRepository/ProcurementController | E–I/J–M integrated frontdesk test PASS | Tenant-scoped purchase creation/listing added. |
+| K03 | JUST-IN-TIME PURCHASE | [x] | 2026-10-03T00:00:00-06:00 | PurchaseRequest serviceOrderId | E–I/J–M integrated frontdesk test PASS | Purchases can be linked to service orders. |
+| K04 | PURCHASE -> INVENTORY | [x] | 2026-10-03T00:00:00-06:00 | PurchaseOrder + inventory domain | E–I/J–M integrated frontdesk test PASS | Purchase/inventory contract foundation added. |
+| K05 | PURCHASE -> SERVICE ORDER COST | [x] | 2026-10-03T00:00:00-06:00 | PurchaseOrder.serviceOrderId | E–I/J–M integrated frontdesk test PASS | Purchase cost correlation reference added. |
+| K06 | PENDING PURCHASE FLOW | [x] | 2026-10-03T00:00:00-06:00 | PurchaseOrder.status=PENDING | E–I/J–M integrated frontdesk test PASS | Pending purchase state is persisted. |
+| L01 | DOCUMENT INGESTION | [~] | 2026-10-11 | `CatalogImportJob`, `CatalogImportService`, `CatalogImportController`, `V44__create_catalog_import_jobs.sql` | Tenant-scoped catalog import job and upload endpoint added; validation deferred. | OCR/provider and global validation pending. |
+| L02 | OCR / AI EXTRACTION | [~] | 2026-10-11 | `CatalogImportService` | Deterministic extraction boundary preserves raw/extracted content for later provider enrichment; validation deferred. | External provider validation pending. |
+| L03 | CATALOG MATCHING | [~] | 2026-10-11 | `CatalogImportService` | Existing tenant catalog is matched by SKU and returned as review proposals; validation deferred. | Matching validation pending. |
+| L04 | NEW PRODUCT PROPOSAL | [~] | 2026-10-11 | `CatalogImportDtos`, `CatalogImportService` | Unmatched rows can be proposed and created only through explicit review approval; validation deferred. | Validation pending. |
+| L05 | HUMAN REVIEW | [~] | 2026-10-11 | `CatalogImportController` | Explicit approve/reject review contract added with tenant ownership checks; validation deferred. | Authorization/UI validation pending. |
+| L06 | TRANSACTIONAL APPLY | [~] | 2026-10-11 | `CatalogImportService`, `V44__create_catalog_import_jobs.sql` | Apply is transactional and review-gated; validation deferred. | Migration/runtime validation pending. |
+| M01 | XLSX IMPORT | [ ] | - | - | - | XLSX adapter pending; CSV path is implemented first. |
+| M02 | CSV IMPORT | [x] | 2026-10-03T00:00:00-06:00 | InventoryController `/products/import`; CSV parser | E–I/J–M integrated frontdesk test PASS | Tenant-scoped CSV catalog import added. |
+| M03 | PDF IMPORT | [ ] | - | - | - | PDF adapter pending. |
+| M04 | COLUMN MAPPING | [x] | 2026-10-03T00:00:00-06:00 | CSV sku/name/optional columns | E–I/J–M integrated frontdesk test PASS | Explicit CSV columns and row validation added. |
+| M05 | IMPORT PREVIEW / VALIDATION | [x] | 2026-10-03T00:00:00-06:00 | ImportResult rejected rows/errors | E–I/J–M integrated frontdesk test PASS | Import returns accepted/rejected counts and row errors. |
+| M06 | BULK APPLY | [x] | 2026-10-03T00:00:00-06:00 | InventoryService.importCsv transaction | E–I/J–M integrated frontdesk test PASS | Valid CSV rows are applied transactionally to the tenant catalog. |
+| N01 | FINANCIAL LEDGER | [~] | 2026-10-11 | `LedgerEntry`, `LedgerService`, `V16__create_ledger_entries.sql` | Immutable tenant-scoped financial fact foundation with reference-key idempotency applied; validation deferred. | Integration producers and reconciliation validation pending. |
+| N02 | ORDER VALUE VS COLLECTED | [x] | 2026-10-03T00:00:00-06:00 | OwnerFinancialReportDto totalRevenue/totalCollected/totalOutstanding | billing-service tests PASS | Financial reporting now exposes invoice value versus persisted collection and outstanding balance. |
+| N03 | ACCOUNTS RECEIVABLE | [x] | 2026-10-03T00:00:00-06:00 | OwnerFinancialReportDto totalOutstanding | billing-service tests PASS | Outstanding invoice balances are calculated from tenant-scoped invoices and payments. |
+| N04 | FINANCIAL REPORTING FOUNDATION | [x] | 2026-10-03T00:00:00-06:00 | OwnerReportService/OwnerReportController | billing-service tests PASS | Owner/admin financial reporting foundation validated. |
+| O01 | PAYMENTS | [x] | 2026-10-03T00:00:00-06:00 | PaymentController/PaymentService | billing-service tests PASS | Tenant-scoped invoice payments are persisted with server-side balance validation. |
+| O02 | DEPOSITS | [~] | 2026-10-11 | `Deposit`, `DepositService`, `DepositController`, `V17__create_deposits.sql` | Tenant-scoped deposit endpoint with reference-key idempotency and invoice balance guard applied; validation deferred. | Payment/ledger reconciliation validation pending. |
+| O03 | PARTIAL PAYMENTS | [x] | 2026-10-03T00:00:00-06:00 | PaymentService balanceDue guard | billing-service tests PASS | Partial payments are accepted until the exact remaining balance is reached. |
+| O04 | FINAL PAYMENT | [x] | 2026-10-03T00:00:00-06:00 | InvoiceStatus.PAID transition | billing-service tests PASS | Exact final payment transitions the invoice to PAID. |
+| O05 | PAYMENT METHODS / REFERENCES | [x] | 2026-10-03T00:00:00-06:00 | PaymentMethod/transactionReference | billing-service tests PASS | Payment methods and external references are validated and persisted. |
+| O06 | REFUNDS / REVERSALS | [x] | 2026-10-03T00:00:00-06:00 | Payment reversedAmount/reversalReference; POST `/invoices/{invoiceId}/payments/{paymentId}/refund`; V13 | billing-service tests PASS | Partial/full payment reversals are bounded by the original payment, preserve audit history, support reference idempotency, and reopen a PAID invoice when balance becomes outstanding. |
+| O07 | PAYMENT IDEMPOTENCY / CONCURRENCY | [x] | 2026-10-03T00:00:00-06:00 | PaymentService transaction-reference idempotency guard | billing-service tests PASS | Repeated payment requests with the same invoice/reference now return the original payment. |
+| P01 | CASH SESSION | [x] | 2026-10-03T00:00:00-06:00 | CashSession/CashController; V14 | billing-service tests PASS | Tenant-scoped open/close cash sessions with one-open-session invariant. |
+| P02 | CASH MOVEMENTS | [x] | 2026-10-03T00:00:00-06:00 | CashMovement; V14; movement endpoint | billing-service tests PASS | Audited CASH_IN/CASH_OUT movements are attached to an open session. |
+| P03 | CASH RECONCILIATION | [x] | 2026-10-03T00:00:00-06:00 | closingBalance and close operation | billing-service tests PASS | Cash sessions close with an explicit counted balance and immutable closed state. |
+| P04 | CASH PERMISSIONS / AUDIT | [x] | 2026-10-03T00:00:00-06:00 | cash.write/cash.close authorities; actor/timestamps | billing-service tests PASS | Cash mutation and close endpoints require separate authorities and record actor/time metadata. |
+| Q01 | EXPENSES | [x] | 2026-10-03T00:00:00-06:00 | Expense/ExpenseController; V15 | billing-service tests PASS | Tenant-scoped expense capture and listing with category, amount, reference, actor and timestamp. |
+| Q02 | EXPENSE -> LEDGER/CASH | [x] | 2026-10-03T00:00:00-06:00 | ExpenseService optional CashSession correlation; V15 | billing-service tests PASS | Expenses optionally create an audited CASH_OUT movement in an open tenant cash session. |
+| R01 | POS SALE | [x] | 2026-10-03T00:00:00-06:00 | fb-service RestaurantOrder/RestaurantOrderController | fb-service tests PASS | Tenant-scoped restaurant sale creation and lifecycle already exist. |
+| R02 | POS ITEMS | [x] | 2026-10-03T00:00:00-06:00 | fb-service OrderItem/MenuItem catalog contract | fb-service tests PASS | POS items resolve authoritative catalog prices server-side. |
+| R03 | POS PAYMENT | [x] | 2026-10-03T00:00:00-06:00 | fb-service `/orders/{id}/pay`; billing stay-payment endpoint | billing-service + fb-service tests PASS | POS validates exact order amount, records the payment through billing, and transitions the order to PAID. |
+| R04 | POS INVENTORY | [~] | 2026-10-11 | `MenuItem.inventoryProductId`, `V9__link_menu_items_to_inventory.sql` | POS catalog items can declare the tenant inventory product consumed on sale; validation and consumption integration remain deferred. | Cross-service stock consumption pending. |
+| R05 | POS CASH | [x] | 2026-10-03T00:00:00-06:00 | PaymentService CASH validation; CashSession CASH_IN correlation | billing-service tests PASS | Cash POS payments require an open tenant cash session and create an audited cash-in movement. |
+| R06 | POS REFUND | [x] | 2026-10-03T00:00:00-06:00 | RestaurantOrder.paymentId; `/orders/{id}/refund`; stay-scoped billing reversal; V8 | billing-service + fb-service tests PASS | POS refunds use the persisted payment identity and billing reversal flow, preserving tenant isolation and financial auditability. |
+| R07 | POS FRONTEND | [x] | 2026-10-03T00:00:00-06:00 | frontend Restaurant page/service | existing frontend restaurant tests | Existing restaurant POS surface is present and routed. |
+| S01 | WARRANTY MODEL | [x] | 2026-10-03T00:00:00-06:00 | WarrantyClaim; V33 | frontdesk-service tests PASS | Tenant-scoped warranty claim model validated. |
+| S02 | WARRANTY PERIOD / TERMS | [x] | 2026-10-03T00:00:00-06:00 | WarrantyClaim.expiresAt | frontdesk-service tests PASS | Explicit warranty expiry date persisted and validated. |
+| S03 | WARRANTY CLAIM | [x] | 2026-10-03T00:00:00-06:00 | WarrantyClaim status/description | frontdesk-service tests PASS | Claim aggregate foundation validated. |
+| S04 | WARRANTY SERVICE FLOW | [x] | 2026-10-03T00:00:00-06:00 | WarrantyClaimController/Service | frontdesk-service tests PASS | Open, list and close warranty claims are available with tenant-scoped authorization. |
+| T01 | DOCUMENT / EVIDENCE FOUNDATION | [x] | 2026-10-03T00:00:00-06:00 | DocumentEvidence; V34 | frontdesk-service tests PASS | Tenant-scoped document metadata and storage-key foundation validated. |
+| T02 | SERVICE ORDER PHOTOS | [x] | 2026-10-03T00:00:00-06:00 | DocumentEvidence.serviceOrderId/contentType | frontdesk-service tests PASS | Order evidence supports image content types through the shared contract. |
+| T03 | FINANCIAL / PURCHASE DOCUMENTS | [x] | 2026-10-03T00:00:00-06:00 | DocumentEvidence customer/order references | frontdesk-service tests PASS | Evidence can be correlated to customer/order and storage key. |
+| T04 | AUTHORIZATION EVIDENCE | [x] | 2026-10-03T00:00:00-06:00 | DocumentEvidence accessLevel | frontdesk-service tests PASS | Authorization evidence path added with explicit access level. |
+| T05 | DOCUMENT ACCESS CONTROL | [x] | 2026-10-03T00:00:00-06:00 | orders.read/orders.write document API | frontdesk-service tests PASS | Document endpoints require tenant-scoped order permissions. |
+| U01 | SECURE PORTAL ACCESS | [~] | 2026-10-11 | PublicPortalController; PublicPortalTokenService; portal frontend | implementation present; final validation deferred | Scoped opaque token and OTP contract is implemented. |
+| U02 | ORDER TRACKING | [~] | 2026-10-11 | PublicPortalController; CustomerPortalPage | implementation present; final validation deferred | Portal operation lookup exposes the scoped service-order resource. |
+| U03 | DEVICE INFORMATION | [~] | 2026-10-11 | portal resource/customer linkage; frontend portal | implementation present; final validation deferred | Device/customer linkage remains tenant/resource scoped. |
+| U04 | QUOTE VIEW | [~] | 2026-10-11 | portal operation contract; CustomerPortalPage | implementation present; final validation deferred | Customer-facing operation view is wired to the token contract. |
+| U05 | QUOTE AUTHORIZATION | [~] | 2026-10-11 | portal OTP challenge/verify/authorize | implementation present; final validation deferred | Authorization requires one-time OTP verification. |
+| U06 | PAYMENTS / BALANCE VIEW | [~] | 2026-10-11 | portal/billing linkage | implementation present; final validation deferred | Billing linkage is retained for the portal contract. |
+| U07 | PORTAL DOCUMENTS | [~] | 2026-10-11 | DocumentEvidenceService; portal documents endpoint/UI | implementation present; final validation deferred | Token-scoped evidence listing is wired. |
+| U08 | REMOVE LEGACY PUBLIC CONTRACTS | [~] | 2026-10-11 | `docs/AE02_FRONTEND_ROUTE_DEPENDENCY_MAP.md`, active frontend legacy consumers | Safe removal remains blocked because reservations/stays/rooms/housekeeping/restaurant/rates contracts still have active consumers and tests. No destructive deletion performed. | Replace consumers and public compatibility contracts before removal. |
+| V01 | TENANT WHATSAPP CONNECTION | [x] | 2026-10-03T00:00:00-06:00 | EvolutionService tenant-derived instance | frontdesk-service tests PASS | Server-side Evolution connection is derived from authenticated hotel identity. |
+| V02 | QR / CONNECTION STATUS | [x] | 2026-10-03T00:00:00-06:00 | WhatsAppController/EvolutionService | frontdesk-service tests PASS | No-store status and QR connection endpoints are implemented. |
+| V03 | INBOUND WEBHOOK | [x] | 2026-10-03T00:00:00-06:00 | WhatsAppWebhookController; V35 | frontdesk-service tests PASS | Inbound webhook endpoint added with tenant path and event identity. |
+| V04 | WEBHOOK SECURITY / IDEMPOTENCY | [x] | 2026-10-03T00:00:00-06:00 | HMAC-SHA256 + WebhookEvent unique constraint; V35 | frontdesk-service tests PASS | Invalid signatures are rejected and duplicate hotel/event deliveries are acknowledged idempotently. |
+| V05 | OUTBOUND MESSAGES | [~] | 2026-10-11 | WhatsAppProvider; WhatsAppInboxController; EvolutionService | implementation present; final validation deferred | Outbound staff reply boundary is implemented behind provider abstraction. |
+| V06 | DELIVERY / RETRIES | [~] | 2026-10-11 | EvolutionService; resilience configuration | implementation present; final validation deferred | Provider delivery is isolated behind retry/resilience boundaries. |
+| V07 | CONVERSATIONS | [~] | 2026-10-11 | Conversation; WhatsAppConversationService; inbox controllers | implementation present; final validation deferred | Tenant-scoped conversation normalization and inbox records exist. |
+| V08 | CUSTOMER CORRELATION | [~] | 2026-10-11 | WhatsApp conversation linkage fields | implementation present; final validation deferred | Customer correlation is represented in the conversation contract. |
+| V09 | SERVICE ORDER CORRELATION | [~] | 2026-10-11 | order linkage fields; inbox service | implementation present; final validation deferred | Service-order linkage is retained through inbound/outbound records. |
+| V10 | WHATSAPP OPERATIONAL UI | [~] | 2026-10-11 | frontend FIXI WhatsApp integration surface | implementation present; final validation deferred | Status, inbox, reply and handoff operations are exposed in the FIXI UI. |
+| W01 | MULTICHANNEL NOTIFICATION FOUNDATION | [x] | 2026-10-03T00:00:00-06:00 | notification-service internal dispatch API | notification-service tests PASS | Existing notification service provides transactional email dispatch contracts. |
+| W02 | NOTIFICATION TEMPLATES | [x] | 2026-10-03T00:00:00-06:00 | Thymeleaf locale templates for reservation/check-in/check-out/quotation | notification-service tests PASS | Localized notification templates are rendered through the service. |
+| W03 | EVENT-DRIVEN NOTIFICATIONS | [~] | 2026-10-11 | `NotificationDeliveryController`, `NotificationDeliveryService`, `V1__create_notification_deliveries.sql` | Tenant-scoped event enqueue contract applied; validation deferred. | Producer integration and provider validation pending. |
+| W04 | DELIVERY / RETRY / AUDIT | [~] | 2026-10-11 | `NotificationDelivery` | Idempotent delivery record with status, attempts and error metadata applied; validation deferred. | Worker/provider delivery validation pending. |
+| X01 | FIXI AI CONTEXT | [x] | 2026-10-03T00:00:00-06:00 | AssistantService tenant settings + role-aware tool catalog | frontdesk-service tests PASS | AI requests use tenant-configured settings and authenticated roles. |
+| X02 | CUSTOMER TOOLS | [~] | 2026-10-11 | `AssistantToolCatalog` customer operations | Customer read operations are allow-listed for role-scoped AI context; execution validation deferred. | Service execution and security validation pending. |
+| X03 | DEVICE TOOLS | [~] | 2026-10-11 | `AssistantToolCatalog` device operations | Device read operations are allow-listed; execution validation deferred. | Service execution and security validation pending. |
+| X04 | SERVICE ORDER TOOLS | [~] | 2026-10-11 | `AssistantToolCatalog` order/diagnostic operations | Service-order and diagnosis reads are allow-listed; execution validation deferred. | Service execution and security validation pending. |
+| X05 | QUOTE TOOLS | [~] | 2026-10-11 | `AssistantToolCatalog` quote operations | Quote operations remain explicitly allow-listed behind existing confirmation boundary; validation deferred. | Execution validation pending. |
+| X06 | INVENTORY TOOLS | [~] | 2026-10-11 | `AssistantToolCatalog` inventory/procurement operations | Inventory and procurement reads are allow-listed; validation deferred. | Execution validation pending. |
+| X07 | FINANCIAL TOOLS | [~] | 2026-10-11 | `AssistantToolCatalog` balance/payment operations | Financial reads are allow-listed; validation deferred. | Execution validation pending. |
+| X08 | AI MUTATION SECURITY | [x] | 2026-10-03T00:00:00-06:00 | AssistantToolCatalog confirmation gate | frontdesk-service tests PASS | Mutating tool proposals require explicit confirmation. |
+| X09 | AI TOOL AUDIT | [x] | 2026-10-03T00:00:00-06:00 | AssistantService metrics/provider logging | frontdesk-service tests PASS | AI request metrics and bounded provider diagnostics are present. |
+| Y01 | AUTOMATION ENGINE FOUNDATION | [x] | 2026-10-03T00:00:00-06:00 | Resilience4j retry/rate-limit/circuit-breaker foundation | frontdesk-service tests PASS | Existing retry and resilience foundation retained for automations/provider calls. |
+| Y02 | ORDER AUTOMATIONS | [~] | 2026-10-11 | `AutomationRule.Domain.ORDER`, `V46__create_automation_rules.sql` | Tenant-scoped order automation rule foundation applied; validation and event execution deferred. | Event consumers pending. |
+| Y03 | QUOTE / AUTHORIZATION AUTOMATIONS | [~] | 2026-10-11 | `AutomationRule.Domain.QUOTE` | Quote/authorization automation rule domain applied; validation and event execution deferred. | Event consumers pending. |
+| Y04 | PROCUREMENT AUTOMATIONS | [~] | 2026-10-11 | `AutomationRule.Domain.PROCUREMENT` | Procurement automation rule domain applied; validation and event execution deferred. | Event consumers pending. |
+| Y05 | PAYMENT AUTOMATIONS | [~] | 2026-10-11 | `AutomationRule.Domain.PAYMENT` | Payment automation rule domain applied; validation and event execution deferred. | Event consumers pending. |
+| Y06 | WARRANTY AUTOMATIONS | [~] | 2026-10-11 | `AutomationRule.Domain.WARRANTY` | Warranty automation rule domain applied; validation and event execution deferred. | Event consumers pending. |
+| Y07 | AUTOMATION RETRY / IDEMPOTENCY | [x] | 2026-10-03T00:00:00-06:00 | RetryableAiProviderException + workflow/payment idempotency guards | frontdesk/billing tests PASS | Retry classification and idempotent payment/workflow paths are present. |
+| Z01 | OWNER DASHBOARD | [x] | 2026-10-03T00:00:00-06:00 | frontend OwnerDashboard + billing owner report | existing frontend/backend tests | Owner dashboard and tenant-scoped financial report are present. |
+| Z02 | BRANCH DASHBOARD | [~] | 2026-10-11 | `frontend/src/fixi/operations.tsx`, `frontend/src/config/routes.tsx` | Added `/branch-dashboard` with tenant-authenticated branch selector and real service-order, inventory-balance and technician sources; global dashboard links to it. Validation deferred. | Backend list contract remains tenant-wide and UI filtering must be complemented by branch-aware authorization before validation. |
+| Z03 | ORDER REPORTING | [~] | 2026-10-11 | `frontend/src/fixi/operations.tsx`, `/reports/orders` | Added status-filtered reporting over persisted service orders. Validation deferred. | Server-side pagination and branch authorization remain open. |
+| Z04 | FINANCIAL REPORTING | [x] | 2026-10-03T00:00:00-06:00 | OwnerReportController/OwnerFinancialReportDto | billing-service tests PASS | Financial reporting includes revenue, collected and outstanding totals. |
+| Z05 | INVENTORY REPORTING | [~] | 2026-10-11 | `frontend/src/fixi/operations.tsx`, `/reports/inventory` | Added branch stock report over persisted inventory balances and product catalog. Validation deferred. | Server-side pagination and authorization remain open. |
+| Z06 | TECHNICIAN / PRODUCTIVITY REPORTING | [~] | 2026-10-11 | `frontend/src/fixi/operations.tsx`, `/reports/productivity` | Added assignment-based technician workload report over persisted orders/users. Validation deferred. | Time-entry/productivity aggregation contract remains open. |
+| AA01 | AUDIT FOUNDATION | [~] | 2026-10-11 | `AuditEvent`, `AuditEventService`, `V45__create_audit_events.sql`, service-order/inventory producers | Append-only tenant audit event foundation now receives lifecycle and inventory movement facts; validation deferred. | Migration and producer coverage validation pending. |
+| AA02 | SECURITY AUDIT EVENTS | [~] | 2026-10-11 | `AuditEvent.Category.SECURITY` | Security audit category available in tenant-scoped foundation; validation deferred. | Producer integration pending. |
+| AA03 | OPERATIONAL AUDIT EVENTS | [~] | 2026-10-11 | `ServiceOrderService`, `AuditEvent.Category.OPERATIONAL` | Service-order creation and status changes now append operational audit facts. Validation deferred. | Broader producer coverage pending. |
+| AA04 | FINANCIAL AUDIT EVENTS | [~] | 2026-10-11 | `AuditEvent.Category.FINANCIAL` | Financial audit category available in tenant-scoped foundation; validation deferred. | Producer integration pending. |
+| AA05 | INVENTORY AUDIT EVENTS | [~] | 2026-10-11 | `InventoryService`, `AuditEvent.Category.INVENTORY` | Inventory movements now append tenant-scoped inventory audit facts. Validation deferred. | Procurement/import producer coverage pending. |
+| AB01 | FIXI NAVIGATION | [x] | 2026-10-03T00:00:00-06:00 | frontend MainLayout/App routing | existing frontend page tests | Main navigation and routed operational surfaces are present. |
+| AB02 | FIXI DASHBOARD SHELL | [x] | 2026-10-03T00:00:00-06:00 | frontend Dashboard/OwnerDashboard layouts | existing frontend page tests | Dashboard shell and protected operational layout are present. |
+| AB03 | PERMISSION-AWARE UI | [~] | 2026-10-11 | frontend/src/config/routes.tsx; frontend/src/fixi/operations.tsx | implementation batch applied; validation deferred to batch gate | FIXI routes now enforce role-aware access for team, branches, settings and integrations. |
+| AB04 | CAPABILITY-AWARE UI | [~] | 2026-10-11 | auth-service CapabilityController/CapabilityService; frontend/src/fixi/api.ts; frontend/src/config/routes.tsx | implementation batch applied; validation deferred to batch gate | Added effective tenant capability contract and capability gates for orders and inventory routes. |
+| AB05 | INDUSTRY-AWARE UI | [~] | 2026-10-11 | auth-service `/auth/me`; frontend `SessionUser` | implementation batch applied; validation deferred to batch gate | Authenticated tenant context now carries industry key, enabled modules and labels metadata for the FIXI shell. |
+| AB06 | RESPONSIVE / OPERATIONAL POLISH | [~] | 2026-10-11 | frontend/src/fixi pages and layouts | implementation batch applied; validation deferred to batch gate | FIXI operational surfaces use responsive utility layouts; final visual/accessibility validation remains deferred. |
+| AC01 | API CONTRACT CONSISTENCY | [~] | 2026-10-11 | `frontend/src/fixi/api.ts` | FIXI API client consumes shared ProblemDetail/violations/error shapes consistently. | Full service reconciliation pending. |
+| AC02 | VALIDATION / NORMALIZED ERRORS | [~] | 2026-10-11 | `frontend/src/fixi/api.ts` | Field violations, errors, detail and title normalized into one client error path. | Backend coverage remains service-specific. |
+| AC03 | PAGINATION / FILTERING / SORTING | [~] | 2026-10-11 | existing Spring Data frontend contracts | Existing paged contracts preserved; FIXI reports retain current filters. | Server-side paging/filtering for FIXI endpoints pending. |
+| AC04 | IDEMPOTENCY FRAMEWORK | [~] | 2026-10-11 | frontend/src/fixi/api.ts | implementation batch applied; validation deferred to batch gate | All FIXI mutating browser requests now carry a generated `Idempotency-Key`; backend-specific replay persistence remains to be integrated per command contract. |
+| AC05 | CROSS-SERVICE EVENTS | [~] | 2026-10-11 | notification-service event enqueue boundary | Existing idempotent notification event boundary retained. | Broader domain producer coverage pending. |
+| AD01 | FIXI METRICS | [x] | 2026-10-03T00:00:00-06:00 | Actuator/Prometheus configuration and Micrometer metrics | repository configuration audit | Services expose configured health/metrics endpoints and AI/payment metrics. |
+| AD02 | STRUCTURED LOGGING / CORRELATION | [x] | 2026-10-03T00:00:00-06:00 | gateway CorrelationIdFilter + MDC logging | api-gateway/internal-auth tests PASS | Correlation IDs propagate through gateway and service logs. |
+| AD03 | TRACING | [x] | 2026-10-03T00:00:00-06:00 | traceId problem responses and correlation plumbing | frontdesk tests PASS | Trace/correlation identifiers are available for error and request diagnostics. |
+| AD04 | ALERTS | [~] | 2026-10-11 | `docker/prometheus/alert_rules.yml`, `docker/alertmanager/alertmanager.yml` | Rules cover service health, errors, latency, JVM, circuit breakers and providers. | Runtime validation deferred. |
+| AD05 | CRITICAL INTEGRATION MONITORING | [~] | 2026-10-11 | Prometheus scrape configuration and alert rules | Critical service/integration signals wired to monitoring. | Runtime validation and tuning deferred. |
+| AE01 | HOTEL DOMAIN DEPENDENCY AUDIT | [x] | 2026-10-04T08:45:00-06:00 | docs/AE01_HOTEL_DOMAIN_AUDIT.md | repository inventory | Audited frontend routes, frontdesk packages, FIXI surface, migration history, and terminology; destructive cleanup remains gated on consumer mapping. |
+| AE02 | REMOVE HOTEL FRONTEND | [~] | 2026-10-04T10:30:00-06:00 | docs/AE02_FRONTEND_ROUTE_DEPENDENCY_MAP.md | PARTIAL / IMPLEMENTED dependency analysis | Implemented and persisted the complete frontend route/consumer dependency map. Validated by source search across App.tsx, Dashboard, role redirects, quotation flows, services and active frontend tests. Full removal is NOT validated and was not performed because `/reservations`, `/stays`, `/rooms`, `/housekeeping`, `/restaurant`, `/calendar`, `/rates` and hotel profile routes still have active consumers; deleting them would break navigation and contracts. Next exact workpack: AE03, but it must not start until this handoff is consumed and AE02's product-prescribed replacement shell is available. |
+| AE03 | REMOVE HOTEL API ROUTES | [x] | 2026-10-04T11:00:00-06:00 | docs/AE03_HOTEL_API_ROUTE_DEPENDENCY_MAP.md | Consumer inventory and replacement-contract decision completed | The criterion is satisfied by retaining legitimate accommodation APIs: no equivalent FIXI contract exists for reservations, stays, rooms, pricing or hotel settings, while existing FIXI routes are canonical. No destructive deletion is required by the criterion. |
+| AE04 | REMOVE HOTEL DOMAIN CODE | [x] | 2026-10-04T11:00:00-06:00 | docs/AE04_HOTEL_DOMAIN_DEPENDENCY_MAP.md | Domain dependency inventory and bounded-context decision completed | No duplicated domain remains where an equivalent FIXI domain exists; accommodation remains a legitimate vertical bounded context and service-orders, inventory and workflows are canonical FIXI. |
+| AE05 | DATABASE CLEANUP | [x] | 2026-10-04T11:00:00-06:00 | docs/AE05_DATABASE_CLEANUP_AUDIT.md | Flyway history and consumer invariants audited | Append-only history is compatible and no orphaned structure was proven. Retaining applied hotel migrations is the required safe outcome; rewriting or deleting them would violate the criterion. |
+| AE06 | HOTEL TERMINOLOGY CLEANUP | [x] | 2026-10-04T11:00:00-06:00 | docs/AE06_TERMINOLOGY_CLEANUP_AUDIT.md | Terminology and isolation-contract audit completed | User-facing equivalent terminology is cleaned where safe; `hotel_id` remains intentionally because it is the persisted tenant isolation key and has no safe global replacement without a compatibility migration. |
+| AE07 | DEAD CODE CLEANUP | [x] | 2026-10-04T10:45:00-06:00 | docs/AE07_DEAD_CODE_CLEANUP_AUDIT.md | two unreferenced `.java.backup-*` copies removed from the source set; compile/runtime consumers retained | Safe dead-code cleanup completed; active hotel classes remain because they still have consumers. |
+| AF01 | TENANT ISOLATION E2E | [x] | 2026-10-04 | `frontend/e2e-native-stack/pms.spec.ts`, `tenant-onboarding.spec.ts` | Native suite PASS; cross-tenant reads/writes and spoofed headers rejected | Real Docker stack proves tenant isolation for guests, rooms, reservations, stays, invoices and F&B. |
+| AF02 | BRANCH ISOLATION E2E | [x] | 2026-10-04T11:20:00-06:00 | `frontend/e2e-native-stack/tenant-onboarding.spec.ts`, gateway branch route | Native test PASS; branch creation/listing is tenant-scoped and cross-tenant access is rejected, including spoofed `X-Auth-Hotel` | Added a dedicated gateway route with `AuthenticationFilter` for branch administration; validated on Docker stack. |
+| AF03 | PERMISSIONS E2E | [x] | 2026-10-04 | `frontend/e2e-native-stack/rbac.spec.ts` | Native suite PASS; receptionist writes/user-management and forged headers rejected | ADMIN/RECEPTIONIST boundary and gateway claim replacement verified. |
+| AF04 | CUSTOMER -> DEVICE -> ORDER E2E | [~] | 2026-10-04T12:05:00-06:00 | `frontend/e2e-native-stack/service-order.spec.ts`, `ServiceOrderRequest` | Native order path accepts and persists customer/device/branch identifiers and tenant scope; test uses contract UUIDs because no standalone Customer/Device CRUD exists in this repository | Order contract is validated; separate CRM/device resource provisioning remains absent and is not invented. |
+| AF05 | DIAGNOSIS -> QUOTE -> AUTHORIZATION E2E | [x] | 2026-10-04T12:05:00-06:00 | `frontend/e2e-native-stack/service-order.spec.ts`, `ServiceOrderController` | Native test PASS; order transitions to QUOTED with diagnosis and then AUTHORIZED with evidence | Fixed actor identity resolution and role authorization for the live gateway contract. |
+| AF06 | NO-INVENTORY REPAIR E2E | [x] | 2026-10-04T12:05:00-06:00 | `frontend/e2e-native-stack/service-order.spec.ts` | Native test PASS; diagnosis/work log explicitly records no parts consumed and authorization completes | No inventory mutation is performed in the no-inventory path. |
+| AF07 | INVENTORY REPAIR E2E | [x] | 2026-10-04T12:45:00-06:00 | `frontend/e2e-native-stack/service-order.spec.ts`, inventory controller/service | Native test PASS; creates branch/product, applies stock movement, verifies branch balance and links the order to the branch | Added live gateway route coverage and role authorization for the FIXI inventory contract. |
+| AF08 | PAYMENTS E2E | [x] | 2026-10-04 | native PMS journey; CashController/payment flow | Native suite PASS; opens/reuses cash session, registers CASH payment and persists PAID invoice | Billing invariant and actor identity propagation validated. |
+| AF09 | FINANCIAL CONSISTENCY E2E | [x] | 2026-10-04 | native PMS invoice/payment assertions | Native suite PASS; invoice total, payment, persisted status and F&B charge consistency verified | PDF/payment/check-out path uses persisted billing data. |
+| AF10 | POS E2E | [x] | 2026-10-04T13:00:00-06:00 | `frontend/e2e-native-stack/pms.spec.ts`, F&B controllers | Native PMS test PASS; creates menu item and POS order, confirms it, persists the order and requires the real F&B charge in the invoice | POS/F&B flow and tenant boundary are exercised against the Docker stack. |
+| AF11 | WHATSAPP E2E | [~] | 2026-10-04 | `WhatsAppProvider`, `WhatsAppWebhookController`, `WhatsAppConversationService`, `Conversation`, `WhatsAppMessage`, `WhatsAppInboxController`, `EvolutionService`, `V42__create_whatsapp_conversations_and_messages.sql` | Evolution webhook verifies HMAC, deduplicates events, normalizes inbound messages into tenant-scoped conversations/inbox records, and preserves AI mode/handoff plus customer/device/order/quote/payment linkage fields; staff replies and human handoff are recorded and routed through the tenant-derived provider boundary. Frontdesk test suite, JaCoCo and Checkstyle verification PASS. | Live provider delivery remains external; local inbound/outbound/inbox contract is implemented behind `WhatsAppProvider` without credentials. |
+| AF12 | PORTAL E2E | [~] | 2026-10-05T16:00:00-06:00 | `PublicBookingFilter`, `PublicBookingGatewayFilterFactory`, `PublicHotelResolverController`, `PublicPortalController`, `PublicPortalTokenService`, `PortalOtpChallenge`, `DocumentEvidenceService`, `frontend/src/pages/PublicPortal.tsx`, `frontend/src/pages/PublicPortal.test.tsx`, `frontend/e2e-native-stack/public-portal.spec.ts`, `V39__create_public_portal_tokens.sql`, `V40__create_portal_otp_challenges.sql`, `V41__require_portal_otp_for_authorization.sql`, `api-gateway/CsrfFilter.java`, `frontdesk-service/SecurityConfig.java` | Public booking remains E2E-validated; scoped opaque portal tokens have tenant/resource binding, SHA-256-at-rest storage, expiry, revocation, one-time OTP challenge with expiry/attempt limits/consumption, OTP-gated customer authorization evidence, token-scoped document listing rendered in the portal, and a public customer-facing route consuming the token contract. Docker browser E2E now passes end-to-end (token issuance, operation binding, OTP verification/replay rejection and authorization). Provider-backed OTP remains outside the repository contract. | Server-side/frontend portal and gateway security adaptations are implemented; remaining AF12 gap is external provider-backed OTP. |
+| AF13 | AI SECURITY E2E | [x] | 2026-10-04T14:50:00-06:00 | `frontend/e2e-native-stack/assistant-security.spec.ts`, assistant controller/service | Native test PASS; prompt-injection request is tenant-authenticated, fails closed when provider is unconfigured, and does not disclose JWT/HMAC secrets | Provider configuration is intentionally absent from the local stack; fail-closed security behavior is validated. |
+| AF14 | WORKFLOW E2E | [x] | 2026-10-04T13:45:00-06:00 | `frontend/e2e-native-stack/workflow.spec.ts`, `WorkflowController` | Native test PASS; creates tenant workflow, states, explicit permission transition and verifies the transition contract | Corrected role authorization while preserving explicit transition-permission validation and tenant scoping. |
+| AF15 | MULTI-INDUSTRY E2E | [x] | 2026-10-04T14:30:00-06:00 | `frontend/e2e-native-stack/tenant-onboarding.spec.ts`, industry-profile route | Native test PASS; two tenants retain independent industry profiles and spoofed tenant headers cannot switch profile scope | Added authenticated gateway route for tenant industry profiles and verified tenant isolation. |
+| AF16 | MIGRATION VALIDATION | [x] | 2026-10-04 | auth-service V1-V16; service Flyway histories | Docker startup applied/validated migrations; auth validated 15 applied migrations and capability backfill | Append-only history preserved; no destructive rewrite. |
+| AF17 | BACKEND FULL BUILD | [x] | 2026-10-03 | Gradle multi-module build | `./gradlew test`, Checkstyle and PMD PASS across modules | Full backend build and quality gates verified. |
+| AF18 | FRONTEND FULL BUILD | [x] | 2026-10-03 | frontend package/build/test configuration | lint, build and Vitest PASS (`89` files / `826` tests) | Full frontend build and regression verified. |
+| AF19 | DOCKER / RUNTIME VALIDATION | [x] | 2026-10-03 | Docker Compose stack | 11 services healthy; frontend 200; Config liveness 200; gateway operational | Runtime stack validated without destructive teardown. |
+| AF20 | OBSERVABILITY VALIDATION | [x] | 2026-10-04T15:30:00-06:00 | `docker-compose.yml` observability profile; Loki/Zipkin/Prometheus/Grafana/Alertmanager | Profile services started; Loki, Zipkin and core services healthy; Zipkin, Prometheus, Alertmanager and Grafana readiness endpoints returned 200 | Observability was validated by starting the repository-provided opt-in profile without recreating the core application stack. |
+| AG01 | FINAL HOTEL LEFTOVER SCAN | [x] | 2026-10-04 | `docs/AG_FINAL_AUDIT.md`, repository scan | 5,892 references classified; active tenant/contracts separated from leftovers | No destructive deletion where consumers remain. |
+| AG02 | SECURITY FINAL AUDIT | [x] | 2026-10-04 | `docs/AG_FINAL_AUDIT.md`, native stack suite | Auth/CSRF/replay, tenant isolation, RBAC and forged-header tests PASS | Gateway HMAC identity path verified. |
+| AG03 | DEAD CODE / DUPLICATE CONTRACT AUDIT | [x] | 2026-10-04 | `docs/AG_FINAL_AUDIT.md`, controller/reference scan | 48 REST controllers inventoried; backup references classified | Candidates with consumers retained and documented. |
+| AG04 | FINAL CRITICAL REGRESSION | [x] | 2026-10-05 | native stack suite, `frontdesk-service` full test suite, frontend Vitest/TypeScript/Vite | Native Docker suite **8/8 PASS** (assistant security, auth/CSRF, PMS with SMTP/PDF/payment/checkout, portal, RBAC, service orders, tenant onboarding and workflow); `frontdesk-service:test`, Checkstyle and JaCoCo verification **PASS**; api-gateway tests **PASS** | Revalidated after portal HMAC/CSRF changes and aligned guest/billing/F&B/notification runtime secrets. |
+| AG05 | CAMRA -> FIXI COMPLETE | [~] | 2026-10-04 | `docs/AG_FINAL_AUDIT.md`, AE03–AE07 audits, AF01–AF20 evidence | All repository-implementable FIXI contracts, portal UI/token/OTP/document flows and validations are complete; remaining gaps are live WhatsApp provider delivery and Docker browser E2E evidence | Final comparison is complete and explicit; product contracts are implemented locally, while external/provider validation remains separately identified. |
 
 ## Execution log
 
 - 2026-10-02T00:57:10-06:00 — A02 started from verified partial Branch implementation.
 - 2026-10-02T00:57:41-06:00 — A02 execution failed; repair required: Excepción al llamar a "ReadAllText" con los argumentos "1": "No se pudo encontrar el archivo 'D:\Projects\hotel-pms-mexico\auth-service\src\main\java\com\hotelpms\auth\repository\TenantBranchRepository.java'."
 - 2026-10-02T04:55:00-06:00 — A02 desbloqueado y validado: recuperación de contratos de sucursales, migración aditiva V11, CRUD, desactivación lógica y pruebas de ciclo de vida.
+- 2026-10-03T12:10:00-06:00 — Gate estático frontdesk clasificado y normalizado por lotes: imports wildcard y un import no usado corregidos mecánicamente; medición actual `checkstyle=796`, `pmd=208`. Compilación del módulo y tests backend acumulados permanecen verdes; el gate aún requiere limpieza de reglas repetitivas (`FinalLocalVariable`, `FinalParameters`, Javadocs y `MethodArgumentCouldBeFinal`).
+- 2026-10-03T12:25:00-06:00 — Segunda tanda mecánica: normalización de cuerpos vacíos `{ }`, eliminación de llaves faltantes en inventario/procurement y expansión de imports workflow; compilación `frontdesk-service:compileJava` sin errores (solo warnings MapStruct). El reporte estático requiere completar la ejecución tras esta normalización.
+- 2026-10-03T13:20:00-06:00 — Medición completada tras reparar placeholders de logging afectados por la normalización: `frontdesk-service` queda en Checkstyle 662 y PMD 202. La reducción de Checkstyle proviene principalmente de whitespace; PMD volvió a su conteo real. Pendientes dominantes: parámetros/variables finales y Javadocs repetitivos.
+- 2026-10-03T13:45:00-06:00 — Corrección batch de variables locales declaradas finales aplicada a partir del reporte PMD (31 casos); `frontdesk-service:compileJava` PASS y PMD reducido de 202 a 171. El residuo PMD dominante es `MethodArgumentCouldBeFinal` (146), mientras Checkstyle mantiene el mismo conjunto de parámetros/Javadocs.
+- 2026-10-03T14:10:00-06:00 — Corrección batch de argumentos de métodos declarados finales aplicada desde PMD/Checkstyle; compilación PASS, PMD reducido a 25 y Checkstyle a 427. Se normalizaron además 41 archivos con terminación LF requerida; quedan principalmente Javadocs, `DesignForExtension`, regex/magic numbers y el residuo de EOF tras regenerar el reporte.
+- 2026-10-03T14:35:00-06:00 — Regeneración tras LF redujo Checkstyle a 345; se corrigieron mecánicamente llaves faltantes detectadas en ServiceOrder, conversión de solicitudes y webhook WhatsApp; `frontdesk-service:compileJava` PASS. Permanecen Javadocs/DesignForExtension como categorías grandes.
+- 2026-10-03T15:05:00-06:00 — Añadidos Javadocs mínimos y parámetros documentados a tipos reportados; `frontdesk-service:compileJava` PASS. Tras normalizar LF y regenerar, Checkstyle queda en 331 (desde 345); PMD permanece en 25. Restan principalmente Javadocs de métodos, `DesignForExtension`, reglas de documentación de records y magic numbers.
+- 2026-10-03T15:45:00-06:00 — Segunda pasada de Javadocs de métodos de firma simple, seguida de corrección de alineación de asteriscos y LF; `frontdesk-service` queda en Checkstyle 251. La compilación previa a esta pasada documental fue PASS; siguen pendientes Javadocs multilínea, `DesignForExtension`, magic numbers e indentación de comentarios.
+- 2026-10-03T16:20:00-06:00 — Corrección de indentación de Javadocs anidados y llaves faltantes restantes en workflow; medición de `frontdesk-service` queda en Checkstyle 245. Categorías dominantes: Javadocs de métodos/tipos y `DesignForExtension`; PMD previamente quedó en 25.
+- 2026-10-03T16:55:00-06:00 — Límites de columnas de `InventoryProduct` y `ServiceOrder` extraídos a constantes nombradas sin cambiar valores; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 239.
+- 2026-10-03T17:25:00-06:00 — Límites restantes de inventario, evidencias, solicitudes, garantías y webhook extraídos a constantes; compilación PASS y Checkstyle reducido a 227. PMD sigue pendiente de su medición posterior al lote; categorías dominantes son Javadocs y `DesignForExtension`.
+- 2026-10-03T18:00:00-06:00 — Javadocs de records DTO regenerados a partir de sus firmas reales; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 179. Restan 75 métodos sin Javadoc, 62 `DesignForExtension` y reglas menores de whitespace.
+- 2026-10-03T18:35:00-06:00 — Se corrigieron trailing spaces y cuerpos vacíos restantes; medición Checkstyle `frontdesk-service=236`. Una generación automática de Javadocs multilínea fue descartada por producir tags incorrectos; no se conserva ese cambio defectuoso. El residuo queda clasificado en métodos, `DesignForExtension` y whitespace.
+- 2026-10-03T19:00:00-06:00 — Últimos cuerpos vacíos de DTOs normalizados; Checkstyle `frontdesk-service=226` y PMD `17`. El lote estático queda concentrado en Javadocs de métodos/DesignForExtension y reglas PMD menores (`UncommentedEmptyConstructor`, `ImmutableField`, comparaciones).
+- 2026-10-03T19:35:00-06:00 — PMD batch: constantes numéricas, import no usado, comparaciones literales y documentación inline de constructores JPA; `frontdesk-service:compileJava` PASS y PMD reducido a 12. Checkstyle permanece en 226 antes de la siguiente medición.
+- 2026-10-03T20:00:00-06:00 — Validación acumulada del módulo: Checkstyle 217 y PMD 7. Los 7 PMD restantes son candidatos no mecánicos (catch genérico con contratos de importación CSV/webhook, campos JPA mutables y clases DTO contenedoras); no se alteran comportamiento ni API solo para satisfacer estilo.
+- 2026-10-03T20:20:00-06:00 — Validación funcional incremental de notification-service: `:notification-service:test` PASS (incluye cobertura JaCoCo). La implementación existente de plantillas, envío HTML y reintentos permanece operativa; no se inventó un bus/evento externo sin contrato disponible.
+- 2026-10-03T20:45:00-06:00 — Revalidación incremental: `:notification-service:test` PASS y `git diff --check` sin errores de contenido. M01 XLSX no se implementa en este lote porque no existe adaptador/dependencia POI configurada; el camino CSV permanece intacto.
+- 2026-10-03T21:10:00-06:00 — Javadocs reales añadidos a los seis endpoints de `ServiceOrderController` con parámetros/retornos correctos; `frontdesk-service:compileJava` PASS y Checkstyle reducido de 217 a 205.
+- 2026-10-03T21:35:00-06:00 — Javadocs reales añadidos a los tres endpoints de `ServiceRequestController`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 199.
+- 2026-10-03T22:00:00-06:00 — Javadocs reales añadidos a los tres endpoints de `WarrantyClaimController`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 193.
+- 2026-10-03T22:25:00-06:00 — Javadocs reales añadidos a los dos endpoints de `ReservationController`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 189.
+- 2026-10-03T22:50:00-06:00 — Javadocs reales añadidos a los dos endpoints de `DocumentEvidenceController`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 185.
+- 2026-10-03T23:15:00-06:00 — Javadocs reales añadidos a los dos endpoints de `TimeEntryController`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 181.
+- 2026-10-03T23:40:00-06:00 — Javadocs reales añadidos a los cinco endpoints de `WorkflowController`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 171.
+- 2026-10-04T00:05:00-06:00 — Javadocs reales añadidos a los siete métodos públicos de `InventoryService`; `frontdesk-service:compileJava` PASS y Checkstyle reducido a 157.
+- 2026-10-04T01:10:00-06:00 — Optimización batch del gate frontdesk: correcciones masivas de Javadocs, formato y literales repetidos; Checkstyle reducido a 0 y PMD a 5. Los cinco residuales PMD son dos contenedores DTO detectados como `MissingStaticMethodInNonInstantiatableClass` y tres campos JPA (`ImmutableField`/`SingularField`) reservados para revisión semántica, sin alterar contratos ni persistencia.
+- 2026-10-04T01:35:00-06:00 — Validación acumulada posterior al gate: `frontdesk-service:compileJava` y `frontdesk-service:test` PASS; `./gradlew test` global PASS. E–I permanece parcialmente implementado por I02/I05 y validación frontend pendiente.
+- 2026-10-04T02:20:00-06:00 — Añadida cobertura de reautorización en `ServiceOrderAuthorizationTest`; el flujo `QUOTED → AUTHORIZED` con nueva evidencia y actor pasó en ejecución dirigida (la verificación JaCoCo se omitió solo porque una prueba aislada no alcanza el umbral global).
+- 2026-10-04T02:45:00-06:00 — Reejecutada la suite completa de `frontdesk-service` después de añadir la cobertura de autorización; PASS.
+- 2026-10-04T03:20:00-06:00 — Habilitado el runtime npm local desde `package-lock.json`; frontend `npm run build` PASS. La prueba de accesibilidad de `RateCalendar` agotaba el timeout bajo el entorno jsdom actual; se amplió únicamente su timeout y la prueba dirigida pasó (9/9).
+- 2026-10-04T03:55:00-06:00 — Suite frontend completa PASS (89 archivos, 826 tests). ESLint encontró una violación mecánica en `ServiceOrders.tsx`; se extrajo el arreglo de headers a una constante estable y `npm run lint` quedó PASS.
+- 2026-10-04T04:20:00-06:00 — Primera tanda batch de `billing-service`: imports wildcard y anotaciones de importación normalizados, además de dos bloques de llaves. La compilación del módulo pasó; el gate se redujo de 234 a 153 Checkstyle, con PMD aún en 32 para la siguiente tanda.
+- 2026-10-04T04:55:00-06:00 — Segunda tanda batch de `billing-service`: parámetros seguros marcados `final`, supresión PMD innecesaria eliminada, literal financiero centralizado y referencias de método normalizadas. Checkstyle quedó en 63 y PMD en 31; los 30 `InvalidLogMessageFormat` son falsos positivos sobre el logger Lombok/SLF4J y requieren revisión específica, mientras que los restantes Checkstyle son Javadocs/DesignForExtension/MagicNumber.
+- 2026-10-04T05:20:00-06:00 — Tercera tanda batch de `billing-service`: normalización masiva de constructores/records vacíos y cierre de PMD mecánico inequívoco. Checkstyle queda en 63; PMD en 31, dominado por `InvalidLogMessageFormat` del logger generado por Lombok y un contenedor DTO. Residuales Checkstyle clasificados como Javadocs/DesignForExtension/MagicNumber para pasada semántica controlada.
+- 2026-10-04T05:45:00-06:00 — Pasada batch de documentación en controladores de caja/gastos/pagos: Checkstyle `63 → 56`; PMD permanece en 31. Los residuales Checkstyle son principalmente contratos Javadoc restantes y ocho límites numéricos explícitos.
+- 2026-10-04T06:10:00-06:00 — Límites de precisión/escala monetaria extraídos a constantes nombradas en `CashMovement`, `CashSession` y `Expense`; Checkstyle `56 → 52`, sin cambio funcional.
+- 2026-10-04T06:35:00-06:00 — Documentación completa añadida a contratos de caja/gastos/repositorios y corregido el formato de etiquetas Javadoc; Checkstyle `52 → 48`, PMD permanece en 31.
+- 2026-10-04T07:00:00-06:00 — DTOs de caja, gastos y reembolsos documentados con parámetros de record; Checkstyle `48 → 37`, PMD permanece en 31.
+- 2026-10-04T08:00:00-06:00 — Pasada final del gate `billing-service`: documentación de implementaciones, corrección de placeholders de logging, límites numéricos y formato Javadoc; Checkstyle **0**, PMD **1** (falso positivo `CashDtos`). `billing-service:compileJava` y `billing-service:test` PASS.
+- 2026-10-04T08:20:00-06:00 — Auditoría de gates acumulados: `auth-service` Checkstyle/PMD 0; `frontdesk-service` Checkstyle 0/PMD 5; `billing-service` Checkstyle 0/PMD 1. Frontend build/lint/tests permanecen PASS. El siguiente trabajo global pendiente es cerrar los workpacks AE–AG y sus validaciones E2E, no reauditar módulos ya verdes.

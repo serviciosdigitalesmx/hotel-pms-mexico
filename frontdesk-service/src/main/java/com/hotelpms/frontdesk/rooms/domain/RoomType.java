@@ -7,6 +7,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,13 +22,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-/**
- * RoomType Domain Entity.
- */
+/** RoomType Domain Entity. */
 @Entity
 @Table(name = "room_types")
 @Getter
@@ -38,43 +35,42 @@ import java.util.UUID;
 @SQLRestriction("active = true")
 public class RoomType {
 
-    private static final int MAX_DESC_LENGTH = 500;
-    private static final int MAX_NAME_LENGTH = 100;
+  private static final int MAX_DESC_LENGTH = 500;
+  private static final int MAX_NAME_LENGTH = 100;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Setter(AccessLevel.NONE)
+  private UUID id;
 
-    /**
-     * The hotel this room type belongs to (multi-tenancy, T-ROOM-02).
-     * Uniqueness of {@link #name} is enforced per-hotel (see
-     * {@code uq_room_types_hotel_id_name}), not globally.
-     */
-    @Column(name = "hotel_id", nullable = false)
-    private UUID hotelId;
+  /**
+   * The hotel this room type belongs to (multi-tenancy, T-ROOM-02). Uniqueness of {@link #name} is
+   * enforced per-hotel (see {@code uq_room_types_hotel_id_name}), not globally.
+   */
+  @Column(name = "hotel_id", nullable = false)
+  private UUID hotelId;
 
-    @Column(nullable = false, length = MAX_NAME_LENGTH)
-    private String name;
+  @Column(nullable = false, length = MAX_NAME_LENGTH)
+  private String name;
 
-    @Column(length = MAX_DESC_LENGTH)
-    private String description;
+  @Column(length = MAX_DESC_LENGTH)
+  private String description;
 
-    @Column(nullable = false)
-    private Integer maxOccupancy;
+  @Column(nullable = false)
+  private Integer maxOccupancy;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal basePrice;
+  @Column(nullable = false, precision = 10, scale = 2)
+  private BigDecimal basePrice;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean active = true;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
 }

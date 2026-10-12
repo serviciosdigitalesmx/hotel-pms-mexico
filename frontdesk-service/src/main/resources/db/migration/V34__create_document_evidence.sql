@@ -1,0 +1,2 @@
+CREATE TABLE document_evidence (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, service_order_id UUID, customer_id UUID, file_name VARCHAR(200) NOT NULL, content_type VARCHAR(100) NOT NULL, storage_key VARCHAR(500) NOT NULL, access_level VARCHAR(32) NOT NULL, created_at TIMESTAMP NOT NULL);
+CREATE INDEX idx_document_evidence_hotel_order ON document_evidence(hotel_id,service_order_id);

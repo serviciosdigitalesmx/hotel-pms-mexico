@@ -69,10 +69,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
     /** Roles allowed to perform any authenticated operation. */
     private static final Set<String> OPERATIONAL_ROLES =
-            Set.of("ADMIN", "OWNER", "RECEPTIONIST", "KITCHEN", "HOUSEKEEPER");
+            Set.of("ADMIN", "OWNER", "MANAGER", "TECHNICIAN", "RECEPTIONIST", "KITCHEN", "HOUSEKEEPER");
 
     /** Roles allowed to perform administrative write operations. */
-    private static final Set<String> ADMIN_OWNER_ROLES = Set.of("ADMIN", "OWNER");
+    private static final Set<String> ADMIN_OWNER_ROLES = Set.of("ADMIN", "OWNER", "MANAGER");
 
     /**
      * Path prefixes whose write operations (POST/PUT/PATCH/DELETE) are restricted to
@@ -295,6 +295,12 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         if ("HOUSEKEEPER".equals(role)) {
             return isHousekeepingRoomAccess(path, method)
                     || isHotelSettingsRead(path, method);
+        }
+        if ("TECHNICIAN".equals(role)) {
+            return path.startsWith("/api/v1/service-orders")
+                    || path.startsWith("/api/v1/inventory")
+                    || path.startsWith("/api/v1/documents")
+                    || path.startsWith("/api/v1/workflows");
         }
         // RECEPTIONIST checks
         if (path.startsWith(USERS_PATH_PREFIX)) {

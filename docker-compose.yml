@@ -288,7 +288,6 @@ services:
       - SPRING_PROFILES_ACTIVE=native
       # T-CFG-03: credentials required by consumer microservices
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
       - INTERNAL_HMAC_SECRET=${INTERNAL_HMAC_SECRET}
       - JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError
     healthcheck:
@@ -405,6 +404,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - INTERNAL_HMAC_SECRET=${INTERNAL_HMAC_SECRET}
       - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST:-fixi-mail}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - FIXI_PUBLIC_URL=${FIXI_PUBLIC_URL:-http://localhost}
       - JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError
     depends_on:
       postgres:
@@ -670,8 +672,8 @@ services:
       - INTERNAL_REDIS_PASSWORD=${REDIS_PASSWORD}
       - INTERNAL_HMAC_SECRET=${INTERNAL_HMAC_SECRET}
       # SMTP — override in production with real relay credentials
-      - SMTP_HOST=${SMTP_HOST:-localhost}
-      - SMTP_PORT=${SMTP_PORT:-25}
+      - SMTP_HOST=${SMTP_HOST:-fixi-mail}
+      - SMTP_PORT=${SMTP_PORT:-1025}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_AUTH=${SMTP_AUTH:-false}
@@ -684,6 +686,8 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      fixi-mail:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -705,6 +709,18 @@ services:
         reservations:
           cpus: "0.10"
           memory: 256M
+
+  # ----------------------------------------------------------
+  # Local transactional email sink. Production supplies SMTP_HOST/credentials.
+  # ----------------------------------------------------------
+  fixi-mail:
+    image: axllent/mailpit:v1.31.0
+    container_name: fixi-mail
+    restart: unless-stopped
+    ports:
+      - "18026:8025"
+    networks:
+      - backend-network
 
   # ----------------------------------------------------------
   # Frontend (Nginx static build)

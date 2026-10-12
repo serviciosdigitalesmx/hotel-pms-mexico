@@ -1,6 +1,6 @@
 export type Json = Record<string, unknown>
 export type SessionUser = { username:string; role:string; hotelId?:string; tenantId?:string; branchId?:string; businessName?:string; tenantStatus?:string; onboardingCompleted?:boolean; mustChangePassword?:boolean }
-export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
+export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
 export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; city?:string; createdAt?:string }
 export type Device = { id:string; customerId:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string }

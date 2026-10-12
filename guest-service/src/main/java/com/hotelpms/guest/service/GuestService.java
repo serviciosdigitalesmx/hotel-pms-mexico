@@ -25,6 +25,15 @@ public interface GuestService {
     GuestResponse createGuest(GuestRequest request);
 
     /**
+     * Finds a matching guest in the current tenant.
+     *
+     *
+     * @param request guest identity data.
+     * @return matching guest, or {@code null} when no match exists.
+     */
+    GuestResponse findPotentialDuplicate(GuestRequest request);
+
+    /**
      * Retrieves a guest by their unique ID.
      *
      * @param id the guest UUID; must not be {@code null}

@@ -81,6 +81,10 @@ public class GuestServiceImpl implements GuestService {
     @Transactional
     public GuestResponse createGuest(final GuestRequest request) {
         final UUID hotelId = extractHotelId();
+        final GuestResponse duplicate = findPotentialDuplicate(request);
+        if (duplicate != null) {
+            throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
+        }
         final Guest entity = guestMapper.toEntity(request);
         normalizeMexicoGuest(entity);
         entity.setActive(true);
@@ -88,6 +92,43 @@ public class GuestServiceImpl implements GuestService {
         entity.setGdprConsentDate(LocalDate.now());
         final Guest saved = guestRepository.save(entity);
         return guestMapper.toResponse(saved);
+    }
+
+    /**
+     * Finds a tenant-scoped duplicate using the available identity fields.
+     *
+     * @param request guest identity data.
+     * @return matching guest, or {@code null} when no duplicate exists.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public GuestResponse findPotentialDuplicate(final GuestRequest request) {
+        final UUID hotelId = extractHotelId();
+        if (request == null) {
+            return null;
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            final var match = guestRepository.findFirstByHotelIdAndEmailIgnoreCase(
+                    hotelId, request.email().trim());
+            if (match.isPresent()) {
+                return guestMapper.toResponse(match.get());
+            }
+        }
+        if (request.phone() != null && !request.phone().isBlank()) {
+            final var match = guestRepository.findFirstByHotelIdAndPhone(
+                    hotelId, request.phone().trim());
+            if (match.isPresent()) {
+                return guestMapper.toResponse(match.get());
+            }
+        }
+        if (request.rfc() != null && !request.rfc().isBlank()) {
+            final var match = guestRepository.findFirstByHotelIdAndRfcIgnoreCase(
+                    hotelId, request.rfc().trim());
+            if (match.isPresent()) {
+                return guestMapper.toResponse(match.get());
+            }
+        }
+        return null;
     }
 
     /**

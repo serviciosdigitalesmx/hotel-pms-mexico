@@ -5,6 +5,7 @@ import com.hotelpms.frontdesk.reservations.dto.ReservationResponse;
 import com.hotelpms.frontdesk.reservations.dto.ReservationStatusUpdateRequest;
 import com.hotelpms.frontdesk.reservations.service.ReservationService;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -22,149 +24,155 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
-/**
- * Controller for Reservations.
- */
+/** Controller for Reservations. */
 @RestController
 @RequestMapping("/api/v1/reservations")
 @RequiredArgsConstructor
 public class ReservationController {
 
-    private static final int DEFAULT_PAGE_SIZE = 20;
+  private static final int DEFAULT_PAGE_SIZE = 20;
 
-    private final ReservationService reservationService;
+  private final ReservationService reservationService;
 
-    /**
-     * Creates a reservation.
-     *
-     * @param request the request
-     * @return the response
-     */
-    @PostMapping
-    public ResponseEntity<ReservationResponse> createReservation(
-            @NonNull @Valid @RequestBody final ReservationRequest request) {
-        final ReservationResponse response = reservationService.createReservation(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
+  /**
+   * Creates a reservation.
+   *
+   * @param request the request
+   *
+   * @return the response
+   */
+  @PostMapping
+  public ResponseEntity<ReservationResponse> createReservation(
+      @NonNull @Valid @RequestBody final ReservationRequest request) {
+    final ReservationResponse response = reservationService.createReservation(request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
 
-    /**
-     * Gets a reservation by id.
-     *
-     * @param id the id
-     * @return the response
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<ReservationResponse> getReservationById(@NonNull @PathVariable final UUID id) {
-        return ResponseEntity.ok(reservationService.getReservationById(id));
-    }
+  /**
+   * Gets a reservation by id.
+   *
+   * @param id the id
+   *
+   * @return the response
+   */
+  @GetMapping("/{id}")
+  public ResponseEntity<ReservationResponse> getReservationById(
+      @NonNull @PathVariable final UUID id) {
+    return ResponseEntity.ok(reservationService.getReservationById(id));
+  }
 
-    /**
-     * Gets a paginated list of all reservations.
-     * Supports standard Spring Data pagination query parameters:
-     * {@code ?page=0&size=20&sort=checkInDate,desc}
-     *
-     * @param pageable the pagination and sorting parameters
-     * @return a page of reservation responses
-     */
-    @GetMapping
-    public ResponseEntity<Page<ReservationResponse>> getAllReservations(
-            @PageableDefault(
-                    size = DEFAULT_PAGE_SIZE,
-                    sort = "checkInDate",
-                    direction = Sort.Direction.DESC
-            ) final Pageable pageable) {
-        return ResponseEntity.ok(reservationService.getAllReservations(pageable));
-    }
+  /**
+   * Gets a paginated list of all reservations. Supports standard Spring Data pagination query
+   * parameters: {@code ?page=0&size=20&sort=checkInDate,desc}
+   *
+   * @param pageable the pagination and sorting parameters
+   *
+   * @return a page of reservation responses
+   */
+  @GetMapping
+  public ResponseEntity<Page<ReservationResponse>> getAllReservations(
+      @PageableDefault(
+              size = DEFAULT_PAGE_SIZE,
+              sort = "checkInDate",
+              direction = Sort.Direction.DESC)
+          final Pageable pageable) {
+    return ResponseEntity.ok(reservationService.getAllReservations(pageable));
+  }
 
-    /**
-     * Combinable search over the caller's hotel reservations (C12): an optional
-     * {@code upcomingOnly} filter and an optional free-text query matched against
-     * the associated guest's name/email.
-     *
-     * @param query        optional free-text query (guest name/email)
-     * @param upcomingOnly if {@code true}, only reservations with check-in today or later
-     * @param pageable     pagination and sorting parameters
-     * @return a page of matching reservation responses
-     */
-    @GetMapping("/search")
-    public ResponseEntity<Page<ReservationResponse>> searchReservations(
-            @RequestParam(required = false) final String query,
-            @RequestParam(defaultValue = "false") final boolean upcomingOnly,
-            @PageableDefault(
-                    size = DEFAULT_PAGE_SIZE,
-                    sort = "checkInDate",
-                    direction = Sort.Direction.DESC
-            ) final Pageable pageable) {
-        return ResponseEntity.ok(reservationService.searchReservations(query, upcomingOnly, pageable));
-    }
+  /**
+   * Combinable search over the caller's hotel reservations (C12): an optional {@code upcomingOnly}
+   * filter and an optional free-text query matched against the associated guest's name/email.
+   *
+   * @param query optional free-text query (guest name/email)
+   *
+   * @param upcomingOnly if {@code true}, only reservations with check-in today or later
+   *
+   * @param pageable pagination and sorting parameters
+   *
+   * @return a page of matching reservation responses
+   */
+  @GetMapping("/search")
+  public ResponseEntity<Page<ReservationResponse>> searchReservations(
+      @RequestParam(required = false) final String query,
+      @RequestParam(defaultValue = "false") final boolean upcomingOnly,
+      @PageableDefault(
+              size = DEFAULT_PAGE_SIZE,
+              sort = "checkInDate",
+              direction = Sort.Direction.DESC)
+          final Pageable pageable) {
+    return ResponseEntity.ok(reservationService.searchReservations(query, upcomingOnly, pageable));
+  }
 
-    /**
-     * Updates a reservation.
-     *
-     * @param id      the id
-     * @param request the request
-     * @return the response
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<ReservationResponse> updateReservation(@NonNull @PathVariable final UUID id,
-            @NonNull @Valid @RequestBody final ReservationRequest request) {
-        return ResponseEntity.ok(reservationService.updateReservation(id, request));
-    }
+  /**
+   * Updates a reservation.
+   *
+   * @param id the id
+   *
+   * @param request the request
+   *
+   * @return the response
+   */
+  @PutMapping("/{id}")
+  public ResponseEntity<ReservationResponse> updateReservation(
+      @NonNull @PathVariable final UUID id,
+      @NonNull @Valid @RequestBody final ReservationRequest request) {
+    return ResponseEntity.ok(reservationService.updateReservation(id, request));
+  }
 
-    /**
-     * Deletes a reservation.
-     *
-     * @param id the id
-     */
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteReservation(@NonNull @PathVariable final UUID id) {
-        reservationService.deleteReservation(id);
-    }
+  /**
+   * Deletes a reservation.
+   *
+   * @param id the id
+   */
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteReservation(@NonNull @PathVariable final UUID id) {
+    reservationService.deleteReservation(id);
+  }
 
-    /**
-     * Partially updates reservation status and/or actual guests.
-     *
-     * @param id      the reservation id
-     * @param request status/guests payload
-     * @return the updated reservation
-     */
-    @PatchMapping("/{id}/status-and-guests")
-    public ResponseEntity<ReservationResponse> updateStatusAndGuests(
-            @NonNull @PathVariable final UUID id,
-            @NonNull @Valid @RequestBody final ReservationStatusUpdateRequest request) {
-        final ReservationResponse response = reservationService.updateStatusAndGuests(
-                id, request.status(), request.actualGuests());
-        return ResponseEntity.ok(response);
-    }
+  /**
+   * Partially updates reservation status and/or actual guests.
+   *
+   * @param id the reservation id
+   *
+   * @param request status/guests payload
+   *
+   * @return the updated reservation
+   */
+  @PatchMapping("/{id}/status-and-guests")
+  public ResponseEntity<ReservationResponse> updateStatusAndGuests(
+      @NonNull @PathVariable final UUID id,
+      @NonNull @Valid @RequestBody final ReservationStatusUpdateRequest request) {
+    final ReservationResponse response =
+        reservationService.updateStatusAndGuests(id, request.status(), request.actualGuests());
+    return ResponseEntity.ok(response);
+  }
 
-    /**
-     * Checks whether a guest has any active (non-terminal) reservation in the
-     * caller's hotel. Called by guest-service's GDPR Art. 17 erasure legal-hold
-     * guard (T-GST-05) before anonymising a guest profile.
-     *
-     * @param guestId the guest UUID
-     * @return true if a non-terminal reservation exists for this guest
-     */
-    @GetMapping("/guest/{guestId}/active")
-    public boolean hasActiveReservations(@NonNull @PathVariable final UUID guestId) {
-        return reservationService.hasActiveReservations(guestId);
-    }
+  /**
+   * Checks whether a guest has any active (non-terminal) reservation in the caller's hotel. Called
+   * by guest-service's GDPR Art. 17 erasure legal-hold guard (T-GST-05) before anonymising a guest
+   * profile.
+   *
+   * @param guestId the guest UUID
+   *
+   * @return true if a non-terminal reservation exists for this guest
+   */
+  @GetMapping("/guest/{guestId}/active")
+  public boolean hasActiveReservations(@NonNull @PathVariable final UUID guestId) {
+    return reservationService.hasActiveReservations(guestId);
+  }
 
-    /**
-     * Retries the reservation-confirmed email for a reservation whose original
-     * attempt failed.
-     *
-     * @param id the reservation ID
-     * @return the updated reservation response
-     */
-    @PostMapping("/{id}/confirmation-email/retry")
-    public ReservationResponse retryConfirmationEmail(@NonNull @PathVariable final UUID id) {
-        return reservationService.retryConfirmationEmail(id);
-    }
+  /**
+   * Retries the reservation-confirmed email for a reservation whose original attempt failed.
+   *
+   * @param id the reservation ID
+   *
+   * @return the updated reservation response
+   */
+  @PostMapping("/{id}/confirmation-email/retry")
+  public ReservationResponse retryConfirmationEmail(@NonNull @PathVariable final UUID id) {
+    return reservationService.retryConfirmationEmail(id);
+  }
 }

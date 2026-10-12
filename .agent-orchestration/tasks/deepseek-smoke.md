@@ -1,0 +1,1 @@
+This is a provider integration smoke task, not a product task. Make no file changes and run no commands. Use list_files with path `scripts` to prove that the tool bridge works, then return exactly `STATUS: SUCCESS` and include how many file paths the tool returned.

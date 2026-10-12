@@ -1,4 +1,2 @@
-/**
- * Domain entities for the billing service.
- */
+/** Domain entities for the billing service. */
 package com.hotelpms.billing.domain;

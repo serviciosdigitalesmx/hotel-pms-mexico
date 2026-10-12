@@ -11,6 +11,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,13 +24,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-/**
- * Entity class representing a guest attached to a Stay (for Alloggiati Web compliance).
- */
+/** Entity class representing a guest attached to a Stay (for Alloggiati Web compliance). */
 @Entity
 @Table(name = "stay_guests")
 @Data
@@ -39,64 +36,65 @@ import java.util.UUID;
 @SQLRestriction("active = true")
 public class StayGuest {
 
-    private static final int TRAVELLER_TYPE_LENGTH = 20;
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+  private static final int TRAVELLER_TYPE_LENGTH = 20;
 
-    @ManyToOne
-    @JoinColumn(name = "stay_id", nullable = false)
-    private Stay stay;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
-    @Column(name = "first_name", nullable = false)
-    private String firstName;
+  @ManyToOne
+  @JoinColumn(name = "stay_id", nullable = false)
+  private Stay stay;
 
-    @Column(name = "last_name", nullable = false)
-    private String lastName;
+  @Column(name = "first_name", nullable = false)
+  private String firstName;
 
-    @Column(name = "gender", nullable = false)
-    private String gender;
+  @Column(name = "last_name", nullable = false)
+  private String lastName;
 
-    @Column(name = "date_of_birth", nullable = false)
-    private LocalDate dateOfBirth;
+  @Column(name = "gender", nullable = false)
+  private String gender;
 
-    @Column(name = "place_of_birth", nullable = false)
-    private String placeOfBirth;
+  @Column(name = "date_of_birth", nullable = false)
+  private LocalDate dateOfBirth;
 
-    @Column(name = "citizenship", nullable = false)
-    private String citizenship;
+  @Column(name = "place_of_birth", nullable = false)
+  private String placeOfBirth;
 
-    /** Nullable for FAMILIARE/MEMBRO_GRUPPO (TIPALLOG 19/20) per tracciato rules. */
-    @Column(name = "document_type")
-    private String documentType;
+  @Column(name = "citizenship", nullable = false)
+  private String citizenship;
 
-    /** Nullable for FAMILIARE/MEMBRO_GRUPPO (TIPALLOG 19/20) per tracciato rules. */
-    @Column(name = "document_number")
-    private String documentNumber;
+  /** Nullable for FAMILIARE/MEMBRO_GRUPPO (TIPALLOG 19/20) per tracciato rules. */
+  @Column(name = "document_type")
+  private String documentType;
 
-    /** Nullable for FAMILIARE/MEMBRO_GRUPPO (TIPALLOG 19/20) per tracciato rules. */
-    @Column(name = "document_place_of_issue")
-    private String documentPlaceOfIssue;
+  /** Nullable for FAMILIARE/MEMBRO_GRUPPO (TIPALLOG 19/20) per tracciato rules. */
+  @Column(name = "document_number")
+  private String documentNumber;
 
-    @Column(name = "is_primary_guest", nullable = false)
-    private boolean isPrimaryGuest;
+  /** Nullable for FAMILIARE/MEMBRO_GRUPPO (TIPALLOG 19/20) per tracciato rules. */
+  @Column(name = "document_place_of_issue")
+  private String documentPlaceOfIssue;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "traveller_type", length = TRAVELLER_TYPE_LENGTH)
-    private TravellerType travellerType;
+  @Column(name = "is_primary_guest", nullable = false)
+  private boolean isPrimaryGuest;
 
-    @Column(name = "travel_purpose", length = 100)
-    private String travelPurpose;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "traveller_type", length = TRAVELLER_TYPE_LENGTH)
+  private TravellerType travellerType;
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @Column(name = "travel_purpose", length = 100)
+  private String travelPurpose;
 
-    @LastModifiedDate
-    @Column(name = "updated_at", insertable = false)
-    private LocalDateTime updatedAt;
+  @CreatedDate
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-    @Column(name = "active", nullable = false)
-    @Builder.Default
-    private boolean active = true;
+  @LastModifiedDate
+  @Column(name = "updated_at", insertable = false)
+  private LocalDateTime updatedAt;
+
+  @Column(name = "active", nullable = false)
+  @Builder.Default
+  private boolean active = true;
 }

@@ -89,6 +89,9 @@ public class RestaurantOrder {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
+    @Column(name = "payment_id")
+    private UUID paymentId;
+
     /** Status of the order. */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = MAX_STATUS_LENGTH)

@@ -1,4 +1,2 @@
-/**
- * JPA repositories for the billing service.
- */
+/** JPA repositories for the billing service. */
 package com.hotelpms.billing.repository;

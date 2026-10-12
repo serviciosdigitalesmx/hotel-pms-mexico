@@ -1,0 +1,1 @@
+CREATE TABLE inventory_reservations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, branch_id UUID NOT NULL, product_id UUID NOT NULL, service_order_id UUID NOT NULL, quantity BIGINT NOT NULL, status VARCHAR(20) NOT NULL, created_at TIMESTAMP NOT NULL, CONSTRAINT uq_inventory_reservation_order_product UNIQUE(service_order_id,product_id));

@@ -1,4 +1,2 @@
-/**
- * Service interfaces for the stays domain.
- */
+/** Service interfaces for the stays domain. */
 package com.hotelpms.frontdesk.stays.service;

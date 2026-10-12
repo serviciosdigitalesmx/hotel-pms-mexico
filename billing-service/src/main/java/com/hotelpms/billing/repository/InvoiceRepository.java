@@ -2,6 +2,10 @@ package com.hotelpms.billing.repository;
 
 import com.hotelpms.billing.domain.Invoice;
 import com.hotelpms.billing.domain.InvoiceStatus;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,136 +13,128 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-/**
- * JPA Repository for Invoice entities.
- */
+/** JPA Repository for Invoice entities. */
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
-    /**
-     * Finds an invoice by its ID scoped to a specific hotel (IDOR-safe lookup).
-     * Returns empty if the invoice belongs to a different hotel, preventing
-     * cross-tenant access via UUID enumeration.
-     *
-     * @param id      the invoice UUID
-     * @param hotelId the hotel UUID from the authenticated request
-     * @return the invoice if it belongs to the given hotel
-     */
-    Optional<Invoice> findByIdAndHotelId(UUID id, UUID hotelId);
+  /**
+   * Finds an invoice by its ID scoped to a specific hotel (IDOR-safe lookup). Returns empty if the
+   * invoice belongs to a different hotel, preventing cross-tenant access via UUID enumeration.
+   *
+   * @param id the invoice UUID
+   * @param hotelId the hotel UUID from the authenticated request
+   * @return the invoice if it belongs to the given hotel
+   */
+  Optional<Invoice> findByIdAndHotelId(UUID id, UUID hotelId);
 
-    /**
-     * Finds all invoices belonging to a specific hotel, paginated (multi-tenancy).
-     * Collections (charges, payments) are loaded lazily within the caller's transaction.
-     * Using @EntityGraph with two Bag collections causes MultipleBagFetchException.
-     *
-     * @param hotelId  the hotel UUID
-     * @param pageable pagination parameters
-     * @return a page of invoices for the given hotel
-     */
-    Page<Invoice> findByHotelId(UUID hotelId, Pageable pageable);
+  /**
+   * Finds all invoices belonging to a specific hotel, paginated (multi-tenancy). Collections
+   * (charges, payments) are loaded lazily within the caller's transaction. Using @EntityGraph with
+   * two Bag collections causes MultipleBagFetchException.
+   *
+   * @param hotelId the hotel UUID
+   * @param pageable pagination parameters
+   * @return a page of invoices for the given hotel
+   */
+  Page<Invoice> findByHotelId(UUID hotelId, Pageable pageable);
 
-    /**
-     * Finds all invoices belonging to a specific hotel (multi-tenancy).
-     *
-     * @param hotelId the hotel UUID
-     * @return a list of invoices
-     */
-    List<Invoice> findByHotelId(UUID hotelId);
+  /**
+   * Finds all invoices belonging to a specific hotel (multi-tenancy).
+   *
+   * @param hotelId the hotel UUID
+   * @return a list of invoices
+   */
+  List<Invoice> findByHotelId(UUID hotelId);
 
-    /**
-     * Finds the most recent invoice for a reservation scoped to a hotel
-     * (used during check-out validation).
-     *
-     * @param reservationId the reservation UUID
-     * @param hotelId       the hotel UUID from the authenticated request
-     * @return the latest invoice if it belongs to the given hotel
-     */
-    Optional<Invoice> findFirstByReservationIdAndHotelIdOrderByIssueDateDesc(UUID reservationId, UUID hotelId);
+  /**
+   * Finds the most recent invoice for a reservation scoped to a hotel (used during check-out
+   * validation).
+   *
+   * @param reservationId the reservation UUID
+   * @param hotelId the hotel UUID from the authenticated request
+   * @return the latest invoice if it belongs to the given hotel
+   */
+  Optional<Invoice> findFirstByReservationIdAndHotelIdOrderByIssueDateDesc(
+      UUID reservationId, UUID hotelId);
 
-    /**
-     * Finds all invoices for a hotel whose issue date falls within the given window
-     * (T-BILL-04, IDOR/cross-tenant financial data leak). Used by the Owner
-     * financial report to aggregate revenues by date range, scoped to the
-     * authenticated hotel — the report must never mix in another hotel's invoices.
-     *
-     * @param hotelId the hotel UUID from the authenticated request
-     * @param start   beginning of the time window (inclusive)
-     * @param end     end of the time window (exclusive)
-     * @return list of matching invoices for that hotel
-     */
-    List<Invoice> findByHotelIdAndIssueDateBetween(UUID hotelId, LocalDateTime start, LocalDateTime end);
+  /**
+   * Finds all invoices for a hotel whose issue date falls within the given window (T-BILL-04,
+   * IDOR/cross-tenant financial data leak). Used by the Owner financial report to aggregate
+   * revenues by date range, scoped to the authenticated hotel — the report must never mix in
+   * another hotel's invoices.
+   *
+   * @param hotelId the hotel UUID from the authenticated request
+   * @param start beginning of the time window (inclusive)
+   * @param end end of the time window (exclusive)
+   * @return list of matching invoices for that hotel
+   */
+  List<Invoice> findByHotelIdAndIssueDateBetween(
+      UUID hotelId, LocalDateTime start, LocalDateTime end);
 
-    /**
-     * Finds the active invoice for a stay, scoped to a hotel (IDOR-safe lookup).
-     * Returns empty if no invoice exists for the given stay and hotel combination.
-     * Used to detect duplicates before creating and to look up the invoice for charge additions.
-     *
-     * @param stayId  the stay UUID
-     * @param hotelId the hotel UUID from the authenticated request
-     * @return the invoice for the given stay if it belongs to the given hotel
-     */
-    Optional<Invoice> findByStayIdAndHotelId(UUID stayId, UUID hotelId);
+  /**
+   * Finds the active invoice for a stay, scoped to a hotel (IDOR-safe lookup). Returns empty if no
+   * invoice exists for the given stay and hotel combination. Used to detect duplicates before
+   * creating and to look up the invoice for charge additions.
+   *
+   * @param stayId the stay UUID
+   * @param hotelId the hotel UUID from the authenticated request
+   * @return the invoice for the given stay if it belongs to the given hotel
+   */
+  Optional<Invoice> findByStayIdAndHotelId(UUID stayId, UUID hotelId);
 
-    /**
-     * Finds the most recent invoice for a guest within a hotel, ordered by
-     * issue date descending.
-     * Used by the guest-service GDPR legal-hold guard (T-GST-05) to verify
-     * whether the Codice Civile art. 2220 ten-year fiscal retention obligation
-     * has expired before anonymising a guest profile.
-     *
-     * @param guestId the guest UUID
-     * @param hotelId the hotel UUID (tenant isolation)
-     * @return the most recent invoice if present
-     */
-    Optional<Invoice> findTopByGuestIdAndHotelIdOrderByIssueDateDesc(UUID guestId, UUID hotelId);
+  /**
+   * Finds the most recent invoice for a guest within a hotel, ordered by issue date descending.
+   * Used by the guest-service GDPR legal-hold guard (T-GST-05) to verify whether the Codice Civile
+   * art. 2220 ten-year fiscal retention obligation has expired before anonymising a guest profile.
+   *
+   * @param guestId the guest UUID
+   * @param hotelId the hotel UUID (tenant isolation)
+   * @return the most recent invoice if present
+   */
+  Optional<Invoice> findTopByGuestIdAndHotelIdOrderByIssueDateDesc(UUID guestId, UUID hotelId);
 
-    /**
-     * Finds all invoices for a guest within a hotel, ordered by issue date descending.
-     * Used by the GDPR Art. 20 data-export endpoint to return full invoice history.
-     *
-     * @param guestId the guest UUID
-     * @param hotelId the hotel UUID (tenant isolation)
-     * @return list of invoices, most recent first
-     */
-    List<Invoice> findByGuestIdAndHotelIdOrderByIssueDateDesc(UUID guestId, UUID hotelId);
+  /**
+   * Finds all invoices for a guest within a hotel, ordered by issue date descending. Used by the
+   * GDPR Art. 20 data-export endpoint to return full invoice history.
+   *
+   * @param guestId the guest UUID
+   * @param hotelId the hotel UUID (tenant isolation)
+   * @return list of invoices, most recent first
+   */
+  List<Invoice> findByGuestIdAndHotelIdOrderByIssueDateDesc(UUID guestId, UUID hotelId);
 
-    /**
-     * Combinable search over a hotel's invoices (C12): optional status, optional issue-date
-     * window, and an optional free-text query matched against the invoice number OR a
-     * pre-resolved set of guest IDs (guest name/email search happens in guest-service —
-     * this repository only knows guestId, not name/email, see
-     * {@code InvoiceServiceImpl.searchInvoices}). Any filter left {@code null} is skipped
-     * entirely rather than excluding results.
-     *
-     * @param hotelId  the hotel UUID from the authenticated request (always applied)
-     * @param status   optional invoice status filter
-     * @param dateFrom optional lower bound on issue date (inclusive), or {@code null}
-     * @param dateTo   optional upper bound on issue date (exclusive), or {@code null}
-     * @param query    optional free-text query matched against invoiceNumber, or {@code null}
-     *                 to skip the query filter entirely
-     * @param guestIds guest IDs matching {@code query} in guest-service; must be non-null
-     *                 (empty when {@code query} is null, or when no guest matched)
-     * @param pageable pagination parameters
-     * @return a page of matching invoices scoped to the hotel
-     */
-    @Query("SELECT i FROM Invoice i WHERE i.hotelId = :hotelId "
-            + "AND (CAST(:status AS string) IS NULL OR i.status = :status) "
-            + "AND (CAST(:dateFrom AS timestamp) IS NULL OR i.issueDate >= :dateFrom) "
-            + "AND (CAST(:dateTo AS timestamp) IS NULL OR i.issueDate < :dateTo) "
-            + "AND (CAST(:query AS string) IS NULL OR ("
-            + "LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) "
-            + "OR i.guestId IN :guestIds))")
-    Page<Invoice> searchInvoicesByHotelId(
-            @Param("hotelId") UUID hotelId,
-            @Param("status") InvoiceStatus status,
-            @Param("dateFrom") LocalDateTime dateFrom,
-            @Param("dateTo") LocalDateTime dateTo,
-            @Param("query") String query,
-            @Param("guestIds") List<UUID> guestIds,
-            Pageable pageable);
+  /**
+   * Combinable search over a hotel's invoices (C12): optional status, optional issue-date window,
+   * and an optional free-text query matched against the invoice number OR a pre-resolved set of
+   * guest IDs (guest name/email search happens in guest-service — this repository only knows
+   * guestId, not name/email, see {@code InvoiceServiceImpl.searchInvoices}). Any filter left {@code
+   * null} is skipped entirely rather than excluding results.
+   *
+   * @param hotelId the hotel UUID from the authenticated request (always applied)
+   * @param status optional invoice status filter
+   * @param dateFrom optional lower bound on issue date (inclusive), or {@code null}
+   * @param dateTo optional upper bound on issue date (exclusive), or {@code null}
+   * @param query optional free-text query matched against invoiceNumber, or {@code null} to skip
+   *     the query filter entirely
+   * @param guestIds guest IDs matching {@code query} in guest-service; must be non-null (empty when
+   *     {@code query} is null, or when no guest matched)
+   * @param pageable pagination parameters
+   * @return a page of matching invoices scoped to the hotel
+   */
+  @Query(
+      "SELECT i FROM Invoice i WHERE i.hotelId = :hotelId "
+          + "AND (CAST(:status AS string) IS NULL OR i.status = :status) "
+          + "AND (CAST(:dateFrom AS timestamp) IS NULL OR i.issueDate >= :dateFrom) "
+          + "AND (CAST(:dateTo AS timestamp) IS NULL OR i.issueDate < :dateTo) "
+          + "AND (CAST(:query AS string) IS NULL OR ("
+          + "LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')) "
+          + "OR i.guestId IN :guestIds))")
+  Page<Invoice> searchInvoicesByHotelId(
+      @Param("hotelId") UUID hotelId,
+      @Param("status") InvoiceStatus status,
+      @Param("dateFrom") LocalDateTime dateFrom,
+      @Param("dateTo") LocalDateTime dateTo,
+      @Param("query") String query,
+      @Param("guestIds") List<UUID> guestIds,
+      Pageable pageable);
 }

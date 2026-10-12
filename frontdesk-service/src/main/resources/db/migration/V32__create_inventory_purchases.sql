@@ -1,0 +1,2 @@
+CREATE TABLE inventory_suppliers (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, name VARCHAR(200) NOT NULL, tax_id VARCHAR(20), contact VARCHAR(200), CONSTRAINT uq_supplier_hotel_tax UNIQUE(hotel_id,tax_id));
+CREATE TABLE inventory_purchases (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, branch_id UUID NOT NULL, supplier_id UUID NOT NULL, status VARCHAR(32) NOT NULL, service_order_id UUID, created_at TIMESTAMP NOT NULL);

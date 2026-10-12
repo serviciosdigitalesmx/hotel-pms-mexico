@@ -65,6 +65,7 @@ public class AuthController {
   private final JwtService jwtService;
   private final com.hotelpms.auth.repository.UserAccountRepository userRepository;
   private final com.hotelpms.auth.repository.HotelRegistryRepository hotelRepository;
+  private final com.hotelpms.auth.repository.TenantIndustryProfileRepository industryProfiles;
 
   /**
    * Endpoint for user login. Returns a body with {@code mustChangePassword} so the SPA can
@@ -304,6 +305,11 @@ public class AuthController {
         meBody.put("businessName", tenant.getName());
         meBody.put("tenantStatus", tenant.getStatus());
         meBody.put("onboardingCompleted", tenant.isOnboardingCompleted());
+      });
+      industryProfiles.findById(jwtService.extractHotelId(token)).ifPresent(profile -> {
+        meBody.put("industryKey", profile.getIndustryKey());
+        meBody.put("enabledModulesJson", profile.getEnabledModulesJson());
+        meBody.put("formsLabelsJson", profile.getFormsLabelsJson());
       });
       return ResponseEntity.ok(meBody);
     } catch (final JwtException | IllegalArgumentException e) {

@@ -2,6 +2,7 @@ package com.hotelpms.fb.service;
 
 import com.hotelpms.fb.dto.RestaurantOrderRequest;
 import com.hotelpms.fb.dto.RestaurantOrderResponse;
+import com.hotelpms.fb.client.dto.PaymentRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -45,4 +46,22 @@ public interface RestaurantOrderService {
      * @return the updated order response
      */
     RestaurantOrderResponse confirmOrder(UUID orderId);
+
+    /**
+     * Pays a restaurant order.
+     *
+     * @param orderId order identifier.
+     * @param request payment details.
+     * @return updated order response.
+     */
+    RestaurantOrderResponse payOrder(UUID orderId, PaymentRequest request);
+
+    /**
+     * Refunds a paid restaurant order.
+     *
+     * @param orderId order identifier.
+     * @param reference refund reference.
+     * @return updated order response.
+     */
+    RestaurantOrderResponse refundOrder(UUID orderId, String reference);
 }

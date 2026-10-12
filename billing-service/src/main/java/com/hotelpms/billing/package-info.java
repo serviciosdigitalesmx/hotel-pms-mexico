@@ -1,4 +1,2 @@
-/**
- * Main package for the billing service.
- */
+/** Main package for the billing service. */
 package com.hotelpms.billing;

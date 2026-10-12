@@ -11,5 +11,7 @@ public enum OrderStatus {
     /** Order has been delivered to guest. */
     DELIVERED,
     /** Order has been billed to guest's room stay. */
-    BILLED_TO_ROOM
+    BILLED_TO_ROOM,
+    /** Order payment has been received. */
+    PAID
 }

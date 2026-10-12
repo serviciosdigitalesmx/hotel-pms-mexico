@@ -1,4 +1,2 @@
-/**
- * Request/response DTOs for the quotations domain.
- */
+/** Request/response DTOs for the quotations domain. */
 package com.hotelpms.frontdesk.quotations.dto;

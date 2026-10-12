@@ -2,62 +2,82 @@ package com.hotelpms.billing.service.impl;
 
 import com.hotelpms.billing.domain.Invoice;
 import com.hotelpms.billing.domain.InvoiceStatus;
+import com.hotelpms.billing.domain.Payment;
 import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.OwnerFinancialReportDto;
 import com.hotelpms.billing.mapper.InvoiceMapper;
 import com.hotelpms.billing.repository.InvoiceRepository;
 import com.hotelpms.billing.service.OwnerReportService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-
-/**
- * Implementation of the OwnerReportService for financial reporting.
- */
+/** Implementation of the OwnerReportService for financial reporting. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OwnerReportServiceImpl implements OwnerReportService {
 
-        private final InvoiceRepository invoiceRepository;
-        private final InvoiceMapper invoiceMapper;
+  private final InvoiceRepository invoiceRepository;
+  private final InvoiceMapper invoiceMapper;
 
-        /** {@inheritDoc} */
-        @Override
-        @Transactional(readOnly = true)
-        public OwnerFinancialReportDto getFinancialReport(
-                        final UUID hotelId, final LocalDate startDate, final LocalDate endDate) {
-                log.info("Generating owner financial report for hotelId={} from {} to {}", hotelId, startDate, endDate);
+  /** {@inheritDoc} */
+  @Override
+  @Transactional(readOnly = true)
+  public OwnerFinancialReportDto getFinancialReport(
+      final UUID hotelId, final LocalDate startDate, final LocalDate endDate) {
+    log.info(
+        "Generating owner financial report for hotelId={} from {} to {}",
+        hotelId,
+        startDate,
+        endDate);
 
-                final LocalDateTime start = startDate.atStartOfDay();
-                final LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+    final LocalDateTime start = startDate.atStartOfDay();
+    final LocalDateTime end = endDate.plusDays(1).atStartOfDay();
 
-                final List<Invoice> invoices = invoiceRepository.findByHotelIdAndIssueDateBetween(hotelId, start, end);
+    final List<Invoice> invoices =
+        invoiceRepository.findByHotelIdAndIssueDateBetween(hotelId, start, end);
 
-                final BigDecimal totalRevenue = invoices.stream()
-                                .map((@NonNull Invoice inv) -> inv.getTotalAmount())
-                                .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b));
+    final BigDecimal totalRevenue =
+        invoices.stream()
+            .map((@NonNull Invoice inv) -> inv.getTotalAmount())
+            .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b));
 
-                final long totalInvoices = invoices.size();
-                final long paidInvoices = invoices.stream()
-                                .filter(inv -> inv.getStatus() == InvoiceStatus.PAID)
-                                .count();
+    final BigDecimal totalCollected =
+        invoices.stream()
+            .flatMap((@NonNull Invoice invoice) -> invoice.getPayments().stream())
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b));
+    final BigDecimal totalOutstanding = totalRevenue.subtract(totalCollected).max(BigDecimal.ZERO);
 
-                final List<InvoiceResponse> invoiceResponses = invoices.stream()
-                                .map(invoiceMapper::toResponse)
-                                .toList();
+    final long totalInvoices = invoices.size();
+    final long paidInvoices =
+        invoices.stream().filter(inv -> inv.getStatus() == InvoiceStatus.PAID).count();
 
-                log.info("Report: {} invoices, {} paid, total revenue {}", totalInvoices, paidInvoices, totalRevenue);
+    final List<InvoiceResponse> invoiceResponses =
+        invoices.stream().map(invoiceMapper::toResponse).toList();
 
-                return new OwnerFinancialReportDto(startDate, endDate, totalRevenue, totalInvoices, paidInvoices,
-                                invoiceResponses);
-        }
+    log.info(
+        "Report: {} invoices, {} paid, total revenue {}",
+        totalInvoices,
+        paidInvoices,
+        totalRevenue);
+
+    return new OwnerFinancialReportDto(
+        startDate,
+        endDate,
+        totalRevenue,
+        totalCollected,
+        totalOutstanding,
+        totalInvoices,
+        paidInvoices,
+        invoiceResponses);
+  }
 }

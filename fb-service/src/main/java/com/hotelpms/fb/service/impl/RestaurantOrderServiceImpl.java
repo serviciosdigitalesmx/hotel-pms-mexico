@@ -4,6 +4,8 @@ import com.hotelpms.fb.client.BillingClient;
 import com.hotelpms.fb.client.StayClient;
 import com.hotelpms.fb.client.dto.ChargeRequest;
 import com.hotelpms.fb.client.dto.ChargeResponse;
+import com.hotelpms.fb.client.dto.PaymentRequest;
+import com.hotelpms.fb.client.dto.RefundRequest;
 import com.hotelpms.fb.client.dto.StayResponse;
 import com.hotelpms.fb.domain.MenuItem;
 import com.hotelpms.fb.domain.OrderItem;
@@ -46,6 +48,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class RestaurantOrderServiceImpl implements RestaurantOrderService {
+    private static final String ORDER_NOT_FOUND = "ORDER_NOT_FOUND";
 
     private static final String CHARGE_TYPE_FB_ORDER = "FB_ORDER";
     private static final Set<OrderStatus> CONFIRMABLE_STATUSES = Set.of(OrderStatus.PENDING, OrderStatus.PREPARED);
@@ -152,7 +155,7 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
 
         final RestaurantOrder order = orderRepository.findByIdAndHotelId(
                 Objects.requireNonNull(orderId), hotelId)
-                .orElseThrow(() -> new OrderNotFoundException("ORDER_NOT_FOUND"));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND));
 
         if (!CONFIRMABLE_STATUSES.contains(order.getStatus())) {
             log.warn("[FB] CONFIRM_FAILED | orderId={} | reason=INVALID_ORDER_STATUS | currentStatus={}",
@@ -200,6 +203,58 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
         }
 
         return orderMapper.toResponse(savedOrder);
+    }
+
+    /**
+     * Pays a restaurant order.
+     *
+     * @param orderId order identifier.
+     * @param request payment details.
+     * @return updated order.
+     */
+    @Override
+    @Transactional
+    public RestaurantOrderResponse payOrder(final UUID orderId, final PaymentRequest request) {
+        final UUID hotelId = resolveHotelId();
+        final RestaurantOrder order = orderRepository.findByIdAndHotelId(Objects.requireNonNull(orderId), hotelId)
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND));
+        if (order.getStatus() == OrderStatus.PAID) {
+            return orderMapper.toResponse(order);
+        }
+        if (!CONFIRMABLE_STATUSES.contains(order.getStatus())) {
+            throw new OrderValidationException("INVALID_ORDER_STATUS");
+        }
+        if (request.amount() == null || request.amount().compareTo(order.getTotalAmount()) != 0) {
+            throw new OrderValidationException("PAYMENT_AMOUNT_MISMATCH");
+        }
+        final ChargeResponse payment = billingClient.addPayment(order.getStayId(), request);
+        if (payment == null || payment.id() == null) {
+            throw new OrderValidationException("PAYMENT_NOT_RECORDED");
+        }
+        order.setPaymentId(payment.id());
+        order.setStatus(OrderStatus.PAID);
+        return orderMapper.toResponse(orderRepository.save(order));
+    }
+
+    /**
+     * Refunds a restaurant order.
+     *
+     * @param orderId order identifier.
+     * @param reference refund reference.
+     * @return updated order.
+     */
+    @Override
+    @Transactional
+    public RestaurantOrderResponse refundOrder(final UUID orderId, final String reference) {
+        final UUID hotelId = resolveHotelId();
+        final RestaurantOrder order = orderRepository.findByIdAndHotelId(Objects.requireNonNull(orderId), hotelId)
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND));
+        if (order.getPaymentId() == null || order.getStatus() != OrderStatus.PAID) {
+            throw new OrderValidationException("ORDER_NOT_PAID");
+        }
+        billingClient.refund(order.getStayId(), order.getPaymentId(), new RefundRequest(order.getTotalAmount(), reference));
+        order.setStatus(OrderStatus.PENDING);
+        return orderMapper.toResponse(orderRepository.save(order));
     }
 
     /**

@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN npm install --global pnpm@12.10.1 && pnpm install --frozen-lockfile
+RUN npm install --global pnpm@12.10.1 && pnpm install --no-frozen-lockfile
 COPY . .
 RUN pnpm exec tsc -p tsconfig.fixi.json --noEmit
 RUN pnpm exec vite build

@@ -63,6 +63,10 @@ public class MenuItem {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    /** Optional FIXI inventory product consumed when this POS item is sold. */
+    @Column(name = "inventory_product_id")
+    private UUID inventoryProductId;
+
     /** Visibility for ordering; false hides from order form without deleting. */
     @Column(nullable = false)
     @Builder.Default

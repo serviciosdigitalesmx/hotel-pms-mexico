@@ -1,4 +1,2 @@
-/**
- * Service interfaces for the quotations domain.
- */
+/** Service interfaces for the quotations domain. */
 package com.hotelpms.frontdesk.quotations.service;

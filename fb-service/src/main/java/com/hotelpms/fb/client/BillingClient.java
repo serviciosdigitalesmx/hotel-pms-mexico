@@ -2,6 +2,8 @@ package com.hotelpms.fb.client;
 
 import com.hotelpms.fb.client.dto.ChargeRequest;
 import com.hotelpms.fb.client.dto.ChargeResponse;
+import com.hotelpms.fb.client.dto.PaymentRequest;
+import com.hotelpms.fb.client.dto.RefundRequest;
 import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -15,7 +17,6 @@ import java.util.UUID;
  * OpenFeign client for communicating with the Billing Service.
  * Adds F&amp;B charges to an open stay invoice.
  */
-@FunctionalInterface
 @FeignClient(
         name = "billing-service",
         url = "${APPLICATION_CONFIG_BILLING_SERVICE_URL:http://billing-service:8085}")
@@ -37,6 +38,28 @@ public interface BillingClient {
     @PostMapping("/api/v1/invoices/stay/{stayId}/charges")
     @CircuitBreaker(name = "billingService", fallbackMethod = "addChargeFallback")
     ChargeResponse addCharge(@PathVariable("stayId") UUID stayId, @RequestBody ChargeRequest request);
+
+    /**
+     * Adds a payment for a stay.
+     *
+     * @param stayId stay identifier.
+     * @param request payment details.
+     * @return billing response.
+     */
+    @PostMapping("/api/v1/stays/{stayId}/payments")
+    ChargeResponse addPayment(@PathVariable("stayId") UUID stayId, @RequestBody PaymentRequest request);
+
+    /**
+     * Refunds a stay payment.
+     *
+     * @param stayId stay identifier.
+     * @param paymentId payment identifier.
+     * @param request refund details.
+     * @return billing response.
+     */
+    @PostMapping("/api/v1/stays/{stayId}/payments/{paymentId}/refund")
+    ChargeResponse refund(@PathVariable("stayId") UUID stayId, @PathVariable("paymentId") UUID paymentId,
+            @RequestBody RefundRequest request);
 
     /**
      * Fallback for addCharge.

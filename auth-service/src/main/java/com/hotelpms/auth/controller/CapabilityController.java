@@ -45,6 +45,17 @@ public class CapabilityController {
         Map.of("tenantId", tenantId, "capability", capabilityKey, "enabled", enabled));
   }
 
+  /** Returns effective capabilities without exposing another user's grants. */
+  @GetMapping("/me")
+  public ResponseEntity<Map<String, Object>> effectiveCapabilities(
+      @RequestHeader("X-Auth-Hotel") final UUID tenantId,
+      final Authentication authentication) {
+    return ResponseEntity.ok(
+        Map.of(
+            "tenantId", tenantId,
+            "capabilities", service.effectiveCapabilities(authentication.getName(), tenantId)));
+  }
+
   /**
    * Sets a tenant or branch-scoped user capability grant.
    *

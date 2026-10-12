@@ -1,0 +1,38 @@
+package com.hotelpms.frontdesk.inventory.repository;
+
+import com.hotelpms.frontdesk.inventory.domain.InventoryBalance;
+import jakarta.persistence.LockModeType;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+
+/** InventoryBalanceRepository domain type. */
+public interface InventoryBalanceRepository extends JpaRepository<InventoryBalance, UUID> {
+  /**
+   * Executes the operation.
+   *
+   * @param hotelId parameter.
+   *
+   * @param branchId parameter.
+   *
+   * @param productId parameter.
+   *
+   * @return operation result.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  Optional<InventoryBalance> findByHotelIdAndBranchIdAndProductId(
+      UUID hotelId, UUID branchId, UUID productId);
+  /**
+   * Executes the operation.
+   *
+   * @param hotelId parameter.
+   *
+   * @param branchId parameter.
+   *
+   * @return operation result.
+   */
+
+  List<InventoryBalance> findAllByHotelIdAndBranchId(UUID hotelId, UUID branchId);
+}

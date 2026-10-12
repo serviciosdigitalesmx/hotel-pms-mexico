@@ -36,6 +36,33 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
     Optional<Guest> findByIdAndHotelId(UUID id, UUID hotelId);
 
     /**
+     * Finds the first guest matching email in a hotel.
+     *
+     * @param hotelId tenant identifier.
+     * @param email email value.
+     * @return matching guest.
+     */
+    Optional<Guest> findFirstByHotelIdAndEmailIgnoreCase(UUID hotelId, String email);
+
+    /**
+     * Finds the first guest matching phone in a hotel.
+     *
+     * @param hotelId tenant identifier.
+     * @param phone phone value.
+     * @return matching guest.
+     */
+    Optional<Guest> findFirstByHotelIdAndPhone(UUID hotelId, String phone);
+
+    /**
+     * Finds the first guest matching RFC in a hotel.
+     *
+     * @param hotelId tenant identifier.
+     * @param rfc RFC value.
+     * @return matching guest.
+     */
+    Optional<Guest> findFirstByHotelIdAndRfcIgnoreCase(UUID hotelId, String rfc);
+
+    /**
      * Returns a paginated list of all active guests belonging to a hotel.
      *
      * @param hotelId  the owning hotel UUID

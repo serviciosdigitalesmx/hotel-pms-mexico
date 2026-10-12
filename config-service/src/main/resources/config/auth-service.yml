@@ -7,11 +7,18 @@ jwt:
   refresh-expiration: "${JWT_REFRESH_EXPIRATION:604800000}"  # 7 days
 
 spring:
+  mail:
+    host: "${SMTP_HOST:mailpit}"
+    port: "${SMTP_PORT:1025}"
   data:
     redis:
       host: "${AUTH_REDIS_HOST:redis}"
       port: 6379
       password: "${INTERNAL_REDIS_PASSWORD}"
+
+fixi:
+  public-url: "${FIXI_PUBLIC_URL:http://localhost}"
+  mail-from: "${FIXI_MAIL_FROM:no-reply@fixi.local}"
 
 management:
   server:

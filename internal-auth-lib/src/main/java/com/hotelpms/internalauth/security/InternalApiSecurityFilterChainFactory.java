@@ -51,7 +51,9 @@ public final class InternalApiSecurityFilterChainFactory {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/**", "/actuator/health").permitAll()
+                        .requestMatchers("/actuator/**", "/actuator/health", "/api/public/portal/**",
+                                "/api/v1/public/requests/**")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new InternalAuthFilter(hmacSecret, nonceStore, exemptPathPrefixes),
                         UsernamePasswordAuthenticationFilter.class);

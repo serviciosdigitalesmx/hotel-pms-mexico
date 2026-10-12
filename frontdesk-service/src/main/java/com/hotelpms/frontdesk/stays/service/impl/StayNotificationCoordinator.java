@@ -14,99 +14,107 @@ import com.hotelpms.frontdesk.stays.dto.HotelSettingsResponse;
 import com.hotelpms.frontdesk.stays.repository.StayRepository;
 import com.hotelpms.frontdesk.stays.service.HotelSettingsService;
 import feign.FeignException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 /**
- * Sends the checkout-summary transactional email (via notification-service), gated
- * by per-hotel settings. Failure never blocks check-out itself — it's recorded on
- * the {@link Stay} for staff retry via {@link StayServiceImpl#retryCheckoutEmail}.
+ * Sends the checkout-summary transactional email (via notification-service), gated by per-hotel
+ * settings. Failure never blocks check-out itself — it's recorded on the {@link Stay} for staff
+ * retry via {@link StayServiceImpl#retryCheckoutEmail}.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 class StayNotificationCoordinator {
 
-    private static final String NOTIFICATION_SERVICE_UNAVAILABLE_REASON = "NOTIFICATION_SERVICE_UNAVAILABLE";
-    private static final String DEFAULT_CURRENCY = "MXN";
-    private static final String DEFAULT_LOCALE = "es-MX";
-    private static final String INVOICE_FILE_PREFIX = "factura-";
-    private static final String INVOICE_FILE_EXTENSION = ".pdf";
+  private static final String NOTIFICATION_SERVICE_UNAVAILABLE_REASON =
+      "NOTIFICATION_SERVICE_UNAVAILABLE";
+  private static final String DEFAULT_CURRENCY = "MXN";
+  private static final String DEFAULT_LOCALE = "es-MX";
+  private static final String INVOICE_FILE_PREFIX = "factura-";
+  private static final String INVOICE_FILE_EXTENSION = ".pdf";
 
-    private final NotificationClient notificationClient;
-    private final GuestClient guestClient;
-    private final BillingClient billingClient;
-    private final HotelSettingsService hotelSettingsService;
-    private final StayRepository stayRepository;
+  private final NotificationClient notificationClient;
+  private final GuestClient guestClient;
+  private final BillingClient billingClient;
+  private final HotelSettingsService hotelSettingsService;
+  private final StayRepository stayRepository;
 
-    /**
-     * Sends the checkout email if enabled in hotel settings; records success or
-     * failure on the stay either way (a Feign/DB failure never blocks check-out,
-     * which has already committed by the time this runs).
-     *
-     * @param stay    the just-checked-out stay
-     * @param invoice the invoice verified as PAID during check-out
-     */
-    void sendCheckoutEmailIfPossible(final Stay stay, final InvoiceStatusResponse invoice) {
-        try {
-            final HotelSettingsResponse settings = hotelSettingsService.getOrCreate(stay.getHotelId());
-            if (!settings.sendCheckoutEmail()) {
-                return;
-            }
-            final GuestResponse guest = guestClient.getGuestById(stay.getGuestId());
-            final List<NotificationChargeLineDto> lines;
-            final String currency;
-            final byte[] invoicePdf;
-            if (invoice.id() != null) {
-                final InvoiceForEmailResponse detail = billingClient.getInvoiceForEmail(invoice.id());
-                lines = detail.charges() != null
-                        ? detail.charges().stream()
-                                .map((ChargeLineDto c) -> new NotificationChargeLineDto(c.description(), c.amount()))
-                                .toList()
-                        : List.of();
-                currency = detail.currency() != null
-                        ? detail.currency() : settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
-                invoicePdf = billingClient.getInvoicePdf(invoice.id());
-            } else {
-                lines = List.of();
-                currency = settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
-                invoicePdf = null;
-            }
-            final String invoiceFileName = invoicePdf == null
-                    ? null
-                    : INVOICE_FILE_PREFIX + invoice.id() + INVOICE_FILE_EXTENSION;
-            final boolean sent = notificationClient.sendCheckout(new NotificationCheckoutRequest(
-                    guest.email(),
-                    guest.firstName() + " " + guest.lastName(),
-                    settings.hotelName(),
-                    stay.getRoomNumber(),
-                    stay.getActualCheckInTime(),
-                    stay.getActualCheckOutTime(),
-                    lines,
-                    invoice.totalAmount(),
-                    currency,
-                    settingOrDefault(settings.locale(), DEFAULT_LOCALE),
-                    settings.emailSubjectCheckout(),
-                    settings.emailGreetingText(),
-                    settings.logoUrl(),
-                    invoicePdf,
-                    invoiceFileName));
-            stay.setCheckoutEmailFailed(!sent);
-            stay.setCheckoutEmailFailureReason(sent ? null : NOTIFICATION_SERVICE_UNAVAILABLE_REASON);
-            stayRepository.save(stay);
-        } catch (final FeignException | DataAccessException ex) {
-            log.warn("[STAY] CHECKOUT_EMAIL_SKIPPED | stayId={} | reason={}", stay.getId(), ex.getMessage());
-            stay.setCheckoutEmailFailed(true);
-            stay.setCheckoutEmailFailureReason(StayFailureReason.truncate(ex.getMessage()));
-            stayRepository.save(stay);
-        }
+  /**
+   * Sends the checkout email if enabled in hotel settings; records success or failure on the stay
+   * either way (a Feign/DB failure never blocks check-out, which has already committed by the time
+   * this runs).
+   *
+   * @param stay the just-checked-out stay
+   *
+   * @param invoice the invoice verified as PAID during check-out
+   */
+  void sendCheckoutEmailIfPossible(final Stay stay, final InvoiceStatusResponse invoice) {
+    try {
+      final HotelSettingsResponse settings = hotelSettingsService.getOrCreate(stay.getHotelId());
+      if (!settings.sendCheckoutEmail()) {
+        return;
+      }
+      final GuestResponse guest = guestClient.getGuestById(stay.getGuestId());
+      final List<NotificationChargeLineDto> lines;
+      final String currency;
+      final byte[] invoicePdf;
+      if (invoice.id() != null) {
+        final InvoiceForEmailResponse detail = billingClient.getInvoiceForEmail(invoice.id());
+        lines =
+            detail.charges() != null
+                ? detail.charges().stream()
+                    .map(
+                        (ChargeLineDto c) ->
+                            new NotificationChargeLineDto(c.description(), c.amount()))
+                    .toList()
+                : List.of();
+        currency =
+            detail.currency() != null
+                ? detail.currency()
+                : settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
+        invoicePdf = billingClient.getInvoicePdf(invoice.id());
+      } else {
+        lines = List.of();
+        currency = settingOrDefault(settings.currency(), DEFAULT_CURRENCY);
+        invoicePdf = null;
+      }
+      final String invoiceFileName =
+          invoicePdf == null ? null : INVOICE_FILE_PREFIX + invoice.id() + INVOICE_FILE_EXTENSION;
+      final boolean sent =
+          notificationClient.sendCheckout(
+              new NotificationCheckoutRequest(
+                  guest.email(),
+                  guest.firstName() + " " + guest.lastName(),
+                  settings.hotelName(),
+                  stay.getRoomNumber(),
+                  stay.getActualCheckInTime(),
+                  stay.getActualCheckOutTime(),
+                  lines,
+                  invoice.totalAmount(),
+                  currency,
+                  settingOrDefault(settings.locale(), DEFAULT_LOCALE),
+                  settings.emailSubjectCheckout(),
+                  settings.emailGreetingText(),
+                  settings.logoUrl(),
+                  invoicePdf,
+                  invoiceFileName));
+      stay.setCheckoutEmailFailed(!sent);
+      stay.setCheckoutEmailFailureReason(sent ? null : NOTIFICATION_SERVICE_UNAVAILABLE_REASON);
+      stayRepository.save(stay);
+    } catch (final FeignException | DataAccessException ex) {
+      log.warn(
+          "[STAY] CHECKOUT_EMAIL_SKIPPED | stayId={} | reason={}", stay.getId(), ex.getMessage());
+      stay.setCheckoutEmailFailed(true);
+      stay.setCheckoutEmailFailureReason(StayFailureReason.truncate(ex.getMessage()));
+      stayRepository.save(stay);
     }
+  }
 
-    private static String settingOrDefault(final String value, final String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
-    }
+  private static String settingOrDefault(final String value, final String fallback) {
+    return value == null || value.isBlank() ? fallback : value;
+  }
 }

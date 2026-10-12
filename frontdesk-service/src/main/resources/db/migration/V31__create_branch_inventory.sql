@@ -1,0 +1,3 @@
+CREATE TABLE inventory_products (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, sku VARCHAR(80) NOT NULL, name VARCHAR(200) NOT NULL, optional BOOLEAN NOT NULL DEFAULT TRUE, CONSTRAINT uq_inventory_product_hotel_sku UNIQUE(hotel_id,sku));
+CREATE TABLE inventory_balances (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, branch_id UUID NOT NULL, product_id UUID NOT NULL, quantity BIGINT NOT NULL DEFAULT 0, version BIGINT NOT NULL DEFAULT 0, CONSTRAINT uq_inventory_balance_branch_product UNIQUE(branch_id,product_id));
+CREATE INDEX idx_inventory_balances_hotel_branch ON inventory_balances(hotel_id,branch_id);

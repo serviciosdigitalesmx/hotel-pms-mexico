@@ -7,34 +7,34 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 
-/**
- * Mapper for Room.
- */
+/** Mapper for Room. */
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = RoomTypeMapper.class)
 public interface RoomMapper {
 
-    /**
-     * Converts entity to response. {@code resolvedTotalPrice} has no source on
-     * {@code Room} — it's attached afterward, only by the availability search,
-     * via {@link RoomResponse#withResolvedTotalPrice}.
-     *
-     * @param entity the entity
-     * @return the response
-     */
-    @Mapping(target = "resolvedTotalPrice", ignore = true)
-    @Mapping(target = "withResolvedTotalPrice", ignore = true)
-    RoomResponse toResponse(Room entity);
+  /**
+   * Converts entity to response. {@code resolvedTotalPrice} has no source on {@code Room} — it's
+   * attached afterward, only by the availability search, via {@link
+   * RoomResponse#withResolvedTotalPrice}.
+   *
+   * @param entity the entity
+   *
+   * @return the response
+   */
+  @Mapping(target = "resolvedTotalPrice", ignore = true)
+  @Mapping(target = "withResolvedTotalPrice", ignore = true)
+  RoomResponse toResponse(Room entity);
 
-    /**
-     * Converts request to entity.
-     *
-     * @param request the request
-     * @return the entity
-     */
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "roomType", ignore = true)
-    @Mapping(target = "active", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    Room toEntity(RoomRequest request);
+  /**
+   * Converts request to entity.
+   *
+   * @param request the request
+   *
+   * @return the entity
+   */
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "roomType", ignore = true)
+  @Mapping(target = "active", ignore = true)
+  @Mapping(target = "createdAt", ignore = true)
+  @Mapping(target = "updatedAt", ignore = true)
+  Room toEntity(RoomRequest request);
 }

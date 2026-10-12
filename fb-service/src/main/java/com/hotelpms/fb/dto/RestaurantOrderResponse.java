@@ -17,6 +17,7 @@ import java.util.UUID;
  * @param guestDisplayName  the primary guest's "Cognome Nome", denormalized at creation time
  * @param orderDate         the date and time the order was placed
  * @param totalAmount       the total amount of the order
+ * @param paymentId         the payment ID
  * @param status            the status of the order
  * @param items             the items included in the order
  * @param createdAt         the creation timestamp
@@ -30,6 +31,7 @@ public record RestaurantOrderResponse(
                 String guestDisplayName,
                 LocalDateTime orderDate,
                 BigDecimal totalAmount,
+                UUID paymentId,
                 OrderStatus status,
                 List<OrderItemResponse> items,
                 LocalDateTime createdAt,

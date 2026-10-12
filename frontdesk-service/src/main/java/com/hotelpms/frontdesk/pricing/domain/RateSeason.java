@@ -8,6 +8,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,14 +25,9 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
- * A date-range price override for a room type (RoomType.basePrice remains the
- * fallback for any date not covered by an active RateSeason).
+ * A date-range price override for a room type (RoomType.basePrice remains the fallback for any date
+ * not covered by an active RateSeason).
  */
 @Entity
 @Table(name = "rate_seasons")
@@ -39,56 +38,55 @@ import java.util.UUID;
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 @SQLDelete(
-        sql = "UPDATE rate_seasons SET active = false, version = version + 1 WHERE id = ? AND version = ?",
-        check = ResultCheckStyle.COUNT)
+    sql =
+        "UPDATE rate_seasons SET active = false, version = version + 1 WHERE id = ? AND version ="
+            + " ?",
+    check = ResultCheckStyle.COUNT)
 @SQLRestriction("active = true")
 public class RateSeason {
 
-    private static final int MAX_NAME_LENGTH = 100;
+  private static final int MAX_NAME_LENGTH = 100;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Setter(AccessLevel.NONE)
+  private UUID id;
 
-    @Version
-    @Column(nullable = false)
-    private Long version;
+  @Version
+  @Column(nullable = false)
+  private Long version;
 
-    /**
-     * The hotel this season belongs to (multi-tenancy), same convention as
-     * {@code RoomType.hotelId}.
-     */
-    @Column(name = "hotel_id", nullable = false)
-    private UUID hotelId;
+  /**
+   * The hotel this season belongs to (multi-tenancy), same convention as {@code RoomType.hotelId}.
+   */
+  @Column(name = "hotel_id", nullable = false)
+  private UUID hotelId;
 
-    @Column(name = "room_type_id", nullable = false)
-    private UUID roomTypeId;
+  @Column(name = "room_type_id", nullable = false)
+  private UUID roomTypeId;
 
-    /**
-     * Optional display label (e.g. "Alta stagione"). Not used in price resolution.
-     */
-    @Column(length = MAX_NAME_LENGTH)
-    private String name;
+  /** Optional display label (e.g. "Alta stagione"). Not used in price resolution. */
+  @Column(length = MAX_NAME_LENGTH)
+  private String name;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+  @Column(name = "start_date", nullable = false)
+  private LocalDate startDate;
 
-    @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+  @Column(name = "end_date", nullable = false)
+  private LocalDate endDate;
 
-    @Column(name = "nightly_price", nullable = false, precision = 10, scale = 2)
-    private BigDecimal nightlyPrice;
+  @Column(name = "nightly_price", nullable = false, precision = 10, scale = 2)
+  private BigDecimal nightlyPrice;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean active = true;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
 }

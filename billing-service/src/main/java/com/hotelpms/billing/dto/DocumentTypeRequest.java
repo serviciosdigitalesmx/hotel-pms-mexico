@@ -9,5 +9,4 @@ import org.springframework.lang.NonNull;
  *
  * @param documentType the new document type (must not be null)
  */
-public record DocumentTypeRequest(@NotNull @NonNull DocumentType documentType) {
-}
+public record DocumentTypeRequest(@NotNull @NonNull DocumentType documentType) { }

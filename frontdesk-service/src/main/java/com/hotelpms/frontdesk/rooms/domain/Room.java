@@ -12,6 +12,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,12 +26,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-/**
- * Room Domain Entity.
- */
+/** Room Domain Entity. */
 @Entity
 @Table(name = "rooms")
 @Getter
@@ -42,39 +39,39 @@ import java.util.UUID;
 @SQLRestriction("active = true")
 public class Room {
 
-    private static final int MAX_ROOM_NUMBER_LENGTH = 50;
-    private static final int MAX_ROOM_STATUS_LENGTH = 20;
+  private static final int MAX_ROOM_NUMBER_LENGTH = 50;
+  private static final int MAX_ROOM_STATUS_LENGTH = 20;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Setter(AccessLevel.NONE)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Setter(AccessLevel.NONE)
+  private UUID id;
 
-    @Column(name = "hotel_id", nullable = false)
-    private UUID hotelId;
+  @Column(name = "hotel_id", nullable = false)
+  private UUID hotelId;
 
-    @Column(nullable = false, unique = true, length = MAX_ROOM_NUMBER_LENGTH)
-    private String roomNumber;
+  @Column(nullable = false, unique = true, length = MAX_ROOM_NUMBER_LENGTH)
+  private String roomNumber;
 
-    // Native Image disables runtime Hibernate proxy generation; this relation is
-    // part of every room response, so loading it eagerly preserves the contract.
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "room_type_id", nullable = false)
-    private RoomType roomType;
+  // Native Image disables runtime Hibernate proxy generation; this relation is
+  // part of every room response, so loading it eagerly preserves the contract.
+  @ManyToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "room_type_id", nullable = false)
+  private RoomType roomType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = MAX_ROOM_STATUS_LENGTH)
-    private RoomStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = MAX_ROOM_STATUS_LENGTH)
+  private RoomStatus status;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean active = true;
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+  @LastModifiedDate
+  @Column(nullable = false)
+  private LocalDateTime updatedAt;
 }

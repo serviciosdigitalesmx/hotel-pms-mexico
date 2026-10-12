@@ -6,6 +6,9 @@ import com.hotelpms.frontdesk.stays.dto.StayResponse;
 import com.hotelpms.frontdesk.stays.dto.StaySummaryResponse;
 import com.hotelpms.frontdesk.stays.service.StayService;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,195 +16,198 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.lang.NonNull;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Objects;
-import java.util.List;
-import java.util.UUID;
-
-/**
- * REST Controller for Stay operations.
- */
+/** REST Controller for Stay operations. */
 @RestController
 @RequestMapping("/api/v1/stays")
 @RequiredArgsConstructor
 public class StayController {
 
-    private static final int DEFAULT_PAGE_SIZE = 20;
-    private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
-    private static final String ROLE_CHECK_IN = "hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')";
+  private static final int DEFAULT_PAGE_SIZE = 20;
+  private static final String ROLE_ADMIN_OR_OWNER = "hasAnyRole('ADMIN', 'OWNER')";
+  private static final String ROLE_CHECK_IN = "hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')";
 
-    private final StayService stayService;
+  private final StayService stayService;
 
-    /**
-     * Endpoint to check in a guest and create a stay.
-     * The {@code hotelId} is always taken from the gateway-injected {@code X-Auth-Hotel}
-     * header (via SecurityContext) to enforce multi-tenant isolation — any value
-     * present in the request body is overridden.
-     *
-     * @param request the stay request
-     * @return the created stay response
-     */
-    @PostMapping
-    @PreAuthorize(ROLE_CHECK_IN)
-    @ResponseStatus(HttpStatus.CREATED)
-    public StayResponse checkIn(@NonNull @Valid @RequestBody final StayRequest request) {
-        final UUID hotelId = Objects.requireNonNull(extractHotelId());
-        final StayRequest enriched = new StayRequest(
-                hotelId,
-                request.reservationId(),
-                request.guestId(),
-                request.roomId(),
-                request.status(),
-                request.expectedCheckOutDate(),
-                request.actualCheckInTime(),
-                request.actualCheckOutTime(),
-                request.occupantCount(),
-                request.guests());
-        return stayService.checkIn(enriched);
+  /**
+   * Endpoint to check in a guest and create a stay. The {@code hotelId} is always taken from the
+   * gateway-injected {@code X-Auth-Hotel} header (via SecurityContext) to enforce multi-tenant
+   * isolation — any value present in the request body is overridden.
+   *
+   * @param request the stay request
+   *
+   * @return the created stay response
+   */
+  @PostMapping
+  @PreAuthorize(ROLE_CHECK_IN)
+  @ResponseStatus(HttpStatus.CREATED)
+  public StayResponse checkIn(@NonNull @Valid @RequestBody final StayRequest request) {
+    final UUID hotelId = Objects.requireNonNull(extractHotelId());
+    final StayRequest enriched =
+        new StayRequest(
+            hotelId,
+            request.reservationId(),
+            request.guestId(),
+            request.roomId(),
+            request.status(),
+            request.expectedCheckOutDate(),
+            request.actualCheckInTime(),
+            request.actualCheckOutTime(),
+            request.occupantCount(),
+            request.guests());
+    return stayService.checkIn(enriched);
+  }
+
+  /**
+   * Endpoint to check out a guest from a stay. Verifies billing is PAID and marks the room as
+   * DIRTY. Scoped to the caller's hotel (T-STAY-04): a stay belonging to another hotel returns 404.
+   *
+   * @param id the stay ID
+   *
+   * @return the updated stay response
+   */
+  @PutMapping("/{id}/check-out")
+  public StayResponse checkOut(@NonNull @PathVariable("id") final UUID id) {
+    return stayService.checkOut(id, Objects.requireNonNull(extractHotelId()));
+  }
+
+  /**
+   * Endpoint to get a stay by its ID, scoped to the caller's hotel (T-STAY-04): a stay belonging to
+   * another hotel returns 404.
+   *
+   * @param id the stay ID
+   *
+   * @return the stay response
+   */
+  @GetMapping("/{id}")
+  public StayResponse getStayById(@NonNull @PathVariable("id") final UUID id) {
+    return stayService.getStayById(id, Objects.requireNonNull(extractHotelId()));
+  }
+
+  /**
+   * Retrieves a paginated list of all stays belonging to the caller's hotel (T-STAY-04). Supports
+   * standard Spring Data pagination query parameters: {@code
+   * ?page=0&size=20&sort=actualCheckInTime,desc}
+   *
+   * @param reservationId optional reservation ID to filter by
+   *
+   * @param pageable the pagination and sorting parameters
+   *
+   * @return a page of stay responses
+   */
+  @GetMapping
+  public ResponseEntity<Page<StayResponse>> getAllStays(
+      @RequestParam(name = "reservationId", required = false) final UUID reservationId,
+      @PageableDefault(
+              size = DEFAULT_PAGE_SIZE,
+              sort = "actualCheckInTime",
+              direction = Sort.Direction.DESC)
+          final Pageable pageable) {
+    final UUID hotelId = Objects.requireNonNull(extractHotelId());
+    if (reservationId != null) {
+      return ResponseEntity.ok(
+          stayService.getStaysByReservationId(reservationId, hotelId, pageable));
     }
+    return ResponseEntity.ok(stayService.getAllStays(pageable, hotelId));
+  }
 
-    /**
-     * Endpoint to check out a guest from a stay.
-     * Verifies billing is PAID and marks the room as DIRTY. Scoped to the
-     * caller's hotel (T-STAY-04): a stay belonging to another hotel returns 404.
-     *
-     * @param id the stay ID
-     * @return the updated stay response
-     */
-    @PutMapping("/{id}/check-out")
-    public StayResponse checkOut(@NonNull @PathVariable("id") final UUID id) {
-        return stayService.checkOut(id, Objects.requireNonNull(extractHotelId()));
-    }
+  /**
+   * Returns the most recent completed stay for a guest within the caller's hotel, used to pre-fill
+   * the check-in form. Scoped to the caller's hotel (T-STAY-06, IDOR/ cross-tenant stay history
+   * leak): a guest's stay at a different hotel is never returned. Verifies that the guest profile
+   * is still active before returning any data (Option-B GDPR safeguard). Returns 204 No Content
+   * when the guest has no previous stays in this hotel, the profile was anonymised, or
+   * guest-service is unreachable (fail-safe).
+   *
+   * @param guestId the guest UUID
+   *
+   * @return 200 with the last completed stay, or 204 No Content
+   */
+  @GetMapping("/guest/{guestId}/latest")
+  public ResponseEntity<StayResponse> getLastCompletedStayForGuest(
+      @NonNull @PathVariable("guestId") final UUID guestId) {
+    return stayService
+        .getLastCompletedStayForGuest(guestId, Objects.requireNonNull(extractHotelId()))
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.noContent().build());
+  }
 
-    /**
-     * Endpoint to get a stay by its ID, scoped to the caller's hotel
-     * (T-STAY-04): a stay belonging to another hotel returns 404.
-     *
-     * @param id the stay ID
-     * @return the stay response
-     */
-    @GetMapping("/{id}")
-    public StayResponse getStayById(@NonNull @PathVariable("id") final UUID id) {
-        return stayService.getStayById(id, Objects.requireNonNull(extractHotelId()));
-    }
+  /**
+   * Returns the most recent check-in date for a guest within the caller's hotel. Called by
+   * guest-service GDPR legal-hold guard (T-GST-05).
+   *
+   * @param guestId the guest UUID
+   *
+   * @return response with existence flag and most recent check-in date
+   */
+  @GetMapping("/guest/{guestId}/last-date")
+  public ResponseEntity<GuestLastStayResponse> getLastStayDateForGuest(
+      @NonNull @PathVariable final UUID guestId) {
+    final UUID hotelId = extractHotelId();
+    return ResponseEntity.ok(
+        stayService.getLastStayDateForGuest(guestId, Objects.requireNonNull(hotelId)));
+  }
 
-    /**
-     * Retrieves a paginated list of all stays belonging to the caller's hotel
-     * (T-STAY-04). Supports standard Spring Data pagination query parameters:
-     * {@code ?page=0&size=20&sort=actualCheckInTime,desc}
-     *
-     * @param reservationId optional reservation ID to filter by
-     * @param pageable      the pagination and sorting parameters
-     * @return a page of stay responses
-     */
-    @GetMapping
-    public ResponseEntity<Page<StayResponse>> getAllStays(
-            @RequestParam(name = "reservationId", required = false) final UUID reservationId,
-            @PageableDefault(size = DEFAULT_PAGE_SIZE,
-                    sort = "actualCheckInTime",
-                    direction = Sort.Direction.DESC)
-            final Pageable pageable) {
-        final UUID hotelId = Objects.requireNonNull(extractHotelId());
-        if (reservationId != null) {
-            return ResponseEntity.ok(stayService.getStaysByReservationId(reservationId, hotelId, pageable));
-        }
-        return ResponseEntity.ok(stayService.getAllStays(pageable, hotelId));
-    }
+  /**
+   * Returns the full stay history for a guest within the caller's hotel. Called by guest-service
+   * GDPR Art. 20 data-export endpoint.
+   *
+   * @param guestId the guest UUID
+   *
+   * @return list of stay summaries, most recent first
+   */
+  @GetMapping("/guest/{guestId}/history")
+  public ResponseEntity<List<StaySummaryResponse>> getStayHistoryForGuest(
+      @NonNull @PathVariable final UUID guestId) {
+    final UUID hotelId = extractHotelId();
+    return ResponseEntity.ok(
+        stayService.getStayHistoryForGuest(guestId, Objects.requireNonNull(hotelId)));
+  }
 
-    /**
-     * Returns the most recent completed stay for a guest within the caller's hotel, used
-     * to pre-fill the check-in form. Scoped to the caller's hotel (T-STAY-06, IDOR/
-     * cross-tenant stay history leak): a guest's stay at a different hotel is never
-     * returned. Verifies that the guest profile is still active before returning any
-     * data (Option-B GDPR safeguard). Returns 204 No Content when the guest has no
-     * previous stays in this hotel, the profile was anonymised, or guest-service is
-     * unreachable (fail-safe).
-     *
-     * @param guestId the guest UUID
-     * @return 200 with the last completed stay, or 204 No Content
-     */
-    @GetMapping("/guest/{guestId}/latest")
-    public ResponseEntity<StayResponse> getLastCompletedStayForGuest(
-            @NonNull @PathVariable("guestId") final UUID guestId) {
-        return stayService.getLastCompletedStayForGuest(guestId, Objects.requireNonNull(extractHotelId()))
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.noContent().build());
-    }
+  /**
+   * Retries billing-invoice creation for a stay whose check-in-time attempt failed. Scoped to the
+   * caller's hotel (T-STAY-04): a stay belonging to another hotel returns 404.
+   *
+   * @param id the stay ID
+   *
+   * @return the updated stay response
+   */
+  @PostMapping("/{id}/invoice/retry")
+  public StayResponse retryInvoiceCreation(@NonNull @PathVariable("id") final UUID id) {
+    return stayService.retryInvoiceCreation(id, Objects.requireNonNull(extractHotelId()));
+  }
 
-    /**
-     * Returns the most recent check-in date for a guest within the caller's hotel.
-     * Called by guest-service GDPR legal-hold guard (T-GST-05).
-     *
-     * @param guestId the guest UUID
-     * @return response with existence flag and most recent check-in date
-     */
-    @GetMapping("/guest/{guestId}/last-date")
-    public ResponseEntity<GuestLastStayResponse> getLastStayDateForGuest(
-            @NonNull @PathVariable final UUID guestId) {
-        final UUID hotelId = extractHotelId();
-        return ResponseEntity.ok(
-                stayService.getLastStayDateForGuest(guestId, Objects.requireNonNull(hotelId)));
-    }
+  /**
+   * Retries the checkout summary email for a checked-out stay whose original attempt failed. Scoped
+   * to the caller's hotel (T-STAY-04): a stay belonging to another hotel returns 404.
+   *
+   * @param id the stay ID
+   *
+   * @return the updated stay response
+   */
+  @PostMapping("/{id}/checkout-email/retry")
+  public StayResponse retryCheckoutEmail(@NonNull @PathVariable("id") final UUID id) {
+    return stayService.retryCheckoutEmail(id, Objects.requireNonNull(extractHotelId()));
+  }
 
-    /**
-     * Returns the full stay history for a guest within the caller's hotel.
-     * Called by guest-service GDPR Art. 20 data-export endpoint.
-     *
-     * @param guestId the guest UUID
-     * @return list of stay summaries, most recent first
-     */
-    @GetMapping("/guest/{guestId}/history")
-    public ResponseEntity<List<StaySummaryResponse>> getStayHistoryForGuest(
-            @NonNull @PathVariable final UUID guestId) {
-        final UUID hotelId = extractHotelId();
-        return ResponseEntity.ok(
-                stayService.getStayHistoryForGuest(guestId, Objects.requireNonNull(hotelId)));
+  private UUID extractHotelId() {
+    final Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || !(auth.getDetails() instanceof String hotelIdStr) || hotelIdStr.isBlank()) {
+      throw new IllegalStateException("HOTEL_ID_NOT_AVAILABLE");
     }
-
-    /**
-     * Retries billing-invoice creation for a stay whose check-in-time attempt failed.
-     * Scoped to the caller's hotel (T-STAY-04): a stay belonging to another hotel
-     * returns 404.
-     *
-     * @param id the stay ID
-     * @return the updated stay response
-     */
-    @PostMapping("/{id}/invoice/retry")
-    public StayResponse retryInvoiceCreation(@NonNull @PathVariable("id") final UUID id) {
-        return stayService.retryInvoiceCreation(id, Objects.requireNonNull(extractHotelId()));
-    }
-
-    /**
-     * Retries the checkout summary email for a checked-out stay whose original
-     * attempt failed. Scoped to the caller's hotel (T-STAY-04): a stay belonging
-     * to another hotel returns 404.
-     *
-     * @param id the stay ID
-     * @return the updated stay response
-     */
-    @PostMapping("/{id}/checkout-email/retry")
-    public StayResponse retryCheckoutEmail(@NonNull @PathVariable("id") final UUID id) {
-        return stayService.retryCheckoutEmail(id, Objects.requireNonNull(extractHotelId()));
-    }
-
-    private UUID extractHotelId() {
-        final Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getDetails() instanceof String hotelIdStr) || hotelIdStr.isBlank()) {
-            throw new IllegalStateException("HOTEL_ID_NOT_AVAILABLE");
-        }
-        return UUID.fromString(hotelIdStr);
-    }
+    return UUID.fromString(hotelIdStr);
+  }
 }

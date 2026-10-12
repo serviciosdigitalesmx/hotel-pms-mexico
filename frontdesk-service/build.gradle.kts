@@ -120,6 +120,9 @@ dependencies {
     // causing a NoClassDefFoundError in AlloggiatiCsvParser if upgraded alone.
     // Dependabot is configured to ignore commons-csv >= 1.10 (.github/dependabot.yml).
     implementation("org.apache.commons:commons-csv:1.9.0")
+    // Catalog ingestion: spreadsheet and PDF supplier documents.
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
+    implementation("org.apache.pdfbox:pdfbox:3.0.5")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("net.bytebuddy:byte-buddy:1.15.11")

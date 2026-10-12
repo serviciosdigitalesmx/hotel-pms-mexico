@@ -1,0 +1,1 @@
+CREATE TABLE whatsapp_webhook_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), hotel_id UUID NOT NULL, event_id VARCHAR(150) NOT NULL, received_at TIMESTAMP NOT NULL, CONSTRAINT uq_whatsapp_webhook_event UNIQUE(hotel_id,event_id));

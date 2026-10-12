@@ -1,4 +1,2 @@
-/**
- * REST Controllers mapping external web requests.
- */
+/** REST Controllers mapping external web requests. */
 package com.hotelpms.billing.controller;
