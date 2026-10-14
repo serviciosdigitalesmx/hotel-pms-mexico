@@ -198,6 +198,7 @@ public class ServiceOrderService {
     }
     branchValidation.requireTechnician(request.assignedUserId(), order.getBranchId());
     final ServiceOrderStatus previous = order.getStatus();
+    final String previousWorkLog = order.getWorkLog();
     order.setStatus(request.status());
     order.setDiagnosis(request.diagnosis());
     order.setWorkLog(request.workLog());
@@ -208,6 +209,14 @@ public class ServiceOrderService {
     order.setUpdatedAt(LocalDateTime.now());
     final ServiceOrder saved = repository.save(order);
     if(previous != request.status()) record(saved, previous, request.status(), "operator", request.workLog());
+    else if (!java.util.Objects.equals(previousWorkLog, request.workLog())
+        && ((previousWorkLog != null && !previousWorkLog.isBlank())
+            || (request.workLog() != null && !request.workLog().isBlank()))) {
+      final String note = request.workLog() == null || request.workLog().isBlank()
+          ? "Bitácora de reparación eliminada"
+          : request.workLog();
+      record(saved, previous, previous, "operator", note);
+    }
     if (previous != request.status()) {
       auditEvents.record(hotelId, null, AuditEvent.Category.OPERATIONAL, "SERVICE_ORDER_STATUS_CHANGED",
           saved.getId(), null, "{\"from\":\"" + previous + "\",\"to\":\"" + request.status() + "\"}");

@@ -11,6 +11,6 @@ public class ServiceOrderStatusHistory {
  @Enumerated(EnumType.STRING) private ServiceOrderStatus fromStatus;
  @Enumerated(EnumType.STRING) @Column(nullable=false) private ServiceOrderStatus toStatus;
  @Column(nullable=false,length=100) private String actor;
- @Column(length=1000) private String notes;
+ @Column(length=8000) private String notes;
  @Column(nullable=false) private LocalDateTime createdAt;
 }
