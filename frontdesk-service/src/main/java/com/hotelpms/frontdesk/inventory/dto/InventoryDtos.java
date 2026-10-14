@@ -113,7 +113,8 @@ public final class InventoryDtos {
       @jakarta.validation.constraints.Size(max = 200) String contactName,
       @jakarta.validation.constraints.Email @jakarta.validation.constraints.Size(max = 254) String email,
       @jakarta.validation.constraints.Size(max = 40) String phone,
-      @jakarta.validation.constraints.Size(max = 500) String website,
+      @jakarta.validation.constraints.Pattern(regexp = "|https?://.+", message = "WEBSITE_MUST_USE_HTTP_OR_HTTPS")
+          @jakarta.validation.constraints.Size(max = 500) String website,
       @jakarta.validation.constraints.Size(max = 1000) String description) {
     public SupplierRequest(final String name, final String taxId, final String contact) {
       this(name, taxId, contact, null, null, null, null, null);
