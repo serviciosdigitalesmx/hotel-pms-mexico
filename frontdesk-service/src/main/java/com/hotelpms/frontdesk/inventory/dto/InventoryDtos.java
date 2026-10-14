@@ -157,6 +157,8 @@ public final class InventoryDtos {
       @NotNull @jakarta.validation.constraints.Size(min = 1)
           java.util.List<@NotNull @Valid ReceiptCorrectionLine> lines) { }
 
+  public record ProductConsumption(UUID productId, String sku, String name, long quantity) { }
+
   /**
    * DTO record.
    *

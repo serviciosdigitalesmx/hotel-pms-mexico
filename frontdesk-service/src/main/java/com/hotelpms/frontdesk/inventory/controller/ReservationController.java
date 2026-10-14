@@ -2,10 +2,12 @@ package com.hotelpms.frontdesk.inventory.controller;
 
 import com.hotelpms.frontdesk.inventory.domain.StockReservation;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductConsumption;
 import com.hotelpms.frontdesk.inventory.service.InventoryService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import java.util.List;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /** Type domain type. */
 @RestController("inventoryReservationController")
@@ -39,6 +42,13 @@ public class ReservationController {
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
   public List<StockReservation> listForOrder(@PathVariable final UUID order) {
     return service.reservationsForOrder(hotel(), order);
+  }
+
+  @GetMapping("/consumption/top")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public List<ProductConsumption> topConsumedProducts(@RequestParam final LocalDate from,
+      @RequestParam final LocalDate to) {
+    return service.topConsumedProducts(hotel(), from, to);
   }
 
   /**

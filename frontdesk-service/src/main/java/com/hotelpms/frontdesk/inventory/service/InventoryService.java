@@ -11,6 +11,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.StockCountRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductConsumption;
 import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
 import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.io.IOException;
@@ -310,6 +312,7 @@ public class InventoryService {
     for (final StockReservation reservation : orderReservations) {
       if (!"RESERVED".equals(reservation.getStatus())) continue;
       reservation.setStatus("CONSUMED");
+      reservation.setConsumedAt(java.time.LocalDateTime.now());
       final StockReservation consumed = reservations.save(reservation);
       auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "SERVICE_ORDER_STOCK_CONSUMED",
           consumed.getId(), null, "{\"serviceOrderId\":\"" + orderId
@@ -324,6 +327,19 @@ public class InventoryService {
     serviceOrders.findByIdAndHotelId(orderId, hotel)
         .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
     return reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+  }
+
+  @Transactional(readOnly = true)
+  public List<ProductConsumption> topConsumedProducts(final UUID hotel, final LocalDate from, final LocalDate to) {
+    if (from.isAfter(to)) throw new IllegalArgumentException("INVALID_REPORT_DATE_RANGE");
+    return reservations.findTopConsumedProducts(hotel, from.atStartOfDay(), to.plusDays(1).atStartOfDay())
+        .stream().limit(5).map(row -> {
+          final UUID productId = (UUID) row[0];
+          final long quantity = ((Number) row[1]).longValue();
+          final var product = products.findByIdAndHotelId(productId, hotel).orElse(null);
+          return new ProductConsumption(productId, product == null ? null : product.getSku(),
+              product == null ? "Producto eliminado" : product.getName(), quantity);
+        }).toList();
   }
 
   /**

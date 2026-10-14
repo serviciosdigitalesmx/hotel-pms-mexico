@@ -56,4 +56,7 @@ public class StockReservation {
 
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  @Column(name = "consumed_at")
+  private LocalDateTime consumedAt;
 }

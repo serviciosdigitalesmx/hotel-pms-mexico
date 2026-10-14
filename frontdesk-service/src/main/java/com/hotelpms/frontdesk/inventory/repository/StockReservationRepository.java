@@ -2,10 +2,11 @@ package com.hotelpms.frontdesk.inventory.repository;
 
 import com.hotelpms.frontdesk.inventory.domain.StockReservation;
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.data.jpa.repository.Lock;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,6 +34,13 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   List<StockReservation> findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
       UUID hotel, UUID order);
+
+  @Query("select reservation.productId, sum(reservation.quantity) from StockReservation reservation "
+      + "where reservation.hotelId = :hotelId and reservation.status = 'CONSUMED' "
+      + "and reservation.consumedAt >= :from and reservation.consumedAt < :to "
+      + "group by reservation.productId order by sum(reservation.quantity) desc")
+  List<Object[]> findTopConsumedProducts(@Param("hotelId") UUID hotelId,
+      @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
   @Query("select coalesce(sum(reservation.quantity), 0) from StockReservation reservation "
       + "where reservation.hotelId = :hotelId and reservation.productId = :productId "
