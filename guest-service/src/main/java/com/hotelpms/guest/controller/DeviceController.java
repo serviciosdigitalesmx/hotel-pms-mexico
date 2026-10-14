@@ -62,6 +62,13 @@ public final class DeviceController {
     return service.get(customerId, id);
   }
 
+  /** Updates device details without transferring its customer ownership. */
+  @PutMapping("/{id}")
+  public DeviceResponse update(@PathVariable final UUID customerId, @PathVariable final UUID id,
+      @Valid @RequestBody final DeviceRequest request) {
+    return service.update(customerId, id, request);
+  }
+
   /** Transfers ownership while retaining an audit trail. */
   @PutMapping("/{id}/transfer")
   public DeviceResponse transfer(@PathVariable final UUID customerId, @PathVariable final UUID id,

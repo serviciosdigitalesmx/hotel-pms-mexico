@@ -16,6 +16,9 @@ public interface DeviceService {
    */
   DeviceResponse create(UUID customerId, DeviceRequest request);
 
+  /** Updates a device's catalog and identity fields without changing ownership. */
+  DeviceResponse update(UUID customerId, UUID deviceId, DeviceRequest request);
+
   /**
    * Lists active devices for a customer.
    *

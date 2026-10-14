@@ -63,6 +63,7 @@ export const createCustomer=(body:unknown)=>post<Customer>('/api/v1/customers',b
 export const updateCustomer=(id:string,body:unknown)=>put<Customer>(`/api/v1/customers/${id}`,body)
 export const listDevices=(customerId:string)=>get<Device[]>(`/api/v1/customers/${customerId}/devices`)
 export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v1/customers/${customerId}/devices`,body)
+export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/api/v1/service-orders/customer/${customerId}`)
 export const listBranches=()=>get<Branch[]>('/api/v1/auth/branches')
 export const createBranch=(name:string)=>post<Branch>('/api/v1/auth/branches',{name})

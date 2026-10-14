@@ -12,6 +12,7 @@ import { InventoryCatalogPage } from '@/fixi/inventory'
 import { FinancialReportingPage } from '@/fixi/operations'
 import { CustomerCsvTools } from '@/fixi/customer-tools'
 import { WorkflowSettingsPage } from '@/fixi/workflow-settings'
+import { DeviceManagementPage } from '@/fixi/devices'
 export interface RouteConfig { path:string; element:ReactNode; children?:RouteConfig[] }
 const secure=(element:ReactNode,roles?:string[],capabilities?:string[])=><Protected roles={roles} capabilities={capabilities}>{element}</Protected>
 export const routes:RouteConfig[]=[
@@ -25,6 +26,7 @@ export const routes:RouteConfig[]=[
   {path:'/expenses',element:secure(<ExpensesPage/>,undefined,['FINANCE_READ'])},{path:'/settings',element:secure(<BusinessSettings/>,['ADMIN','OWNER','MANAGER'])},{path:'/settings/overview',element:secure(<SettingsPage/>,['ADMIN','OWNER','MANAGER'])},{path:'/whatsapp',element:secure(<IntegrationPage kind="WhatsApp"/>,['ADMIN','OWNER','MANAGER'])},{path:'/ai',element:secure(<IntegrationPage kind="IA"/>,['ADMIN','OWNER','MANAGER'])},
   {path:'/calendar',element:secure(<OrdersPage title="Agenda operativa"/>)},{path:'/reports',element:secure(<RealDashboard/>,undefined,['REPORTS_READ'])},
   {path:'/customers/import',element:secure(<CustomerCsvTools/>)},
+  {path:'/devices',element:secure(<DeviceManagementPage/>)},
   {path:'/settings/order-workflows',element:secure(<WorkflowSettingsPage/>,['ADMIN','OWNER'])},
   {path:'/reports/finance',element:secure(<FinancialReportingPage/>,['ADMIN','OWNER'])},
   {path:'*',element:<Navigate to="/" replace/>},

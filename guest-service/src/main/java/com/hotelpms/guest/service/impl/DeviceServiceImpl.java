@@ -68,6 +68,32 @@ public class DeviceServiceImpl implements DeviceService {
     return DeviceResponse.from(devices.save(device));
   }
 
+  /** Updates a tenant-scoped device while protecting serial and IMEI uniqueness. */
+  @Override
+  @Transactional
+  public DeviceResponse update(final UUID customerId, final UUID deviceId, final DeviceRequest request) {
+    final UUID hotelId = hotel();
+    customer(customerId);
+    final Device device = devices.findByIdAndHotelIdAndGuestId(deviceId, hotelId, customerId)
+        .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
+    if (request.serialNumber() != null && !request.serialNumber().equals(device.getSerialNumber())
+        && devices.findByHotelIdAndGuestIdAndSerialNumber(hotelId, customerId, request.serialNumber()).isPresent()) {
+      throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
+    }
+    if (request.imei() != null && !request.imei().equals(device.getImei())
+        && devices.findByHotelIdAndGuestIdAndImei(hotelId, customerId, request.imei()).isPresent()) {
+      throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
+    }
+    device.setCategory(request.category());
+    device.setManufacturer(request.manufacturer());
+    device.setModel(request.model());
+    device.setSerialNumber(request.serialNumber());
+    device.setImei(request.imei());
+    device.setCustomFields(request.customFields());
+    device.setUpdatedAt(LocalDateTime.now());
+    return DeviceResponse.from(devices.save(device));
+  }
+
   /** Lists tenant-scoped devices for a customer. */
   @Override
   @Transactional(readOnly = true)
