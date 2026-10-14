@@ -6,7 +6,7 @@ export type Device = { id:string; customerId:string; category:string; manufactur
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
-export type Supplier = { id:string; name:string; taxId?:string; contact?:string }
+export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string }
 export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; expenseType?:'FIXED'|'VARIABLE'|'INVENTORY'; subcategory?:string; paid?:boolean; spentAt?:string; dueAt?:string; createdAt:string }
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
@@ -92,6 +92,7 @@ export const openWarrantyClaim=(body:unknown)=>post<WarrantyClaim>('/api/v1/warr
 export const closeWarrantyClaim=(id:string)=>post<WarrantyClaim>(`/api/v1/warranty-claims/${id}/close`)
 export const listSuppliers=()=>get<Supplier[]>('/api/v1/procurement/suppliers')
 export const createSupplier=(body:unknown)=>post<Supplier>('/api/v1/procurement/suppliers',body)
+export const updateSupplier=(id:string,body:unknown)=>put<Supplier>(`/api/v1/procurement/suppliers/${id}`,body)
 export const listPurchases=()=>get<unknown[]>('/api/v1/procurement/purchases')
 export const createPurchase=(body:unknown)=>post('/api/v1/procurement/purchases',body)
 export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement/purchases/${id}/receive`,body)

@@ -83,7 +83,19 @@ public final class InventoryDtos {
    *
    * @param contact value.
    */
-  public record SupplierRequest(@NotBlank String name, String taxId, String contact) { }
+  public record SupplierRequest(
+      @NotBlank @jakarta.validation.constraints.Size(max = 200) String name,
+      @jakarta.validation.constraints.Size(max = 20) String taxId,
+      @jakarta.validation.constraints.Size(max = 200) String contact,
+      @jakarta.validation.constraints.Size(max = 200) String contactName,
+      @jakarta.validation.constraints.Email @jakarta.validation.constraints.Size(max = 254) String email,
+      @jakarta.validation.constraints.Size(max = 40) String phone,
+      @jakarta.validation.constraints.Size(max = 500) String website,
+      @jakarta.validation.constraints.Size(max = 1000) String description) {
+    public SupplierRequest(final String name, final String taxId, final String contact) {
+      this(name, taxId, contact, null, null, null, null, null);
+    }
+  }
 
   /**
    * DTO record.

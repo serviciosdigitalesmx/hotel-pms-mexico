@@ -38,8 +38,28 @@ public class ProcurementService {
     s.setHotelId(hotel);
     s.setName(r.name().trim());
     s.setTaxId(r.taxId());
-    s.setContact(r.contact());
+    s.setContact(r.contact() != null ? r.contact() : r.email());
+    s.setContactName(r.contactName());
+    s.setEmail(r.email());
+    s.setPhone(r.phone());
+    s.setWebsite(r.website());
+    s.setDescription(r.description());
     return suppliers.save(s);
+  }
+
+  @Transactional
+  public Supplier updateSupplier(final UUID hotel, final UUID supplierId, final SupplierRequest r) {
+    final Supplier supplier = suppliers.findByIdAndHotelId(supplierId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+    supplier.setName(r.name().trim());
+    supplier.setTaxId(r.taxId());
+    supplier.setContact(r.contact() != null ? r.contact() : r.email());
+    supplier.setContactName(r.contactName());
+    supplier.setEmail(r.email());
+    supplier.setPhone(r.phone());
+    supplier.setWebsite(r.website());
+    supplier.setDescription(r.description());
+    return suppliers.save(supplier);
   }
   /**
    * Executes the operation.

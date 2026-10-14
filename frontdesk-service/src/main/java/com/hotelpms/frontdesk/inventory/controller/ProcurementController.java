@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 
 /** Type domain type. */
 @RestController
@@ -37,6 +38,12 @@ public class ProcurementController {
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public Supplier supplier(@Valid @RequestBody final SupplierRequest r) {
     return service.supplier(hotel(), r);
+  }
+
+  @PutMapping("/suppliers/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public Supplier updateSupplier(@PathVariable final UUID id, @Valid @RequestBody final SupplierRequest r) {
+    return service.updateSupplier(hotel(), id, r);
   }
   /**
    * Executes the operation.

@@ -44,4 +44,19 @@ public class Supplier {
 
   @Column(length = NAME_LENGTH)
   private String contact;
+
+  @Column(name = "contact_name", length = NAME_LENGTH)
+  private String contactName;
+
+  @Column(length = 254)
+  private String email;
+
+  @Column(length = 40)
+  private String phone;
+
+  @Column(name = "website", length = 500)
+  private String website;
+
+  @Column(length = 1000)
+  private String description;
 }
