@@ -123,6 +123,8 @@ public class ServiceOrderService {
     repository.save(order);
     if (nextStatus == ServiceOrderStatus.CANCELLED && previous != ServiceOrderStatus.CANCELLED) {
       inventoryService.releaseReservationsForOrder(hotelId, orderId);
+    } else if (nextStatus == ServiceOrderStatus.COMPLETED && previous != ServiceOrderStatus.COMPLETED) {
+      inventoryService.consumeReservations(hotelId, orderId);
     }
     if (previous != nextStatus) record(order, previous, nextStatus, actor, "Flujo configurable: " + transitionKey);
     return configuredWorkflow(hotelId, orderId);
