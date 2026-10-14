@@ -77,7 +77,7 @@ export function OperationalAlertsPage() {
       if (order.status === 'QA') result.push({ id: `ready:${order.id}`, event: 'ORDER_READY', title: 'Lista para entrega', detail: order.summary, href: `/service-orders/${order.id}`, urgency: 1, branchId: order.branchId })
     }
     for (const product of products) {
-      const low = balances.filter(balance => balance.productId === product.id && balance.quantity <= Number(product.reorderLevel ?? 0))
+      const low = balances.filter(balance => balance.productId === product.id && api.isAtOrBelowReorderLevel(balance.quantity, product.reorderLevel))
       for (const balance of low) {
         const branch = branches.find(item => item.id === balance.branchId)
         result.push({ id: `stock:${balance.id}`, event: 'STOCK_LOW', title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2, branchId: balance.branchId })

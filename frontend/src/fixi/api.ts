@@ -8,6 +8,7 @@ export type Device = { id:string; customerId:string; customerName?:string; categ
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
+export const isAtOrBelowReorderLevel=(quantity:number,reorderLevel?:number)=>typeof reorderLevel==='number'&&Number.isFinite(reorderLevel)&&reorderLevel>0&&quantity<=reorderLevel
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string }
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}
 export type PurchaseOrder={id:string;branchId:string;supplierId:string;serviceOrderId?:string;status:string;createdAt:string;lines:PurchaseOrderLine[]}
