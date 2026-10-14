@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,6 +31,7 @@ import lombok.Setter;
 public class InventoryProduct {
   private static final int SKU_LENGTH = 80;
   private static final int NAME_LENGTH = 200;
+  private static final int CATEGORY_LENGTH = 120;
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,6 +45,22 @@ public class InventoryProduct {
 
   @Column(nullable = false, length = NAME_LENGTH)
   private String name;
+
+  @Column(nullable = false, length = CATEGORY_LENGTH)
+  @Builder.Default
+  private String category = "General";
+
+  @Column(nullable = false, precision = 12, scale = 2)
+  @Builder.Default
+  private BigDecimal cost = BigDecimal.ZERO;
+
+  @Column(nullable = false, precision = 12, scale = 2)
+  @Builder.Default
+  private BigDecimal price = BigDecimal.ZERO;
+
+  @Column(name = "reorder_level", nullable = false)
+  @Builder.Default
+  private long reorderLevel = 0;
 
   @Column(nullable = false)
   @Builder.Default

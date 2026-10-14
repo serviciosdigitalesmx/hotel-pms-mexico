@@ -5,6 +5,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.UUID;
+import java.math.BigDecimal;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Size;
 
 /** InventoryDtos domain type. */
 @SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
@@ -22,7 +26,18 @@ public final class InventoryDtos {
    *
    * @param optional value.
    */
-  public record ProductRequest(@NotBlank String sku, @NotBlank String name, boolean optional) { }
+  public record ProductRequest(
+      @NotBlank @Size(max = 80) String sku,
+      @NotBlank @Size(max = 200) String name,
+      boolean optional,
+      @NotBlank @Size(max = 120) String category,
+      @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal cost,
+      @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal price,
+      @Min(0) long reorderLevel) {
+    public ProductRequest(final String sku, final String name, final boolean optional) {
+      this(sku, name, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0);
+    }
+  }
 
   /**
    * DTO record.

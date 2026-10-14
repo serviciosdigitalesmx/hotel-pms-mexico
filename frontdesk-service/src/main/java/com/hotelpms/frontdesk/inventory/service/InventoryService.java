@@ -52,6 +52,10 @@ public class InventoryService {
     p.setSku(r.sku().trim());
     p.setName(r.name().trim());
     p.setOptional(r.optional());
+    p.setCategory(r.category().trim());
+    p.setCost(r.cost());
+    p.setPrice(r.price());
+    p.setReorderLevel(r.reorderLevel());
     return products.save(p);
   }
 

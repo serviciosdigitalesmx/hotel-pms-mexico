@@ -5,8 +5,9 @@ export type Customer = { id:string; firstName:string; lastName:string; email?:st
 export type Device = { id:string; customerId:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
-export type Product = { id:string; sku:string; name:string; optional:boolean }
+export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number }
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string }
+export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; createdAt:string }
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
 async function raw(path:string, init:RequestInit={}, retry=true){
@@ -76,6 +77,7 @@ export const removeUserBranch=(branchId:string,userId:string)=>del<void>(`/api/v
 export type CapabilityGrant={id:string;tenantId:string;userId:string;branchId?:string;capabilityKey:string;enabled:boolean;updatedAt:string}
 export const listUserCapabilityGrants=(userId:string)=>get<CapabilityGrant[]>(`/api/v1/auth/capabilities/users/${userId}`)
 export const setUserCapabilityGrant=(userId:string,capabilityKey:string,enabled:boolean,branchId?:string)=>put<CapabilityGrant>(`/api/v1/auth/capabilities/users/${userId}`,{capabilityKey,enabled,branchId:branchId||null})
+export const effectiveCapabilities=()=>get<{tenantId:string;capabilities:string[]}>('/api/v1/auth/capabilities/me')
 export const listProducts=()=>get<Product[]>('/api/v1/inventory/products')
 export const createProduct=(body:unknown)=>post<Product>('/api/v1/inventory/products',body)
 export const moveStock=(body:unknown)=>post('/api/v1/inventory/movements',body)
@@ -92,6 +94,8 @@ export const createSupplier=(body:unknown)=>post<Supplier>('/api/v1/procurement/
 export const listPurchases=()=>get<unknown[]>('/api/v1/procurement/purchases')
 export const createPurchase=(body:unknown)=>post('/api/v1/procurement/purchases',body)
 export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement/purchases/${id}/receive`,body)
+export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
+export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string})=>post<Expense>('/api/v1/expenses',body)
 export const whatsappStatus=()=>get<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp')
 export const whatsappConnect=()=>post<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp/connect')
 export const whatsappMessages=(id:string)=>get<Array<{id:string;direction:string;body:string;createdAt:string}>>(`/api/v1/whatsapp/inbox/conversations/${id}/messages`)
