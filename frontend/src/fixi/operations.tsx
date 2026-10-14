@@ -11,9 +11,16 @@ import * as a from './api'
 const field='w-full rounded-md border bg-background px-3 py-2 text-sm'
 const money=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'})
 function Notice({error,ok}:{error?:string;ok?:string}){return <>{error&&<p className="text-sm text-destructive">{error}</p>}{ok&&<p className="text-sm text-emerald-600">{ok}</p>}</>}
-function Page({title,description,children}:{title:string;description:string;children:ReactNode}){return <BaseLayout title={title} description={description}><div className="space-y-5 px-4 lg:px-6">{title==='Dashboard Fixi'&&<DashboardGlobalSearch/>}{children}</div></BaseLayout>}
+function Page({title,description,children}:{title:string;description:string;children:ReactNode}){return <BaseLayout title={title} description={description}><div className="space-y-5 px-4 lg:px-6">{title==='Dashboard Fixi'&&<DashboardBranchSwitcher/>}{title==='Dashboard Fixi'&&<DashboardGlobalSearch/>}{children}</div></BaseLayout>}
 function useAsync<T>(loader:()=>Promise<T>,deps:unknown[]=[]){const [data,setData]=useState<T>();const [error,setError]=useState('');const [loading,setLoading]=useState(true);const reload=async()=>{setLoading(true);setError('');try{setData(await loader())}catch(e){setError(e instanceof Error?e.message:String(e))}finally{setLoading(false)}};useEffect(()=>{void reload()},deps);return{data,error,loading,reload}}
 const customersFrom=(v:{content:a.Customer[]}|a.Customer[]|undefined)=>Array.isArray(v)?v:v?.content??[]
+
+function DashboardBranchSwitcher(){
+  const user=useAsync(a.currentUser,[]);const branches=useAsync(a.listBranches,[]);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const activeBranch=user.data?.branchId??'';
+  async function change(branchId:string){if(!branchId||branchId===activeBranch)return;setBusy(true);setError('');try{await a.selectBranch(branchId);window.location.reload()}catch(reason){setError(reason instanceof Error?reason.message:'No se pudo cambiar de sucursal');setBusy(false)}}
+  if(branches.data&&branches.data.length<2)return null
+  return <Card><CardContent className="flex flex-wrap items-center gap-3 pt-4"><span className="text-sm font-medium">Sucursal activa</span><select aria-label="Cambiar sucursal activa" className={field} disabled={busy||branches.loading} value={activeBranch} onChange={event=>void change(event.target.value)}><option value="">Selecciona sucursal</option>{branches.data?.map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>{busy&&<span role="status" className="text-sm text-muted-foreground">Cambiando contexto…</span>}{error&&<span role="alert" className="text-sm text-destructive">{error}</span>}{branches.error&&<span role="alert" className="text-sm text-destructive">{branches.error}</span>}</CardContent></Card>
+}
 
 function DashboardGlobalSearch(){
   const orders=useAsync(a.listServiceOrders,[]);const customers=useAsync(a.listAllCustomers,[]);const [query,setQuery]=useState('');const [devices,setDevices]=useState<a.Device[]>([]);const [loading,setLoading]=useState(false);const [error,setError]=useState('');const term=query.trim();

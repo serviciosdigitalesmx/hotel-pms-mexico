@@ -20,7 +20,7 @@ async function raw(path:string, init:RequestInit={}, retry=true){
   if(response.status===401&&retry&&!path.includes('/login')&&!path.includes('/refresh')){const refreshed=await fetch('/api/v1/auth/refresh',{method:'POST',credentials:'include'});if(refreshed.ok)return raw(path,init,false)}
   return response
 }
-async function api<T>(path:string,init:RequestInit={}){const r=await raw(path,init);if(!r.ok){let message=`HTTP ${r.status}`;try{const p=await r.json() as {detail?:string;title?:string;errors?:string[]};message=p.errors?.filter(Boolean).join(' ')||p.detail||p.title||message}catch{message=`HTTP ${r.status}`}throw new Error(message)}if(r.status===204)return undefined as T;return r.json() as Promise<T>}
+async function api<T>(path:string,init:RequestInit={}){const r=await raw(path,init);if(!r.ok){let message=`HTTP ${r.status}`;try{const p=await r.json() as {detail?:string;title?:string;errors?:string[]};message=p.errors?.filter(Boolean).join(' ')||p.detail||p.title||message}catch{message=`HTTP ${r.status}`}throw new Error(message)}if(r.status===204||r.headers.get('content-length')==='0'||!r.headers.get('content-type')?.includes('application/json'))return undefined as T;return r.json() as Promise<T>}
 export const get=<T>(p:string)=>api<T>(p)
 export const post=<T>(p:string,b?:unknown)=>api<T>(p,{method:'POST',body:b===undefined?undefined:JSON.stringify(b)})
 export const patch=<T>(p:string,b?:unknown)=>api<T>(p,{method:'PATCH',body:b===undefined?undefined:JSON.stringify(b)})
