@@ -100,6 +100,15 @@ export function FixiFinancialReportingPage() {
     groups[expense.category] = (groups[expense.category] ?? 0) + Number(expense.amount)
     return groups
   }, {})
+  const byExpenseType = expenses.reduce<Record<'FIXED' | 'VARIABLE' | 'INVENTORY', { paid: number; pending: number; count: number }>>((groups, expense) => {
+    const type = expense.expenseType ?? 'VARIABLE'
+    const totals = groups[type] ?? { paid: 0, pending: 0, count: 0 }
+    if (expense.paid === false) totals.pending += Number(expense.amount)
+    else totals.paid += Number(expense.amount)
+    totals.count += 1
+    groups[type] = totals
+    return groups
+  }, { FIXED: { paid: 0, pending: 0, count: 0 }, VARIABLE: { paid: 0, pending: 0, count: 0 }, INVENTORY: { paid: 0, pending: 0, count: 0 } })
   const expenseSettlementByCategory = expenses.reduce<Record<string, { paid: number; pending: number; overdue: number }>>((groups, expense) => {
     const totals = groups[expense.category] ?? { paid: 0, pending: 0, overdue: 0 }
     if (expense.paid === false) totals.pending += Number(expense.amount)
@@ -138,6 +147,7 @@ export function FixiFinancialReportingPage() {
   }
 
   return <BaseLayout title="Finanzas del taller" description="Órdenes completadas, cotizaciones pendientes y gastos del periodo."><div className="space-y-5 px-4 lg:px-6">
+    {loaded && <Card><CardHeader><CardTitle>Gastos por tipo</CardTitle><CardDescription>Separación operativa entre gastos fijos, variables y compras de inventario, con su estado de pago.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-3">{([['FIXED','Fijos'],['VARIABLE','Variables'],['INVENTORY','Inventario']] as const).map(([type,label])=><div className="rounded border p-3" key={type}><p className="font-medium">{label} · {byExpenseType[type].count}</p><p className="text-sm text-muted-foreground">Pagado {money.format(byExpenseType[type].paid)}</p><p className="text-sm text-muted-foreground">Pendiente {money.format(byExpenseType[type].pending)}</p></div>)}</CardContent></Card>}
     <div className="space-y-3"><div className="flex flex-wrap gap-2">{([['TODAY','Hoy'],['WEEK','Semana'],['MONTH','Mes'],['CUSTOM','Rango personalizado']] as const).map(([key,label])=><Button key={key} type="button" size="sm" variant={period===key?'default':'outline'} onClick={() => key === 'CUSTOM' ? setPeriod('CUSTOM') : choosePeriod(key)}>{label}</Button>)}</div><div className="grid gap-3 sm:grid-cols-3"><Input aria-label="Desde" type="date" disabled={period!=='CUSTOM'} value={from} onChange={event => setFrom(event.target.value)}/><Input aria-label="Hasta" type="date" disabled={period!=='CUSTOM'} value={to} onChange={event => setTo(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !from || !to || from > to} onClick={() => void generate()}>{busy ? 'Generando…' : 'Generar reporte'}</Button><Button type="button" variant="outline" disabled={!loaded} onClick={exportCsv}>Exportar CSV</Button><Button type="button" variant="outline" disabled={!loaded} onClick={() => window.print()}>Imprimir / PDF</Button></div></div></div>
     <div><select aria-label="Filtrar reporte por sucursal" className="h-10 w-full max-w-sm rounded-md border bg-background px-3 text-sm" value={branchId} onChange={event=>setBranchId(event.target.value)}><option value="ALL">Todas las sucursales</option>{branches.filter(branch=>branch.active).map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select><p className="mt-1 text-xs text-muted-foreground">El filtro aplica a órdenes, compras y consumo de refacciones. Los gastos se muestran a nivel negocio; pulsa Generar reporte para aplicar la selección.</p></div>
     {loaded && <><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[['Cobros registrados en órdenes del periodo', collectedRevenue], ['Saldo pendiente de órdenes entregadas', pendingRevenue], ['Cotizado en órdenes completadas', completedValue], ['Pendiente en órdenes abiertas', openValue], ['Gastos pagados', paidCost], ['Gastos por pagar', pendingCost], ['Gastos vencidos', overdueExpenseCost], ['Inventario recibido', purchaseValue]].map(([label, value]) => <Card key={String(label)}><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-xl">{money.format(Number(value))}</CardTitle></CardHeader></Card>)}</div>
