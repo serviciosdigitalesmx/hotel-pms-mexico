@@ -3,6 +3,7 @@ package com.hotelpms.auth.service;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.UserResponse;
+import com.hotelpms.auth.dto.UpdateManagedUserRequest;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.UserAccountRepository;
@@ -71,6 +72,25 @@ public class UserManagementServiceImpl implements UserManagementService {
         user.getRole(),
         hotelId);
     return toResponse(user);
+  }
+
+  @Override
+  @Transactional
+  public UserResponse updateUser(final UUID hotelId, final UUID userId,
+      final UpdateManagedUserRequest request) {
+    if (request.role() == com.hotelpms.auth.domain.Role.ADMIN
+        || request.role() == com.hotelpms.auth.domain.Role.OWNER) {
+      throw new org.springframework.security.access.AccessDeniedException("PRIVILEGED_ROLE_NOT_ASSIGNABLE");
+    }
+    final UserAccount user = userRepository.findByIdAndHotelId(userId, hotelId)
+        .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+    if (request.email() != null && !request.email().equalsIgnoreCase(user.getEmail())
+        && userRepository.existsByEmailIncludingInactiveAndIdNot(request.email(), userId)) {
+      throw new DuplicateResourceException("EMAIL_ALREADY_EXISTS");
+    }
+    if (request.email() != null) user.setEmail(request.email().trim());
+    user.setRole(request.role());
+    return toResponse(userRepository.save(user));
   }
 
   /** {@inheritDoc} */

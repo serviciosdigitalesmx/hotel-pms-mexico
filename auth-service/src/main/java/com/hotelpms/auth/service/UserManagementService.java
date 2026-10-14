@@ -2,6 +2,7 @@ package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.UserResponse;
+import com.hotelpms.auth.dto.UpdateManagedUserRequest;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +26,9 @@ public interface UserManagementService {
    * @return the created user summary
    */
   UserResponse createUser(UUID hotelId, CreateUserRequest request);
+
+  /** Updates email and a non-privileged team role within the tenant. */
+  UserResponse updateUser(UUID hotelId, UUID userId, UpdateManagedUserRequest request);
 
   /**
    * Soft-deactivates a user account (sets {@code active=false}). Cannot deactivate yourself or the

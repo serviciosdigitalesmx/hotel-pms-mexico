@@ -3,6 +3,7 @@ package com.hotelpms.auth.controller;
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.ResetPasswordRequest;
 import com.hotelpms.auth.dto.UserResponse;
+import com.hotelpms.auth.dto.UpdateManagedUserRequest;
 import com.hotelpms.auth.service.CapabilityService;
 import com.hotelpms.auth.service.UserManagementService;
 import com.hotelpms.internalauth.contracts.Capability;
@@ -17,6 +18,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -76,6 +78,17 @@ public class UserManagementController {
     final UserResponse created =
         userManagementService.createUser(UUID.fromString(hotelId), request);
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
+  }
+
+  /** Updates an active user's email and non-privileged role within this tenant. */
+  @PutMapping("/{userId}")
+  public ResponseEntity<UserResponse> updateUser(
+      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @PathVariable final UUID userId,
+      @NonNull @Valid @RequestBody final UpdateManagedUserRequest request,
+      final Authentication auth) {
+    requireUsersManage(hotelId, auth);
+    return ResponseEntity.ok(userManagementService.updateUser(UUID.fromString(hotelId), userId, request));
   }
 
   /**

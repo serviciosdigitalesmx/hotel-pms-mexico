@@ -121,6 +121,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
       nativeQuery = true)
   boolean existsByEmailIncludingInactive(@Param("email") String email);
 
+  /** Checks global email uniqueness while excluding the account being edited. */
+  @TenantScopeExempt(reason = "Email uniqueness is global across login identities.")
+  @Query(value = "SELECT EXISTS(SELECT 1 FROM user_account WHERE lower(email) = lower(:email) AND id <> :userId)", nativeQuery = true)
+  boolean existsByEmailIncludingInactiveAndIdNot(@Param("email") String email,
+      @Param("userId") UUID userId);
+
   /**
    * Finds an active user by id scoped to a hotel (prevents cross-tenant access).
    *

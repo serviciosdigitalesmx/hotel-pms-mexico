@@ -77,6 +77,7 @@ export const updateBranch=(id:string,body:BranchWrite)=>patch<Branch>(`/api/v1/a
 export const setBranchActive=(id:string,value:boolean)=>patch<void>(`/api/v1/auth/branches/${id}/active?value=${value}`)
 export const selectBranch=(branchId:string)=>post<void>('/api/v1/auth/select-branch',{branchId})
 export const listUsers=()=>get<TeamUser[]>('/api/v1/auth/users')
+export const updateUser=(id:string,body:{email?:string;role:string})=>put<TeamUser>(`/api/v1/auth/users/${id}`,body)
 export const deactivateUser=(id:string)=>patch<TeamUser>(`/api/v1/auth/users/${id}/deactivate`)
 export const activateUser=(id:string)=>patch<TeamUser>(`/api/v1/auth/users/${id}/activate`)
 export const createUser=(body:unknown)=>post<TeamUser>('/api/v1/auth/users',body)
