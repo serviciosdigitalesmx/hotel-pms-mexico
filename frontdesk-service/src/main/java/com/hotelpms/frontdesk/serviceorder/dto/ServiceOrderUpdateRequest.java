@@ -1,8 +1,10 @@
 package com.hotelpms.frontdesk.serviceorder.dto;
 
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatus;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 /**
  * Domain type.
@@ -16,4 +18,10 @@ import java.util.UUID;
  * @param workLog value.
  */
 public record ServiceOrderUpdateRequest(
-    @NotNull ServiceOrderStatus status, String diagnosis, String workLog, UUID assignedUserId) { }
+    @NotNull ServiceOrderStatus status,
+    String diagnosis,
+    String workLog,
+    UUID assignedUserId,
+    @Pattern(regexp = "LOW|NORMAL|HIGH|URGENT") String priority,
+    LocalDateTime promisedAt,
+    Boolean clearPromisedAt) { }

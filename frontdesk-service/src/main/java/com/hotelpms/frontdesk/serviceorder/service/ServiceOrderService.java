@@ -191,6 +191,9 @@ public class ServiceOrderService {
     order.setDiagnosis(request.diagnosis());
     order.setWorkLog(request.workLog());
     order.setAssignedUserId(request.assignedUserId());
+    if (request.priority() != null) order.setPriority(request.priority());
+    if (request.promisedAt() != null) order.setPromisedAt(request.promisedAt());
+    else if (Boolean.TRUE.equals(request.clearPromisedAt())) order.setPromisedAt(null);
     order.setUpdatedAt(LocalDateTime.now());
     final ServiceOrder saved = repository.save(order);
     if(previous != request.status()) record(saved, previous, request.status(), "operator", request.workLog());
