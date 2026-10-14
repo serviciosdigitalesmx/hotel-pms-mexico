@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.stays.dto;
 
 import java.util.UUID;
+import java.math.BigDecimal;
 
 /**
  * Response DTO for hotel settings and profile.
@@ -94,6 +95,7 @@ public record HotelSettingsResponse(
     String country,
     String postalCode,
     String currency,
+    BigDecimal defaultTaxRate,
     String locale,
     String timezone,
     String publicSlug,
@@ -180,6 +182,7 @@ public record HotelSettingsResponse(
         null,
         null,
         "MXN",
+        null,
         "es-MX",
         "America/Monterrey",
         null,

@@ -6,6 +6,7 @@ import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -105,6 +106,10 @@ public class HotelSettings {
   @Column(name = "currency", length = LEN_CURRENCY, nullable = false)
   @Builder.Default
   private String currency = "MXN";
+
+  /** Optional default tax percentage for service-order quotations; null preserves manual tax entry. */
+  @Column(name = "default_tax_rate", precision = 5, scale = 2)
+  private BigDecimal defaultTaxRate;
 
   @Column(name = "locale", length = LEN_LOCALE, nullable = false)
   @Builder.Default

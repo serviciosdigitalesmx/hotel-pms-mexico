@@ -51,7 +51,7 @@ function updateWorkshopTemplates(json: string, checklist: string[], warrantyPoli
 
 const emptyBusiness: api.BusinessProfile = {
   hotelName: '', address: '', city: '', state: '', country: 'México', postalCode: '',
-  currency: 'MXN', locale: 'es-MX', timezone: 'America/Mexico_City', publicSlug: '', vatNumber: '',
+  currency: 'MXN', locale: 'es-MX', timezone: 'America/Mexico_City', publicSlug: '', vatNumber: '', defaultTaxRate: null,
 }
 
 export function BusinessSettings() {
@@ -146,6 +146,7 @@ export function BusinessSettings() {
           <Input aria-label="País" placeholder="País" value={business.country} onChange={e => setBusiness({ ...business, country: e.target.value })}/>
           <Input aria-label="Código postal" inputMode="numeric" placeholder="Código postal" value={business.postalCode} onChange={e => setBusiness({ ...business, postalCode: e.target.value })}/>
           <Input aria-label="RFC" placeholder="RFC" value={business.vatNumber} onChange={e => setBusiness({ ...business, vatNumber: e.target.value.toUpperCase() })}/>
+          <div><Label htmlFor="default-tax-rate">Impuesto predeterminado (%)</Label><Input id="default-tax-rate" type="number" min="0" max="100" step="0.01" placeholder="Sin tasa predeterminada" value={business.defaultTaxRate ?? ''} onChange={e => setBusiness({ ...business, defaultTaxRate: e.target.value === '' ? null : Number(e.target.value) })}/><p className="text-xs text-muted-foreground">Se aplica a mano de obra y refacciones al generar cotizaciones.</p></div>
           <Input aria-label="Moneda" maxLength={3} placeholder="Moneda (MXN)" value={business.currency} onChange={e => setBusiness({ ...business, currency: e.target.value.toUpperCase() })}/>
           <Input aria-label="Zona horaria" placeholder="America/Mexico_City" value={business.timezone} onChange={e => setBusiness({ ...business, timezone: e.target.value })}/>
           <Input aria-label="Idioma y región" placeholder="es-MX" value={business.locale} onChange={e => setBusiness({ ...business, locale: e.target.value })}/>

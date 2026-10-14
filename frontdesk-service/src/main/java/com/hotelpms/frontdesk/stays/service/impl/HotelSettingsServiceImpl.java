@@ -113,6 +113,9 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
     if (request.currency() != null) {
       settings.setCurrency(request.currency().toUpperCase(java.util.Locale.ROOT));
     }
+    if (request.defaultTaxRate() != null) {
+      settings.setDefaultTaxRate(request.defaultTaxRate());
+    }
     if (request.locale() != null) {
       settings.setLocale(request.locale());
     }
@@ -189,6 +192,7 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
         entity.getCountry(),
         entity.getPostalCode(),
         entity.getCurrency(),
+        entity.getDefaultTaxRate(),
         entity.getLocale(),
         entity.getTimezone(),
         entity.getPublicSlug(),

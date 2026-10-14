@@ -138,7 +138,7 @@ export const whatsappHandoff=(id:string)=>post(`/api/v1/whatsapp/inbox/conversat
 export const assistantChat=(content:string)=>post<{answer:string;toolCalls:unknown[]}>('/api/v1/stays/assistant/chat',{messages:[{role:'user',content,toolCallId:null,toolName:null,toolCalls:[]}]})
 export const industryProfile=()=>get<{industryKey:string;enabledModulesJson:string;dynamicFieldsJson:string;formsLabelsJson:string;catalogsTemplatesJson:string}>('/api/v1/auth/industry-profile')
 export const updateIndustryProfile=(body:unknown)=>put('/api/v1/auth/industry-profile',body)
-export type BusinessProfile={hotelName:string;address:string;city:string;state:string;country:string;postalCode:string;currency:string;locale:string;timezone:string;publicSlug:string;vatNumber:string}
+export type BusinessProfile={hotelName:string;address:string;city:string;state:string;country:string;postalCode:string;currency:string;locale:string;timezone:string;publicSlug:string;vatNumber:string;defaultTaxRate?:number|null}
 export const getBusinessProfile=()=>get<Partial<BusinessProfile>>('/api/v1/stays/settings')
 export const updateBusinessProfile=(body:Partial<BusinessProfile>)=>put<Partial<BusinessProfile>>('/api/v1/stays/settings',body)
 export type NotificationPreferences=Record<string,Record<'EMAIL'|'WEB'|'APP',boolean>>

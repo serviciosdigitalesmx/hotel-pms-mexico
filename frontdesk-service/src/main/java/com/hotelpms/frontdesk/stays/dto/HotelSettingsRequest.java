@@ -2,6 +2,9 @@ package com.hotelpms.frontdesk.stays.dto;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
+import java.math.BigDecimal;
 
 /**
  * Request body for updating hotel settings and profile.
@@ -108,6 +111,7 @@ public record HotelSettingsRequest(
     @Size(max = 100) String country,
     @Pattern(regexp = "^$|\\d{5}", message = "Postal code must be 5 digits") String postalCode,
     @Size(max = 3) String currency,
+    @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal defaultTaxRate,
     @Size(max = MAX_LOCALE_LENGTH) String locale,
     @Size(max = MAX_TIMEZONE_LENGTH) String timezone,
     @Size(max = MAX_PUBLIC_SLUG_LENGTH) String publicSlug,

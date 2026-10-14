@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.serviceorder.service;
 
 import com.hotelpms.frontdesk.exception.NotFoundException;
+import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
 import com.hotelpms.frontdesk.client.CapabilityClient;
 import com.hotelpms.frontdesk.audit.domain.AuditEvent;
 import com.hotelpms.frontdesk.audit.service.AuditEventService;
@@ -40,6 +41,7 @@ public class ServiceOrderService {
   private final WorkflowService workflows;
   private final WorkflowTransitionRepository workflowTransitions;
   private final CapabilityClient capabilityClient;
+  private final HotelSettingsRepository hotelSettingsRepository;
 
   public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
   public record ConfiguredWorkflowTransition(String key, String fromStateKey, String toStateKey) { }
@@ -280,7 +282,7 @@ public class ServiceOrderService {
   @Transactional public ServiceOrder reject(UUID hotelId,UUID id,UUID actor,AuthorizationRequest request){var order=get(hotelId,id);if(order.getStatus()!=ServiceOrderStatus.QUOTED)throw new IllegalStateException("SERVICE_ORDER_NOT_QUOTED");order.setStatus(ServiceOrderStatus.QUOTE_REJECTED);order.setAuthorizationEvidence(request.evidence().trim());order.setAuthorizedBy(actor);order.setAuthorizedAt(LocalDateTime.now());order.setUpdatedAt(LocalDateTime.now());var saved=repository.save(order);record(saved,ServiceOrderStatus.QUOTED,ServiceOrderStatus.QUOTE_REJECTED,actor.toString(),request.evidence());return saved;}
 
   @Transactional
-  public ServiceOrder quote(UUID hotelId,UUID id,QuotationUpdateRequest request){var o=get(hotelId,id);if(o.getStatus()!=ServiceOrderStatus.DIAGNOSIS&&o.getStatus()!=ServiceOrderStatus.REVIEW)throw new IllegalStateException("SERVICE_ORDER_NOT_DIAGNOSED");o.setProposedSolution(request.proposedSolution());o.setEstimatedMinutes(request.estimatedMinutes());o.setLaborAmount(request.laborAmount());o.setPartsAmount(request.partsAmount());o.setTaxAmount(request.taxAmount());o.setQuoteTotal(request.laborAmount().add(request.partsAmount()).add(request.taxAmount()));var previous=o.getStatus();o.setStatus(ServiceOrderStatus.QUOTED);o.setUpdatedAt(LocalDateTime.now());var saved=repository.save(o);record(saved,previous,ServiceOrderStatus.QUOTED,"operator","Cotización generada");return saved;}
+  public ServiceOrder quote(UUID hotelId,UUID id,QuotationUpdateRequest request){var o=get(hotelId,id);if(o.getStatus()!=ServiceOrderStatus.DIAGNOSIS&&o.getStatus()!=ServiceOrderStatus.REVIEW)throw new IllegalStateException("SERVICE_ORDER_NOT_DIAGNOSED");o.setProposedSolution(request.proposedSolution());o.setEstimatedMinutes(request.estimatedMinutes());o.setLaborAmount(request.laborAmount());o.setPartsAmount(request.partsAmount());var rate=hotelSettingsRepository.findById(hotelId).map(s->s.getDefaultTaxRate()).orElse(null);var tax=rate==null?request.taxAmount():request.laborAmount().add(request.partsAmount()).multiply(rate).divide(new java.math.BigDecimal("100"),2,java.math.RoundingMode.HALF_UP);o.setTaxAmount(tax);o.setQuoteTotal(request.laborAmount().add(request.partsAmount()).add(tax));var previous=o.getStatus();o.setStatus(ServiceOrderStatus.QUOTED);o.setUpdatedAt(LocalDateTime.now());var saved=repository.save(o);record(saved,previous,ServiceOrderStatus.QUOTED,"operator","Cotización generada");return saved;}
 
   @Transactional
   public RepairTest addTest(UUID hotelId,UUID id,RepairTestRequest r){var o=get(hotelId,id);if(o.getStatus()!=ServiceOrderStatus.IN_PROGRESS&&o.getStatus()!=ServiceOrderStatus.QA)throw new IllegalStateException("SERVICE_ORDER_NOT_TESTABLE");if(o.getStatus()==ServiceOrderStatus.IN_PROGRESS){o.setStatus(ServiceOrderStatus.QA);o.setUpdatedAt(LocalDateTime.now());repository.save(o);record(o,ServiceOrderStatus.IN_PROGRESS,ServiceOrderStatus.QA,"operator","Pruebas iniciadas");}return repairTests.save(RepairTest.builder().hotelId(hotelId).serviceOrderId(id).testName(r.testName().trim()).passed(r.passed()).notes(r.notes()).technicianId(r.technicianId()).createdAt(LocalDateTime.now()).build());}
