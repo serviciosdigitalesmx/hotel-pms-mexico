@@ -14,7 +14,7 @@ interface FixiApi {
     @POST("api/v1/auth/logout") suspend fun logout(): Response<Unit>
     @GET("api/v1/auth/me") suspend fun me(): Response<UserResponse>
     @GET("api/v1/service-orders") suspend fun serviceOrders(@Query("page") page: Int = 0, @Query("size") size: Int = 100): Response<PageResponse<ServiceOrder>>
-    @GET("api/v1/customers") suspend fun customers(): Response<PageResponse<Customer>>
+    @GET("api/v1/customers") suspend fun customers(@Query("page") page: Int = 0, @Query("size") size: Int = 100): Response<PageResponse<Customer>>
     @GET("api/v1/customers/{id}") suspend fun customer(@Path("id") id: String): Response<Customer>
     @GET("api/v1/customers/{customerId}/devices") suspend fun devices(@Path("customerId") customerId: String): Response<List<Device>>
     @GET("api/v1/service-orders/{id}") suspend fun serviceOrder(@Path("id") id: String): Response<ServiceOrder>
