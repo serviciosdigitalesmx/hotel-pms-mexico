@@ -42,6 +42,27 @@ public class TenantBranch {
   @Column(nullable = false, length = NAME_MAX_LENGTH)
   private String name;
 
+  @Column(length = 40)
+  private String phone;
+
+  @Column(name = "extra_field", length = 200)
+  private String extraField;
+
+  @Column(length = 500)
+  private String address;
+
+  @Column(name = "time_zone", length = 80)
+  private String timeZone;
+
+  @Column(name = "date_format", length = 16)
+  private String dateFormat;
+
+  @Column(length = 80)
+  private String country;
+
+  @Column(length = 3)
+  private String currency;
+
   @Column(nullable = false)
   @Builder.Default
   private boolean active = true;

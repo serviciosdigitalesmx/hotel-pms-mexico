@@ -14,4 +14,11 @@ import java.util.UUID;
  * @param createdAt branch creation timestamp
  */
 public record TenantBranchResponse(
-    UUID id, UUID hotelId, String name, boolean active, LocalDateTime createdAt) { }
+    UUID id, UUID hotelId, String name, boolean active, LocalDateTime createdAt,
+    String phone, String extraField, String address, String timeZone, String dateFormat,
+    String country, String currency) {
+  public TenantBranchResponse(final UUID id, final UUID hotelId, final String name,
+      final boolean active, final LocalDateTime createdAt) {
+    this(id, hotelId, name, active, createdAt, null, null, null, null, null, null, null);
+  }
+}

@@ -4,6 +4,8 @@ import com.hotelpms.auth.domain.TenantBranch;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.domain.UserBranchMembership;
 import com.hotelpms.auth.dto.TenantBranchResponse;
+import com.hotelpms.auth.dto.CreateBranchRequest;
+import com.hotelpms.auth.dto.UpdateBranchRequest;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.TenantBranchRepository;
@@ -73,6 +75,18 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         trimmedName,
         requestingUsername);
     return toResponse(savedBranch);
+  }
+
+  @Override
+  @Transactional
+  public TenantBranchResponse createBranch(
+      final UUID hotelId, final CreateBranchRequest request, final String requestingUsername) {
+    final TenantBranchResponse created = createBranch(hotelId, request.name(), requestingUsername);
+    final TenantBranch branch = branchRepository.findByIdAndHotelId(created.id(), hotelId)
+        .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
+    applyBranchDetails(branch, request.phone(), request.extraField(), request.address(),
+        request.timeZone(), request.dateFormat(), request.country(), request.currency());
+    return toResponse(branchRepository.save(branch));
   }
 
   /** {@inheritDoc} */
@@ -159,6 +173,38 @@ public class BranchAccessServiceImpl implements BranchAccessService {
     branch.setName(trimmed);return toResponse(branchRepository.save(branch));
   }
 
+  @Override
+  @Transactional
+  public TenantBranchResponse updateBranch(
+      final UUID hotelId, final UUID branchId, final UpdateBranchRequest request) {
+    updateBranch(hotelId, branchId, request.name());
+    final TenantBranch branch = branchRepository.findByIdAndHotelId(branchId, hotelId)
+        .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
+    applyBranchDetails(branch, request.phone(), request.extraField(), request.address(),
+        request.timeZone(), request.dateFormat(), request.country(), request.currency());
+    return toResponse(branchRepository.save(branch));
+  }
+
+  private void applyBranchDetails(final TenantBranch branch, final String phone,
+      final String extraField, final String address, final String timeZone,
+      final String dateFormat, final String country, final String currency) {
+    if (phone != null) branch.setPhone(trimToNull(phone));
+    if (extraField != null) branch.setExtraField(trimToNull(extraField));
+    if (address != null) branch.setAddress(trimToNull(address));
+    if (timeZone != null) branch.setTimeZone(trimToNull(timeZone));
+    if (dateFormat != null) branch.setDateFormat(trimToNull(dateFormat));
+    if (country != null) branch.setCountry(trimToNull(country));
+    if (currency != null) {
+      final String normalizedCurrency = trimToNull(currency);
+      branch.setCurrency(normalizedCurrency == null ? null : normalizedCurrency.toUpperCase(java.util.Locale.ROOT));
+    }
+  }
+
+  private String trimToNull(final String value) {
+    final String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
+  }
+
   @Override @Transactional
   public void setBranchActive(UUID hotelId, UUID branchId, boolean active) {
     var branch=branchRepository.findByIdAndHotelIdIncludingInactive(branchId,hotelId).orElseThrow(()->new NotFoundException(BRANCH_NOT_FOUND));branch.setActive(active);branchRepository.save(branch);
@@ -170,6 +216,13 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         branch.getHotelId(),
         branch.getName(),
         branch.isActive(),
-        branch.getCreatedAt());
+        branch.getCreatedAt(),
+        branch.getPhone(),
+        branch.getExtraField(),
+        branch.getAddress(),
+        branch.getTimeZone(),
+        branch.getDateFormat(),
+        branch.getCountry(),
+        branch.getCurrency());
   }
 }

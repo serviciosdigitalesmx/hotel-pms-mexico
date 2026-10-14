@@ -10,4 +10,15 @@ import jakarta.validation.constraints.Size;
  * @param name branch display name
  */
 public record CreateBranchRequest(
-    @NotBlank @Size(max = TenantBranchRequestConstraints.MAX_NAME_LENGTH) String name) { }
+    @NotBlank @Size(max = TenantBranchRequestConstraints.MAX_NAME_LENGTH) String name,
+    @Size(max = 40) String phone,
+    @Size(max = 200) String extraField,
+    @Size(max = 500) String address,
+    @Size(max = 80) String timeZone,
+    @jakarta.validation.constraints.Pattern(regexp = "|mm/dd/yyyy|dd/mm/yyyy") String dateFormat,
+    @Size(max = 80) String country,
+    @jakarta.validation.constraints.Pattern(regexp = "|[A-Za-z]{3}") String currency) {
+  public CreateBranchRequest(final String name) {
+    this(name, null, null, null, null, null, null, null);
+  }
+}

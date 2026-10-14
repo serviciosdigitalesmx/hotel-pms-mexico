@@ -2,6 +2,8 @@ package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.domain.TenantBranch;
 import com.hotelpms.auth.dto.TenantBranchResponse;
+import com.hotelpms.auth.dto.CreateBranchRequest;
+import com.hotelpms.auth.dto.UpdateBranchRequest;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +30,8 @@ public interface BranchAccessService {
    * @return the created branch
    */
   TenantBranchResponse createBranch(UUID hotelId, String name, String requestingUsername);
+
+  TenantBranchResponse createBranch(UUID hotelId, CreateBranchRequest request, String requestingUsername);
 
   /**
    * Validates that a branch exists and belongs to the given tenant.
@@ -77,6 +81,8 @@ public interface BranchAccessService {
   void removeUserFromBranch(UUID hotelId, UUID userId, UUID branchId);
 
   TenantBranchResponse updateBranch(UUID hotelId, UUID branchId, String name);
+
+  TenantBranchResponse updateBranch(UUID hotelId, UUID branchId, UpdateBranchRequest request);
 
   void setBranchActive(UUID hotelId, UUID branchId, boolean active);
 }

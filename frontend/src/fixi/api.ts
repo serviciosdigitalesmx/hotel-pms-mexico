@@ -3,7 +3,7 @@ export type SessionUser = { username:string; role:string; hotelId?:string; tenan
 export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
 export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; address?:string; city?:string; country?:string; dateOfBirth?:string; rfc?:string; fiscalName?:string; fiscalPostalCode?:string; fiscalRegime?:string; cfdiUse?:string; billingEmail?:string; createdAt?:string }
 export type Device = { id:string; customerId:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
-export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string }
+export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string }
@@ -69,8 +69,9 @@ export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v
 export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/api/v1/service-orders/customer/${customerId}`)
 export const listBranches=()=>get<Branch[]>('/api/v1/auth/branches')
-export const createBranch=(name:string)=>post<Branch>('/api/v1/auth/branches',{name})
-export const updateBranch=(id:string,name:string)=>patch<Branch>(`/api/v1/auth/branches/${id}`,{name})
+export type BranchWrite={name:string;phone?:string;extraField?:string;address?:string;timeZone?:string;dateFormat?:string;country?:string;currency?:string}
+export const createBranch=(body:BranchWrite)=>post<Branch>('/api/v1/auth/branches',body)
+export const updateBranch=(id:string,body:BranchWrite)=>patch<Branch>(`/api/v1/auth/branches/${id}`,body)
 export const updateBranch=(id:string,name:string)=>patch<Branch>(`/api/v1/auth/branches/${id}`,{name})
 export const setBranchActive=(id:string,value:boolean)=>patch<void>(`/api/v1/auth/branches/${id}/active?value=${value}`)
 export const selectBranch=(branchId:string)=>post<void>('/api/v1/auth/select-branch',{branchId})

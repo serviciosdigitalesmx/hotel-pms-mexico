@@ -106,7 +106,7 @@ public class BranchController {
       @NonNull final Authentication auth) {
     capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(branchAccessService.createBranch(hotelId, request.name(), auth.getName()));
+        .body(branchAccessService.createBranch(hotelId, request, auth.getName()));
   }
 
   /**
@@ -127,7 +127,7 @@ public class BranchController {
   }
 
   @PatchMapping("/{branchId}")
-  public ResponseEntity<TenantBranchResponse> updateBranch(@RequestHeader(HEADER_HOTEL) UUID hotelId,@PathVariable UUID branchId,@Valid @RequestBody com.hotelpms.auth.dto.UpdateBranchRequest request,Authentication auth){capabilityService.requireCapability(auth.getName(),hotelId,Capability.BRANCHES_MANAGE);return ResponseEntity.ok(branchAccessService.updateBranch(hotelId,branchId,request.name()));}
+  public ResponseEntity<TenantBranchResponse> updateBranch(@RequestHeader(HEADER_HOTEL) UUID hotelId,@PathVariable UUID branchId,@Valid @RequestBody com.hotelpms.auth.dto.UpdateBranchRequest request,Authentication auth){capabilityService.requireCapability(auth.getName(),hotelId,Capability.BRANCHES_MANAGE);return ResponseEntity.ok(branchAccessService.updateBranch(hotelId,branchId,request));}
 
   @PatchMapping("/{branchId}/active") @ResponseStatus(HttpStatus.NO_CONTENT)
   public void active(@RequestHeader(HEADER_HOTEL) UUID hotelId,@PathVariable UUID branchId,@RequestParam boolean value,Authentication auth){capabilityService.requireCapability(auth.getName(),hotelId,Capability.BRANCHES_MANAGE);branchAccessService.setBranchActive(hotelId,branchId,value);}
@@ -156,6 +156,13 @@ public class BranchController {
         branch.getHotelId(),
         branch.getName(),
         branch.isActive(),
-        branch.getCreatedAt());
+        branch.getCreatedAt(),
+        branch.getPhone(),
+        branch.getExtraField(),
+        branch.getAddress(),
+        branch.getTimeZone(),
+        branch.getDateFormat(),
+        branch.getCountry(),
+        branch.getCurrency());
   }
 }
