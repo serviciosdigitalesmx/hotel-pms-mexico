@@ -30,6 +30,7 @@ import com.hotelpms.frontdesk.workflow.service.WorkflowService;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -389,7 +390,7 @@ public class ServiceOrderService {
             + receivedOnDelivery.toPlainString() + " · método " + paymentMethod);
     return saved;
   }
-  private boolean hasFailedLatestRepairTest(UUID hotelId, UUID orderId) {var latestByTest=new java.util.LinkedHashMap<String,RepairTest>();repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId,orderId).forEach(test->latestByTest.put(test.getTestName(),test));return latestByTest.values().stream().anyMatch(test->!test.isPassed());}
+  private boolean hasFailedLatestRepairTest(UUID hotelId, UUID orderId) {var latestByTest=new java.util.LinkedHashMap<String,RepairTest>();repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId,orderId).forEach(test->latestByTest.put(test.getTestName().trim().toLowerCase(Locale.ROOT),test));return latestByTest.values().stream().anyMatch(test->!test.isPassed());}
   @Transactional
   public ServiceOrder recordPendingPayment(final UUID hotelId, final UUID id, final UUID actor,
       final String paymentMethod) {
