@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,6 +56,16 @@ public class BranchController {
     return ResponseEntity.ok(branchAccessService.listBranches(hotelId));
   }
 
+  /** Lists member identifiers for an active branch within the authenticated tenant. */
+  @GetMapping("/{branchId}/members")
+  public ResponseEntity<List<UUID>> listBranchMembers(
+      @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
+      @NonNull @PathVariable final UUID branchId,
+      @NonNull final Authentication auth) {
+    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_READ);
+    return ResponseEntity.ok(branchAccessService.listBranchMembers(hotelId, branchId));
+  }
+
   /**
    * Assigns a tenant user to a branch after validating both IDs server-side.
    *
@@ -65,13 +74,14 @@ public class BranchController {
    * @param userId user identifier
    */
   @PostMapping("/{branchId}/members/{userId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void assignUserToBranch(
-      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
       @NonNull @PathVariable final UUID branchId,
-      @NonNull @PathVariable final UUID userId) {
-    branchAccessService.assignUserToBranch(UUID.fromString(hotelId), userId, branchId);
+      @NonNull @PathVariable final UUID userId,
+      @NonNull final Authentication auth) {
+    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    branchAccessService.assignUserToBranch(hotelId, userId, branchId);
   }
 
   /**
@@ -82,13 +92,14 @@ public class BranchController {
    * @param userId user identifier
    */
   @DeleteMapping("/{branchId}/members/{userId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void removeUserFromBranch(
-      @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
+      @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
       @NonNull @PathVariable final UUID branchId,
-      @NonNull @PathVariable final UUID userId) {
-    branchAccessService.removeUserFromBranch(UUID.fromString(hotelId), userId, branchId);
+      @NonNull @PathVariable final UUID userId,
+      @NonNull final Authentication auth) {
+    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    branchAccessService.removeUserFromBranch(hotelId, userId, branchId);
   }
 
   /**

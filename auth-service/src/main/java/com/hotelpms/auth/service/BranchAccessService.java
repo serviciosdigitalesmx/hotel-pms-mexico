@@ -21,6 +21,9 @@ public interface BranchAccessService {
    */
   List<TenantBranchResponse> listBranches(UUID hotelId);
 
+  /** Lists tenant user IDs assigned to an active tenant branch. */
+  List<UUID> listBranchMembers(UUID hotelId, UUID branchId);
+
   /**
    * Creates a branch and immediately gives the requesting user membership.
    *

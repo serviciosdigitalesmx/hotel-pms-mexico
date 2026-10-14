@@ -41,6 +41,15 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         .toList();
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public List<UUID> listBranchMembers(final UUID hotelId, final UUID branchId) {
+    getBranchForTenant(hotelId, branchId);
+    return membershipRepository.findAllByBranchIdAndHotelId(branchId, hotelId).stream()
+        .map(UserBranchMembership::getUserId)
+        .toList();
+  }
+
   /** {@inheritDoc} */
   @Override
   @Transactional

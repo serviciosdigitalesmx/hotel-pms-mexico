@@ -76,6 +76,7 @@ export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device
 export const transferDevice=(customerId:string,id:string,toCustomerId:string,evidence?:string)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}/transfer?${new URLSearchParams({toCustomerId,...(evidence?{evidence}:{})})}`)
 export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/api/v1/service-orders/customer/${customerId}`)
 export const listBranches=()=>get<Branch[]>('/api/v1/auth/branches')
+export const listBranchMembers=(branchId:string)=>get<string[]>(`/api/v1/auth/branches/${branchId}/members`)
 export type BranchWrite={name:string;phone?:string;extraField?:string;address?:string;timeZone?:string;dateFormat?:string;country?:string;currency?:string}
 export const createBranch=(body:BranchWrite)=>post<Branch>('/api/v1/auth/branches',body)
 export const updateBranch=(id:string,body:BranchWrite)=>patch<Branch>(`/api/v1/auth/branches/${id}`,body)
