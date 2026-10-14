@@ -62,11 +62,13 @@ public class ExpenseController {
   @PatchMapping("/{id}/paid")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public Expense markPaid(
-      @PathVariable final UUID id, @RequestBody(required = false) final PayExpenseRequest request) {
-    return service.markPaid(hotel(), actor(), id, request == null ? null : request.cashSessionId());
+      @PathVariable final UUID id, @Valid @RequestBody(required = false) final PayExpenseRequest request) {
+    return service.markPaid(hotel(), actor(), id, request == null ? null : request.cashSessionId(),
+        request == null ? null : request.paymentMethod());
   }
 
-  public record PayExpenseRequest(UUID cashSessionId) {}
+  public record PayExpenseRequest(UUID cashSessionId,
+      @jakarta.validation.constraints.Pattern(regexp = "BANK_TRANSFER|CARD|OTHER") String paymentMethod) {}
 
   private UUID hotel() {
     return UUID.fromString(

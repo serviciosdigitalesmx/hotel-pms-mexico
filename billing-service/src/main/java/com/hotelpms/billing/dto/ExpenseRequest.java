@@ -28,7 +28,8 @@ public record ExpenseRequest(
     @Size(max = CATEGORY_LENGTH) String subcategory,
     Boolean paid,
     LocalDate spentAt,
-    LocalDate dueAt) {
+    LocalDate dueAt,
+    @jakarta.validation.constraints.Pattern(regexp = "CASH|BANK_TRANSFER|CARD|OTHER") String paymentMethod) {
   private static final int CATEGORY_LENGTH = 120;
   private static final int DESCRIPTION_LENGTH = 255;
 
@@ -38,6 +39,6 @@ public record ExpenseRequest(
       final String description,
       final String reference,
       final UUID cashSessionId) {
-    this(category, amount, description, reference, cashSessionId, "VARIABLE", null, true, null, null);
+    this(category, amount, description, reference, cashSessionId, "VARIABLE", null, true, null, null, null);
   }
 }

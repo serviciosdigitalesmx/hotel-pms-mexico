@@ -31,5 +31,5 @@ public interface ExpenseService {
   List<Expense> list(UUID hotelId);
 
   /** Marks an outstanding expense paid, optionally recording its cash outflow. */
-  Expense markPaid(UUID hotelId, UUID actor, UUID expenseId, UUID cashSessionId);
+  Expense markPaid(UUID hotelId, UUID actor, UUID expenseId, UUID cashSessionId, String paymentMethod);
 }

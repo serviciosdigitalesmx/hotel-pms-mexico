@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -73,4 +74,10 @@ public class Expense {
 
   @Column(name = "due_at")
   private LocalDate dueAt;
+
+  @Column(name = "payment_method", length = 20)
+  private String paymentMethod;
+
+  @Column(name = "paid_at")
+  private LocalDateTime paidAt;
 }

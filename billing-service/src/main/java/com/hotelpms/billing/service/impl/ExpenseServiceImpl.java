@@ -56,6 +56,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                   .build());
       sessions.save(session);
     }
+    final String paymentMethod = resolvePaymentMethod(paid, request.cashSessionId(), request.paymentMethod());
     return expenses.save(
         Expense.builder()
             .hotelId(hotelId)
@@ -71,6 +72,8 @@ public class ExpenseServiceImpl implements ExpenseService {
             .paid(paid)
             .spentAt(request.spentAt() == null && paid ? java.time.LocalDate.now() : request.spentAt())
             .dueAt(request.dueAt())
+            .paymentMethod(paymentMethod)
+            .paidAt(paid ? LocalDateTime.now() : null)
             .build());
   }
 
@@ -101,6 +104,8 @@ public class ExpenseServiceImpl implements ExpenseService {
     expense.setSubcategory(request.subcategory());
     expense.setSpentAt(request.spentAt());
     expense.setDueAt(request.dueAt());
+    expense.setPaymentMethod(null);
+    expense.setPaidAt(null);
     return expenses.save(expense);
   }
 
@@ -115,7 +120,8 @@ public class ExpenseServiceImpl implements ExpenseService {
   @Override
   @Transactional
   public Expense markPaid(
-      final UUID hotelId, final UUID actor, final UUID expenseId, final UUID cashSessionId) {
+      final UUID hotelId, final UUID actor, final UUID expenseId, final UUID cashSessionId,
+      final String requestedPaymentMethod) {
     final Expense expense = expenses.findByIdAndHotelId(expenseId, hotelId)
         .orElseThrow(() -> new NotFoundException("EXPENSE_NOT_FOUND"));
     if (expense.isPaid()) {
@@ -139,9 +145,20 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
     expense.setPaid(true);
     expense.setCashSessionId(cashSessionId);
+    expense.setPaymentMethod(resolvePaymentMethod(true, cashSessionId, requestedPaymentMethod));
+    expense.setPaidAt(LocalDateTime.now());
     if (expense.getSpentAt() == null) {
       expense.setSpentAt(java.time.LocalDate.now());
     }
     return expenses.save(expense);
+  }
+
+  private static String resolvePaymentMethod(
+      final boolean paid, final UUID cashSessionId, final String requestedPaymentMethod) {
+    if (!paid) return null;
+    if (cashSessionId != null) return "CASH";
+    final String method = requestedPaymentMethod == null ? "OTHER" : requestedPaymentMethod;
+    if ("CASH".equals(method)) throw new BillingValidationException("CASH_PAYMENT_SESSION_REQUIRED");
+    return method;
   }
 }
