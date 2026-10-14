@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { BaseLayout } from '@/components/layouts/base-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ type Purchase = { id: string; branchId: string; supplierId: string; serviceOrder
 type DraftLine = { productId: string; quantity: number; unitCost: number }
 
 export function Purchases() {
+  const [searchParams] = useSearchParams()
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [branches, setBranches] = useState<api.Branch[]>([])
   const [suppliers, setSuppliers] = useState<api.Supplier[]>([])
@@ -39,6 +41,17 @@ export function Purchases() {
     finally { setLoading(false) }
   }
   useEffect(() => { void load() }, [])
+
+  useEffect(() => {
+    const branchId = searchParams.get('branchId') ?? ''
+    const productId = searchParams.get('productId') ?? ''
+    if (!branchId || !productId) return
+    const quantity = Number(searchParams.get('quantity'))
+    const product = products.find(item => item.id === productId)
+    setForm(current => ({ ...current, branchId, supplierId: product?.supplierId ?? '', serviceOrderId: '' }))
+    setDraftLines([{ productId, quantity: Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 1, unitCost: Number(product?.cost ?? 0) }])
+    setMessage('Compra sugerida desde el mínimo de inventario; confirma proveedor, cantidad y costo antes de crearla.')
+  }, [searchParams, products])
 
   async function create(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
