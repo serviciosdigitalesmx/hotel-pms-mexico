@@ -10,6 +10,7 @@ export type Supplier = { id:string; name:string; taxId?:string; contact?:string;
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}
 export type PurchaseOrder={id:string;branchId:string;supplierId:string;serviceOrderId?:string;status:string;createdAt:string;lines:PurchaseOrderLine[]}
 export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; expenseType?:'FIXED'|'VARIABLE'|'INVENTORY'; subcategory?:string; paid?:boolean; spentAt?:string; dueAt?:string; paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'; paidAt?:string; createdAt:string }
+export type CashSessionSummary={id:string;status:'OPEN'|'CLOSED';openingBalance:number;closingBalance?:number;openedAt:string;closedAt?:string}
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
 async function raw(path:string, init:RequestInit={}, retry=true){
@@ -137,9 +138,10 @@ export const receivePurchase=(id:string,body:{lines:Array<{productId:string;quan
 export const cancelPurchase=(id:string)=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/cancel`,{})
 export const recordStockCount=(body:{branchId:string;productId:string;countedQuantity:number;reason:string})=>post('/api/v1/inventory/stock-counts',body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
-export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string;paymentMethod?:'BANK_TRANSFER'|'CARD'|'OTHER'})=>post<Expense>('/api/v1/expenses',body)
+export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string;paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'})=>post<Expense>('/api/v1/expenses',body)
 export const updateExpense=(id:string,body:{category:string;amount:number;description?:string;reference?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid:false;spentAt?:string;dueAt?:string})=>put<Expense>(`/api/v1/expenses/${id}`,body)
-export const markExpensePaid=(id:string,paymentMethod:'BANK_TRANSFER'|'CARD'|'OTHER'='OTHER',cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId,paymentMethod})
+export const markExpensePaid=(id:string,paymentMethod:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'='OTHER',cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId,paymentMethod})
+export const getOpenCashSession=()=>get<CashSessionSummary|null>('/api/v1/cash/sessions/open')
 export type FinancialReport={startDate:string;endDate:string;totalRevenue:number;totalCollected:number;totalOutstanding:number;totalInvoices:number;paidInvoices:number;invoices:Array<{id:string;invoiceNumber?:string;status:string;totalAmount:number;issueDate:string;guestId?:string}>}
 export const financialReport=(startDate:string,endDate:string)=>get<FinancialReport>(`/api/v1/reports/owner?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
 export type ServiceCatalogEntry={id:string;tenantId:string;name:string;basePrice:number;estimatedMinutes:number;active:boolean;createdAt:string}

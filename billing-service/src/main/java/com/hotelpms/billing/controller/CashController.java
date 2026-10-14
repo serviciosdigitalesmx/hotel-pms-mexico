@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/cash")
 public class CashController {
   private final CashService service;
+
+  /** Returns only the current tenant's open session summary. */
+  @GetMapping("/sessions/open")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public ResponseEntity<com.hotelpms.billing.dto.CashDtos.SessionResponse> currentOpen() {
+    return ResponseEntity.of(service.currentOpen(hotel()));
+  }
 
   /**
    * Opens a cash session for the current tenant.

@@ -6,11 +6,13 @@ import com.hotelpms.billing.domain.CashSessionStatus;
 import com.hotelpms.billing.dto.CashDtos.CloseSessionRequest;
 import com.hotelpms.billing.dto.CashDtos.MovementRequest;
 import com.hotelpms.billing.dto.CashDtos.OpenSessionRequest;
+import com.hotelpms.billing.dto.CashDtos.SessionResponse;
 import com.hotelpms.billing.exception.BillingValidationException;
 import com.hotelpms.billing.exception.NotFoundException;
 import com.hotelpms.billing.repository.CashSessionRepository;
 import com.hotelpms.billing.service.CashService;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CashServiceImpl implements CashService {
   private final CashSessionRepository sessions;
+
+  /** {@inheritDoc} */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<SessionResponse> currentOpen(final UUID hotelId) {
+    return sessions.findFirstByHotelIdAndStatusOrderByOpenedAtDesc(hotelId, CashSessionStatus.OPEN)
+        .map(session -> new SessionResponse(session.getId(), session.getStatus(),
+            session.getOpeningBalance(), session.getClosingBalance(), session.getOpenedAt(),
+            session.getClosedAt()));
+  }
 
   /** {@inheritDoc} */
   @Override

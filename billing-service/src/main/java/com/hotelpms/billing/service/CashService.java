@@ -4,10 +4,14 @@ import com.hotelpms.billing.domain.CashSession;
 import com.hotelpms.billing.dto.CashDtos.CloseSessionRequest;
 import com.hotelpms.billing.dto.CashDtos.MovementRequest;
 import com.hotelpms.billing.dto.CashDtos.OpenSessionRequest;
+import java.util.Optional;
 import java.util.UUID;
+import com.hotelpms.billing.dto.CashDtos.SessionResponse;
 
 /** Cash register operations scoped to one tenant. */
 public interface CashService {
+  /** Returns the open cash session summary for a tenant, if one exists. */
+  Optional<SessionResponse> currentOpen(UUID hotelId);
   /**
    * Opens a cash session.
    *
