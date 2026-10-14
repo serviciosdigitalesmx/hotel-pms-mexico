@@ -28,6 +28,7 @@ import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.TransitionRequest;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowTransitionRepository;
 import com.hotelpms.frontdesk.workflow.service.WorkflowService;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -158,6 +159,7 @@ public class ServiceOrderService {
             .priority(request.priority() == null ? "NORMAL" : request.priority())
             .serviceName(request.serviceName() == null ? null : request.serviceName().trim())
             .depositAmount(request.depositAmount() == null ? java.math.BigDecimal.ZERO : request.depositAmount())
+            .paidAmount(request.depositAmount() == null ? java.math.BigDecimal.ZERO : request.depositAmount())
             .assignedUserId(request.assignedUserId())
             .intakeChecklist(request.intakeChecklist().trim())
             .promisedAt(request.promisedAt())
@@ -348,9 +350,95 @@ public class ServiceOrderService {
         .hotelId(hotelId).serviceOrderId(id).fromStatus(order.getStatus()).toStatus(order.getStatus())
         .actor(actor).notes(normalized).createdAt(LocalDateTime.now()).build());
   }
-  @Transactional public ServiceOrder deliver(UUID hotelId,UUID id,UUID actor,String paymentMethod){var o=repository.findForUpdateByIdAndHotelId(id,hotelId).orElseThrow(()->new NotFoundException("SERVICE_ORDER_NOT_FOUND"));if(o.getStatus()!=ServiceOrderStatus.QA)throw new IllegalStateException("SERVICE_ORDER_NOT_READY_FOR_DELIVERY");if(hasFailedLatestRepairTest(hotelId,id))throw new IllegalStateException("REPAIR_TESTS_FAILED");if(paymentMethod==null||paymentMethod.isBlank())throw new IllegalArgumentException("PAYMENT_METHOD_REQUIRED");if("PENDING".equals(paymentMethod)&&(o.getQuoteTotal()==null||o.getQuoteTotal().subtract(o.getDepositAmount()==null?java.math.BigDecimal.ZERO:o.getDepositAmount()).compareTo(java.math.BigDecimal.ZERO)<=0))throw new IllegalStateException("SERVICE_ORDER_HAS_NO_OUTSTANDING_BALANCE");inventoryService.consumeReservations(hotelId,id);o.setPaymentMethod(paymentMethod);o.setPaymentStatus("PENDING".equals(paymentMethod)?"PENDING":"PAID");o.setStatus(ServiceOrderStatus.COMPLETED);o.setDeliveredAt(LocalDateTime.now());o.setDeliveredBy(actor);o.setUpdatedAt(LocalDateTime.now());var saved=repository.save(o);record(saved,ServiceOrderStatus.QA,ServiceOrderStatus.COMPLETED,actor.toString(),"Equipo entregado · pago "+o.getPaymentStatus()+" · método "+paymentMethod);return saved;}
+  @Transactional
+  public ServiceOrder deliver(final UUID hotelId, final UUID id, final UUID actor,
+      final String paymentMethod) {
+    final ServiceOrder order = repository.findForUpdateByIdAndHotelId(id, hotelId)
+        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    if (order.getStatus() != ServiceOrderStatus.QA) {
+      throw new IllegalStateException("SERVICE_ORDER_NOT_READY_FOR_DELIVERY");
+    }
+    if (hasFailedLatestRepairTest(hotelId, id)) throw new IllegalStateException("REPAIR_TESTS_FAILED");
+    if (paymentMethod == null || paymentMethod.isBlank()) {
+      throw new IllegalArgumentException("PAYMENT_METHOD_REQUIRED");
+    }
+    final BigDecimal received = order.getPaidAmount() == null
+        ? zero(order.getDepositAmount()) : order.getPaidAmount();
+    final BigDecimal outstanding = order.getQuoteTotal() == null
+        ? BigDecimal.ZERO : order.getQuoteTotal().subtract(received);
+    if ("PENDING".equals(paymentMethod) && outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalStateException("SERVICE_ORDER_HAS_NO_OUTSTANDING_BALANCE");
+    }
+    inventoryService.consumeReservations(hotelId, id);
+    order.setPaymentMethod(paymentMethod);
+    order.setPaymentStatus("PENDING".equals(paymentMethod) ? "PENDING" : "PAID");
+    final BigDecimal receivedOnDelivery = !"PENDING".equals(paymentMethod)
+        ? outstanding.max(BigDecimal.ZERO) : BigDecimal.ZERO;
+    if (!"PENDING".equals(paymentMethod) && order.getQuoteTotal() != null) {
+      order.setPaidAmount(received.max(order.getQuoteTotal()));
+    } else {
+      order.setPaidAmount(received);
+    }
+    order.setStatus(ServiceOrderStatus.COMPLETED);
+    order.setDeliveredAt(LocalDateTime.now());
+    order.setDeliveredBy(actor);
+    order.setUpdatedAt(LocalDateTime.now());
+    final ServiceOrder saved = repository.save(order);
+    record(saved, ServiceOrderStatus.QA, ServiceOrderStatus.COMPLETED, actor.toString(),
+        "Equipo entregado · pago " + order.getPaymentStatus() + " · recibido "
+            + receivedOnDelivery.toPlainString() + " · método " + paymentMethod);
+    return saved;
+  }
   private boolean hasFailedLatestRepairTest(UUID hotelId, UUID orderId) {var latestByTest=new java.util.LinkedHashMap<String,RepairTest>();repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId,orderId).forEach(test->latestByTest.put(test.getTestName(),test));return latestByTest.values().stream().anyMatch(test->!test.isPassed());}
-  @Transactional public ServiceOrder recordPendingPayment(UUID hotelId,UUID id,UUID actor,String paymentMethod){var o=repository.findForUpdateByIdAndHotelId(id,hotelId).orElseThrow(()->new NotFoundException("SERVICE_ORDER_NOT_FOUND"));if(o.getStatus()!=ServiceOrderStatus.COMPLETED)throw new IllegalStateException("SERVICE_ORDER_NOT_DELIVERED");if(!"PENDING".equals(o.getPaymentStatus()))throw new IllegalStateException("SERVICE_ORDER_PAYMENT_NOT_PENDING");if(paymentMethod==null||paymentMethod.isBlank()||"PENDING".equals(paymentMethod))throw new IllegalArgumentException("VALID_PAYMENT_METHOD_REQUIRED");if(o.getQuoteTotal()==null||o.getQuoteTotal().compareTo(java.math.BigDecimal.ZERO)<=0)throw new IllegalStateException("SERVICE_ORDER_HAS_NO_PAYABLE_TOTAL");var deposit=o.getDepositAmount()==null?java.math.BigDecimal.ZERO:o.getDepositAmount();if(o.getQuoteTotal().subtract(deposit).compareTo(java.math.BigDecimal.ZERO)<=0)throw new IllegalStateException("SERVICE_ORDER_HAS_NO_OUTSTANDING_BALANCE");o.setPaymentMethod(paymentMethod);o.setPaymentStatus("PAID");o.setUpdatedAt(LocalDateTime.now());var saved=repository.save(o);record(saved,ServiceOrderStatus.COMPLETED,ServiceOrderStatus.COMPLETED,actor.toString(),"Pago pendiente liquidado · método "+paymentMethod);return saved;}
+  @Transactional
+  public ServiceOrder recordPendingPayment(final UUID hotelId, final UUID id, final UUID actor,
+      final String paymentMethod) {
+    return recordPendingPayment(hotelId, id, actor, paymentMethod, null);
+  }
+
+  @Transactional
+  public ServiceOrder recordPendingPayment(final UUID hotelId, final UUID id, final UUID actor,
+      final String paymentMethod, final BigDecimal requestedAmount) {
+    final ServiceOrder order = repository.findForUpdateByIdAndHotelId(id, hotelId)
+        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    if (order.getStatus() != ServiceOrderStatus.COMPLETED) {
+      throw new IllegalStateException("SERVICE_ORDER_NOT_DELIVERED");
+    }
+    if (!"PENDING".equals(order.getPaymentStatus())) {
+      throw new IllegalStateException("SERVICE_ORDER_PAYMENT_NOT_PENDING");
+    }
+    if (paymentMethod == null || paymentMethod.isBlank() || "PENDING".equals(paymentMethod)) {
+      throw new IllegalArgumentException("VALID_PAYMENT_METHOD_REQUIRED");
+    }
+    if (order.getQuoteTotal() == null || order.getQuoteTotal().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalStateException("SERVICE_ORDER_HAS_NO_PAYABLE_TOTAL");
+    }
+    final BigDecimal previousPaid = order.getPaidAmount() == null
+        ? zero(order.getDepositAmount()) : order.getPaidAmount();
+    final BigDecimal outstanding = order.getQuoteTotal().subtract(previousPaid);
+    if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalStateException("SERVICE_ORDER_HAS_NO_OUTSTANDING_BALANCE");
+    }
+    final BigDecimal received = requestedAmount == null ? outstanding : requestedAmount;
+    if (received.compareTo(BigDecimal.ZERO) <= 0 || received.compareTo(outstanding) > 0) {
+      throw new IllegalArgumentException("PAYMENT_AMOUNT_MUST_BE_POSITIVE_AND_NOT_EXCEED_BALANCE");
+    }
+    final BigDecimal cumulativePaid = previousPaid.add(received);
+    order.setPaidAmount(cumulativePaid);
+    order.setPaymentMethod(paymentMethod);
+    order.setPaymentStatus(cumulativePaid.compareTo(order.getQuoteTotal()) >= 0 ? "PAID" : "PENDING");
+    order.setUpdatedAt(LocalDateTime.now());
+    final ServiceOrder saved = repository.save(order);
+    record(saved, ServiceOrderStatus.COMPLETED, ServiceOrderStatus.COMPLETED, actor.toString(),
+        "Pago recibido " + received.toPlainString() + " · método " + paymentMethod
+            + " · acumulado " + cumulativePaid.toPlainString() + " de "
+            + order.getQuoteTotal().toPlainString());
+    return saved;
+  }
+
+  private BigDecimal zero(final BigDecimal value) {
+    return value == null ? BigDecimal.ZERO : value;
+  }
   private void record(ServiceOrder o,ServiceOrderStatus from,ServiceOrderStatus to,String actor,String notes){history.save(ServiceOrderStatusHistory.builder().hotelId(o.getHotelId()).serviceOrderId(o.getId()).fromStatus(from).toStatus(to).actor(actor).notes(notes).createdAt(LocalDateTime.now()).build());}
   private boolean isBlank(String value) { return value == null || value.trim().isEmpty(); }
 }

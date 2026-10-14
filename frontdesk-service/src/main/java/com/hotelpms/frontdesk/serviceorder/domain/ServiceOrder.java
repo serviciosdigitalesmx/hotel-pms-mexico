@@ -108,6 +108,9 @@ public class ServiceOrder {
   @Column(precision=12,scale=2) private BigDecimal quoteTotal;
   @Column(name = "payment_method", length = 24) private String paymentMethod;
   @Column(name = "payment_status", length = 16) private String paymentStatus;
+  @Column(name = "paid_amount", precision = 12, scale = 2)
+  @Builder.Default
+  private BigDecimal paidAmount = BigDecimal.ZERO;
   private LocalDateTime deliveredAt;
   private UUID deliveredBy;
 

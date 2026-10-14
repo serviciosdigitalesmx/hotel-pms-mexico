@@ -171,7 +171,7 @@ public class ServiceOrderController {
   public ServiceOrder deliver(@PathVariable UUID id,@Valid @RequestBody ServiceOrderDeliveryRequest request){return service.deliver(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod());}
 
   @PatchMapping("/{id}/payment") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
-  public ServiceOrder recordPendingPayment(@PathVariable UUID id,@Valid @RequestBody ServiceOrderPaymentUpdateRequest request){return service.recordPendingPayment(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod());}
+  public ServiceOrder recordPendingPayment(@PathVariable UUID id,@Valid @RequestBody ServiceOrderPaymentUpdateRequest request){return service.recordPendingPayment(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod(),request.amount());}
 
   private UUID hotel() {
     return UUID.fromString(
