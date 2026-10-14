@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { acceptInvitation, currentUser, forgotPassword, login, listAllServiceOrders, logout, portalAuthorize, portalDocuments, portalOperation, portalOtp, portalVerify, resetPassword, signup, verifyEmail, type DocumentEvidence, type PortalOperation } from './api'
+import { acceptInvitation, changePassword, currentUser, forgotPassword, login, listAllServiceOrders, logout, portalAuthorize, portalDocuments, portalOperation, portalOtp, portalVerify, resetPassword, signup, verifyEmail, type DocumentEvidence, type PortalOperation } from './api'
 
 function AuthCard({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return <div className="min-h-svh bg-muted/40 flex items-center justify-center p-6"><Card className="w-full max-w-md"><CardHeader><Link to="/" className="text-xl font-bold text-primary">Fixi</Link><CardTitle>{title}</CardTitle><CardDescription>{description}</CardDescription></CardHeader><CardContent>{children}</CardContent></Card></div>
@@ -19,8 +19,33 @@ export function Landing() {
 
 export function LoginPage() {
   const navigate = useNavigate(); const [username,setUsername]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false)
-  async function submit(e: FormEvent) { e.preventDefault(); setBusy(true); setError(''); try { const result=await login(username,password); const me=await currentUser(); navigate(result.mustChangePassword ? '/settings' : me?.onboardingCompleted===false ? '/onboarding' : '/dashboard') } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión') } finally { setBusy(false) } }
+  async function submit(e: FormEvent) { e.preventDefault(); setBusy(true); setError(''); try { const result=await login(username,password); const me=await currentUser(); navigate(result.mustChangePassword || me?.mustChangePassword ? '/change-password' : me?.onboardingCompleted===false ? '/onboarding' : '/dashboard') } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión') } finally { setBusy(false) } }
   return <AuthCard title="Bienvenido a Fixi" description="Entra a la operación de tu negocio."><form onSubmit={submit} className="space-y-4"><div><Label htmlFor="username">Correo o usuario</Label><Input id="username" autoComplete="username" placeholder="tu@correo.com" value={username} onChange={e=>setUsername(e.target.value)} required /></div><div><div className="flex justify-between"><Label htmlFor="password">Contraseña</Label><Link className="text-sm text-primary" to="/forgot-password">¿La olvidaste?</Link></div><Input id="password" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required /></div>{error&&<p className="text-sm text-destructive">{error}</p>}<Button className="w-full" disabled={busy}>{busy?'Entrando…':'Iniciar sesión'}</Button><p className="text-center text-sm text-muted-foreground">¿Nuevo en Fixi? <Link className="text-primary" to="/signup">Crear cuenta</Link></p></form></AuthCard>
+}
+
+export function ChangePasswordPage() {
+  const navigate = useNavigate()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setError('')
+    if (next !== confirmation) { setError('Las contraseñas nuevas no coinciden.'); return }
+    setBusy(true)
+    try {
+      await changePassword(current, next)
+      const user = await currentUser()
+      navigate(user?.onboardingCompleted === false ? '/onboarding' : '/dashboard', { replace: true })
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo actualizar la contraseña')
+    } finally { setBusy(false) }
+  }
+
+  return <AuthCard title="Actualiza tu contraseña" description="Por seguridad, debes elegir una contraseña nueva antes de continuar."><form className="space-y-4" onSubmit={submit}><div><Label htmlFor="current-password">Contraseña actual o temporal</Label><Input id="current-password" type="password" autoComplete="current-password" required value={current} onChange={event=>setCurrent(event.target.value)}/></div><div><Label htmlFor="new-password">Nueva contraseña</Label><Input id="new-password" type="password" autoComplete="new-password" required minLength={12} value={next} onChange={event=>setNext(event.target.value)}/><p className="mt-1 text-xs text-muted-foreground">Usa al menos 12 caracteres, una mayúscula y un número.</p></div><div><Label htmlFor="confirm-password">Confirma la nueva contraseña</Label><Input id="confirm-password" type="password" autoComplete="new-password" required minLength={12} value={confirmation} onChange={event=>setConfirmation(event.target.value)}/></div>{error&&<p role="alert" className="text-sm text-destructive">{error}</p>}<Button className="w-full" disabled={busy}>{busy?'Actualizando…':'Actualizar contraseña'}</Button></form></AuthCard>
 }
 
 export function SignupPage() { const [f,setF]=useState({ownerName:'',email:'',password:'',businessName:'',branchName:'Sucursal principal'});const [message,setMessage]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);async function submit(e:FormEvent){e.preventDefault();setError('');setMessage('');setBusy(true);try{await signup(f);setMessage('Cuenta creada. Ya puedes iniciar sesión con tu correo y contraseña.')}catch(x){setError(x instanceof Error?x.message:'No se pudo crear la cuenta')}finally{setBusy(false)}}return <AuthCard title="Crea tu cuenta Fixi" description="Crea tu negocio, propietario y primera sucursal en una sola operación."><form className="space-y-3" onSubmit={submit}><div><Label htmlFor="ownerName">Nombre del propietario</Label><Input id="ownerName" required value={f.ownerName} onChange={e=>setF({...f,ownerName:e.target.value})}/></div><div><Label htmlFor="email">Correo</Label><Input id="email" type="email" autoComplete="email" required value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><p className="mt-1 text-xs text-muted-foreground">Este correo también será tu usuario para iniciar sesión.</p></div><div><Label htmlFor="password">Contraseña</Label><Input id="password" type="password" autoComplete="new-password" required value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><p className="mt-1 text-xs text-muted-foreground">Mínimo 6 caracteres y al menos una mayúscula.</p></div><div><Label htmlFor="businessName">Nombre del negocio</Label><Input id="businessName" required value={f.businessName} onChange={e=>setF({...f,businessName:e.target.value})}/><p className="mt-1 text-xs text-muted-foreground">El identificador técnico se genera automáticamente.</p></div><div><Label htmlFor="branchName">Primera sucursal</Label><Input id="branchName" required value={f.branchName} onChange={e=>setF({...f,branchName:e.target.value})}/></div>{error&&<p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}{message&&<p role="status" className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}<Button className="w-full" disabled={busy}>{busy?'Creando cuenta…':'Crear cuenta'}</Button><p className="text-center text-sm"><Link to="/login">Ya tengo cuenta</Link></p></form></AuthCard> }

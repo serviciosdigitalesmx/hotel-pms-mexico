@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Landing,LoginPage,SignupPage,ForgotPasswordPage,ResetPasswordPage,VerifyEmailPage,AcceptInvitationPage,CustomerPortalPage } from '@/fixi/pages'
+import { Landing,LoginPage,SignupPage,ForgotPasswordPage,ResetPasswordPage,VerifyEmailPage,AcceptInvitationPage,CustomerPortalPage,ChangePasswordPage } from '@/fixi/pages'
 import { Protected,RealDashboard,BranchDashboard,OrderReportingPage,InventoryReportingPage,ProductivityReportingPage,CustomersPage,CustomerDetailPage,OrdersPage,BranchesPage,TeamPage,SuppliersPage,OnboardingPage,SettingsPage,IntegrationPage } from '@/fixi/operations'
 import { ServiceOrderDetail } from '@/fixi/order-detail'
 import { Purchases } from '@/fixi/purchases'
@@ -19,7 +19,7 @@ import { OperationalAlertsPage } from '@/fixi/operational-alerts'
 export interface RouteConfig { path:string; element:ReactNode; children?:RouteConfig[] }
 const secure=(element:ReactNode,roles?:string[],capabilities?:string[])=><Protected roles={roles} capabilities={capabilities}>{element}</Protected>
 export const routes:RouteConfig[]=[
-  {path:'/',element:<Landing/>},{path:'/landing',element:<Landing/>},{path:'/login',element:<LoginPage/>},{path:'/signup',element:<SignupPage/>},{path:'/forgot-password',element:<ForgotPasswordPage/>},{path:'/reset-password',element:<ResetPasswordPage/>},{path:'/verify-email',element:<VerifyEmailPage/>},{path:'/accept-invitation',element:<AcceptInvitationPage/>},{path:'/portal/:token',element:<CustomerPortalPage/>},
+  {path:'/',element:<Landing/>},{path:'/landing',element:<Landing/>},{path:'/login',element:<LoginPage/>},{path:'/change-password',element:<ChangePasswordPage/>},{path:'/signup',element:<SignupPage/>},{path:'/forgot-password',element:<ForgotPasswordPage/>},{path:'/reset-password',element:<ResetPasswordPage/>},{path:'/verify-email',element:<VerifyEmailPage/>},{path:'/accept-invitation',element:<AcceptInvitationPage/>},{path:'/portal/:token',element:<CustomerPortalPage/>},
   {path:'/dashboard',element:secure(<RealDashboard/>)},{path:'/branch-dashboard',element:secure(<BranchDashboard/>)},{path:'/reports/orders',element:secure(<OrderReportingPage/>)},{path:'/reports/inventory',element:secure(<InventoryReportingPage/>)},{path:'/reports/productivity',element:secure(<ProductivityReportingPage/>)},{path:'/onboarding',element:secure(<OnboardingPage/>)},
   {path:'/customers',element:secure(<CustomersPage/>)},{path:'/customers/:id',element:secure(<CustomerDetailPage/>)},{path:'/equipment',element:secure(<DeviceManagementPage/>)},{path:'/reception',element:<Navigate to="/reception/new" replace/>},
   {path:'/reception/new',element:secure(<ReceptionOrderForm/>)},{path:'/services',element:secure(<ServiceCatalogManagementPage/>,undefined,['ORDERS_READ'])},{path:'/service-orders',element:secure(<OrdersPage/>,undefined,['ORDERS_READ'])},{path:'/service-orders/:id',element:secure(<ServiceOrderDetail/>,undefined,['ORDERS_READ'])},
