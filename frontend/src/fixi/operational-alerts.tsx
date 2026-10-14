@@ -42,6 +42,11 @@ export function OperationalAlertsPage() {
     const today = localDateKey(new Date())
     const result: Alert[] = []
     for (const order of orders) {
+      if (order.status === 'COMPLETED' && order.paymentStatus === 'PENDING' && order.quoteTotal != null) {
+        const received = Number(order.paidAmount ?? order.depositAmount ?? 0)
+        const balance = Math.max(0, Number(order.quoteTotal) - received)
+        if (balance > 0) result.push({ id: `order-payment:${order.id}`, event: 'PAYMENT_DUE', title: 'Saldo de orden pendiente', detail: `${order.summary} · ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(balance)} por cobrar`, href: `/service-orders/${order.id}`, urgency: 0 })
+      }
       if (terminal.has(order.status)) continue
       if (order.assignedUserId && localDateOf(order.createdAt) === today) {
         result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden asignada', detail: `${order.summary} · asignada a un técnico`, href: `/service-orders/${order.id}`, urgency: 1 })
@@ -72,7 +77,7 @@ export function OperationalAlertsPage() {
       .sort((a, b) => a.urgency - b.urgency || a.title.localeCompare(b.title))
   }, [orders, products, balances, branches, expenses, preferences])
 
-  return <BaseLayout title="Alertas operativas" description="Vencimientos de órdenes, entregas listas, stock bajo y gastos vencidos."><div className="space-y-4 px-4 lg:px-6">
+  return <BaseLayout title="Alertas operativas" description="Órdenes vencidas o con saldo pendiente, entregas listas, stock bajo y pagos de gastos vencidos."><div className="space-y-4 px-4 lg:px-6">
     <Card><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>{alerts.length} alertas actuales</CardTitle><Button type="button" variant="outline" disabled={loading} onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1) }}>Actualizar</Button></div></CardHeader><CardContent className="space-y-2">
       {loading && <p role="status">Actualizando alertas…</p>}{alerts.map(alert => <div key={alert.id} className="flex flex-wrap items-center justify-between gap-3 rounded border p-3"><div><p className="font-medium">{alert.title}</p><p className="text-sm text-muted-foreground">{alert.detail}</p></div><Button asChild size="sm" variant="outline"><Link to={alert.href}>Abrir</Link></Button></div>)}
       {!loading && !error && !alerts.length && <p className="text-sm text-muted-foreground">Sin alertas operativas en este momento.</p>}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
