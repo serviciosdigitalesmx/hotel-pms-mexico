@@ -41,6 +41,9 @@ public class WorkflowState {
   @Column(name = "terminal_state")
   private boolean terminalState;
 
+  @Column(nullable = false)
+  private boolean active = true;
+
   /** Required by JPA. */
   protected WorkflowState() { /* Required by JPA. */ }
   /**
@@ -136,5 +139,17 @@ public class WorkflowState {
 
   public boolean isTerminalState() {
     return terminalState;
+  }
+
+  public boolean isActive() {
+    return active;
+  }
+
+  public void setActive(final boolean active) {
+    this.active = active;
+  }
+
+  public void setLabel(final String label) {
+    this.label = label;
   }
 }

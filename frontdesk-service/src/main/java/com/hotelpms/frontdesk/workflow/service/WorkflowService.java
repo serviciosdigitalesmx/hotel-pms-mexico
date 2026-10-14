@@ -12,6 +12,7 @@ import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.AddStateRequest;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.AddTransitionRequest;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.CreateWorkflowRequest;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.TransitionRequest;
+import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.UpdateStateLabelRequest;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowDefinitionRepository;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowInstanceRepository;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowStateRepository;
@@ -100,6 +101,9 @@ public class WorkflowService {
         states
             .findByWorkflowIdAndKey(workflowId, r.toStateKey())
             .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+    if (!from.isActive() || !to.isActive()) {
+      throw new ConflictException("Inactive workflow states cannot be used in transitions");
+    }
     return transitions.save(
         new WorkflowTransition(w, from, to, r.transitionKey(), r.requiredPermission()));
   }
@@ -129,6 +133,9 @@ public class WorkflowService {
                 hotel, workflowId, r.fromStateKey(), r.transitionKey())
             .orElseThrow(
                 () -> new ConflictException("Transition is not allowed from current state"));
+    if (!t.getFromState().isActive() || !t.getToState().isActive()) {
+      throw new ConflictException("Transition uses an inactive workflow state");
+    }
     final WorkflowInstance instance =
         instances
             .findLockedByHotelIdAndWorkflowIdAndAggregateId(hotel, workflowId, r.aggregateId())
@@ -204,6 +211,33 @@ public class WorkflowService {
   public List<WorkflowState> states(final UUID hotel, final UUID id) {
     definition(hotel, id);
     return states.findAllByWorkflowId(id);
+  }
+
+  @Transactional
+  public WorkflowState updateStateLabel(final UUID hotel, final UUID workflowId, final String key,
+      final UpdateStateLabelRequest request) {
+    definition(hotel, workflowId);
+    final WorkflowState state = states.findByWorkflowIdAndKey(workflowId, key)
+        .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+    state.setLabel(request.label().trim());
+    return states.save(state);
+  }
+
+  @Transactional
+  public WorkflowState setStateActive(final UUID hotel, final UUID workflowId, final String key,
+      final boolean active) {
+    definition(hotel, workflowId);
+    final WorkflowState state = states.findByWorkflowIdAndKey(workflowId, key)
+        .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+    if (!active && state.isInitialState()) {
+      throw new ConflictException("The initial workflow state cannot be deactivated");
+    }
+    if (!active && state.isActive()
+        && instances.existsByWorkflowIdAndStateKey(workflowId, key)) {
+      throw new ConflictException("A state used by active orders cannot be deactivated");
+    }
+    state.setActive(active);
+    return states.save(state);
   }
   /**
    * Executes the operation.

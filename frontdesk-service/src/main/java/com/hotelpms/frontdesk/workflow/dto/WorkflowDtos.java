@@ -87,7 +87,10 @@ public final class WorkflowDtos {
       String label,
       SemanticPhase semanticPhase,
       boolean initialState,
-      boolean terminalState) { }
+      boolean terminalState,
+      boolean active) { }
+
+  public record UpdateStateLabelRequest(@NotBlank String label) { }
 
     /**
      * DTO record.

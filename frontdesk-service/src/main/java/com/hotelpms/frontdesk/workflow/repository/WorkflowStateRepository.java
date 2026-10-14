@@ -30,6 +30,8 @@ public interface WorkflowStateRepository extends JpaRepository<WorkflowState, UU
 
   Optional<WorkflowState> findByWorkflowIdAndKey(UUID workflowId, String key);
 
+  boolean existsByWorkflowIdAndKeyAndActiveTrue(UUID workflowId, String key);
+
   /**
    * Finds and locks an active workflow state.
    *

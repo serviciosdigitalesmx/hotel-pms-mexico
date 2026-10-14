@@ -58,6 +58,7 @@ public class ServiceOrderService {
         current == null ? null : current.getKey(),
         initialState,
         workflowTransitions.findAllByWorkflowId(workflow.getId()).stream()
+            .filter(t -> t.getFromState().isActive() && t.getToState().isActive())
             .map(t -> new ConfiguredWorkflowTransition(t.getKey(), t.getFromState().getKey(), t.getToState().getKey()))
             .toList());
   }
@@ -73,7 +74,8 @@ public class ServiceOrderService {
         .filter(WorkflowState::isInitialState).map(WorkflowState::getKey).findFirst()
         .orElseThrow(() -> new IllegalStateException("REPAIR workflow has no initial state")) : current.getKey();
     WorkflowTransition transition = workflows.transitions(hotelId, workflow.getId()).stream()
-        .filter(t -> t.getKey().equals(transitionKey) && t.getFromState().getKey().equals(fromKey))
+        .filter(t -> t.getKey().equals(transitionKey) && t.getFromState().getKey().equals(fromKey)
+            && t.getFromState().isActive() && t.getToState().isActive())
         .findFirst().orElseThrow(() -> new IllegalStateException("Transition is not allowed from current state"));
     boolean privileged = authorities.contains("ROLE_ADMIN") || authorities.contains("ROLE_OWNER");
     boolean granted = privileged || Boolean.TRUE.equals(capabilityClient.evaluate(

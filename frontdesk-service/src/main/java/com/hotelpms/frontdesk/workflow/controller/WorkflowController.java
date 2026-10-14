@@ -9,6 +9,7 @@ import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.CreateWorkflowRequest;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.StateResponse;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.TransitionResponse;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.TransitionRequest;
+import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.UpdateStateLabelRequest;
 import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.WorkflowResponse;
 import com.hotelpms.frontdesk.workflow.service.WorkflowService;
 import jakarta.validation.Valid;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Type domain type. */
@@ -62,6 +65,20 @@ public class WorkflowController {
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
   public StateResponse state(@PathVariable final UUID id, @Valid @RequestBody final AddStateRequest r) {
     return stateView(service.addState(hotel(), id, r));
+  }
+
+  @PatchMapping("/{id}/states/{key}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+  public StateResponse updateStateLabel(@PathVariable final UUID id, @PathVariable final String key,
+      @Valid @RequestBody final UpdateStateLabelRequest request) {
+    return stateView(service.updateStateLabel(hotel(), id, key, request));
+  }
+
+  @PatchMapping("/{id}/states/{key}/active")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+  public StateResponse setStateActive(@PathVariable final UUID id, @PathVariable final String key,
+      @RequestParam final boolean active) {
+    return stateView(service.setStateActive(hotel(), id, key, active));
   }
 
   /**
@@ -143,7 +160,7 @@ public class WorkflowController {
 
   private StateResponse stateView(final WorkflowState s) {
     return new StateResponse(
-        s.getKey(), s.getLabel(), s.getSemanticPhase(), s.isInitialState(), s.isTerminalState());
+        s.getKey(), s.getLabel(), s.getSemanticPhase(), s.isInitialState(), s.isTerminalState(), s.isActive());
   }
 
   private TransitionResponse transitionView(final WorkflowTransition t) {
