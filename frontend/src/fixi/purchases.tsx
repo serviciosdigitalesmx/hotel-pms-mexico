@@ -64,6 +64,18 @@ export function Purchases() {
     finally { setBusy(false) }
   }
 
+  async function cancel(order: Purchase) {
+    if (!window.confirm('¿Cancelar esta orden de compra? La acción quedará en el historial y no modificará existencias.')) return
+    setBusy(true); setError(''); setMessage('')
+    try {
+      await api.cancelPurchase(order.id)
+      setMessage('Orden cancelada; el historial y las existencias recibidas no se modificaron')
+      if (purchaseId === order.id) { setPurchaseId(''); setReceiptLines([]) }
+      await load()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo cancelar la compra') }
+    finally { setBusy(false) }
+  }
+
   const branchName = (id: string) => branches.find(branch => branch.id === id)?.name ?? 'Sucursal'
   const supplierName = (id: string) => suppliers.find(supplier => supplier.id === id)?.name ?? 'Proveedor'
   const selectedPurchase = purchases.find(order => order.id === purchaseId)
@@ -119,7 +131,7 @@ export function Purchases() {
       <Card><CardHeader><CardTitle>Recibir refacciones</CardTitle></CardHeader><CardContent>
         <form className="space-y-3" onSubmit={receive}>
           <select required aria-label="Orden de compra pendiente" className={field} value={purchaseId} onChange={event => selectPurchase(event.target.value)}>
-            <option value="">Compra pendiente</option>{purchases.filter(order => order.lines?.some(line => line.quantityReceived < line.quantityOrdered)).map(order => <option key={order.id} value={order.id}>{supplierName(order.supplierId)} · {branchName(order.branchId)} · {order.id.slice(0, 8)}</option>)}
+            <option value="">Compra pendiente</option>{purchases.filter(order => order.status !== 'CANCELLED' && order.lines?.some(line => line.quantityReceived < line.quantityOrdered)).map(order => <option key={order.id} value={order.id}>{supplierName(order.supplierId)} · {branchName(order.branchId)} · {order.id.slice(0, 8)}</option>)}
           </select>
           {receiptLines.map((line, index) => <div className="grid gap-2 sm:grid-cols-[1fr_8rem]" key={line.productId}>
             <div className="flex items-center rounded border px-3 text-sm">{products.find(product => product.id === line.productId)?.name ?? line.productId} · pendientes {remaining(line.productId)}</div>
@@ -136,7 +148,9 @@ export function Purchases() {
           <div><p className="font-medium">{supplierName(order.supplierId)} · {branchName(order.branchId)}</p>
             <p className="text-xs text-muted-foreground">{order.id}{order.serviceOrderId ? ` · Servicio ${order.serviceOrderId}` : ''}{order.createdAt ? ` · ${new Date(order.createdAt).toLocaleDateString('es-MX')}` : ''}</p>
             <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}{order.lines?.length ? <p className="border-t pt-1 font-medium">Recibido {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).received)} · Pendiente {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered - purchaseAmounts(order).received)} · Total {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered)}</p> : <p className="text-amber-700">Orden heredada sin partidas detalladas.</p>}</div>
-          </div><Badge variant={order.status === 'RECEIVED' ? 'default' : 'outline'}>{order.status}</Badge>
+          </div><div className="flex items-center gap-2"><Badge variant={order.status === 'RECEIVED' ? 'default' : 'outline'}>{order.status}</Badge>
+            {!['RECEIVED', 'CANCELLED'].includes(order.status) && <Button type="button" variant="outline" disabled={busy || loading || order.lines?.some(line => line.quantityReceived > 0)} title={order.lines?.some(line => line.quantityReceived > 0) ? 'No se puede cancelar una orden con recepción parcial' : 'Cancelar orden'} onClick={() => void cancel(order)}>Cancelar</Button>}
+          </div>
         </div>)}
         {!loading && !error && !purchases.length && <p className="text-sm text-muted-foreground">No hay órdenes de compra registradas.</p>}
         {error && <div className="flex flex-wrap items-center justify-between gap-2"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void load()}>Reintentar</Button></div>}

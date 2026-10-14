@@ -134,6 +134,7 @@ export const updateSupplier=(id:string,body:unknown)=>put<Supplier>(`/api/v1/pro
 export const listPurchases=()=>get<PurchaseOrder[]>('/api/v1/procurement/purchases')
 export const createPurchase=(body:{branchId:string;supplierId:string;serviceOrderId?:string|null;lines:Array<{productId:string;quantity:number;unitCost:number}>})=>post<PurchaseOrder>('/api/v1/procurement/purchases/with-lines',body)
 export const receivePurchase=(id:string,body:{lines:Array<{productId:string;quantity:number}>})=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/receive`,body)
+export const cancelPurchase=(id:string)=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/cancel`,{})
 export const recordStockCount=(body:{branchId:string;productId:string;countedQuantity:number;reason:string})=>post('/api/v1/inventory/stock-counts',body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string;paymentMethod?:'BANK_TRANSFER'|'CARD'|'OTHER'})=>post<Expense>('/api/v1/expenses',body)

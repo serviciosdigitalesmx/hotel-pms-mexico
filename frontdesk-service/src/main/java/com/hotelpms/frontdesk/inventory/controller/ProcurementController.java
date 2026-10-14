@@ -89,6 +89,8 @@ public class ProcurementController {
   }
   @PostMapping("/purchases/{id}/receive") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public PurchaseOrder receive(@PathVariable UUID id,@Valid @RequestBody PurchaseReceiptRequest request){return service.receive(hotel(),id,request);}
+  @PostMapping("/purchases/{id}/cancel") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public PurchaseOrder cancel(@PathVariable UUID id){return service.cancel(hotel(),id);}
 
   private UUID hotel() {
     return UUID.fromString(

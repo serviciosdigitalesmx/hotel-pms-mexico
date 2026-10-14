@@ -159,6 +159,7 @@ public class ProcurementService {
   public PurchaseOrder receive(UUID hotel,UUID purchaseId,PurchaseReceiptRequest request){
     var purchase=purchases.findForUpdateByIdAndHotelId(purchaseId,hotel)
         .orElseThrow(()->new IllegalArgumentException("PURCHASE_NOT_FOUND"));
+    if ("CANCELLED".equals(purchase.getStatus())) throw new IllegalStateException("PURCHASE_CANCELLED");
     if("RECEIVED".equals(purchase.getStatus()))throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
     if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
       throw new IllegalStateException("LEGACY_PURCHASE_HAS_NO_ORDER_LINES");
@@ -201,6 +202,22 @@ public class ProcurementService {
         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
     boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
     purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
+    return purchases.save(purchase);
+  }
+
+  @Transactional
+  public PurchaseOrder cancel(UUID hotel, UUID purchaseId) {
+    var purchase = purchases.findForUpdateByIdAndHotelId(purchaseId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("PURCHASE_NOT_FOUND"));
+    if ("CANCELLED".equals(purchase.getStatus())) return purchase;
+    if ("RECEIVED".equals(purchase.getStatus())) {
+      throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
+    }
+    if (purchase.getLines() != null && purchase.getLines().stream()
+        .anyMatch(line -> line.getQuantityReceived() > 0)) {
+      throw new IllegalStateException("PARTIALLY_RECEIVED_PURCHASE_CANNOT_BE_CANCELLED");
+    }
+    purchase.setStatus("CANCELLED");
     return purchases.save(purchase);
   }
 
