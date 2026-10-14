@@ -61,6 +61,7 @@ export const addRepairTest=(id:string,body:unknown)=>post(`/api/v1/service-order
 export const listRepairTests=(id:string)=>get<Array<{id:string;testName:string;passed:boolean;notes?:string;createdAt:string}>>(`/api/v1/service-orders/${id}/tests`)
 export const serviceOrderTimeline=(id:string)=>get<Array<{id:string;fromStatus?:string;toStatus:string;actor:string;notes?:string;createdAt:string}>>(`/api/v1/service-orders/${id}/timeline`)
 export const deliverServiceOrder=(id:string,paymentMethod:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD'|'PENDING'='CASH')=>post<ServiceOrder>(`/api/v1/service-orders/${id}/deliver`,{paymentMethod})
+export const recordPendingServiceOrderPayment=(id:string,paymentMethod:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD')=>patch<ServiceOrder>(`/api/v1/service-orders/${id}/payment`,{paymentMethod})
 export type TimeEntry={id:string;serviceOrderId:string;userId:string;minutes:number;note?:string;createdAt:string}
 export const listTimeEntries=(id:string)=>get<TimeEntry[]>(`/api/v1/service-orders/${id}/time`)
 export const addTimeEntry=(id:string,body:unknown)=>post<TimeEntry>(`/api/v1/service-orders/${id}/time`,body)

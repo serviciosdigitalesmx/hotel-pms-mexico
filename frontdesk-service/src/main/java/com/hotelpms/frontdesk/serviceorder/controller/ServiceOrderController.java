@@ -7,6 +7,7 @@ import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.QuotationUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderDeliveryRequest;
+import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderPaymentUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.RepairTestRequest;
 import com.hotelpms.frontdesk.serviceorder.service.ServiceOrderService;
 import jakarta.validation.Valid;
@@ -150,6 +151,9 @@ public class ServiceOrderController {
   public java.util.List<com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory> timeline(@PathVariable UUID id){return service.history(hotel(),id);}
   @PostMapping("/{id}/deliver") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
   public ServiceOrder deliver(@PathVariable UUID id,@Valid @RequestBody ServiceOrderDeliveryRequest request){return service.deliver(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod());}
+
+  @PatchMapping("/{id}/payment") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
+  public ServiceOrder recordPendingPayment(@PathVariable UUID id,@Valid @RequestBody ServiceOrderPaymentUpdateRequest request){return service.recordPendingPayment(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod());}
 
   private UUID hotel() {
     return UUID.fromString(
