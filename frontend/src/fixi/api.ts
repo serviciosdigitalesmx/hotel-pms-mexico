@@ -128,4 +128,7 @@ export const updateIndustryProfile=(body:unknown)=>put('/api/v1/auth/industry-pr
 export type BusinessProfile={hotelName:string;address:string;city:string;state:string;country:string;postalCode:string;currency:string;locale:string;timezone:string;publicSlug:string;vatNumber:string}
 export const getBusinessProfile=()=>get<Partial<BusinessProfile>>('/api/v1/stays/settings')
 export const updateBusinessProfile=(body:Partial<BusinessProfile>)=>put<Partial<BusinessProfile>>('/api/v1/stays/settings',body)
+export type NotificationPreferences=Record<string,Record<'EMAIL'|'WEB'|'APP',boolean>>
+export const getNotificationPreferences=()=>get<NotificationPreferences>('/api/v1/notifications/preferences')
+export const updateNotificationPreferences=(body:NotificationPreferences)=>put<NotificationPreferences>('/api/v1/notifications/preferences',body)
 export const changePassword=(currentPassword:string,newPassword:string)=>post<void>('/api/v1/auth/change-password',{currentPassword,newPassword})
