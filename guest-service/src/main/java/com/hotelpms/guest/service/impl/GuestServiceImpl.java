@@ -176,10 +176,34 @@ public class GuestServiceImpl implements GuestService {
     public GuestResponse updateGuest(final UUID id, final GuestRequest request) {
         final UUID hotelId = extractHotelId();
         final Guest guest = Objects.requireNonNull(resolveGuest(id, hotelId));
+        final GuestResponse duplicate = findPotentialDuplicateExcluding(request, id, hotelId);
+        if (duplicate != null) {
+            throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
+        }
         guestMapper.updateEntityFromRequest(request, guest);
         normalizeMexicoGuest(guest);
         final Guest savedGuest = Objects.requireNonNull(guestRepository.save(guest));
         return guestMapper.toResponse(savedGuest);
+    }
+
+    private GuestResponse findPotentialDuplicateExcluding(
+            final GuestRequest request, final UUID excludedId, final UUID hotelId) {
+        if (request.email() != null && !request.email().isBlank()) {
+            final var match = guestRepository.findFirstByHotelIdAndEmailIgnoreCaseAndIdNot(
+                    hotelId, request.email().trim(), excludedId);
+            if (match.isPresent()) return guestMapper.toResponse(match.get());
+        }
+        if (request.phone() != null && !request.phone().isBlank()) {
+            final var match = guestRepository.findFirstByHotelIdAndPhoneAndIdNot(
+                    hotelId, request.phone().trim(), excludedId);
+            if (match.isPresent()) return guestMapper.toResponse(match.get());
+        }
+        if (request.rfc() != null && !request.rfc().isBlank()) {
+            final var match = guestRepository.findFirstByHotelIdAndRfcIgnoreCaseAndIdNot(
+                    hotelId, request.rfc().trim(), excludedId);
+            if (match.isPresent()) return guestMapper.toResponse(match.get());
+        }
+        return null;
     }
 
     /**

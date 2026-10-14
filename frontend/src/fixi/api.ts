@@ -64,6 +64,7 @@ export const listCustomers=(page=0)=>get<{content:Customer[]} | Customer[]>(`/ap
 export const searchCustomers=(query:string,page=0)=>get<{content:Customer[]} | Customer[]>(`/api/v1/customers/search?query=${encodeURIComponent(query)}&page=${page}&size=100`)
 export const getCustomer=(id:string)=>get<Customer>(`/api/v1/customers/${id}`)
 export const createCustomer=(body:unknown)=>post<Customer>('/api/v1/customers',body)
+export const potentialCustomerDuplicate=(body:Record<string,unknown>)=>get<Customer|null>(`/api/v1/customers/potential-duplicate?${new URLSearchParams(Object.entries(body).filter(([,value])=>typeof value==='string'&&value.trim()).map(([key,value])=>[key,String(value)]))}`).catch(error=>{if(error instanceof Error&&error.message==='HTTP 404')return null;throw error})
 export const updateCustomer=(id:string,body:unknown)=>put<Customer>(`/api/v1/customers/${id}`,body)
 export const listDevices=(customerId:string)=>get<Device[]>(`/api/v1/customers/${customerId}/devices`)
 export const searchDevices=(query:string,page=0)=>get<{content:Device[]} | Device[]>(`/api/v1/customers/search-devices?query=${encodeURIComponent(query)}&page=${page}&size=25`)

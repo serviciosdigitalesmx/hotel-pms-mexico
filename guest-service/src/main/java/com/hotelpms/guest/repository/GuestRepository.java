@@ -44,6 +44,9 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      */
     Optional<Guest> findFirstByHotelIdAndEmailIgnoreCase(UUID hotelId, String email);
 
+    /** Finds a guest by email while excluding the profile currently being edited. */
+    Optional<Guest> findFirstByHotelIdAndEmailIgnoreCaseAndIdNot(UUID hotelId, String email, UUID id);
+
     /**
      * Finds the first guest matching phone in a hotel.
      *
@@ -53,6 +56,9 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      */
     Optional<Guest> findFirstByHotelIdAndPhone(UUID hotelId, String phone);
 
+    /** Finds a guest by phone while excluding the profile currently being edited. */
+    Optional<Guest> findFirstByHotelIdAndPhoneAndIdNot(UUID hotelId, String phone, UUID id);
+
     /**
      * Finds the first guest matching RFC in a hotel.
      *
@@ -61,6 +67,9 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      * @return matching guest.
      */
     Optional<Guest> findFirstByHotelIdAndRfcIgnoreCase(UUID hotelId, String rfc);
+
+    /** Finds a guest by RFC while excluding the profile currently being edited. */
+    Optional<Guest> findFirstByHotelIdAndRfcIgnoreCaseAndIdNot(UUID hotelId, String rfc, UUID id);
 
     /**
      * Returns a paginated list of all active guests belonging to a hotel.
