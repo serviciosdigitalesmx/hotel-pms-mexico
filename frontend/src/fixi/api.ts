@@ -94,7 +94,7 @@ export type BranchWrite={name:string;phone?:string;extraField?:string;address?:s
 export const createBranch=(body:BranchWrite)=>post<Branch>('/api/v1/auth/branches',body)
 export const updateBranch=(id:string,body:BranchWrite)=>patch<Branch>(`/api/v1/auth/branches/${id}`,body)
 export const setBranchActive=(id:string,value:boolean)=>patch<void>(`/api/v1/auth/branches/${id}/active?value=${value}`)
-export const selectBranch=(branchId:string)=>post<void>('/api/v1/auth/select-branch',{branchId})
+export const selectBranch=(branchId?:string)=>post<void>('/api/v1/auth/select-branch',{branchId:branchId||null})
 export const listUsers=()=>get<TeamUser[]>('/api/v1/auth/users')
 export const updateUser=(id:string,body:{email?:string;role:string})=>put<TeamUser>(`/api/v1/auth/users/${id}`,body)
 export const deactivateUser=(id:string)=>patch<TeamUser>(`/api/v1/auth/users/${id}/deactivate`)

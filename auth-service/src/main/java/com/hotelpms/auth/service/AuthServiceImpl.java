@@ -1,5 +1,6 @@
 package com.hotelpms.auth.service;
 
+import com.hotelpms.auth.domain.Role;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.AuthResponse;
 import com.hotelpms.auth.dto.ChangePasswordRequest;
@@ -61,7 +62,11 @@ public class AuthServiceImpl implements AuthService {
             .findByUsername(username)
             .filter(candidate -> tenantId.equals(candidate.getHotelId()))
             .orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIALS));
-    branchAccessService.assertUserCanSelectBranch(user.getId(), tenantId, branchId);
+    if (branchId != null) {
+      branchAccessService.assertUserCanSelectBranch(user.getId(), tenantId, branchId);
+    } else if (user.getRole() != Role.ADMIN && user.getRole() != Role.OWNER) {
+      throw new org.springframework.security.access.AccessDeniedException("TENANT_WIDE_BRANCH_SCOPE_FORBIDDEN");
+    }
     final String access =
         jwtService.generateToken(
             username,

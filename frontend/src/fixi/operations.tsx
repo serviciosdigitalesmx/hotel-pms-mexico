@@ -17,9 +17,10 @@ const customersFrom=(v:{content:a.Customer[]}|a.Customer[]|undefined)=>Array.isA
 
 function DashboardBranchSwitcher(){
   const user=useAsync(a.currentUser,[]);const branches=useAsync(a.listBranches,[]);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const activeBranch=user.data?.branchId??'';
-  async function change(branchId:string){if(!branchId||branchId===activeBranch)return;setBusy(true);setError('');try{await a.selectBranch(branchId);window.location.reload()}catch(reason){setError(reason instanceof Error?reason.message:'No se pudo cambiar de sucursal');setBusy(false)}}
-  if(branches.data&&branches.data.length<2)return null
-  return <Card><CardContent className="flex flex-wrap items-center gap-3 pt-4"><span className="text-sm font-medium">Sucursal activa</span><select aria-label="Cambiar sucursal activa" className={field} disabled={busy||branches.loading} value={activeBranch} onChange={event=>void change(event.target.value)}><option value="">Selecciona sucursal</option>{branches.data?.map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>{busy&&<span role="status" className="text-sm text-muted-foreground">Cambiando contexto…</span>}{error&&<span role="alert" className="text-sm text-destructive">{error}</span>}{branches.error&&<span role="alert" className="text-sm text-destructive">{branches.error}</span>}</CardContent></Card>
+  async function change(branchId:string){if(branchId===activeBranch)return;setBusy(true);setError('');try{await a.selectBranch(branchId||undefined);window.location.reload()}catch(reason){setError(reason instanceof Error?reason.message:'No se pudo cambiar de sucursal');setBusy(false)}}
+  if(!branches.data?.length)return null
+  const mayViewAll=user.data?.role==='ADMIN'||user.data?.role==='OWNER'
+  return <Card><CardContent className="flex flex-wrap items-center gap-3 pt-4"><span className="text-sm font-medium">Sucursal activa</span><select aria-label="Cambiar sucursal activa" className={field} disabled={busy||branches.loading} value={activeBranch} onChange={event=>void change(event.target.value)}>{mayViewAll&&<option value="">Todas las sucursales</option>}{branches.data?.map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>{busy&&<span role="status" className="text-sm text-muted-foreground">Cambiando contexto…</span>}{error&&<span role="alert" className="text-sm text-destructive">{error}</span>}{branches.error&&<span role="alert" className="text-sm text-destructive">{branches.error}</span>}</CardContent></Card>
 }
 
 function DashboardGlobalSearch(){
