@@ -45,25 +45,25 @@ public class DeviceServiceImpl implements DeviceService {
   public DeviceResponse create(final UUID customerId, final DeviceRequest request) {
     final UUID hotelId = hotel();
     customer(customerId);
-    if (request.serialNumber() != null
-        && devices.findByHotelIdAndGuestIdAndSerialNumber(
-            hotelId, customerId, request.serialNumber()).isPresent()) {
+    final String serialNumber = normalize(request.serialNumber(), false);
+    final String imei = normalize(request.imei(), true);
+    if (serialNumber != null
+        && devices.existsByHotelIdAndGuestIdAndSerialNumberIgnoreCase(hotelId, customerId, serialNumber)) {
       throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
     }
-    if (request.imei() != null
-        && devices.findByHotelIdAndGuestIdAndImei(hotelId, customerId, request.imei()).isPresent()) {
+    if (imei != null && devices.existsByHotelIdAndImeiIgnoreCase(hotelId, imei)) {
       throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
     }
     final LocalDateTime now = LocalDateTime.now();
     final Device device = Device.builder()
         .hotelId(hotelId)
         .guestId(customerId)
-        .category(request.category())
-        .manufacturer(request.manufacturer())
-        .model(request.model())
-        .serialNumber(request.serialNumber())
-        .imei(request.imei())
-        .customFields(request.customFields())
+        .category(request.category().trim())
+        .manufacturer(normalize(request.manufacturer(), false))
+        .model(normalize(request.model(), false))
+        .serialNumber(serialNumber)
+        .imei(imei)
+        .customFields(normalize(request.customFields(), false))
         .createdAt(now)
         .updatedAt(now)
         .build();
@@ -78,20 +78,23 @@ public class DeviceServiceImpl implements DeviceService {
     customer(customerId);
     final Device device = devices.findByIdAndHotelIdAndGuestId(deviceId, hotelId, customerId)
         .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
-    if (request.serialNumber() != null && !request.serialNumber().equals(device.getSerialNumber())
-        && devices.findByHotelIdAndGuestIdAndSerialNumber(hotelId, customerId, request.serialNumber()).isPresent()) {
+    final String serialNumber = normalize(request.serialNumber(), false);
+    final String imei = normalize(request.imei(), true);
+    if (serialNumber != null && !serialNumber.equalsIgnoreCase(device.getSerialNumber())
+        && devices.existsByHotelIdAndGuestIdAndSerialNumberIgnoreCaseAndIdNot(
+            hotelId, customerId, serialNumber, deviceId)) {
       throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
     }
-    if (request.imei() != null && !request.imei().equals(device.getImei())
-        && devices.findByHotelIdAndGuestIdAndImei(hotelId, customerId, request.imei()).isPresent()) {
+    if (imei != null && !imei.equalsIgnoreCase(device.getImei())
+        && devices.existsByHotelIdAndImeiIgnoreCaseAndIdNot(hotelId, imei, deviceId)) {
       throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
     }
-    device.setCategory(request.category());
-    device.setManufacturer(request.manufacturer());
-    device.setModel(request.model());
-    device.setSerialNumber(request.serialNumber());
-    device.setImei(request.imei());
-    device.setCustomFields(request.customFields());
+    device.setCategory(request.category().trim());
+    device.setManufacturer(normalize(request.manufacturer(), false));
+    device.setModel(normalize(request.model(), false));
+    device.setSerialNumber(serialNumber);
+    device.setImei(imei);
+    device.setCustomFields(normalize(request.customFields(), false));
     device.setUpdatedAt(LocalDateTime.now());
     return DeviceResponse.from(devices.save(device));
   }
@@ -145,6 +148,14 @@ public class DeviceServiceImpl implements DeviceService {
     if (fromCustomerId.equals(toCustomerId)) {
       throw new IllegalArgumentException("DEVICE_TRANSFER_REQUIRES_NEW_OWNER");
     }
+    if (device.getSerialNumber() != null
+        && devices.existsByHotelIdAndGuestIdAndSerialNumberIgnoreCase(hotelId, toCustomerId, device.getSerialNumber())) {
+      throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
+    }
+    if (device.getImei() != null
+        && devices.existsByHotelIdAndImeiIgnoreCaseAndIdNot(hotelId, device.getImei(), deviceId)) {
+      throw new IllegalArgumentException(DEVICE_IDENTITY_ALREADY_EXISTS);
+    }
     final Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     UUID actor = null;
     try {
@@ -158,5 +169,12 @@ public class DeviceServiceImpl implements DeviceService {
     device.setGuestId(toCustomerId);
     device.setUpdatedAt(LocalDateTime.now());
     return DeviceResponse.from(devices.save(device));
+  }
+
+  private static String normalize(final String value, final boolean uppercase) {
+    if (value == null) return null;
+    final String trimmed = value.trim();
+    if (trimmed.isEmpty()) return null;
+    return uppercase ? trimmed.toUpperCase(java.util.Locale.ROOT) : trimmed;
   }
 }

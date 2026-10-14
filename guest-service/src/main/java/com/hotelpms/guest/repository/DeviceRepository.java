@@ -61,4 +61,13 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return matching device.
      */
     Optional<Device> findByHotelIdAndGuestIdAndImei(UUID hotelId, UUID guestId, String imei);
+
+    boolean existsByHotelIdAndGuestIdAndSerialNumberIgnoreCase(UUID hotelId, UUID guestId, String serialNumber);
+
+    boolean existsByHotelIdAndGuestIdAndSerialNumberIgnoreCaseAndIdNot(
+        UUID hotelId, UUID guestId, String serialNumber, UUID id);
+
+    boolean existsByHotelIdAndImeiIgnoreCase(UUID hotelId, String imei);
+
+    boolean existsByHotelIdAndImeiIgnoreCaseAndIdNot(UUID hotelId, String imei, UUID id);
 }
