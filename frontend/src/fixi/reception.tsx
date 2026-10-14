@@ -25,6 +25,9 @@ export function ReceptionOrderForm() {
   const [deviceSearchLoading, setDeviceSearchLoading] = useState(false)
   const [branches, setBranches] = useState<api.Branch[]>([])
   const [devices, setDevices] = useState<api.Device[]>([])
+  const [quickCreateDevice, setQuickCreateDevice] = useState(false)
+  const [quickDevice, setQuickDevice] = useState({ category: 'Teléfono', manufacturer: '', model: '', serialNumber: '', imei: '', customFields: '' })
+  const [deviceSaving, setDeviceSaving] = useState(false)
   const [services, setServices] = useState<api.ServiceCatalogEntry[]>([])
   const [users, setUsers] = useState<api.TeamUser[]>([])
   const [checklistTemplate, setChecklistTemplate] = useState<string[]>([])
@@ -138,6 +141,29 @@ export function ReceptionOrderForm() {
     } finally { setCustomerSaving(false) }
   }
 
+  async function createDeviceQuickly() {
+    if (!customerId) { setError('Selecciona un cliente antes de registrar su equipo'); return }
+    setDeviceSaving(true); setError(''); setCustomerNotice('')
+    try {
+      const device = await api.createDevice(customerId, {
+        ...quickDevice,
+        category: quickDevice.category.trim(),
+        manufacturer: quickDevice.manufacturer.trim() || null,
+        model: quickDevice.model.trim() || null,
+        serialNumber: quickDevice.serialNumber.trim() || null,
+        imei: quickDevice.imei.trim() || null,
+        customFields: quickDevice.customFields.trim() || null,
+      })
+      setDevices(current => [...current, device])
+      setDeviceId(device.id)
+      setQuickDevice({ category: 'Teléfono', manufacturer: '', model: '', serialNumber: '', imei: '', customFields: '' })
+      setQuickCreateDevice(false)
+      setCustomerNotice('Equipo registrado y asociado a esta orden.')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo registrar el equipo')
+    } finally { setDeviceSaving(false) }
+  }
+
   useEffect(() => {
     let active = true
     if (!customerId) { setDevices([]); setDeviceId(''); return }
@@ -192,6 +218,18 @@ export function ReceptionOrderForm() {
           <option value="">Equipo sin registrar</option>
           {devices.map(device => <option key={device.id} value={device.id}>{device.manufacturer} {device.model} · {device.serialNumber || device.imei || device.category}</option>)}
         </select>
+        <div className="space-y-2">
+          <Button type="button" size="sm" variant="outline" disabled={!customerId || deviceSaving} onClick={() => { setQuickCreateDevice(value => !value); setError('') }}>{quickCreateDevice ? 'Cancelar alta de equipo' : 'Registrar equipo para este cliente'}</Button>
+          {quickCreateDevice && <div className="grid gap-2 rounded border p-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Input required maxLength={80} aria-label="Categoría del equipo" placeholder="Categoría" value={quickDevice.category} onChange={event => setQuickDevice({ ...quickDevice, category: event.target.value })}/>
+            <Input maxLength={120} aria-label="Marca del equipo" placeholder="Marca" value={quickDevice.manufacturer} onChange={event => setQuickDevice({ ...quickDevice, manufacturer: event.target.value })}/>
+            <Input maxLength={120} aria-label="Modelo del equipo" placeholder="Modelo" value={quickDevice.model} onChange={event => setQuickDevice({ ...quickDevice, model: event.target.value })}/>
+            <Input maxLength={120} aria-label="Serie del equipo" placeholder="Número de serie" value={quickDevice.serialNumber} onChange={event => setQuickDevice({ ...quickDevice, serialNumber: event.target.value })}/>
+            <Input maxLength={120} aria-label="IMEI del equipo" placeholder="IMEI" value={quickDevice.imei} onChange={event => setQuickDevice({ ...quickDevice, imei: event.target.value })}/>
+            <Input maxLength={1000} aria-label="Detalles adicionales del equipo" placeholder="Detalles adicionales" value={quickDevice.customFields} onChange={event => setQuickDevice({ ...quickDevice, customFields: event.target.value })}/>
+            <Button type="button" className="sm:col-span-2 lg:col-span-3" disabled={deviceSaving || !quickDevice.category.trim()} onClick={() => void createDeviceQuickly()}>{deviceSaving ? 'Registrando equipo…' : 'Registrar y seleccionar equipo'}</Button>
+          </div>}
+        </div>
         <div className="grid gap-3 md:grid-cols-2">
           <select aria-label="Sucursal" className={field} value={branchId} onChange={event => setBranchId(event.target.value)}><option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
           <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => <option key={service.id} value={service.name}>{service.name} · {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</option>)}</select>
