@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.serviceorder.service;
 
 import com.hotelpms.frontdesk.exception.NotFoundException;
+import com.hotelpms.frontdesk.client.CapabilityClient;
 import com.hotelpms.frontdesk.audit.domain.AuditEvent;
 import com.hotelpms.frontdesk.audit.service.AuditEventService;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
@@ -38,6 +39,7 @@ public class ServiceOrderService {
   private final AuditEventService auditEvents;
   private final WorkflowService workflows;
   private final WorkflowTransitionRepository workflowTransitions;
+  private final CapabilityClient capabilityClient;
 
   public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
   public record ConfiguredWorkflowTransition(String key, String fromStateKey, String toStateKey) { }
@@ -73,8 +75,10 @@ public class ServiceOrderService {
     WorkflowTransition transition = workflows.transitions(hotelId, workflow.getId()).stream()
         .filter(t -> t.getKey().equals(transitionKey) && t.getFromState().getKey().equals(fromKey))
         .findFirst().orElseThrow(() -> new IllegalStateException("Transition is not allowed from current state"));
-    if (!authorities.contains(transition.getRequiredPermission())
-        && !authorities.contains("ROLE_ADMIN") && !authorities.contains("ROLE_OWNER")) {
+    boolean privileged = authorities.contains("ROLE_ADMIN") || authorities.contains("ROLE_OWNER");
+    boolean granted = privileged || Boolean.TRUE.equals(capabilityClient.evaluate(
+        transition.getRequiredPermission()).get("enabled"));
+    if (!granted) {
       throw new org.springframework.security.access.AccessDeniedException("Missing workflow permission");
     }
     workflows.transition(hotelId, workflow.getId(), new TransitionRequest(orderId, fromKey, transitionKey), actor);
