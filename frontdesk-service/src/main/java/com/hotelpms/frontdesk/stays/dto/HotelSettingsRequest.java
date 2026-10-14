@@ -118,7 +118,8 @@ public record HotelSettingsRequest(
     Boolean aiEnabled,
     @Size(max = MAX_AI_MODEL_LENGTH) String aiModel,
     @Size(max = MAX_CREDENTIAL_LENGTH) String aiApiKey,
-    @Size(max = MAX_AI_INSTRUCTIONS_LENGTH) String aiInstructions) {
+    @Size(max = MAX_AI_INSTRUCTIONS_LENGTH) String aiInstructions,
+    Boolean clearDefaultTaxRate) {
 
   /** Maximum length accepted for the hotel logo URL — matches HotelSettings.LEN_LOGO_URL. */
   public static final int MAX_LOGO_URL_LENGTH = 500;
@@ -187,6 +188,7 @@ public record HotelSettingsRequest(
         cap,
         comune,
         provincia,
+        null,
         null,
         null,
         null,

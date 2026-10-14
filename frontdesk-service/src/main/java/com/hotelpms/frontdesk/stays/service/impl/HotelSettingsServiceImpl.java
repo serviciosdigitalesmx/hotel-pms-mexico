@@ -113,7 +113,9 @@ public class HotelSettingsServiceImpl implements HotelSettingsService {
     if (request.currency() != null) {
       settings.setCurrency(request.currency().toUpperCase(java.util.Locale.ROOT));
     }
-    if (request.defaultTaxRate() != null) {
+    if (Boolean.TRUE.equals(request.clearDefaultTaxRate())) {
+      settings.setDefaultTaxRate(null);
+    } else if (request.defaultTaxRate() != null) {
       settings.setDefaultTaxRate(request.defaultTaxRate());
     }
     if (request.locale() != null) {

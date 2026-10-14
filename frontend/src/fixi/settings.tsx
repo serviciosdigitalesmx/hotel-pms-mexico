@@ -88,7 +88,7 @@ export function BusinessSettings() {
   async function saveBusiness(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError(''); setMessage('')
     try {
-      await api.updateBusinessProfile(business)
+      await api.updateBusinessProfile({ ...business, clearDefaultTaxRate: business.defaultTaxRate == null })
       setMessage('Datos del negocio guardados')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo guardar el negocio')
