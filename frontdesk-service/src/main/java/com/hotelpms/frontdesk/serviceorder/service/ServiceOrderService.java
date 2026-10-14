@@ -172,6 +172,10 @@ public class ServiceOrderService {
         || order.getStatus() == ServiceOrderStatus.CANCELLED) {
       throw new IllegalStateException("SERVICE_ORDER_CLOSED");
     }
+    if (request.status() != order.getStatus()
+        && !isManualStatusTransitionAllowed(order.getStatus(), request.status())) {
+      throw new IllegalStateException("SERVICE_ORDER_TRANSITION_REQUIRES_DEDICATED_ACTION");
+    }
     if (request.status() != ServiceOrderStatus.INTAKE && isBlank(order.getReportedFailure())) {
       throw new IllegalStateException("SERVICE_ORDER_REPORTED_FAILURE_REQUIRED");
     }
@@ -191,6 +195,16 @@ public class ServiceOrderService {
           saved.getId(), null, "{\"from\":\"" + previous + "\",\"to\":\"" + request.status() + "\"}");
     }
     return saved;
+  }
+
+  private boolean isManualStatusTransitionAllowed(
+      final ServiceOrderStatus current, final ServiceOrderStatus next) {
+    return switch (current) {
+      case INTAKE -> next == ServiceOrderStatus.REVIEW;
+      case REVIEW, QUOTE_REJECTED -> next == ServiceOrderStatus.DIAGNOSIS;
+      case AUTHORIZED -> next == ServiceOrderStatus.IN_PROGRESS;
+      default -> false;
+    };
   }
   /**
    * Executes the operation.
