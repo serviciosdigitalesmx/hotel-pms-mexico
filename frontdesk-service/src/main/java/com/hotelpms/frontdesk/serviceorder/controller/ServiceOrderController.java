@@ -156,6 +156,17 @@ public class ServiceOrderController {
   public java.util.List<com.hotelpms.frontdesk.serviceorder.domain.RepairTest> tests(@PathVariable UUID id){return service.tests(hotel(),id);}
   @GetMapping("/{id}/timeline") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
   public java.util.List<com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory> timeline(@PathVariable UUID id){return service.history(hotel(),id);}
+  @PostMapping("/{id}/notes")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public ResponseEntity<com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory> addInternalNote(
+      @PathVariable final UUID id, @Valid @RequestBody final InternalNoteRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(service.addInternalNote(hotel(), id,
+        SecurityContextHolder.getContext().getAuthentication().getName(), request.note()));
+  }
+
+  public record InternalNoteRequest(
+      @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 2000) String note) {}
+
   @PostMapping("/{id}/deliver") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
   public ServiceOrder deliver(@PathVariable UUID id,@Valid @RequestBody ServiceOrderDeliveryRequest request){return service.deliver(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod());}
 
