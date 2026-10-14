@@ -33,7 +33,7 @@ public class ExpenseController {
    * @return created expense response.
    */
   @PostMapping
-  @PreAuthorize("hasAuthority('finance.write')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public ResponseEntity<Expense> create(@Valid @RequestBody final ExpenseRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(service.create(hotel(), actor(), request));
@@ -45,7 +45,7 @@ public class ExpenseController {
    * @return tenant expenses.
    */
   @GetMapping
-  @PreAuthorize("hasAuthority('finance.read')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public List<Expense> list() {
     return service.list(hotel());
   }

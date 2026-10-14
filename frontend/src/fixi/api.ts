@@ -7,7 +7,7 @@ export type Branch = { id:string; hotelId:string; name:string; active:boolean; c
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string }
-export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; createdAt:string }
+export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; expenseType?:'FIXED'|'VARIABLE'|'INVENTORY'; subcategory?:string; paid?:boolean; spentAt?:string; dueAt?:string; createdAt:string }
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
 async function raw(path:string, init:RequestInit={}, retry=true){
@@ -96,7 +96,7 @@ export const listPurchases=()=>get<unknown[]>('/api/v1/procurement/purchases')
 export const createPurchase=(body:unknown)=>post('/api/v1/procurement/purchases',body)
 export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement/purchases/${id}/receive`,body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
-export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string})=>post<Expense>('/api/v1/expenses',body)
+export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string})=>post<Expense>('/api/v1/expenses',body)
 export type ServiceCatalogEntry={id:string;tenantId:string;name:string;active:boolean;createdAt:string}
 export const listServices=()=>get<ServiceCatalogEntry[]>('/api/v1/services')
 export const createService=(body:{name:string})=>post<ServiceCatalogEntry>('/api/v1/services',body)

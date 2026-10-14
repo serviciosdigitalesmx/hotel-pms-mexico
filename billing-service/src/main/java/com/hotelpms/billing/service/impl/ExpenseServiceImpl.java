@@ -30,6 +30,10 @@ public class ExpenseServiceImpl implements ExpenseService {
   @Transactional
   public Expense create(
       final UUID hotelId, final UUID actor, final ExpenseRequest request) {
+    final boolean paid = request.paid() == null || request.paid();
+    if (!paid && request.cashSessionId() != null) {
+      throw new BillingValidationException("PENDING_EXPENSE_CANNOT_USE_CASH_SESSION");
+    }
     if (request.cashSessionId() != null) {
       final CashSession session =
           sessions
@@ -61,6 +65,11 @@ public class ExpenseServiceImpl implements ExpenseService {
             .cashSessionId(request.cashSessionId())
             .createdBy(actor)
             .createdAt(LocalDateTime.now())
+            .expenseType(request.expenseType() == null ? "VARIABLE" : request.expenseType())
+            .subcategory(request.subcategory())
+            .paid(paid)
+            .spentAt(request.spentAt())
+            .dueAt(request.dueAt())
             .build());
   }
 

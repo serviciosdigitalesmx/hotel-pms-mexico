@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,4 +56,21 @@ public class Expense {
 
   @Column(nullable = false)
   private LocalDateTime createdAt;
+
+  @Builder.Default
+  @Column(name = "expense_type", nullable = false, length = 16)
+  private String expenseType = "VARIABLE";
+
+  @Column(length = 120)
+  private String subcategory;
+
+  @Builder.Default
+  @Column(nullable = false)
+  private boolean paid = true;
+
+  @Column(name = "spent_at")
+  private LocalDate spentAt;
+
+  @Column(name = "due_at")
+  private LocalDate dueAt;
 }

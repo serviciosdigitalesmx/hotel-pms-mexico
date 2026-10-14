@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -22,7 +23,21 @@ public record ExpenseRequest(
     @NotNull @Positive @Digits(integer = 10, fraction = 2) BigDecimal amount,
     @Size(max = DESCRIPTION_LENGTH) String description,
     @Size(max = 100) String reference,
-    UUID cashSessionId) {
+    UUID cashSessionId,
+    @jakarta.validation.constraints.Pattern(regexp = "FIXED|VARIABLE|INVENTORY") String expenseType,
+    @Size(max = CATEGORY_LENGTH) String subcategory,
+    Boolean paid,
+    LocalDate spentAt,
+    LocalDate dueAt) {
   private static final int CATEGORY_LENGTH = 120;
   private static final int DESCRIPTION_LENGTH = 255;
+
+  public ExpenseRequest(
+      final String category,
+      final BigDecimal amount,
+      final String description,
+      final String reference,
+      final UUID cashSessionId) {
+    this(category, amount, description, reference, cashSessionId, "VARIABLE", null, true, null, null);
+  }
 }
