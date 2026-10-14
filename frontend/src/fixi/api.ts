@@ -10,6 +10,7 @@ export type Supplier = { id:string; name:string; taxId?:string; contact?:string;
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}
 export type PurchaseOrder={id:string;branchId:string;supplierId:string;serviceOrderId?:string;status:string;createdAt:string;lines:PurchaseOrderLine[]}
 export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; expenseType?:'FIXED'|'VARIABLE'|'INVENTORY'; subcategory?:string; paid?:boolean; spentAt?:string; dueAt?:string; paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'; paidAt?:string; createdAt:string }
+export type RecurringExpenseTemplate = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; subcategory?:string; frequency:'WEEKLY'|'MONTHLY'|'YEARLY'; nextDueAt:string; active:boolean }
 export type CashSessionSummary={id:string;status:'OPEN'|'CLOSED';openingBalance:number;closingBalance?:number;openedAt:string;closedAt?:string}
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
@@ -155,6 +156,10 @@ export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string;paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'})=>post<Expense>('/api/v1/expenses',body)
 export const updateExpense=(id:string,body:{category:string;amount:number;description?:string;reference?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid:false;spentAt?:string;dueAt?:string})=>put<Expense>(`/api/v1/expenses/${id}`,body)
 export const markExpensePaid=(id:string,paymentMethod:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'='OTHER',cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId,paymentMethod})
+export const listRecurringExpenses=()=>get<RecurringExpenseTemplate[]>('/api/v1/expenses/recurring')
+export const createRecurringExpense=(body:{category:string;amount:number;description?:string;reference?:string;subcategory?:string;frequency:RecurringExpenseTemplate['frequency'];nextDueAt:string})=>post<RecurringExpenseTemplate>('/api/v1/expenses/recurring',body)
+export const generateRecurringExpense=(id:string)=>post<Expense>(`/api/v1/expenses/recurring/${id}/generate`)
+export const setRecurringExpenseActive=(id:string,active:boolean)=>patch<RecurringExpenseTemplate>(`/api/v1/expenses/recurring/${id}/active`,{active})
 export const getOpenCashSession=()=>get<CashSessionSummary|null>('/api/v1/cash/sessions/open')
 export type FinancialReport={startDate:string;endDate:string;totalRevenue:number;totalCollected:number;totalOutstanding:number;totalInvoices:number;paidInvoices:number;invoices:Array<{id:string;invoiceNumber?:string;status:string;totalAmount:number;issueDate:string;guestId?:string}>}
 export const financialReport=(startDate:string,endDate:string)=>get<FinancialReport>(`/api/v1/reports/owner?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)

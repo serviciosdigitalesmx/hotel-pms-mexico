@@ -2,6 +2,8 @@ package com.hotelpms.billing.controller;
 
 import com.hotelpms.billing.domain.Expense;
 import com.hotelpms.billing.dto.ExpenseRequest;
+import com.hotelpms.billing.dto.RecurringExpenseRequest;
+import com.hotelpms.billing.domain.RecurringExpenseTemplate;
 import com.hotelpms.billing.service.ExpenseService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -52,6 +54,32 @@ public class ExpenseController {
   public List<Expense> list() {
     return service.list(hotel());
   }
+
+  @GetMapping("/recurring")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public List<RecurringExpenseTemplate> listRecurring() { return service.listRecurring(hotel()); }
+
+  @PostMapping("/recurring")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public ResponseEntity<RecurringExpenseTemplate> createRecurring(
+      @Valid @RequestBody final RecurringExpenseRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(service.createRecurring(hotel(), actor(), request));
+  }
+
+  @PostMapping("/recurring/{id}/generate")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public ResponseEntity<Expense> generateRecurring(@PathVariable final UUID id) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(service.generateRecurring(hotel(), actor(), id));
+  }
+
+  @PatchMapping("/recurring/{id}/active")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public RecurringExpenseTemplate setRecurringActive(
+      @PathVariable final UUID id, @Valid @RequestBody final RecurringActiveRequest request) {
+    return service.setRecurringActive(hotel(), id, request.active());
+  }
+
+  public record RecurringActiveRequest(@jakarta.validation.constraints.NotNull Boolean active) {}
 
   @PutMapping("/{id}")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")

@@ -5,11 +5,14 @@ import com.hotelpms.billing.domain.CashMovementType;
 import com.hotelpms.billing.domain.CashSession;
 import com.hotelpms.billing.domain.CashSessionStatus;
 import com.hotelpms.billing.domain.Expense;
+import com.hotelpms.billing.domain.RecurringExpenseTemplate;
+import com.hotelpms.billing.dto.RecurringExpenseRequest;
 import com.hotelpms.billing.dto.ExpenseRequest;
 import com.hotelpms.billing.exception.BillingValidationException;
 import com.hotelpms.billing.exception.NotFoundException;
 import com.hotelpms.billing.repository.CashSessionRepository;
 import com.hotelpms.billing.repository.ExpenseRepository;
+import com.hotelpms.billing.repository.RecurringExpenseTemplateRepository;
 import com.hotelpms.billing.service.ExpenseService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExpenseServiceImpl implements ExpenseService {
   private final ExpenseRepository expenses;
   private final CashSessionRepository sessions;
+  private final RecurringExpenseTemplateRepository recurringTemplates;
 
   /** {@inheritDoc} */
   @Override
@@ -160,5 +164,52 @@ public class ExpenseServiceImpl implements ExpenseService {
     final String method = requestedPaymentMethod == null ? "OTHER" : requestedPaymentMethod;
     if ("CASH".equals(method)) throw new BillingValidationException("CASH_PAYMENT_SESSION_REQUIRED");
     return method;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<RecurringExpenseTemplate> listRecurring(final UUID hotelId) {
+    return recurringTemplates.findAllByHotelIdOrderByNextDueAtAsc(hotelId);
+  }
+
+  @Override
+  @Transactional
+  public RecurringExpenseTemplate createRecurring(
+      final UUID hotelId, final UUID actor, final RecurringExpenseRequest request) {
+    return recurringTemplates.save(RecurringExpenseTemplate.builder()
+        .hotelId(hotelId).createdBy(actor).createdAt(LocalDateTime.now())
+        .category(request.category().trim()).amount(request.amount()).description(request.description())
+        .reference(request.reference()).subcategory(request.subcategory()).frequency(request.frequency())
+        .nextDueAt(request.nextDueAt()).active(true).build());
+  }
+
+  @Override
+  @Transactional
+  public Expense generateRecurring(final UUID hotelId, final UUID actor, final UUID templateId) {
+    final RecurringExpenseTemplate template = recurringTemplates.findByIdAndHotelId(templateId, hotelId)
+        .orElseThrow(() -> new NotFoundException("RECURRING_EXPENSE_NOT_FOUND"));
+    if (!template.isActive()) throw new BillingValidationException("RECURRING_EXPENSE_INACTIVE");
+    final var dueAt = template.getNextDueAt();
+    final Expense expense = expenses.save(Expense.builder().hotelId(hotelId).createdBy(actor)
+        .createdAt(LocalDateTime.now()).category(template.getCategory()).amount(template.getAmount())
+        .description(template.getDescription()).reference(template.getReference()).expenseType("FIXED")
+        .subcategory(template.getSubcategory()).paid(false).dueAt(dueAt).build());
+    template.setNextDueAt(switch (template.getFrequency()) {
+      case "WEEKLY" -> dueAt.plusWeeks(1);
+      case "YEARLY" -> dueAt.plusYears(1);
+      default -> dueAt.plusMonths(1);
+    });
+    recurringTemplates.save(template);
+    return expense;
+  }
+
+  @Override
+  @Transactional
+  public RecurringExpenseTemplate setRecurringActive(
+      final UUID hotelId, final UUID templateId, final boolean active) {
+    final RecurringExpenseTemplate template = recurringTemplates.findByIdAndHotelId(templateId, hotelId)
+        .orElseThrow(() -> new NotFoundException("RECURRING_EXPENSE_NOT_FOUND"));
+    template.setActive(active);
+    return recurringTemplates.save(template);
   }
 }
