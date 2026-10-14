@@ -73,7 +73,7 @@ export function ReceptionPage(){const customers=useAsync(()=>a.listCustomers(),[
 
 export function OrdersPage({title='Órdenes de servicio',statuses}:{title?:string;statuses?:string[]}) {
   const q=useAsync(a.listServiceOrders,[])
-  const customerQuery=useAsync(()=>a.listCustomers(),[])
+  const customerQuery=useAsync(a.listAllCustomers,[])
   const branches=useAsync(a.listBranches,[])
   const users=useAsync(()=>a.listUsers().catch(()=>[]),[])
   const customerNames=useMemo(()=>new Map(customersFrom(customerQuery.data).map(customer=>[customer.id,`${customer.firstName} ${customer.lastName}`.trim()])),[customerQuery.data])
