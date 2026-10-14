@@ -7,6 +7,11 @@ import * as api from './api'
 
 type Alert = { id: string; event: keyof api.NotificationPreferences; title: string; detail: string; href: string; urgency: number }
 const terminal = new Set(['COMPLETED', 'CANCELLED'])
+const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+const localDateOf = (value?: string) => {
+  if (!value) return ''
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : localDateKey(new Date(value))
+}
 
 export function OperationalAlertsPage() {
   const [orders, setOrders] = useState<api.ServiceOrder[]>([])
@@ -34,11 +39,11 @@ export function OperationalAlertsPage() {
 
   const alerts = useMemo(() => {
     const now = Date.now()
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDateKey(new Date())
     const result: Alert[] = []
     for (const order of orders) {
       if (terminal.has(order.status)) continue
-      if (order.assignedUserId && order.createdAt?.slice(0, 10) === today) {
+      if (order.assignedUserId && localDateOf(order.createdAt) === today) {
         result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden asignada', detail: `${order.summary} · asignada a un técnico`, href: `/service-orders/${order.id}`, urgency: 1 })
       }
       if (order.promisedAt && new Date(order.promisedAt).getTime() < now) {
@@ -53,13 +58,14 @@ export function OperationalAlertsPage() {
         result.push({ id: `stock:${balance.id}`, event: 'STOCK_LOW', title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2 })
       }
     }
-    const completedToday = orders.filter(order => order.status === 'COMPLETED' && (order.deliveredAt ?? order.updatedAt ?? order.createdAt)?.slice(0, 10) === today)
+    const completedToday = orders.filter(order => order.status === 'COMPLETED' && localDateOf(order.deliveredAt ?? order.updatedAt ?? order.createdAt) === today)
     if (completedToday.length) {
       result.push({ id: `summary:${today}`, event: 'DAY_SUMMARY', title: 'Cierre del día disponible', detail: `${completedToday.length} órdenes completadas hoy`, href: '/reports/finance', urgency: 3 })
     }
     for (const expense of expenses) {
-      if (expense.paid === false && expense.dueAt && expense.dueAt < new Date().toISOString().slice(0, 10)) {
-        result.push({ id: `expense:${expense.id}`, event: 'PAYMENT_DUE', title: 'Gasto vencido', detail: `${expense.category} · ${expense.description ?? ''} · vence ${expense.dueAt}`, href: '/expenses', urgency: 0 })
+      if (expense.paid === false && expense.dueAt && expense.dueAt <= today) {
+        const dueToday = expense.dueAt === today
+        result.push({ id: `expense:${expense.id}`, event: 'PAYMENT_DUE', title: dueToday ? 'Pago vence hoy' : 'Pago vencido', detail: `${expense.category} · ${expense.description ?? ''} · vence ${expense.dueAt}`, href: '/expenses', urgency: dueToday ? 1 : 0 })
       }
     }
     return result.filter(alert => preferences[alert.event]?.WEB !== false)
