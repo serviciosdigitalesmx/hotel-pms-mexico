@@ -65,8 +65,13 @@ export function ServiceCatalogManagementPage() {
         if (!Number.isSafeInteger(minutes) || minutes < 1) { rowErrors.push(`Fila ${index + 2}: duración inválida (debe ser un entero positivo)`); continue }
         try {
           const service = await api.createService({ name: serviceName, basePrice: price, estimatedMinutes: minutes })
-          if (record.active && /^(false|no|0|inactivo)$/i.test(record.active)) await api.setServiceActive(service.id, false)
           created++
+          if (record.active && /^(false|no|0|inactivo)$/i.test(record.active)) {
+            try { await api.setServiceActive(service.id, false) }
+            catch (reason) {
+              rowErrors.push(`Fila ${index + 2}: servicio creado, pero no se pudo desactivar: ${reason instanceof Error ? reason.message : 'error al actualizar el estado'}`)
+            }
+          }
         } catch (reason) { rowErrors.push(`Fila ${index + 2}: ${reason instanceof Error ? reason.message : 'no se pudo guardar'}`) }
       }
       setImportErrors(rowErrors); setMessage(`${created} servicio(s) importados${rowErrors.length ? `; ${rowErrors.length} fila(s) requieren revisión` : ''}. La importación solo crea y no modifica servicios existentes.`)
