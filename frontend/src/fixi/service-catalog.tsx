@@ -59,7 +59,7 @@ export function ServiceCatalogManagementPage() {
       const aliases: Record<string, string> = { nombre: 'name', name: 'name', servicio: 'name', service: 'name', preciobase: 'price', baseprice: 'price', precio: 'price', price: 'price', duracionminutos: 'minutes', estimatedminutes: 'minutes', duracion: 'minutes', duration: 'minutes', activo: 'active', active: 'active' }
       const headers = rows[0].map(value => aliases[normalize(value)] ?? '')
       if (!headers.includes('name')) throw new Error('Falta la columna obligatoria nombre/servicio')
-      let created = 0; const rowErrors: string[] = []; const rejectedRows: Array<{ sourceRow: number; values: string[] }> = []
+      let created = 0; let partiallyApplied = 0; const rowErrors: string[] = []; const rejectedRows: Array<{ sourceRow: number; values: string[] }> = []
       for (const [index, values] of rows.slice(1).entries()) {
         const record: Record<string, string> = {}; headers.forEach((key, column) => { if (key) record[key] = values[column]?.trim() ?? '' })
         const serviceName = record.name?.trim(); const price = Number(record.price || 0); const minutes = Number(record.minutes || 60)
@@ -72,12 +72,13 @@ export function ServiceCatalogManagementPage() {
           if (record.active && /^(false|no|0|inactivo)$/i.test(record.active)) {
             try { await api.setServiceActive(service.id, false) }
             catch (reason) {
+              partiallyApplied++
               rowErrors.push(`Fila ${index + 2}: servicio creado, pero no se pudo desactivar: ${reason instanceof Error ? reason.message : 'error al actualizar el estado'}`)
             }
           }
         } catch (reason) { rowErrors.push(`Fila ${index + 2}: ${reason instanceof Error ? reason.message : 'no se pudo guardar'}`) }
       }
-      setImportErrors(rowErrors); setRetryRows(rejectedRows); setMessage(`${created} servicio(s) importados${rowErrors.length ? `; ${rowErrors.length} fila(s) requieren revisión` : ''}. La importación solo crea y no modifica servicios existentes.`)
+      setImportErrors(rowErrors); setRetryRows(rejectedRows); setMessage(`${created} servicio(s) creados${partiallyApplied ? `; ${partiallyApplied} fila(s) quedaron con estado distinto al solicitado` : ''}${rejectedRows.length ? `; ${rejectedRows.length} fila(s) rechazadas por validación` : ''}${rowErrors.length > rejectedRows.length + partiallyApplied ? `; ${rowErrors.length - rejectedRows.length - partiallyApplied} fila(s) no pudieron guardarse` : ''}. La importación solo crea y no modifica servicios existentes.`)
       if (created) await reload()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo leer el CSV') }
     finally { setImporting(false) }
