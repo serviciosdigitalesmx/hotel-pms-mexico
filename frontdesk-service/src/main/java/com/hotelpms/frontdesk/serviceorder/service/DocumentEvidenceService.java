@@ -2,7 +2,9 @@ package com.hotelpms.frontdesk.serviceorder.service;
 
 import com.hotelpms.frontdesk.serviceorder.domain.DocumentEvidence;
 import com.hotelpms.frontdesk.serviceorder.dto.DocumentEvidenceRequest;
+import com.hotelpms.frontdesk.exception.NotFoundException;
 import com.hotelpms.frontdesk.serviceorder.repository.DocumentEvidenceRepository;
+import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DocumentEvidenceService {
   private final DocumentEvidenceRepository repository;
+  private final ServiceOrderRepository serviceOrders;
   /**
    * Executes the operation.
    *
@@ -28,6 +31,11 @@ public class DocumentEvidenceService {
 
   @Transactional
   public DocumentEvidence add(final UUID hotel, final DocumentEvidenceRequest r) {
+    final var order = serviceOrders.findByIdAndHotelId(r.serviceOrderId(), hotel)
+        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    if (!r.customerId().equals(order.getCustomerId())) {
+      throw new IllegalArgumentException("DOCUMENT_CUSTOMER_MISMATCH");
+    }
     return repository.save(
         DocumentEvidence.builder()
             .hotelId(hotel)

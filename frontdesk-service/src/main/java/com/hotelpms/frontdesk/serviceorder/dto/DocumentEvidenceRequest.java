@@ -1,6 +1,9 @@
 package com.hotelpms.frontdesk.serviceorder.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 /**
@@ -19,9 +22,9 @@ import java.util.UUID;
  * @param storageKey value.
  */
 public record DocumentEvidenceRequest(
-    UUID serviceOrderId,
-    UUID customerId,
-    @NotBlank String fileName,
-    @NotBlank String contentType,
-    @NotBlank String storageKey,
-    @NotBlank String accessLevel) { }
+    @NotNull UUID serviceOrderId,
+    @NotNull UUID customerId,
+    @NotBlank @Size(max = 200) String fileName,
+    @NotBlank @Size(max = 100) String contentType,
+    @NotBlank @Size(max = 500) String storageKey,
+    @NotBlank @Pattern(regexp = "(?i)(INTERNAL|CUSTOMER|ORDER)") @Size(max = 32) String accessLevel) { }
