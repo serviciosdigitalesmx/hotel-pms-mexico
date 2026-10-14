@@ -96,6 +96,10 @@ export function ExpensesPage() {
     setError('')
     setMessage('')
     try {
+      if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(form.amount.trim()) || Number(form.amount) <= 0) throw new Error('El monto debe ser positivo, con máximo 10 enteros y 2 decimales')
+      if (!form.category.trim() || form.category.trim().length > 120) throw new Error('La categoría es obligatoria y admite hasta 120 caracteres')
+      if (form.subcategory.trim().length > 120 || form.description.trim().length > 255 || form.reference.trim().length > 100) throw new Error('Revisa los límites: subcategoría 120, descripción 255 y referencia 100 caracteres')
+      if (!form.paid && form.dueAt && form.spentAt && form.dueAt < form.spentAt) throw new Error('La fecha de vencimiento no puede ser anterior a la fecha del gasto')
       const expense = { expenseType: form.expenseType, category: form.category.trim(), subcategory: form.subcategory.trim() || undefined, amount: Number(form.amount), description: form.description.trim() || undefined, reference: form.reference.trim() || undefined, spentAt: form.spentAt || undefined, dueAt: form.dueAt || undefined }
       if (editingId) await api.updateExpense(editingId, { ...expense, paid: false })
       else {
@@ -131,6 +135,8 @@ export function ExpensesPage() {
   async function saveRecurring(event: FormEvent) {
     event.preventDefault(); setRecurringBusy(true); setError(''); setMessage('')
     try {
+      if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(recurringForm.amount.trim()) || Number(recurringForm.amount) <= 0) throw new Error('El monto recurrente debe ser positivo, con máximo 10 enteros y 2 decimales')
+      if (!recurringForm.category.trim() || recurringForm.category.trim().length > 120 || recurringForm.subcategory.trim().length > 120 || recurringForm.description.trim().length > 255 || recurringForm.reference.trim().length > 100) throw new Error('Revisa los límites: categoría y subcategoría 120, descripción 255 y referencia 100 caracteres')
       await api.createRecurringExpense({...recurringForm,category:recurringForm.category.trim(),amount:Number(recurringForm.amount),description:recurringForm.description.trim()||undefined,reference:recurringForm.reference.trim()||undefined,subcategory:recurringForm.subcategory.trim()||undefined})
       setRecurringForm({category:'',amount:'',description:'',reference:'',subcategory:'',frequency:'MONTHLY',nextDueAt:localToday()})
       setMessage('Plantilla recurrente creada'); setRevision(value=>value+1)
