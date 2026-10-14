@@ -47,7 +47,7 @@ export function ExpensesPage() {
   function exportCsv() {
     const rows = [['id', 'fecha_gasto', 'tipo', 'categoria', 'subcategoria', 'descripcion', 'referencia', 'monto', 'estado', 'fecha_vencimiento', 'forma_pago', 'fecha_pago'],
       ...visibleExpenses.map(expense => [expense.id, expense.spentAt ?? expense.createdAt.slice(0, 10), expense.expenseType ?? 'VARIABLE', expense.category, expense.subcategory ?? '', expense.description ?? '', expense.reference ?? '', expense.amount, expense.paid === false ? 'PENDIENTE' : 'PAGADO', expense.dueAt ?? '', expense.paymentMethod ?? '', expense.paidAt ?? ''])]
-    const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
+    const csv = rows.map(row => row.map(api.csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url

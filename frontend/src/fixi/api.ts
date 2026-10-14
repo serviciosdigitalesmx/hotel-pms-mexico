@@ -25,6 +25,7 @@ export const post=<T>(p:string,b?:unknown)=>api<T>(p,{method:'POST',body:b===und
 export const patch=<T>(p:string,b?:unknown)=>api<T>(p,{method:'PATCH',body:b===undefined?undefined:JSON.stringify(b)})
 export const put=<T>(p:string,b?:unknown)=>api<T>(p,{method:'PUT',body:b===undefined?undefined:JSON.stringify(b)})
 export const del=<T>(p:string)=>api<T>(p,{method:'DELETE'})
+export function csvCell(value:unknown){const text=String(value??'');const safe=typeof value!=='number'&&/^[\t\r ]*[=+@-]/.test(text)?`'${text}`:text;return `"${safe.replaceAll('"','""')}"`}
 
 export const login=(username:string,password:string)=>post<{mustChangePassword?:boolean}>('/api/v1/auth/login',{username,password})
 export const logout=()=>post<void>('/api/v1/auth/logout')

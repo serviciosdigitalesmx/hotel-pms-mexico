@@ -23,7 +23,7 @@ function parseCsv(text: string): string[][] {
   return rows
 }
 
-function csvCell(value: unknown) { return `"${String(value ?? '').replaceAll('"', '""')}"` }
+function csvCell(value: unknown) { return api.csvCell(value) }
 
 export function CustomerCsvTools() {
   const [busy, setBusy] = useState(false)

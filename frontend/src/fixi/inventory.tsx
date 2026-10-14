@@ -58,7 +58,7 @@ export function InventoryCatalogPage() {
   }
 
   function exportCsv() {
-    const csv = [['sku', 'name', 'category', 'cost', 'price', 'reorderLevel', 'optional', 'supplierId', 'quantity', 'branchId'], ...rows.map(p => [p.sku, p.name, p.category ?? 'General', p.cost ?? 0, p.price ?? 0, p.reorderLevel ?? 0, p.optional, p.supplierId ?? '', branch ? quantity(p.id) : '', branch])].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
+    const csv = [['sku', 'name', 'category', 'cost', 'price', 'reorderLevel', 'optional', 'supplierId', 'quantity', 'branchId'], ...rows.map(p => [p.sku, p.name, p.category ?? 'General', p.cost ?? 0, p.price ?? 0, p.reorderLevel ?? 0, p.optional, p.supplierId ?? '', branch ? quantity(p.id) : '', branch])].map(row => row.map(api.csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = branch ? 'fixi-productos-inventario.csv' : 'fixi-productos.csv'; link.click(); URL.revokeObjectURL(url)
   }
 

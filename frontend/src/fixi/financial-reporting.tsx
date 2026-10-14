@@ -85,7 +85,7 @@ export function FixiFinancialReportingPage() {
     const rows = [['fecha', 'tipo', 'referencia', 'estado', 'ingreso_cotizado', 'egreso', 'pagado'],
       ...orders.map(order => [(order.status === 'COMPLETED' ? order.deliveredAt ?? order.updatedAt : order.createdAt)?.slice(0, 10) ?? '', 'ORDEN', order.id, order.status, order.quoteTotal ?? 0, '', '']),
       ...expenses.map(expense => [(expense.spentAt ?? expense.createdAt).slice(0, 10), 'GASTO', expense.reference ?? expense.id, expense.paid === false ? 'PENDIENTE' : 'PAGADO', '', expense.amount, expense.paid !== false])]
-    const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
+    const csv = rows.map(row => row.map(api.csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-reporte-financiero.csv'; link.click(); URL.revokeObjectURL(url)
   }
 
