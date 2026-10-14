@@ -36,8 +36,9 @@ import mx.fixi.app.data.ServiceOrder
         OrderDetailScreen(selectedOrderId!!)
         return
     }
-    Scaffold(topBar={ TopAppBar(title={Text("Fixi")}, actions={ TextButton({vm.logout()}){Text("Salir")} })}, bottomBar={ NavigationBar { listOf("dashboard" to "Inicio","customers" to "Clientes","inventory" to "Inventario","profile" to "Perfil").forEach { (key,label) -> NavigationBarItem(section==key,{section=key},icon={},label={Text(label)}) } }}) { pad ->
+    Scaffold(topBar={ TopAppBar(title={Text("Fixi")}, actions={ TextButton({vm.logout()}){Text("Salir")} })}, bottomBar={ NavigationBar { listOf("dashboard" to "Inicio","reception" to "Recepción","customers" to "Clientes","inventory" to "Inventario","profile" to "Perfil").forEach { (key,label) -> NavigationBarItem(section==key,{section=key},icon={},label={Text(label)}) } }}) { pad ->
         when(section) {
+            "reception" -> ReceptionScreen(onCreated={vm.loadOrders()})
             "customers" -> CustomersScreen()
             "inventory" -> InventoryScreen()
             "profile" -> ProfileScreen(vm)
