@@ -52,8 +52,8 @@ export function InventoryCatalogPage() {
   }
 
   function exportCsv() {
-    const csv = [['sku', 'name', 'category', 'cost', 'price', 'reorderLevel', 'optional', 'supplierId'], ...rows.map(p => [p.sku, p.name, p.category ?? 'General', p.cost ?? 0, p.price ?? 0, p.reorderLevel ?? 0, p.optional, p.supplierId ?? ''])].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-productos.csv'; link.click(); URL.revokeObjectURL(url)
+    const csv = [['sku', 'name', 'category', 'cost', 'price', 'reorderLevel', 'optional', 'supplierId', 'quantity', 'branchId'], ...rows.map(p => [p.sku, p.name, p.category ?? 'General', p.cost ?? 0, p.price ?? 0, p.reorderLevel ?? 0, p.optional, p.supplierId ?? '', branch ? quantity(p.id) : '', branch])].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = branch ? 'fixi-productos-inventario.csv' : 'fixi-productos.csv'; link.click(); URL.revokeObjectURL(url)
   }
 
   async function increaseSelectedPrices(event: FormEvent) {
@@ -100,13 +100,13 @@ function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setResult('')
     try {
-      const summary = await api.importProductsCsv(csv)
+      const summary = await api.importProductsCsv(csv.replace(/^\uFEFF/, ''))
       setResult(`${summary.imported} importados, ${summary.rejected} rechazados${summary.errors.length ? `: ${summary.errors.slice(0, 5).join(' · ')}` : ''}`)
       if (summary.imported) onImported()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo importar el CSV') }
     finally { setBusy(false) }
   }
-  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Columnas: SKU, producto, categoría, costo, precio, mínimo, opcional, proveedor, cantidad inicial y sucursal. Para registrar existencias, indica cantidad y branchId.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="sku,name,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId" value={csv} onChange={event => setCsv(event.target.value)}/><div className="flex gap-2"><Button disabled={busy}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
+  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Columnas: SKU, producto, categoría, costo, precio, mínimo, opcional, proveedor, cantidad inicial y sucursal. Para registrar existencias, indica cantidad y branchId.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><label className="block text-sm">Seleccionar archivo CSV<Input type="file" accept=".csv,text/csv" disabled={busy} onChange={event=>{const file=event.currentTarget.files?.[0];if(file)void file.text().then(setCsv).catch(()=>setError('No se pudo leer el archivo CSV'))}}/></label><textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="sku,name,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId" value={csv} onChange={event => setCsv(event.target.value)}/><div className="flex gap-2"><Button disabled={busy}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
 }
 
 function useQuery<T>(loader: () => Promise<T>, deps: unknown[] = []) {
