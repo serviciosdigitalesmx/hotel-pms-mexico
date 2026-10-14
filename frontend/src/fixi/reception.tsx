@@ -46,9 +46,10 @@ export function ReceptionOrderForm() {
 
   useEffect(() => {
     let active = true
-    Promise.all([api.listBranches(), api.listServices(), api.listUsers().catch(() => []), api.industryProfile().catch(() => null)])
-      .then(([branchRows, serviceRows, teamRows, profile]) => {
+    Promise.all([api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers().catch(() => []), api.industryProfile().catch(() => null)])
+      .then(([customerRows, branchRows, serviceRows, teamRows, profile]) => {
         if (!active) return
+        setCustomers(customerRows)
         setBranches(branchRows)
         setServices(serviceRows)
         setUsers(teamRows.filter(user => user.active && user.role === 'TECHNICIAN'))

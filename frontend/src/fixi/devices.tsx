@@ -30,7 +30,7 @@ export function DeviceManagementPage() {
   const [message, setMessage] = useState('')
 
   async function loadDevices(id: string) { if (id) setDevices(await api.listDevices(id)); else setDevices([]) }
-  useEffect(() => { let active = true; api.listCustomers().then(result => { if (active) setCustomers(Array.isArray(result) ? result : result.content) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar clientes') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
+  useEffect(() => { let active = true; api.listAllCustomers().then(rows => { if (active) setCustomers(rows) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar clientes') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
   useEffect(() => { let active = true; if (customerId) api.listDevices(customerId).then(items => { if (active) setDevices(items) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar equipos') }); else setDevices([]); return () => { active = false } }, [customerId])
   useEffect(() => {
     let active = true

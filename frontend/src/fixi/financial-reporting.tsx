@@ -25,8 +25,8 @@ export function FixiFinancialReportingPage() {
     if (!from || !to || from > to) return
     setBusy(true); setError('')
     try {
-      const [allOrders, allExpenses, customerResult, allUsers] = await Promise.all([api.listAllServiceOrders(), api.listExpenses(), api.listCustomers().catch(() => []), api.listUsers().catch(() => [])])
-      setCustomers(Array.isArray(customerResult) ? customerResult : customerResult.content)
+      const [allOrders, allExpenses, allCustomers, allUsers] = await Promise.all([api.listAllServiceOrders(), api.listExpenses(), api.listAllCustomers().catch(() => []), api.listUsers().catch(() => [])])
+      setCustomers(allCustomers)
       setUsers(allUsers)
       setOrders(allOrders.filter(order => {
         const date = (order.status === 'COMPLETED' ? order.deliveredAt ?? order.updatedAt : order.createdAt)?.slice(0, 10) ?? ''

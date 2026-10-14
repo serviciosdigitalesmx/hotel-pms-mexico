@@ -73,7 +73,8 @@ export const portalDocuments=(token:string)=>get<DocumentEvidence[]>(`/api/publi
 export const portalOtp=(token:string)=>post<{deliveryMode:string;testCode?:string;expiresAt:string}>(`/api/public/portal/operations/${encodeURIComponent(token)}/otp/challenge`)
 export const portalVerify=(token:string,code:string)=>post<{verified:boolean}>(`/api/public/portal/operations/${encodeURIComponent(token)}/otp/verify?code=${encodeURIComponent(code)}`)
 export const portalAuthorize=(token:string,evidence:string)=>post<{authorized:boolean}>(`/api/public/portal/operations/${encodeURIComponent(token)}/authorize?evidence=${encodeURIComponent(evidence)}`)
-export const listCustomers=(page=0)=>get<{content:Customer[];number?:number;totalPages?:number;totalElements?:number} | Customer[]>(`/api/v1/customers?page=${page}&size=100`)
+export const listCustomers=(page=0,size=100)=>get<{content:Customer[];number?:number;totalPages?:number;totalElements?:number;last?:boolean} | Customer[]>(`/api/v1/customers?page=${page}&size=${Math.min(200,Math.max(1,size))}`)
+export async function listAllCustomers(pageSize=200){const rows:Customer[]=[];for(let page=0;;page++){const result=await listCustomers(page,pageSize);if(Array.isArray(result)){rows.push(...result);if(result.length<pageSize)return rows;continue}rows.push(...result.content);if(result.last||result.content.length===0||rows.length>=(result.totalElements??Number.POSITIVE_INFINITY)||page+1>=(result.totalPages??Number.POSITIVE_INFINITY))return rows}}
 export const searchCustomers=(query:string,page=0)=>get<{content:Customer[]} | Customer[]>(`/api/v1/customers/search?query=${encodeURIComponent(query)}&page=${page}&size=100`)
 export const getCustomer=(id:string)=>get<Customer>(`/api/v1/customers/${id}`)
 export const createCustomer=(body:unknown)=>post<Customer>('/api/v1/customers',body)
