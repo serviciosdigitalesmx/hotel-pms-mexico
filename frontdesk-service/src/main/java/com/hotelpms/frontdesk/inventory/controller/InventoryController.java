@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +40,13 @@ public class InventoryController {
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public InventoryProduct product(@Valid @RequestBody final ProductRequest request) {
     return service.product(hotel(), request);
+  }
+
+  @PutMapping("/products/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public InventoryProduct updateProduct(
+      @PathVariable final UUID id, @Valid @RequestBody final ProductRequest request) {
+    return service.updateProduct(hotel(), id, request);
   }
 
   /**

@@ -2,8 +2,8 @@ package com.hotelpms.frontdesk.inventory.repository;
 
 import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /** InventoryProductRepository domain type. */
@@ -27,4 +27,6 @@ public interface InventoryProductRepository extends JpaRepository<InventoryProdu
    */
 
   Optional<InventoryProduct> findByHotelIdAndSku(UUID hotelId, String sku);
+
+  Optional<InventoryProduct> findByIdAndHotelId(UUID id, UUID hotelId);
 }

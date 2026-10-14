@@ -73,6 +73,26 @@ public class InventoryService {
     return saved;
   }
 
+  /** Updates commercial catalog fields without changing branch stock. */
+  @Transactional
+  public InventoryProduct updateProduct(final UUID hotel, final UUID productId, final ProductRequest r) {
+    final InventoryProduct product = products.findByIdAndHotelId(productId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+    if (r.supplierId() != null) {
+      suppliers.findByIdAndHotelId(r.supplierId(), hotel)
+          .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+    }
+    product.setSku(r.sku().trim());
+    product.setName(r.name().trim());
+    product.setOptional(r.optional());
+    product.setCategory(r.category().trim());
+    product.setCost(r.cost());
+    product.setPrice(r.price());
+    product.setReorderLevel(r.reorderLevel());
+    product.setSupplierId(r.supplierId());
+    return products.save(product);
+  }
+
   /**
    * Applies an inventory movement.
    *

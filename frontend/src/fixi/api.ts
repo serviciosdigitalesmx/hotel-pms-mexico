@@ -80,6 +80,7 @@ export const setUserCapabilityGrant=(userId:string,capabilityKey:string,enabled:
 export const effectiveCapabilities=()=>get<{tenantId:string;capabilities:string[]}>('/api/v1/auth/capabilities/me')
 export const listProducts=()=>get<Product[]>('/api/v1/inventory/products')
 export const createProduct=(body:unknown)=>post<Product>('/api/v1/inventory/products',body)
+export const updateProduct=(id:string,body:unknown)=>put<Product>(`/api/v1/inventory/products/${id}`,body)
 export const importProductsCsv=(csv:string)=>api<{imported:number;rejected:number;errors:string[]}>('/api/v1/inventory/products/import',{method:'POST',headers:{'Content-Type':'text/csv'},body:csv})
 export const moveStock=(body:unknown)=>post('/api/v1/inventory/movements',body)
 export type StockBalance={id:string;branchId:string;productId:string;quantity:number;updatedAt:string}
@@ -99,6 +100,8 @@ export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string})=>post<Expense>('/api/v1/expenses',body)
 export const markExpensePaid=(id:string,cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId})
+export type FinancialReport={startDate:string;endDate:string;totalRevenue:number;totalCollected:number;totalOutstanding:number;totalInvoices:number;paidInvoices:number;invoices:Array<{id:string;invoiceNumber?:string;status:string;totalAmount:number;issueDate:string;guestId?:string}>}
+export const financialReport=(startDate:string,endDate:string)=>get<FinancialReport>(`/api/v1/reports/owner?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
 export type ServiceCatalogEntry={id:string;tenantId:string;name:string;active:boolean;createdAt:string}
 export const listServices=()=>get<ServiceCatalogEntry[]>('/api/v1/services')
 export const createService=(body:{name:string})=>post<ServiceCatalogEntry>('/api/v1/services',body)
