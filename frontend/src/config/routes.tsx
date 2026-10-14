@@ -35,5 +35,6 @@ export const routes:RouteConfig[]=[
   {path:'/settings/notifications',element:secure(<NotificationSettingsPage/>,['ADMIN','OWNER','MANAGER'])},
   {path:'/reports/finance',element:secure(<FixiFinancialReportingPage/>,['ADMIN','OWNER'])},
   {path:'/orders/unassigned',element:secure(<OrdersPage title="Por asignar" unassignedOnly/>,undefined,['ORDERS_READ'])},
+  {path:'/orders/pending-payment',element:secure(<OrdersPage title="Pendientes de pago" paymentPendingOnly/>,undefined,['ORDERS_READ'])},
   {path:'*',element:<Navigate to="/" replace/>},
 ]
