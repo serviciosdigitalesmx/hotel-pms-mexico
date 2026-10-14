@@ -24,6 +24,7 @@ export function ReceptionOrderForm() {
   const [deviceResults, setDeviceResults] = useState<api.Device[]>([])
   const [deviceSearchLoading, setDeviceSearchLoading] = useState(false)
   const [branches, setBranches] = useState<api.Branch[]>([])
+  const [branchesLoading, setBranchesLoading] = useState(true)
   const [devices, setDevices] = useState<api.Device[]>([])
   const [quickCreateDevice, setQuickCreateDevice] = useState(false)
   const [quickDevice, setQuickDevice] = useState({ category: 'Teléfono', manufacturer: '', model: '', serialNumber: '', imei: '', customFields: '' })
@@ -66,6 +67,8 @@ export function ReceptionOrderForm() {
         if (!active) return
         setCustomers(customerRows)
         setBranches(branchRows)
+        const activeBranches = branchRows.filter(branch => branch.active)
+        if (activeBranches.length === 1) setBranchId(current => current || activeBranches[0].id)
         setServices(serviceRows)
         if (business?.currency) setCurrency(business.currency.toUpperCase())
         setUsers(teamRows.filter(user => user.active && user.role === 'TECHNICIAN'))
@@ -78,6 +81,7 @@ export function ReceptionOrderForm() {
         }
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los datos de recepción') })
+      .finally(() => { if (active) setBranchesLoading(false) })
     return () => { active = false }
   }, [])
 
@@ -202,6 +206,8 @@ export function ReceptionOrderForm() {
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!customerId) { setError('Busca y selecciona un cliente antes de crear la orden'); return }
+    if (branchesLoading) { setError('Espera a que terminen de cargar las sucursales'); return }
+    if (!branches.some(branch => branch.id === branchId && branch.active)) { setError('Selecciona una sucursal activa para registrar la orden'); return }
     const intakeChecklist = [...checkedChecklist, form.intakeChecklist.trim()].filter(Boolean).join('\n')
     if (!intakeChecklist) { setError('Completa al menos un punto del checklist o agrega una nota de recepción'); return }
     if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(depositAmount.trim())) { setError('El anticipo debe ser un monto positivo o cero, con máximo dos decimales'); return }
@@ -259,7 +265,7 @@ export function ReceptionOrderForm() {
           </div>}
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <select aria-label="Sucursal" className={field} value={branchId} onChange={event => { setBranchId(event.target.value); setAssignedUserId('') }}><option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
+          <label className="grid gap-1 text-sm text-muted-foreground">Sucursal<select required aria-label="Sucursal" className={field} disabled={branchesLoading||!branches.some(branch=>branch.active)} value={branchId} onChange={event => { setBranchId(event.target.value); setAssignedUserId('') }}><option value="">{branchesLoading?'Cargando sucursales…':branches.some(branch=>branch.active)?'Selecciona sucursal':'No hay sucursales activas'}</option>{branches.filter(branch=>branch.active).map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>{!branchesLoading&&!branches.some(branch=>branch.active)&&<span role="alert" className="text-xs text-destructive">Activa o crea una sucursal antes de recibir órdenes.</span>}</label>
           <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => { let price: string; try { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(service.basePrice) } catch { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(service.basePrice) } return <option key={service.id} value={service.name}>{service.name} · {price} · {service.estimatedMinutes} min</option> })}</select>
           <label className="grid gap-1 text-sm text-muted-foreground">Responsable técnico<select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{assignableTechnicians.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>{branchTechniciansLoading&&<span role="status" className="text-xs">Consultando técnicos asignados…</span>}{branchId&&!branchTechniciansLoading&&!assignableTechnicians.length&&<span className="text-xs">No hay técnicos asignados a esta sucursal; la orden puede quedar sin asignar.</span>}</label>
           <select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select>
@@ -270,7 +276,7 @@ export function ReceptionOrderForm() {
         <textarea aria-label="Notas del checklist de recepción" className={field} placeholder="Notas de recepción o checklist adicional" value={form.intakeChecklist} onChange={event => setForm({ ...form, intakeChecklist: event.target.value })}/>
         <textarea required aria-label="Resumen de orden" className={field} placeholder="Resumen de síntomas y condición" value={form.summary} onChange={event => setForm({ ...form, summary: event.target.value })}/>
         <div className="grid gap-3 md:grid-cols-2"><div><Label>Fecha compromiso (opcional)</Label><Input type="datetime-local" value={form.promisedAt} onChange={event => setForm({ ...form, promisedAt: event.target.value })}/></div><div><Label>Evidencia inicial / imágenes (URL o referencia)</Label><Input value={form.intakeEvidence} onChange={event => setForm({ ...form, intakeEvidence: event.target.value })}/></div></div>
-        <Button disabled={busy || customerLoading || !customerId}>{busy ? 'Creando…' : 'Crear orden'}</Button>
+        <Button disabled={busy || customerLoading || branchesLoading || !branches.some(branch=>branch.active) || !customerId}>{busy ? 'Creando…' : 'Crear orden'}</Button>
         {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>
