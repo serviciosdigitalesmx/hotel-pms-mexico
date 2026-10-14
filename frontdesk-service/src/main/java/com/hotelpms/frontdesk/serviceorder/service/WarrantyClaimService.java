@@ -38,6 +38,9 @@ public class WarrantyClaimService {
     if (!order.getCustomerId().equals(r.customerId())) {
       throw new IllegalArgumentException("WARRANTY_CUSTOMER_ORDER_MISMATCH");
     }
+    if (order.getStatus() != com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatus.COMPLETED) {
+      throw new IllegalStateException("WARRANTY_REQUIRES_DELIVERED_SERVICE_ORDER");
+    }
     final WarrantyClaim claim = repository.save(
         WarrantyClaim.builder()
             .hotelId(hotel)
@@ -89,5 +92,12 @@ public class WarrantyClaimService {
   @Transactional(readOnly = true)
   public List<WarrantyClaim> list(final UUID hotel, final UUID customer) {
     return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotel, customer);
+  }
+
+  @Transactional(readOnly = true)
+  public List<WarrantyClaim> listByServiceOrder(final UUID hotel, final UUID serviceOrderId) {
+    serviceOrders.findByIdAndHotelId(serviceOrderId, hotel)
+        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    return repository.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtDesc(hotel, serviceOrderId);
   }
 }

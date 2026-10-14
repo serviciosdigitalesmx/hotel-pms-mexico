@@ -129,6 +129,7 @@ export const reserveStock=(body:unknown)=>post('/api/v1/inventory/reservations',
 export const releaseStock=(orderId:string,productId:string)=>post(`/api/v1/inventory/reservations/${orderId}/${productId}/release`)
 export type WarrantyClaim={id:string;serviceOrderId:string;customerId:string;expiresAt:string;description:string;status:string;createdAt:string}
 export const listWarrantyClaims=(customerId:string)=>get<WarrantyClaim[]>(`/api/v1/warranty-claims/customer/${customerId}`)
+export const listWarrantyClaimsForOrder=(serviceOrderId:string)=>get<WarrantyClaim[]>(`/api/v1/warranty-claims/service-order/${serviceOrderId}`)
 export const openWarrantyClaim=(body:unknown)=>post<WarrantyClaim>('/api/v1/warranty-claims',body)
 export const closeWarrantyClaim=(id:string)=>post<WarrantyClaim>(`/api/v1/warranty-claims/${id}/close`)
 export const listSuppliers=()=>get<Supplier[]>('/api/v1/procurement/suppliers')

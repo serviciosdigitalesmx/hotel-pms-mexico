@@ -30,4 +30,7 @@ public interface WarrantyClaimRepository extends JpaRepository<WarrantyClaim, UU
 
   List<WarrantyClaim> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
       UUID hotelId, UUID customerId);
+
+  List<WarrantyClaim> findAllByHotelIdAndServiceOrderIdOrderByCreatedAtDesc(
+      UUID hotelId, UUID serviceOrderId);
 }

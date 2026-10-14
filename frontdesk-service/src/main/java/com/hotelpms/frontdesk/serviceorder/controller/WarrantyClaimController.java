@@ -49,6 +49,12 @@ public class WarrantyClaimController {
     return service.list(hotel(), customer);
   }
 
+  @GetMapping("/service-order/{serviceOrderId}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public List<WarrantyClaim> listByServiceOrder(@PathVariable final UUID serviceOrderId) {
+    return service.listByServiceOrder(hotel(), serviceOrderId);
+  }
+
   /**
    * Closes a warranty claim.
    *
