@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import * as api from './api'
 
 const labels: Record<string, string> = {
-  ORDER_ASSIGNED: 'Orden asignada',
+  ORDER_ASSIGNED: 'Orden nueva con técnico asignado',
   STOCK_LOW: 'Existencia baja',
   DELIVERY_DUE: 'Vencimiento de fecha compromiso',
   PAYMENT_DUE: 'Pago pendiente',

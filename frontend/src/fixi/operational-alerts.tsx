@@ -49,7 +49,7 @@ export function OperationalAlertsPage() {
       }
       if (terminal.has(order.status)) continue
       if (order.assignedUserId && localDateOf(order.createdAt) === today) {
-        result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden asignada', detail: `${order.summary} · asignada a un técnico`, href: `/service-orders/${order.id}`, urgency: 1 })
+        result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden nueva con técnico asignado', detail: `${order.summary} · creada hoy y con responsable asignado`, href: `/service-orders/${order.id}`, urgency: 1 })
       }
       if (order.promisedAt && new Date(order.promisedAt).getTime() < now) {
         result.push({ id: `late:${order.id}`, event: 'DELIVERY_DUE', title: 'Orden vencida', detail: `${order.summary} · compromiso ${new Date(order.promisedAt).toLocaleString('es-MX')}`, href: `/service-orders/${order.id}`, urgency: 0 })
