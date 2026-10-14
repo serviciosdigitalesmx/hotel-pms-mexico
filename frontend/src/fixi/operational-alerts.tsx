@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import * as api from './api'
 
-type Alert = { id: string; event: keyof api.NotificationPreferences; title: string; detail: string; href: string; urgency: number }
+type Alert = { id: string; event: keyof api.NotificationPreferences; title: string; detail: string; href: string; urgency: number; branchId?: string }
 const terminal = new Set(['COMPLETED', 'CANCELLED'])
 const localDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 const localDateOf = (value?: string) => {
@@ -20,17 +20,38 @@ export function OperationalAlertsPage() {
   const [balances, setBalances] = useState<api.StockBalance[]>([])
   const [expenses, setExpenses] = useState<api.Expense[]>([])
   const [preferences, setPreferences] = useState<api.NotificationPreferences>({})
+  const [branchFilter, setBranchFilter] = useState('ALL')
+  const [eventFilter, setEventFilter] = useState('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   useEffect(() => {
     let active = true
-    Promise.all([api.listAllServiceOrders(), api.listProducts(), api.listBranches(), api.listExpenses(), api.getNotificationPreferences().catch(() => null)])
-      .then(async ([orderRows, productRows, branchRows, expenseRows, notificationPreferences]) => {
-        const stockRows = await Promise.all(branchRows.filter(branch => branch.active).map(branch => api.stock(branch.id).catch(() => [])))
+    Promise.allSettled([api.listAllServiceOrders(), api.listProducts(), api.listBranches(), api.listExpenses(), api.getNotificationPreferences()])
+      .then(async ([orderResult, productResult, branchResult, expenseResult, preferenceResult]) => {
         if (!active) return
-        setOrders(orderRows); setProducts(productRows); setBranches(branchRows); setExpenses(expenseRows); setBalances(stockRows.flat())
-        if (notificationPreferences) setPreferences(notificationPreferences)
+        const issues: string[] = []
+        const orderRows = orderResult.status === 'fulfilled' ? orderResult.value : []
+        const productRows = productResult.status === 'fulfilled' ? productResult.value : []
+        const branchRows = branchResult.status === 'fulfilled' ? branchResult.value : []
+        const expenseRows = expenseResult.status === 'fulfilled' ? expenseResult.value : []
+        if (orderResult.status === 'rejected') issues.push('órdenes')
+        if (productResult.status === 'rejected') issues.push('inventario')
+        if (branchResult.status === 'rejected') issues.push('sucursales')
+        if (expenseResult.status === 'rejected') issues.push('gastos')
+        if (preferenceResult.status === 'fulfilled') setPreferences(preferenceResult.value)
+        else issues.push('preferencias de notificación')
+        setOrders(orderRows); setProducts(productRows); setBranches(branchRows); setExpenses(expenseRows)
+        const activeBranches = branchResult.status === 'fulfilled' ? branchRows.filter(branch => branch.active) : []
+        const stockResults = await Promise.allSettled(activeBranches.map(branch => api.stock(branch.id)))
+        if (!active) return
+        const stockRows: api.StockBalance[] = []
+        stockResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') stockRows.push(...result.value)
+          else issues.push(`existencias de ${activeBranches[index].name}`)
+        })
+        setBalances(stockRows)
+        setError(issues.length ? `Algunas alertas pueden estar incompletas; no se cargaron: ${issues.join(', ')}.` : '')
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar las alertas') })
       .finally(() => { if (active) setLoading(false) })
@@ -43,24 +64,23 @@ export function OperationalAlertsPage() {
     const result: Alert[] = []
     for (const order of orders) {
       if (order.status === 'COMPLETED' && order.paymentStatus === 'PENDING' && order.quoteTotal != null) {
-        const received = api.serviceOrderAmountReceived(order)
         const balance = api.serviceOrderBalance(order)
-        if (balance > 0) result.push({ id: `order-payment:${order.id}`, event: 'PAYMENT_DUE', title: 'Saldo de orden pendiente', detail: `${order.summary} · ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(balance)} por cobrar`, href: `/service-orders/${order.id}`, urgency: 0 })
+        if (balance > 0) result.push({ id: `order-payment:${order.id}`, event: 'PAYMENT_DUE', title: 'Saldo de orden pendiente', detail: `${order.summary} · ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(balance)} por cobrar`, href: `/service-orders/${order.id}`, urgency: 0, branchId: order.branchId })
       }
       if (terminal.has(order.status)) continue
       if (order.assignedUserId && localDateOf(order.createdAt) === today) {
-        result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden nueva con técnico asignado', detail: `${order.summary} · creada hoy y con responsable asignado`, href: `/service-orders/${order.id}`, urgency: 1 })
+        result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden nueva con técnico asignado', detail: `${order.summary} · creada hoy y con responsable asignado`, href: `/service-orders/${order.id}`, urgency: 1, branchId: order.branchId })
       }
       if (order.promisedAt && new Date(order.promisedAt).getTime() < now) {
-        result.push({ id: `late:${order.id}`, event: 'DELIVERY_DUE', title: 'Orden vencida', detail: `${order.summary} · compromiso ${new Date(order.promisedAt).toLocaleString('es-MX')}`, href: `/service-orders/${order.id}`, urgency: 0 })
+        result.push({ id: `late:${order.id}`, event: 'DELIVERY_DUE', title: 'Orden vencida', detail: `${order.summary} · compromiso ${new Date(order.promisedAt).toLocaleString('es-MX')}`, href: `/service-orders/${order.id}`, urgency: 0, branchId: order.branchId })
       }
-      if (order.status === 'QA') result.push({ id: `ready:${order.id}`, event: 'ORDER_READY', title: 'Lista para entrega', detail: order.summary, href: `/service-orders/${order.id}`, urgency: 1 })
+      if (order.status === 'QA') result.push({ id: `ready:${order.id}`, event: 'ORDER_READY', title: 'Lista para entrega', detail: order.summary, href: `/service-orders/${order.id}`, urgency: 1, branchId: order.branchId })
     }
     for (const product of products) {
       const low = balances.filter(balance => balance.productId === product.id && balance.quantity <= Number(product.reorderLevel ?? 0))
       for (const balance of low) {
         const branch = branches.find(item => item.id === balance.branchId)
-        result.push({ id: `stock:${balance.id}`, event: 'STOCK_LOW', title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2 })
+        result.push({ id: `stock:${balance.id}`, event: 'STOCK_LOW', title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2, branchId: balance.branchId })
       }
     }
     const completedToday = orders.filter(order => order.status === 'COMPLETED' && localDateOf(order.deliveredAt ?? order.updatedAt ?? order.createdAt) === today)
@@ -74,13 +94,16 @@ export function OperationalAlertsPage() {
       }
     }
     return result.filter(alert => preferences[alert.event]?.WEB !== false)
+      .filter(alert => eventFilter === 'ALL' || alert.event === eventFilter)
+      .filter(alert => branchFilter === 'ALL' || !alert.branchId || alert.branchId === branchFilter)
       .sort((a, b) => a.urgency - b.urgency || a.title.localeCompare(b.title))
-  }, [orders, products, balances, branches, expenses, preferences])
+  }, [orders, products, balances, branches, expenses, preferences, eventFilter, branchFilter])
 
   return <BaseLayout title="Alertas operativas" description="Órdenes vencidas o con saldo pendiente, entregas listas, stock bajo y pagos de gastos vencidos."><div className="space-y-4 px-4 lg:px-6">
+    <div className="grid gap-2 sm:grid-cols-2"><select aria-label="Filtrar alertas por sucursal" className="h-10 rounded-md border bg-background px-3 text-sm" value={branchFilter} onChange={event => setBranchFilter(event.target.value)}><option value="ALL">Todas las sucursales</option>{branches.filter(branch => branch.active).map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select><select aria-label="Filtrar alertas por tipo" className="h-10 rounded-md border bg-background px-3 text-sm" value={eventFilter} onChange={event => setEventFilter(event.target.value)}><option value="ALL">Todos los tipos</option><option value="ORDER_ASSIGNED">Órdenes nuevas asignadas</option><option value="STOCK_LOW">Existencia baja</option><option value="DELIVERY_DUE">Fecha compromiso vencida</option><option value="PAYMENT_DUE">Pagos pendientes</option><option value="ORDER_READY">Listas para entregar</option><option value="DAY_SUMMARY">Resumen del día</option></select></div>
     <Card><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>{alerts.length} alertas actuales</CardTitle><Button type="button" variant="outline" disabled={loading} onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1) }}>Actualizar</Button></div></CardHeader><CardContent className="space-y-2">
       {loading && <p role="status">Actualizando alertas…</p>}{alerts.map(alert => <div key={alert.id} className="flex flex-wrap items-center justify-between gap-3 rounded border p-3"><div><p className="font-medium">{alert.title}</p><p className="text-sm text-muted-foreground">{alert.detail}</p></div><Button asChild size="sm" variant="outline"><Link to={alert.href}>Abrir</Link></Button></div>)}
-      {!loading && !error && !alerts.length && <p className="text-sm text-muted-foreground">Sin alertas operativas en este momento.</p>}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {!loading && !alerts.length && <p className="text-sm text-muted-foreground">No hay alertas para los filtros seleccionados.</p>}{error && <p role="alert" className="text-sm text-amber-700">{error}</p>}
     </CardContent></Card>
   </div></BaseLayout>
 }
