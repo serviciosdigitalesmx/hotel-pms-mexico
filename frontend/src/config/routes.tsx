@@ -15,6 +15,7 @@ import { DeviceManagementPage } from '@/fixi/devices'
 import { NotificationSettingsPage } from '@/fixi/notification-settings'
 import { FixiFinancialReportingPage } from '@/fixi/financial-reporting'
 import { TeamUserEditor } from '@/fixi/team-user-editor'
+import { OperationalAlertsPage } from '@/fixi/operational-alerts'
 export interface RouteConfig { path:string; element:ReactNode; children?:RouteConfig[] }
 const secure=(element:ReactNode,roles?:string[],capabilities?:string[])=><Protected roles={roles} capabilities={capabilities}>{element}</Protected>
 export const routes:RouteConfig[]=[
@@ -29,6 +30,7 @@ export const routes:RouteConfig[]=[
   {path:'/calendar',element:secure(<OrdersPage title="Agenda operativa"/>)},{path:'/reports',element:secure(<RealDashboard/>,undefined,['REPORTS_READ'])},
   {path:'/customers/import',element:secure(<CustomerCsvTools/>)},
   {path:'/devices',element:secure(<DeviceManagementPage/>)},
+  {path:'/notifications',element:secure(<OperationalAlertsPage/>)},
   {path:'/settings/order-workflows',element:secure(<WorkflowSettingsPage/>,['ADMIN','OWNER'])},
   {path:'/settings/notifications',element:secure(<NotificationSettingsPage/>,['ADMIN','OWNER','MANAGER'])},
   {path:'/reports/finance',element:secure(<FixiFinancialReportingPage/>,['ADMIN','OWNER'])},

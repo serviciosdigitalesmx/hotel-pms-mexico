@@ -1,12 +1,12 @@
 "use client"
 import * as React from 'react'
-import { Calendar, CheckSquare, ClipboardList, Laptop, Package, Settings, Users, Wrench, CircleDollarSign, BarChart3, Building2 } from 'lucide-react'
+import { Calendar, CheckSquare, ClipboardList, Laptop, Package, Settings, Users, Wrench, CircleDollarSign, BarChart3, Building2, Bell } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { NavMain } from '@/components/nav-main'
 import { NavUser } from '@/components/nav-user'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 const groups = [
-  { label: 'Fixi', items: [{title:'Dashboard',url:'/dashboard',icon:ClipboardList},{title:'Agenda',url:'/calendar',icon:Calendar}] },
+  { label: 'Fixi', items: [{title:'Dashboard',url:'/dashboard',icon:ClipboardList},{title:'Alertas operativas',url:'/notifications',icon:Bell},{title:'Agenda',url:'/calendar',icon:Calendar}] },
   { label: 'Operación', items: [{title:'Recepción',url:'/reception/new',icon:ClipboardList},{title:'Órdenes de servicio',url:'/service-orders',icon:Wrench},{title:'Servicios',url:'/services',icon:Wrench},{title:'Clientes',url:'/customers',icon:Users},{title:'Importar clientes',url:'/customers/import',icon:Users},{title:'Equipos',url:'/devices',icon:Laptop},{title:'Agenda',url:'/calendar',icon:Calendar}] },
   { label: 'Taller', items: [{title:'Diagnósticos',url:'/diagnostics',icon:ClipboardList},{title:'Reparaciones',url:'/repairs',icon:Wrench},{title:'Técnicos',url:'/technicians',icon:Users},{title:'Pruebas',url:'/tests',icon:CheckSquare},{title:'Entrega',url:'/delivery',icon:CheckSquare}] },
   { label: 'Inventario', items: [{title:'Refacciones',url:'/parts',icon:Package},{title:'Inventario',url:'/inventory',icon:Package},{title:'Proveedores',url:'/suppliers',icon:Users},{title:'Compras',url:'/purchases',icon:ClipboardList}] },
