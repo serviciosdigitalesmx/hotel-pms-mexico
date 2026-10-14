@@ -233,6 +233,16 @@ public class ProcurementService {
       if (delta == 0) continue;
       final var product = products.findForUpdateByIdAndHotelId(line.getProductId(), hotel)
           .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+      if (delta < 0) {
+        final long branchQuantity = balances.findByHotelIdAndBranchIdAndProductId(
+            hotel, purchase.getBranchId(), product.getId()).map(balance -> balance.getQuantity())
+            .orElse(0L);
+        final long branchReserved = reservations.sumReservedQuantityByHotelAndBranchAndProduct(
+            hotel, purchase.getBranchId(), product.getId());
+        if (branchQuantity + delta < branchReserved) {
+          throw new IllegalStateException("RECEIVED_STOCK_RESERVED_FOR_SERVICE_ORDERS");
+        }
+      }
       final long currentQuantity = balances.sumQuantityByHotelAndProduct(hotel, product.getId())
           + reservations.sumReservedQuantityByHotelAndProduct(hotel, product.getId());
       final long nextQuantity = currentQuantity + delta;

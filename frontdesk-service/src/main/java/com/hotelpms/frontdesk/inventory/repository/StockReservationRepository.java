@@ -47,4 +47,11 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
       + "and reservation.status = 'RESERVED'")
   Long sumReservedQuantityByHotelAndProduct(
       @Param("hotelId") UUID hotelId, @Param("productId") UUID productId);
+
+  @Query("select coalesce(sum(reservation.quantity), 0) from StockReservation reservation "
+      + "where reservation.hotelId = :hotelId and reservation.branchId = :branchId "
+      + "and reservation.productId = :productId and reservation.status = 'RESERVED'")
+  Long sumReservedQuantityByHotelAndBranchAndProduct(
+      @Param("hotelId") UUID hotelId, @Param("branchId") UUID branchId,
+      @Param("productId") UUID productId);
 }
