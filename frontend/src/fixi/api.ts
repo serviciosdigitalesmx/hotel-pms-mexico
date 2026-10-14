@@ -111,6 +111,7 @@ export const createPurchase=(body:unknown)=>post('/api/v1/procurement/purchases'
 export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement/purchases/${id}/receive`,body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string})=>post<Expense>('/api/v1/expenses',body)
+export const updateExpense=(id:string,body:{category:string;amount:number;description?:string;reference?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid:false;spentAt?:string;dueAt?:string})=>put<Expense>(`/api/v1/expenses/${id}`,body)
 export const markExpensePaid=(id:string,cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId})
 export type FinancialReport={startDate:string;endDate:string;totalRevenue:number;totalCollected:number;totalOutstanding:number;totalInvoices:number;paidInvoices:number;invoices:Array<{id:string;invoiceNumber?:string;status:string;totalAmount:number;issueDate:string;guestId?:string}>}
 export const financialReport=(startDate:string,endDate:string)=>get<FinancialReport>(`/api/v1/reports/owner?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)

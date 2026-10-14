@@ -80,6 +80,28 @@ public class ExpenseServiceImpl implements ExpenseService {
     return expenses.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
   }
 
+  @Override
+  @Transactional
+  public Expense updateUnpaid(final UUID hotelId, final UUID expenseId, final ExpenseRequest request) {
+    final Expense expense = expenses.findByIdAndHotelId(expenseId, hotelId)
+        .orElseThrow(() -> new NotFoundException("EXPENSE_NOT_FOUND"));
+    if (expense.isPaid() || expense.getCashSessionId() != null) {
+      throw new BillingValidationException("PAID_EXPENSE_CANNOT_BE_EDITED");
+    }
+    if (request.cashSessionId() != null || Boolean.TRUE.equals(request.paid())) {
+      throw new BillingValidationException("UNPAID_EXPENSE_UPDATE_CANNOT_RECORD_PAYMENT");
+    }
+    expense.setCategory(request.category().trim());
+    expense.setAmount(request.amount());
+    expense.setDescription(request.description());
+    expense.setReference(request.reference());
+    expense.setExpenseType(request.expenseType() == null ? "VARIABLE" : request.expenseType());
+    expense.setSubcategory(request.subcategory());
+    expense.setSpentAt(request.spentAt());
+    expense.setDueAt(request.dueAt());
+    return expenses.save(expense);
+  }
+
   /** {@inheritDoc} */
   @Override
   @Transactional

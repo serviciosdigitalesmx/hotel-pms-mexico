@@ -19,6 +19,9 @@ public interface ExpenseService {
    */
   Expense create(UUID hotelId, UUID actor, ExpenseRequest request);
 
+  /** Updates descriptive and amount fields on an unpaid tenant expense. */
+  Expense updateUnpaid(UUID hotelId, UUID expenseId, ExpenseRequest request);
+
   /**
    * Lists tenant expenses.
    *

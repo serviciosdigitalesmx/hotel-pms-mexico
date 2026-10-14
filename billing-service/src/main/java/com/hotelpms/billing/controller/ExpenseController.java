@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,6 +51,12 @@ public class ExpenseController {
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public List<Expense> list() {
     return service.list(hotel());
+  }
+
+  @PutMapping("/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public Expense update(@PathVariable final UUID id, @Valid @RequestBody final ExpenseRequest request) {
+    return service.updateUnpaid(hotel(), id, request);
   }
 
   @PatchMapping("/{id}/paid")
