@@ -47,16 +47,20 @@ public class ProcurementService {
 
   @Transactional
   public Supplier supplier(final UUID hotel, final SupplierRequest r) {
+    final String taxId = normalizeTaxId(r.taxId());
+    if (taxId != null && suppliers.existsByHotelIdAndTaxIdIgnoreCase(hotel, taxId)) {
+      throw new IllegalArgumentException("SUPPLIER_TAX_ID_ALREADY_EXISTS");
+    }
     final Supplier s = new Supplier();
     s.setHotelId(hotel);
     s.setName(r.name().trim());
-    s.setTaxId(r.taxId());
-    s.setContact(r.contact() != null ? r.contact() : r.email());
-    s.setContactName(r.contactName());
-    s.setEmail(r.email());
-    s.setPhone(r.phone());
-    s.setWebsite(r.website());
-    s.setDescription(r.description());
+    s.setTaxId(taxId);
+    s.setContact(normalize(r.contact() != null ? r.contact() : r.email()));
+    s.setContactName(normalize(r.contactName()));
+    s.setEmail(normalize(r.email()));
+    s.setPhone(normalize(r.phone()));
+    s.setWebsite(normalize(r.website()));
+    s.setDescription(normalize(r.description()));
     return suppliers.save(s);
   }
 
@@ -64,14 +68,18 @@ public class ProcurementService {
   public Supplier updateSupplier(final UUID hotel, final UUID supplierId, final SupplierRequest r) {
     final Supplier supplier = suppliers.findByIdAndHotelId(supplierId, hotel)
         .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+    final String taxId = normalizeTaxId(r.taxId());
+    if (taxId != null && suppliers.existsByHotelIdAndTaxIdIgnoreCaseAndIdNot(hotel, taxId, supplierId)) {
+      throw new IllegalArgumentException("SUPPLIER_TAX_ID_ALREADY_EXISTS");
+    }
     supplier.setName(r.name().trim());
-    supplier.setTaxId(r.taxId());
-    supplier.setContact(r.contact() != null ? r.contact() : r.email());
-    supplier.setContactName(r.contactName());
-    supplier.setEmail(r.email());
-    supplier.setPhone(r.phone());
-    supplier.setWebsite(r.website());
-    supplier.setDescription(r.description());
+    supplier.setTaxId(taxId);
+    supplier.setContact(normalize(r.contact() != null ? r.contact() : r.email()));
+    supplier.setContactName(normalize(r.contactName()));
+    supplier.setEmail(normalize(r.email()));
+    supplier.setPhone(normalize(r.phone()));
+    supplier.setWebsite(normalize(r.website()));
+    supplier.setDescription(normalize(r.description()));
     return suppliers.save(supplier);
   }
   /**
@@ -191,5 +199,16 @@ public class ProcurementService {
     boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
     purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
     return purchases.save(purchase);
+  }
+
+  private static String normalizeTaxId(final String taxId) {
+    final String normalized = normalize(taxId);
+    return normalized == null ? null : normalized.toUpperCase(java.util.Locale.ROOT);
+  }
+
+  private static String normalize(final String value) {
+    if (value == null) return null;
+    final String normalized = value.trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 }

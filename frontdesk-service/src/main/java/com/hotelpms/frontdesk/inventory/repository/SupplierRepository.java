@@ -29,4 +29,8 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
   Optional<Supplier> findByIdAndHotelId(UUID id, UUID hotel);
 
   boolean existsByIdAndHotelId(UUID id, UUID hotel);
+
+  boolean existsByHotelIdAndTaxIdIgnoreCase(UUID hotel, String taxId);
+
+  boolean existsByHotelIdAndTaxIdIgnoreCaseAndIdNot(UUID hotel, String taxId, UUID id);
 }
