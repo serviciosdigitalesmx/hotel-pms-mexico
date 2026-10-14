@@ -160,6 +160,9 @@ public class ProcurementService {
           .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
       inventory.move(hotel, new MovementRequest(purchase.getBranchId(), line.getProductId(), receipt.getValue()));
       product.setCost(line.getUnitCost());
+      if (product.getSupplierId() == null) {
+        product.setSupplierId(purchase.getSupplierId());
+      }
       products.save(product);
       line.setQuantityReceived(line.getQuantityReceived() + receipt.getValue());
     }
