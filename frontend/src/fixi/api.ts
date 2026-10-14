@@ -35,7 +35,17 @@ export const forgotPassword=(email:string)=>post<void>('/api/v1/auth/public/forg
 export const resetPassword=(token:string,password:string)=>post<void>('/api/v1/auth/public/reset-password',{token,password})
 export const acceptInvitation=(body:unknown)=>post<void>('/api/v1/auth/public/invitations/accept',body)
 export const completeOnboarding=(body:unknown)=>post<void>('/api/v1/auth/onboarding/complete',body)
+export type ServiceOrderPage={content:ServiceOrder[];number:number;size:number;totalElements:number;totalPages:number;last:boolean}
 export const listServiceOrders=()=>get<ServiceOrder[]>('/api/v1/service-orders')
+export const listServiceOrderPage=(page=0,size=100)=>get<ServiceOrderPage>(`/api/v1/service-orders?page=${Math.max(0,page)}&size=${Math.min(200,Math.max(1,size))}`)
+export async function listAllServiceOrders(pageSize=200){
+  const rows:ServiceOrder[]=[]
+  for(let page=0;;page++){
+    const result=await listServiceOrderPage(page,pageSize)
+    rows.push(...result.content)
+    if(result.last||result.content.length===0||rows.length>=result.totalElements)return rows
+  }
+}
 export type ConfiguredWorkflow={id:string;name:string;currentState:string|null;initialState:string|null;transitions:Array<{key:string;fromStateKey:string;toStateKey:string}>}
 export const configuredOrderWorkflow=(id:string)=>get<ConfiguredWorkflow|null>(`/api/v1/service-orders/${id}/configured-workflow`)
 export const advanceConfiguredOrderWorkflow=(id:string,key:string)=>post<ConfiguredWorkflow>(`/api/v1/service-orders/${id}/configured-workflow/transitions/${encodeURIComponent(key)}`)

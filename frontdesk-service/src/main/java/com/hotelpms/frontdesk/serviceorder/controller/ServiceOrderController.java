@@ -23,6 +23,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /** Type domain type. */
 @RestController
@@ -78,8 +82,14 @@ public class ServiceOrderController {
    */
   @GetMapping
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST', 'TECHNICIAN')")
-  public List<ServiceOrder> listAll() {
-    return service.listAll(hotel());
+  public ResponseEntity<?> listAll(
+      @RequestParam(required = false) final Integer page,
+      @RequestParam(required = false) final Integer size) {
+    if (page == null && size == null) return ResponseEntity.ok(service.listAll(hotel()));
+    final int safePage = Math.max(0, page == null ? 0 : page);
+    final int safeSize = Math.min(200, Math.max(1, size == null ? 50 : size));
+    final Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+    return ResponseEntity.ok(service.listAll(hotel(), pageable));
   }
 
   /**

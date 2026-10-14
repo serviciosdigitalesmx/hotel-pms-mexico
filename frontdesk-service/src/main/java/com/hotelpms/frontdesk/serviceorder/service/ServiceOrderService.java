@@ -32,6 +32,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /** Type domain type. */
 @Service
@@ -271,6 +273,11 @@ public class ServiceOrderService {
   @Transactional(readOnly = true)
   public List<ServiceOrder> listAll(final UUID hotelId) {
     return repository.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
+  }
+
+  @Transactional(readOnly = true)
+  public Page<ServiceOrder> listAll(final UUID hotelId, final Pageable pageable) {
+    return repository.findAllByHotelId(hotelId, pageable);
   }
   /**
    * Executes the operation.

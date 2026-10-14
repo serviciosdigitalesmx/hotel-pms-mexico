@@ -20,7 +20,7 @@ export function OperationalAlertsPage() {
   const [revision, setRevision] = useState(0)
   useEffect(() => {
     let active = true
-    Promise.all([api.listServiceOrders(), api.listProducts(), api.listBranches(), api.listExpenses(), api.getNotificationPreferences().catch(() => null)])
+    Promise.all([api.listAllServiceOrders(), api.listProducts(), api.listBranches(), api.listExpenses(), api.getNotificationPreferences().catch(() => null)])
       .then(async ([orderRows, productRows, branchRows, expenseRows, notificationPreferences]) => {
         const stockRows = await Promise.all(branchRows.filter(branch => branch.active).map(branch => api.stock(branch.id).catch(() => [])))
         if (!active) return
