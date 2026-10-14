@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BaseLayout } from '@/components/layouts/base-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +14,8 @@ export function FixiFinancialReportingPage() {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const [period, setPeriod] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM'>('MONTH')
+  const [branchId, setBranchId] = useState('ALL')
+  const [branches, setBranches] = useState<api.Branch[]>([])
   const [orders, setOrders] = useState<api.ServiceOrder[]>([])
   const [expenses, setExpenses] = useState<api.Expense[]>([])
   const [purchases, setPurchases] = useState<api.PurchaseOrder[]>([])
@@ -24,17 +26,25 @@ export function FixiFinancialReportingPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    let active = true
+    api.listBranches().then(rows => { if (active) setBranches(rows) })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar las sucursales') })
+    return () => { active = false }
+  }, [])
+
   async function generate(rangeStart = from, rangeEnd = to) {
     if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return
     setBusy(true); setError('')
     try {
-      const [allOrders, allExpenses, allPurchases, allCustomers, allUsers, consumedProducts] = await Promise.all([api.listAllServiceOrders(), api.listExpenses(), api.listPurchases(), api.listAllCustomers().catch(() => []), api.listUsers().catch(() => []), api.listTopConsumedProducts(rangeStart, rangeEnd)])
+      const [allOrders, allExpenses, allPurchases, branchRows, allCustomers, allUsers, consumedProducts] = await Promise.all([api.listAllServiceOrders(), api.listExpenses(), api.listPurchases(), api.listBranches(), api.listAllCustomers().catch(() => []), api.listUsers().catch(() => []), api.listTopConsumedProducts(rangeStart, rangeEnd)])
+      setBranches(branchRows)
       setCustomers(allCustomers)
       setUsers(allUsers)
       setTopConsumedProducts(consumedProducts)
       setOrders(allOrders.filter(order => {
         const date = (order.status === 'COMPLETED' ? order.deliveredAt ?? order.updatedAt : order.createdAt)?.slice(0, 10) ?? ''
-        return date >= rangeStart && date <= rangeEnd
+        return (branchId === 'ALL' || order.branchId === branchId) && date >= rangeStart && date <= rangeEnd
       }))
       setExpenses(allExpenses.filter(expense => {
         const date = (expense.spentAt ?? expense.createdAt).slice(0, 10)
@@ -42,7 +52,7 @@ export function FixiFinancialReportingPage() {
       }))
       setPurchases(allPurchases.filter(purchase => {
         const date = purchase.createdAt?.slice(0, 10) ?? ''
-        return date >= rangeStart && date <= rangeEnd && purchase.status !== 'CANCELLED'
+        return (branchId === 'ALL' || purchase.branchId === branchId) && date >= rangeStart && date <= rangeEnd && purchase.status !== 'CANCELLED'
       }))
       setLoaded(true)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo generar el reporte del taller') }
@@ -132,6 +142,7 @@ export function FixiFinancialReportingPage() {
 
   return <BaseLayout title="Finanzas del taller" description="Órdenes completadas, cotizaciones pendientes y gastos del periodo."><div className="space-y-5 px-4 lg:px-6">
     <div className="space-y-3"><div className="flex flex-wrap gap-2">{([['TODAY','Hoy'],['WEEK','Semana'],['MONTH','Mes'],['CUSTOM','Rango personalizado']] as const).map(([key,label])=><Button key={key} type="button" size="sm" variant={period===key?'default':'outline'} onClick={() => key === 'CUSTOM' ? setPeriod('CUSTOM') : choosePeriod(key)}>{label}</Button>)}</div><div className="grid gap-3 sm:grid-cols-3"><Input aria-label="Desde" type="date" disabled={period!=='CUSTOM'} value={from} onChange={event => setFrom(event.target.value)}/><Input aria-label="Hasta" type="date" disabled={period!=='CUSTOM'} value={to} onChange={event => setTo(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !from || !to || from > to} onClick={() => void generate()}>{busy ? 'Generando…' : 'Generar reporte'}</Button><Button type="button" variant="outline" disabled={!loaded} onClick={exportCsv}>Exportar CSV</Button><Button type="button" variant="outline" disabled={!loaded} onClick={() => window.print()}>Imprimir / PDF</Button></div></div></div>
+    <div><select aria-label="Filtrar reporte por sucursal" className="h-10 w-full max-w-sm rounded-md border bg-background px-3 text-sm" value={branchId} onChange={event=>setBranchId(event.target.value)}><option value="ALL">Todas las sucursales</option>{branches.filter(branch=>branch.active).map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select><p className="mt-1 text-xs text-muted-foreground">El filtro aplica a órdenes y compras. Los gastos y el consumo de refacciones se muestran a nivel negocio porque esos registros no exponen sucursal en este reporte; pulsa Generar reporte para aplicar la selección.</p></div>
     {loaded && <><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">{[['Cobros registrados en órdenes del periodo', collectedRevenue], ['Saldo pendiente de órdenes entregadas', pendingRevenue], ['Cotizado en órdenes completadas', completedValue], ['Pendiente en órdenes abiertas', openValue], ['Gastos pagados', paidCost], ['Gastos por pagar', pendingCost], ['Inventario recibido', purchaseValue]].map(([label, value]) => <Card key={String(label)}><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-xl">{money.format(Number(value))}</CardTitle></CardHeader></Card>)}</div>
       <div className="grid gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle>Compras e inventario</CardTitle><CardDescription>Órdenes creadas en el periodo · importe recibido calculado con las cantidades recibidas actuales. Es costo de inventario, no confirma pago ni se suma a gastos.</CardDescription></CardHeader><CardContent className="space-y-2">{purchases.map(purchase => { const received = purchase.lines.reduce((sum, line) => sum + line.quantityReceived * line.unitCost, 0); const ordered = purchase.lines.reduce((sum, line) => sum + line.quantityOrdered * line.unitCost, 0); return <div className="flex flex-wrap justify-between gap-2 rounded border p-3" key={purchase.id}><span>{purchase.id.slice(0, 8)} · {purchase.status} · {purchase.createdAt.slice(0, 10)}</span><span>Recibido {money.format(received)} · Ordenado {money.format(ordered)}</span></div> })}{!purchases.length&&<p className="text-sm text-muted-foreground">Sin compras en el periodo.</p>}{purchases.length>0&&<p className="text-sm font-medium">Valor ordenado {money.format(orderedPurchaseValue)} · valor recibido {money.format(purchaseValue)}</p>}</CardContent></Card><Card><CardHeader><CardTitle>Top 5 refacciones consumidas</CardTitle><CardDescription>Unidades vinculadas a órdenes entregadas en el rango seleccionado; no son ventas monetarias.</CardDescription></CardHeader><CardContent className="space-y-2">{topConsumedProducts.map((product,index)=><div className="flex justify-between rounded border p-3" key={product.productId}><span>{index+1}. {product.name}{product.sku?` · ${product.sku}`:''}</span><span>{product.quantity} pzas.</span></div>)}{!topConsumedProducts.length&&<p className="text-sm text-muted-foreground">No hay refacciones consumidas en el periodo.</p>}</CardContent></Card></div>
       <div className="grid gap-4 md:grid-cols-3"><Card><CardHeader><CardDescription>Órdenes completadas</CardDescription><CardTitle className="text-3xl">{completed.length}</CardTitle></CardHeader></Card><Card><CardHeader><CardDescription>Ticket promedio cotizado</CardDescription><CardTitle className="text-2xl">{money.format(averageTicket)}</CardTitle></CardHeader></Card><Card><CardHeader><CardDescription>Tiempo promedio de cierre</CardDescription><CardTitle className="text-2xl">{avgHours.toFixed(1)} h</CardTitle></CardHeader></Card></div>
