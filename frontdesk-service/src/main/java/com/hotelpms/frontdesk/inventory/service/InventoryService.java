@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.io.IOException;
 import java.io.InputStream;
@@ -243,19 +244,37 @@ public class InventoryService {
     int imported = 0;
     int rejected = 0;
     final List<String> errors = new ArrayList<>();
-    final String[] rows = csv == null ? new String[0] : csv.split("\\R");
-    for (int i = 0; i < rows.length; i++) {
-      if (i == 0 && rows[i].toLowerCase(Locale.ROOT).startsWith("sku")) {
-        continue;
+    final List<List<String>> rows = parseCsv(csv == null ? "" : csv.replaceFirst("^\\uFEFF", ""));
+    List<String> headers = List.of("sku", "name", "optional");
+    int firstDataRow = 0;
+    if (!rows.isEmpty() && rows.get(0).stream().anyMatch(value -> "sku".equalsIgnoreCase(value.trim()))) {
+      headers = rows.get(0).stream().map(value -> value.trim().toLowerCase(Locale.ROOT)).toList();
+      firstDataRow = 1;
+    }
+    for (int i = firstDataRow; i < rows.size(); i++) {
+      final List<String> cells = rows.get(i);
+      final java.util.Map<String, String> values = new java.util.HashMap<>();
+      for (int column = 0; column < headers.size() && column < cells.size(); column++) {
+        values.put(headers.get(column), cells.get(column).trim());
       }
-      final String[] c = rows[i].split(",", -1);
-      if (c.length < 2 || c[0].isBlank() || c[1].isBlank()) {
+      final String sku = values.getOrDefault("sku", "");
+      final String name = values.getOrDefault("name", "");
+      if (sku.isBlank() || name.isBlank()) {
         rejected++;
         errors.add("row " + (i + 1) + ": sku and name are required");
         continue;
       }
       try {
-        product(hotel, new ProductRequest(c[0], c[1], c.length < 3 || Boolean.parseBoolean(c[2])));
+        final UUID supplierId = values.containsKey("supplierid") && !values.get("supplierid").isBlank()
+            ? UUID.fromString(values.get("supplierid")) : null;
+        final UUID branchId = values.containsKey("branchid") && !values.get("branchid").isBlank()
+            ? UUID.fromString(values.get("branchid")) : null;
+        final long quantity = longValue(values.get("quantity"), 0);
+        product(hotel, new ProductRequest(
+            sku, name, Boolean.parseBoolean(values.getOrDefault("optional", "false")),
+            values.getOrDefault("category", "General").isBlank() ? "General" : values.get("category"),
+            decimalValue(values.get("cost")), decimalValue(values.get("price")),
+            longValue(values.get("reorderlevel"), 0), supplierId, quantity, branchId));
         imported++;
       } catch (final IllegalArgumentException | IllegalStateException | DataAccessException ex) {
         rejected++;
@@ -263,6 +282,42 @@ public class InventoryService {
       }
     }
     return new ImportResult(imported, rejected, errors);
+  }
+
+  private BigDecimal decimalValue(final String value) {
+    return value == null || value.isBlank() ? BigDecimal.ZERO : new BigDecimal(value.trim());
+  }
+
+  private long longValue(final String value, final long fallback) {
+    return value == null || value.isBlank() ? fallback : Long.parseLong(value.trim());
+  }
+
+  private List<List<String>> parseCsv(final String csv) {
+    final List<List<String>> rows = new ArrayList<>();
+    List<String> row = new ArrayList<>();
+    final StringBuilder cell = new StringBuilder();
+    boolean quoted = false;
+    for (int i = 0; i < csv.length(); i++) {
+      final char current = csv.charAt(i);
+      if (current == '"' && quoted && i + 1 < csv.length() && csv.charAt(i + 1) == '"') {
+        cell.append('"'); i++;
+      } else if (current == '"') {
+        quoted = !quoted;
+      } else if (current == ',' && !quoted) {
+        row.add(cell.toString()); cell.setLength(0);
+      } else if ((current == '\n' || current == '\r') && !quoted) {
+        if (current == '\r' && i + 1 < csv.length() && csv.charAt(i + 1) == '\n') i++;
+        row.add(cell.toString()); cell.setLength(0);
+        if (row.stream().anyMatch(value -> !value.isBlank())) rows.add(row);
+        row = new ArrayList<>();
+      } else {
+        cell.append(current);
+      }
+    }
+    row.add(cell.toString());
+    if (row.stream().anyMatch(value -> !value.isBlank())) rows.add(row);
+    if (quoted) throw new IllegalArgumentException("CSV_UNCLOSED_QUOTE");
+    return rows;
   }
 
   /** Imports the first two columns of an XLSX catalog as SKU and product name. */

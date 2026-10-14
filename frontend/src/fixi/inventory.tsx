@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import * as api from './api'
-import { ProductImportPanel } from './services'
 
 const field = 'w-full rounded-md border bg-background px-3 py-2 text-sm'
 const blankProduct = { sku: '', name: '', category: 'General', cost: '0', price: '0', reorderLevel: '0', optional: false, supplierId: '', initialQuantity: '0' }
@@ -80,13 +79,34 @@ export function InventoryCatalogPage() {
           <div className="flex gap-2"><Button disabled={busy || (!editing && Number(form.initialQuantity) > 0 && !branch)}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear producto'}</Button>{editing && <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(''); setForm(blankProduct) }}>Cancelar</Button>}</div>
         </form></CardContent>
       </Card>
-      <ProductImportPanel onImported={() => void products.reload()}/>
+      <CatalogCsvPanel onImported={() => void products.reload()}/>
       <Card><CardHeader><CardTitle>Aumento masivo de precio</CardTitle><CardDescription>Selecciona productos del catálogo. El porcentaje se aplica al precio de venta, conserva dos decimales y no cambia costo ni existencias.</CardDescription></CardHeader><CardContent><form className="flex flex-wrap items-center gap-3" onSubmit={increaseSelectedPrices}><Input aria-label="Porcentaje de aumento" type="number" min="0" max="1000" step="0.01" required placeholder="Porcentaje (p. ej. 10)" value={percentage} onChange={e => setPercentage(e.target.value)}/><span className="text-sm text-muted-foreground">{selected.length} seleccionados</span><Button disabled={busy || !selected.length}>{busy ? 'Actualizando…' : 'Aplicar aumento'}</Button><Button type="button" variant="outline" disabled={!selected.length} onClick={() => setSelected([])}>Limpiar selección</Button></form></CardContent></Card>
       <Card><CardHeader><CardTitle>Ajustar existencia</CardTitle><CardDescription>Movimiento positivo para entrada, negativo para salida; no puede dejar stock negativo.</CardDescription></CardHeader><CardContent><form onSubmit={move} className="grid gap-2 md:grid-cols-3"><select required aria-label="Sucursal del movimiento" className={field} value={branch} onChange={e => setBranch(e.target.value)}><option value="">Sucursal</option>{(branches.data ?? []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select><select required aria-label="Producto del movimiento" className={field} value={movement.productId} onChange={e => setMovement({ ...movement, productId: e.target.value })}><option value="">Producto</option>{(products.data ?? []).map(p => <option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select><Input type="number" required min="-1000000" value={movement.delta} onChange={e => setMovement({ ...movement, delta: Number(e.target.value) })}/><Button disabled={busy || !branch}>{busy ? 'Guardando…' : 'Registrar movimiento'}</Button></form></CardContent></Card>
       <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Catálogo ({rows.length})</CardTitle><Button type="button" variant="outline" onClick={exportCsv}>Exportar CSV</Button></div><Input aria-label="Buscar productos" placeholder="Buscar SKU, nombre o categoría" value={search} onChange={e => setSearch(e.target.value)}/></CardHeader><CardContent className="space-y-3">{products.loading && <p role="status">Cargando productos…</p>}{rows.map(p => { const qty = quantity(p.id); const low = Boolean(branch) && qty <= Number(p.reorderLevel ?? 0); return <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded border p-3"><label className="flex items-center gap-3"><input aria-label={`Seleccionar ${p.name}`} type="checkbox" checked={selected.includes(p.id)} onChange={e => setSelected(current => e.target.checked ? [...new Set([...current, p.id])] : current.filter(id => id !== p.id))}/><span><span className="block font-medium">{p.name} · {p.sku}</span><span className="text-sm text-muted-foreground">{p.category ?? 'General'} · costo ${Number(p.cost ?? 0).toFixed(2)} · venta ${Number(p.price ?? 0).toFixed(2)}</span></span></label><div className="flex items-center gap-2"><span>{branch ? `${qty} unidades` : 'Elige sucursal'}</span>{low && <Badge variant="destructive">Reponer · mínimo {p.reorderLevel}</Badge>}<Button type="button" size="sm" variant="outline" onClick={() => editProduct(p)}>Editar</Button></div></div> })}{!products.loading && !products.error && !rows.length && <p className="text-sm text-muted-foreground">No hay productos que coincidan.</p>}{products.error && <Button type="button" variant="outline" onClick={() => void products.reload()}>Reintentar</Button>}</CardContent></Card>
       {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}{branches.error && <p role="alert" className="text-sm text-destructive">{branches.error}</p>}{stock.error && <p role="alert" className="text-sm text-destructive">{stock.error}</p>}
     </div>
   </BaseLayout>
+}
+
+function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
+  const [csv, setCsv] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState('')
+  const [error, setError] = useState('')
+  function downloadTemplate() {
+    const content = 'sku,name,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId\r\nREP-001,"Pantalla, modelo A",Pantallas,1200.00,1899.00,2,false,,,,\r\n'
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-productos-plantilla.csv'; link.click(); URL.revokeObjectURL(url)
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(''); setResult('')
+    try {
+      const summary = await api.importProductsCsv(csv)
+      setResult(`${summary.imported} importados, ${summary.rejected} rechazados${summary.errors.length ? `: ${summary.errors.slice(0, 5).join(' · ')}` : ''}`)
+      if (summary.imported) onImported()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo importar el CSV') }
+    finally { setBusy(false) }
+  }
+  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Columnas: SKU, producto, categoría, costo, precio, mínimo, opcional, proveedor, cantidad inicial y sucursal. Para registrar existencias, indica cantidad y branchId.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="sku,name,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId" value={csv} onChange={event => setCsv(event.target.value)}/><div className="flex gap-2"><Button disabled={busy}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
 }
 
 function useQuery<T>(loader: () => Promise<T>, deps: unknown[] = []) {
