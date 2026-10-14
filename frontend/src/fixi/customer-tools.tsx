@@ -63,22 +63,35 @@ export function CustomerCsvTools() {
     try {
       const rows = parseCsv((await file.text()).replace(/^\uFEFF/, ''))
       if (rows.length < 2) throw new Error('El CSV no contiene filas de clientes')
-      const headers = rows[0].map(header => header.trim().toLowerCase())
-      const required = ['firstname', 'lastname']
-      if (!required.every(header => headers.includes(header))) throw new Error('El CSV requiere firstName y lastName, y al menos email o phone por registro')
-      const accepted = new Set(['firstname', 'lastname', 'email', 'phone', 'address', 'city', 'country', 'rfc', 'fiscalname', 'fiscalpostalcode', 'fiscalregime', 'cfdiuse'])
-      let imported = 0; const errors: string[] = []
+      const headers = rows[0].map(header => header.trim().toLowerCase().replace(/[\s-]+/g, '_'))
+      const required = [headers.some(header => ['first_name', 'firstname'].includes(header)), headers.some(header => ['last_name', 'lastname'].includes(header))]
+      if (!required.every(Boolean)) throw new Error('El CSV requiere firstName y lastName, y al menos email o phone por registro')
+      const columns = ['first_name', 'last_name', 'email', 'phone', 'rfc', 'dni', 'fiscal_name', 'fiscal_postal_code', 'fiscal_regime', 'cfdi_use', 'billing_email', 'address', 'city', 'country']
+      const aliases: Record<string, string[]> = { first_name: ['first_name', 'firstname'], last_name: ['last_name', 'lastname'], email: ['email'], phone: ['phone'], rfc: ['rfc'], dni: ['dni', 'identity_number', 'identitynumber'], fiscal_name: ['fiscal_name', 'fiscalname'], fiscal_postal_code: ['fiscal_postal_code', 'fiscalpostalcode'], fiscal_regime: ['fiscal_regime', 'fiscalregime'], cfdi_use: ['cfdi_use', 'cfdiuse'], billing_email: ['billing_email', 'billingemail'], address: ['address', 'contactdescription'], city: ['city'], country: ['country'] }
+      const indexByHeader = new Map(headers.map((header, index) => [header, index]))
+      const normalizedRows: string[][] = []
+      const errors: string[] = []
       for (const [index, values] of rows.slice(1).entries()) {
-        const record = Object.fromEntries(headers.map((header, column) => [header, values[column]?.trim() ?? '']))
-        const rowNumber = index + 2
-        if (!record.firstname || !record.lastname || (!record.email && !record.phone)) { errors.push(`Fila ${rowNumber}: nombre, apellido y correo o teléfono son obligatorios`); continue }
-        const names: Record<string, string> = { firstname: 'firstName', lastname: 'lastName', email: 'email', phone: 'phone', address: 'address', city: 'city', country: 'country', rfc: 'rfc', fiscalname: 'fiscalName', fiscalpostalcode: 'fiscalPostalCode', fiscalregime: 'fiscalRegime', cfdiuse: 'cfdiUse' }
-        const payload: Record<string, string | null> = {}
-        for (const [header, value] of Object.entries(record)) if (accepted.has(header) && names[header]) payload[names[header]] = value || null
-        payload.email = record.email || null; payload.phone = record.phone || null
-        payload.address ??= null; payload.city ??= null; payload.country ??= null; payload.dateOfBirth = null
-        payload.billingEmail = record.email || null; payload.fiscalCode = null; payload.vatNumber = null; payload.companyName = null; payload.sdiCode = null; payload.pecEmail = null; payload.cap = null; payload.comune = null; payload.provincia = null
-        try { await api.createCustomer(payload); imported++ } catch (reason) { errors.push(`Fila ${rowNumber}: ${reason instanceof Error ? reason.message : 'no se pudo guardar'}`) }
+        const value = (key: string) => {
+          const column = aliases[key].map(alias => indexByHeader.get(alias)).find(column => column !== undefined)
+          return column === undefined ? '' : values[column]?.trim() ?? ''
+        }
+        const record = Object.fromEntries(columns.map(column => [column, value(column)]))
+        if (Object.values(record).every(item => !item)) continue
+        if (!record.first_name || !record.last_name || (!record.email && !record.phone)) { errors.push(`Fila ${index + 2}: nombre, apellido y correo o teléfono son obligatorios`); continue }
+        normalizedRows.push(columns.map(column => record[column]))
+      }
+      let imported = 0
+      for (let offset = 0; offset < normalizedRows.length; offset += 500) {
+        const batch = normalizedRows.slice(offset, offset + 500)
+        const csv = [columns, ...batch].map(row => row.map(csvCell).join(',')).join('\r\n')
+        try {
+          const result = await api.importCustomersCsv(new File([`\uFEFF${csv}`], `clientes-${offset + 1}.csv`, { type: 'text/csv' }))
+          imported += result.imported
+          errors.push(...result.errors.map(message => `Lote filas ${offset + 2}-${offset + batch.length + 1}: ${message}`))
+        } catch (reason) {
+          errors.push(`Lote filas ${offset + 2}-${offset + batch.length + 1}: ${reason instanceof Error ? reason.message : 'no se pudo importar'}`)
+        }
       }
       setRowErrors(errors)
       setMessage(`Importación terminada: ${imported} creados; ${errors.length} omitidos.${errors.length ? ` ${errors.slice(0, 5).join(' · ')}` : ''}`)
