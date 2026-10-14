@@ -164,7 +164,7 @@ class GuestControllerSecurityTest {
             final Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             mac.init(new SecretKeySpec(TEST_SECRET.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
             final byte[] digest = mac.doFinal(
-                    (username + ":" + role + ":" + hotelId + ":" + timestamp + ":" + nonce)
+                    (username + ":" + role + ":" + hotelId + "::" + timestamp + ":" + nonce)
                             .getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (final NoSuchAlgorithmException | InvalidKeyException e) {
