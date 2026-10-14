@@ -29,6 +29,7 @@ export function ReceptionOrderForm() {
   const [quickDevice, setQuickDevice] = useState({ category: 'Teléfono', manufacturer: '', model: '', serialNumber: '', imei: '', customFields: '' })
   const [deviceSaving, setDeviceSaving] = useState(false)
   const [services, setServices] = useState<api.ServiceCatalogEntry[]>([])
+  const [currency, setCurrency] = useState('MXN')
   const [users, setUsers] = useState<api.TeamUser[]>([])
   const [branchTechnicianIds, setBranchTechnicianIds] = useState<string[]>()
   const [branchTechniciansLoading, setBranchTechniciansLoading] = useState(false)
@@ -60,12 +61,13 @@ export function ReceptionOrderForm() {
 
   useEffect(() => {
     let active = true
-    Promise.all([api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers().catch(() => []), api.industryProfile().catch(() => null)])
-      .then(([customerRows, branchRows, serviceRows, teamRows, profile]) => {
+    Promise.all([api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers().catch(() => []), api.industryProfile().catch(() => null), api.getBusinessProfile().catch(() => null)])
+      .then(([customerRows, branchRows, serviceRows, teamRows, profile, business]) => {
         if (!active) return
         setCustomers(customerRows)
         setBranches(branchRows)
         setServices(serviceRows)
+        if (business?.currency) setCurrency(business.currency.toUpperCase())
         setUsers(teamRows.filter(user => user.active && user.role === 'TECHNICIAN'))
         if (profile) {
           try {
@@ -258,7 +260,7 @@ export function ReceptionOrderForm() {
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <select aria-label="Sucursal" className={field} value={branchId} onChange={event => { setBranchId(event.target.value); setAssignedUserId('') }}><option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
-          <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => <option key={service.id} value={service.name}>{service.name} · {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</option>)}</select>
+          <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => { let price: string; try { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(service.basePrice) } catch { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(service.basePrice) } return <option key={service.id} value={service.name}>{service.name} · {price} · {service.estimatedMinutes} min</option> })}</select>
           <label className="grid gap-1 text-sm text-muted-foreground">Responsable técnico<select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{assignableTechnicians.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>{branchTechniciansLoading&&<span role="status" className="text-xs">Consultando técnicos asignados…</span>}{branchId&&!branchTechniciansLoading&&!assignableTechnicians.length&&<span className="text-xs">No hay técnicos asignados a esta sucursal; la orden puede quedar sin asignar.</span>}</label>
           <select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select>
           <div><Label>Anticipo recibido</Label><Input required type="number" min="0" max="9999999999.99" step="0.01" inputMode="decimal" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/>{selectedService&&Number(depositAmount)>selectedService.basePrice&&<p role="note" className="mt-1 text-xs text-amber-700">El anticipo excede el precio base de {selectedService.name}; verifica que cubra cargos o piezas adicionales.</p>}</div>
