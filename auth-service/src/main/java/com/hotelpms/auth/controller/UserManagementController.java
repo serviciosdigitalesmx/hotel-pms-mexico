@@ -6,6 +6,9 @@ import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.dto.UpdateManagedUserRequest;
 import com.hotelpms.auth.service.CapabilityService;
 import com.hotelpms.auth.service.UserManagementService;
+import com.hotelpms.auth.repository.UserAccountRepository;
+import com.hotelpms.auth.repository.UserBranchMembershipRepository;
+import com.hotelpms.auth.domain.Role;
 import com.hotelpms.internalauth.contracts.Capability;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,6 +49,8 @@ public class UserManagementController {
 
   private final UserManagementService userManagementService;
   private final CapabilityService capabilityService;
+  private final UserAccountRepository userAccounts;
+  private final UserBranchMembershipRepository branchMemberships;
 
   /**
    * Lists all active users for the requesting admin's hotel.
@@ -58,6 +64,29 @@ public class UserManagementController {
       @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId, final Authentication auth) {
     requireUsersManage(hotelId, auth);
     return ResponseEntity.ok(userManagementService.listUsers(UUID.fromString(hotelId)));
+  }
+
+  /** Validates that an assignee is an active technician in this tenant and, when supplied, branch. */
+  @PostMapping("/{userId}/validate-technician")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void validateTechnician(
+      @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
+      @NonNull @PathVariable final UUID userId,
+      @RequestParam(required = false) final UUID branchId,
+      final Authentication auth) {
+    final String username = auth == null ? SecurityContextHolder.getContext().getAuthentication().getName()
+        : auth.getName();
+    if (!capabilityService.isEnabled(username, hotelId, branchId, "ORDERS_CREATE")
+        && !capabilityService.isEnabled(username, hotelId, branchId, "ORDERS_UPDATE")) {
+      throw new org.springframework.security.access.AccessDeniedException("ORDER_ASSIGNMENT_NOT_ALLOWED");
+    }
+    final var technician = userAccounts.findByIdAndHotelId(userId, hotelId)
+        .filter(user -> user.getRole() == Role.TECHNICIAN)
+        .orElseThrow(() -> new com.hotelpms.auth.exception.NotFoundException("TECHNICIAN_NOT_FOUND"));
+    if (branchId != null
+        && !branchMemberships.existsByUserIdAndBranchIdAndHotelId(technician.getId(), branchId, hotelId)) {
+      throw new com.hotelpms.auth.exception.NotFoundException("TECHNICIAN_NOT_ASSIGNED_TO_BRANCH");
+    }
   }
 
   /**

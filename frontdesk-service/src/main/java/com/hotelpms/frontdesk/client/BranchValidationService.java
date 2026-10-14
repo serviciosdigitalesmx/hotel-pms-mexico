@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class BranchValidationService {
   private final BranchClient branches;
+  private final UserAssignmentClient userAssignments;
 
   public void requireActiveBranch(final UUID hotelId, final UUID branchId) {
     if (branchId == null) throw new IllegalArgumentException("BRANCH_REQUIRED");
@@ -19,5 +20,9 @@ public class BranchValidationService {
         || !Boolean.TRUE.equals(branch.get("active"))) {
       throw new IllegalArgumentException("BRANCH_NOT_FOUND");
     }
+  }
+
+  public void requireTechnician(final UUID userId, final UUID branchId) {
+    if (userId != null) userAssignments.validateTechnician(userId, branchId);
   }
 }

@@ -136,6 +136,7 @@ public class ServiceOrderService {
   @Transactional
   public ServiceOrder create(final UUID hotelId, final ServiceOrderRequest request) {
     if (request.branchId() != null) branchValidation.requireActiveBranch(hotelId, request.branchId());
+    branchValidation.requireTechnician(request.assignedUserId(), request.branchId());
     validateCustomerDevice(request.customerId(), request.deviceId());
     final LocalDateTime now = LocalDateTime.now();
     final ServiceOrder saved = repository.save(
@@ -193,6 +194,7 @@ public class ServiceOrderService {
     if (request.status() != ServiceOrderStatus.INTAKE && isBlank(order.getIntakeChecklist())) {
       throw new IllegalStateException("SERVICE_ORDER_INTAKE_CHECKLIST_REQUIRED");
     }
+    branchValidation.requireTechnician(request.assignedUserId(), order.getBranchId());
     final ServiceOrderStatus previous = order.getStatus();
     order.setStatus(request.status());
     order.setDiagnosis(request.diagnosis());
