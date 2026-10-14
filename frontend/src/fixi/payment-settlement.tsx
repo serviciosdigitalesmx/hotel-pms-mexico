@@ -22,7 +22,7 @@ export function ServiceOrderPaymentSettlementPage() {
 
   useEffect(() => {
     let active = true
-    api.getServiceOrder(id).then(value => { if (active) { setOrder(value); setAmount(Math.max(0, Number(value.quoteTotal ?? 0) - Number(value.paidAmount ?? value.depositAmount ?? 0)).toFixed(2)) } }).catch(reason => {
+    api.getServiceOrder(id).then(value => { if (active) { setOrder(value); setAmount(api.serviceOrderBalance(value).toFixed(2)) } }).catch(reason => {
       if (active) setError(reason instanceof Error ? reason.message : 'No se pudo cargar la orden')
     })
     return () => { active = false }
@@ -37,7 +37,7 @@ export function ServiceOrderPaymentSettlementPage() {
       const updated = await api.recordPendingServiceOrderPayment(id, method, amountReceived)
       if (updated.paymentStatus === 'PAID') navigate('/orders/pending-payment')
       else {
-        const remaining = Math.max(0, Number(updated.quoteTotal ?? 0) - Number(updated.paidAmount ?? updated.depositAmount ?? 0))
+        const remaining = api.serviceOrderBalance(updated)
         setOrder(updated); setAmount(remaining.toFixed(2)); setMessage(`Abono de ${money.format(amountReceived)} registrado. Saldo restante: ${money.format(remaining)}.`)
       }
     } catch (reason) {
@@ -45,11 +45,11 @@ export function ServiceOrderPaymentSettlementPage() {
     } finally { setBusy(false) }
   }
 
-  const balance = Math.max(0, Number(order?.quoteTotal ?? 0) - Number(order?.paidAmount ?? order?.depositAmount ?? 0))
+  const balance = order ? api.serviceOrderBalance(order) : 0
   return <BaseLayout title="Liquidar orden" description={order?.summary ?? id}><div className="px-4 lg:px-6">
     <Card><CardHeader><CardTitle>Registrar pago pendiente</CardTitle><CardDescription>El pago quedará asentado en la orden y en su historial operativo.</CardDescription></CardHeader><CardContent className="space-y-4">
       {!order && !error && <p role="status">Cargando orden…</p>}
-      {order && <><div className="space-y-1 rounded border p-3 text-sm"><p>Folio: {order.id}</p><p>Estado: {order.status} · Pago: {order.paymentStatus ?? 'sin registrar'}</p><p>Total cotizado: {money.format(Number(order.quoteTotal ?? 0))}</p><p>Anticipo recibido: {money.format(Number(order.depositAmount ?? 0))}</p><p>Total recibido: {money.format(Number(order.paidAmount ?? order.depositAmount ?? 0))}</p><p className="font-semibold">Saldo a liquidar: {money.format(balance)}</p></div>
+      {order && <><div className="space-y-1 rounded border p-3 text-sm"><p>Folio: {order.id}</p><p>Estado: {order.status} · Pago: {order.paymentStatus ?? 'sin registrar'}</p><p>Total cotizado: {money.format(Number(order.quoteTotal ?? 0))}</p><p>Anticipo recibido: {money.format(Number(order.depositAmount ?? 0))}</p><p>Total recibido: {money.format(api.serviceOrderAmountReceived(order))}</p><p className="font-semibold">Saldo a liquidar: {money.format(balance)}</p></div>
         <label className="block space-y-1 text-sm">Monto recibido<Input aria-label="Monto recibido" type="number" min="0.01" max={balance} step="0.01" inputMode="decimal" value={amount} onChange={event=>setAmount(event.target.value)}/></label>
         <label className="block space-y-1 text-sm">Método recibido<select aria-label="Método recibido" className="h-10 w-full rounded-md border bg-background px-3" value={method} onChange={event => setMethod(event.target.value as typeof method)}>{methods.map(value => <option key={value} value={value}>{methodName[value]}</option>)}</select></label>
         <div className="flex gap-2"><Button disabled={busy || order.status !== 'COMPLETED' || order.paymentStatus !== 'PENDING' || balance <= 0 || Number(amount) <= 0 || Number(amount) > balance} onClick={() => void settle()}>{busy ? 'Registrando…' : Number(amount) < balance ? 'Registrar abono' : 'Confirmar pago recibido'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => navigate('/orders/pending-payment')}>Volver a pendientes</Button></div>

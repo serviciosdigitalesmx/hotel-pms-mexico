@@ -72,13 +72,8 @@ export function FixiFinancialReportingPage() {
   const completed = orders.filter(order => order.status === 'COMPLETED')
   const open = orders.filter(order => !['COMPLETED', 'CANCELLED'].includes(order.status))
   const completedValue = completed.reduce((sum, order) => sum + Number(order.quoteTotal ?? 0), 0)
-  const collectedForOrder = (order: api.ServiceOrder) => Number(order.paidAmount ?? (
-    order.paymentStatus === 'PAID'
-      ? Math.max(Number(order.quoteTotal ?? 0), Number(order.depositAmount ?? 0))
-      : Number(order.depositAmount ?? 0)
-  ))
-  const outstandingForOrder = (order: api.ServiceOrder) => order.paymentStatus === 'PENDING'
-    ? Math.max(0, Number(order.quoteTotal ?? 0) - collectedForOrder(order)) : 0
+  const collectedForOrder = api.serviceOrderAmountReceived
+  const outstandingForOrder = (order: api.ServiceOrder) => order.paymentStatus === 'PENDING' ? api.serviceOrderBalance(order) : 0
   const collectedRevenue = orders.reduce((sum, order) => sum + collectedForOrder(order), 0)
   const pendingRevenue = completed.reduce((sum, order) => sum + outstandingForOrder(order), 0)
   const openValue = open.reduce((sum, order) => sum + Number(order.quoteTotal ?? 0), 0)

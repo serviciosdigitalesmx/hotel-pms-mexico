@@ -43,8 +43,8 @@ export function OperationalAlertsPage() {
     const result: Alert[] = []
     for (const order of orders) {
       if (order.status === 'COMPLETED' && order.paymentStatus === 'PENDING' && order.quoteTotal != null) {
-        const received = Number(order.paidAmount ?? order.depositAmount ?? 0)
-        const balance = Math.max(0, Number(order.quoteTotal) - received)
+        const received = api.serviceOrderAmountReceived(order)
+        const balance = api.serviceOrderBalance(order)
         if (balance > 0) result.push({ id: `order-payment:${order.id}`, event: 'PAYMENT_DUE', title: 'Saldo de orden pendiente', detail: `${order.summary} · ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(balance)} por cobrar`, href: `/service-orders/${order.id}`, urgency: 0 })
       }
       if (terminal.has(order.status)) continue
