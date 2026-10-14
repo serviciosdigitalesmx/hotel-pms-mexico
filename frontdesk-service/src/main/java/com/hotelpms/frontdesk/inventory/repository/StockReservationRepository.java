@@ -37,10 +37,12 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
 
   @Query("select reservation.productId, sum(reservation.quantity) from StockReservation reservation "
       + "where reservation.hotelId = :hotelId and reservation.status = 'CONSUMED' "
+      + "and (:branchId is null or reservation.branchId = :branchId) "
       + "and reservation.consumedAt >= :from and reservation.consumedAt < :to "
       + "group by reservation.productId order by sum(reservation.quantity) desc")
   List<Object[]> findTopConsumedProducts(@Param("hotelId") UUID hotelId,
-      @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+      @Param("branchId") UUID branchId, @Param("from") LocalDateTime from,
+      @Param("to") LocalDateTime to);
 
   @Query("select coalesce(sum(reservation.quantity), 0) from StockReservation reservation "
       + "where reservation.hotelId = :hotelId and reservation.productId = :productId "

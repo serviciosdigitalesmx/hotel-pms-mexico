@@ -354,9 +354,11 @@ public class InventoryService {
   }
 
   @Transactional(readOnly = true)
-  public List<ProductConsumption> topConsumedProducts(final UUID hotel, final LocalDate from, final LocalDate to) {
+  public List<ProductConsumption> topConsumedProducts(final UUID hotel, final UUID branchId,
+      final LocalDate from, final LocalDate to) {
     if (from.isAfter(to)) throw new IllegalArgumentException("INVALID_REPORT_DATE_RANGE");
-    return reservations.findTopConsumedProducts(hotel, from.atStartOfDay(), to.plusDays(1).atStartOfDay())
+    if (branchId != null) branchValidation.requireActiveBranch(hotel, branchId);
+    return reservations.findTopConsumedProducts(hotel, branchId, from.atStartOfDay(), to.plusDays(1).atStartOfDay())
         .stream().limit(5).map(row -> {
           final UUID productId = (UUID) row[0];
           final long quantity = ((Number) row[1]).longValue();

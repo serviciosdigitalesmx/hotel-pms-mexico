@@ -141,7 +141,7 @@ export const releaseStock=(orderId:string,productId:string)=>post(`/api/v1/inven
 export type StockReservation={id:string;branchId:string;productId:string;serviceOrderId:string;quantity:number;status:'RESERVED'|'RELEASED'|'CONSUMED';createdAt:string}
 export const listOrderStockReservations=(orderId:string)=>get<StockReservation[]>(`/api/v1/inventory/reservations/order/${orderId}`)
 export type ProductConsumption={productId:string;sku?:string;name:string;quantity:number}
-export const listTopConsumedProducts=(from:string,to:string)=>get<ProductConsumption[]>(`/api/v1/inventory/reservations/consumption/top?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+export const listTopConsumedProducts=(from:string,to:string,branchId?:string)=>get<ProductConsumption[]>(`/api/v1/inventory/reservations/consumption/top?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${branchId?`&branchId=${encodeURIComponent(branchId)}`:''}`)
 export type WarrantyClaim={id:string;serviceOrderId:string;customerId:string;expiresAt:string;description:string;status:string;createdAt:string}
 export const listWarrantyClaims=(customerId:string)=>get<WarrantyClaim[]>(`/api/v1/warranty-claims/customer/${customerId}`)
 export const listWarrantyClaimsForOrder=(serviceOrderId:string)=>get<WarrantyClaim[]>(`/api/v1/warranty-claims/service-order/${serviceOrderId}`)

@@ -46,9 +46,10 @@ public class ReservationController {
 
   @GetMapping("/consumption/top")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
-  public List<ProductConsumption> topConsumedProducts(@RequestParam final LocalDate from,
+  public List<ProductConsumption> topConsumedProducts(@RequestParam(required = false) final UUID branchId,
+      @RequestParam final LocalDate from,
       @RequestParam final LocalDate to) {
-    return service.topConsumedProducts(hotel(), from, to);
+    return service.topConsumedProducts(hotel(), branchId, from, to);
   }
 
   /**
