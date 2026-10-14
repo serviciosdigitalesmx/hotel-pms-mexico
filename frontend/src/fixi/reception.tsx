@@ -15,6 +15,9 @@ export function ReceptionOrderForm() {
   const [customers, setCustomers] = useState<api.Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
   const [customerLoading, setCustomerLoading] = useState(false)
+  const [deviceSearch, setDeviceSearch] = useState('')
+  const [deviceResults, setDeviceResults] = useState<api.Device[]>([])
+  const [deviceSearchLoading, setDeviceSearchLoading] = useState(false)
   const [branches, setBranches] = useState<api.Branch[]>([])
   const [devices, setDevices] = useState<api.Device[]>([])
   const [services, setServices] = useState<api.ServiceCatalogEntry[]>([])
@@ -75,6 +78,30 @@ export function ReceptionOrderForm() {
 
   useEffect(() => {
     let active = true
+    const query = deviceSearch.trim()
+    if (query.length < 2) { setDeviceResults([]); setDeviceSearchLoading(false); return () => { active = false } }
+    setDeviceResults([]); setDeviceSearchLoading(true)
+    const timer = window.setTimeout(() => {
+      api.searchDevices(query).then(result => {
+        if (active) setDeviceResults(Array.isArray(result) ? result : result.content)
+      }).catch(reason => {
+        if (active) setError(reason instanceof Error ? reason.message : 'No se pudo buscar el equipo')
+      }).finally(() => { if (active) setDeviceSearchLoading(false) })
+    }, 250)
+    return () => { active = false; window.clearTimeout(timer) }
+  }, [deviceSearch])
+
+  async function selectLocatedDevice(device: api.Device) {
+    setCustomerSearch(device.customerName ?? device.customerId)
+    setCustomerId(device.customerId); setDeviceId(device.id); setDeviceSearch(''); setDeviceResults([])
+    try {
+      const customer = await api.getCustomer(device.customerId)
+      setCustomers([customer]); setCustomerSearch(`${customer.firstName} ${customer.lastName}`)
+    } catch { setError('Equipo localizado, pero no se pudieron cargar los datos del cliente') }
+  }
+
+  useEffect(() => {
+    let active = true
     if (!customerId) { setDevices([]); setDeviceId(''); return }
     api.listDevices(customerId).then(rows => { if (active) setDevices(rows) })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los equipos') })
@@ -104,6 +131,7 @@ export function ReceptionOrderForm() {
   return <BaseLayout title="Recepción" description="Captura comercial y técnica completa de la orden.">
     <div className="px-4 lg:px-6"><Card><CardContent className="pt-6">
       <form onSubmit={submit} className="space-y-4">
+        <div className="space-y-2 rounded border p-3"><Label htmlFor="reception-device-search">Localizar por IMEI o número de serie</Label><Input id="reception-device-search" type="search" placeholder="IMEI, serie, marca o modelo" value={deviceSearch} onChange={event => setDeviceSearch(event.target.value)}/>{deviceSearchLoading && <p role="status" className="text-sm text-muted-foreground">Buscando equipo…</p>}{deviceResults.map(device => <button type="button" key={device.id} className="block w-full rounded border p-2 text-left text-sm hover:bg-muted" onClick={() => void selectLocatedDevice(device)}><span className="font-medium">{device.manufacturer} {device.model}</span><span className="block text-muted-foreground">{device.serialNumber || device.imei || device.category} · {device.customerName || device.customerId}</span></button>)}</div>
         <div className="grid gap-2 md:grid-cols-2">
           <Input type="search" aria-label="Buscar cliente" placeholder="Buscar cliente por nombre, teléfono o correo" value={customerSearch} onChange={event => { setCustomerSearch(event.target.value); setCustomerId(''); setDeviceId('') }}/>
           <select required aria-label="Cliente encontrado" className={field} value={customerId} onChange={event => setCustomerId(event.target.value)}>
