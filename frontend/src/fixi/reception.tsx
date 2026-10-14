@@ -16,6 +16,10 @@ export function ReceptionOrderForm() {
   const [customers, setCustomers] = useState<api.Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
   const [customerLoading, setCustomerLoading] = useState(false)
+  const [quickCreateCustomer, setQuickCreateCustomer] = useState(false)
+  const [quickCustomer, setQuickCustomer] = useState({ firstName: '', lastName: '', email: '', phone: '' })
+  const [customerSaving, setCustomerSaving] = useState(false)
+  const [customerNotice, setCustomerNotice] = useState('')
   const [deviceSearch, setDeviceSearch] = useState('')
   const [deviceResults, setDeviceResults] = useState<api.Device[]>([])
   const [deviceSearchLoading, setDeviceSearchLoading] = useState(false)
@@ -101,6 +105,39 @@ export function ReceptionOrderForm() {
     } catch { setError('Equipo localizado, pero no se pudieron cargar los datos del cliente') }
   }
 
+  async function createCustomerQuickly() {
+    const firstName = quickCustomer.firstName.trim()
+    const lastName = quickCustomer.lastName.trim()
+    const email = quickCustomer.email.trim()
+    const phone = quickCustomer.phone.trim()
+    if (!firstName || !lastName || (!email && !phone)) {
+      setError('Captura nombre, apellido y al menos un correo o teléfono')
+      return
+    }
+    setCustomerSaving(true); setError(''); setCustomerNotice('')
+    try {
+      const duplicate = await api.potentialCustomerDuplicate({ email, phone })
+      if (duplicate) {
+        setCustomers([duplicate]); setCustomerId(duplicate.id); setDeviceId('')
+        setCustomerSearch(`${duplicate.firstName} ${duplicate.lastName}`)
+        setQuickCreateCustomer(false)
+        setCustomerNotice('Ya existía un cliente con esos datos; se seleccionó el registro existente.')
+        return
+      }
+      const customer = await api.createCustomer({
+        firstName, lastName, email: email || null, phone: phone || null,
+        address: null, city: null, country: null, dateOfBirth: null,
+        billingEmail: email || null, fiscalCode: null, vatNumber: null,
+        companyName: null, sdiCode: null, pecEmail: null, cap: null, comune: null, provincia: null,
+      })
+      setCustomers([customer]); setCustomerId(customer.id); setCustomerSearch(`${customer.firstName} ${customer.lastName}`)
+      setDeviceId(''); setQuickCustomer({ firstName: '', lastName: '', email: '', phone: '' })
+      setQuickCreateCustomer(false); setCustomerNotice('Cliente creado y seleccionado para esta orden.')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo crear el cliente')
+    } finally { setCustomerSaving(false) }
+  }
+
   useEffect(() => {
     let active = true
     if (!customerId) { setDevices([]); setDeviceId(''); return }
@@ -134,11 +171,22 @@ export function ReceptionOrderForm() {
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2 rounded border p-3"><Label htmlFor="reception-device-search">Localizar por IMEI o número de serie</Label><Input id="reception-device-search" type="search" placeholder="IMEI, serie, marca o modelo" value={deviceSearch} onChange={event => setDeviceSearch(event.target.value)}/>{deviceSearchLoading && <p role="status" className="text-sm text-muted-foreground">Buscando equipo…</p>}{deviceResults.map(device => <button type="button" key={device.id} className="block w-full rounded border p-2 text-left text-sm hover:bg-muted" onClick={() => void selectLocatedDevice(device)}><span className="font-medium">{device.manufacturer} {device.model}</span><span className="block text-muted-foreground">{device.serialNumber || device.imei || device.category} · {device.customerName || device.customerId}</span></button>)}</div>
         <div className="grid gap-2 md:grid-cols-2">
-          <Input type="search" aria-label="Buscar cliente" placeholder="Buscar cliente por nombre, teléfono o correo" value={customerSearch} onChange={event => { setCustomerSearch(event.target.value); setCustomerId(''); setDeviceId(''); setError('') }}/>
+          <Input type="search" aria-label="Buscar cliente" placeholder="Buscar cliente por nombre, teléfono o correo" value={customerSearch} onChange={event => { setCustomerSearch(event.target.value); setCustomerId(''); setDeviceId(''); setError(''); setCustomerNotice('') }}/>
           <select required aria-label="Cliente encontrado" className={field} value={customerId} onChange={event => {setCustomerId(event.target.value);setDeviceId('');setError('')}}>
             <option value="">{customerLoading ? 'Buscando clientes…' : customers.length ? 'Selecciona cliente' : 'Escribe al menos 2 caracteres para buscar'}</option>
             {customers.map(customer => <option key={customer.id} value={customer.id}>{customer.firstName} {customer.lastName} · {customer.phone || customer.email || ''}</option>)}
           </select>
+        </div>
+        <div className="space-y-2">
+          <Button type="button" variant="outline" size="sm" disabled={customerSaving} onClick={() => { setQuickCreateCustomer(value => !value); setError('') }}>{quickCreateCustomer ? 'Cancelar alta rápida' : 'Crear cliente rápido'}</Button>
+          {quickCreateCustomer && <div className="grid gap-2 rounded border p-3 sm:grid-cols-2">
+            <Input required maxLength={100} aria-label="Nombre del nuevo cliente" placeholder="Nombre" value={quickCustomer.firstName} onChange={event => setQuickCustomer({ ...quickCustomer, firstName: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}/>
+            <Input required maxLength={100} aria-label="Apellido del nuevo cliente" placeholder="Apellido" value={quickCustomer.lastName} onChange={event => setQuickCustomer({ ...quickCustomer, lastName: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}/>
+            <Input type="email" maxLength={150} aria-label="Correo del nuevo cliente" placeholder="Correo (opcional si hay teléfono)" value={quickCustomer.email} onChange={event => setQuickCustomer({ ...quickCustomer, email: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}/>
+            <Input type="tel" maxLength={20} aria-label="Teléfono del nuevo cliente" placeholder="Teléfono (opcional si hay correo)" value={quickCustomer.phone} onChange={event => setQuickCustomer({ ...quickCustomer, phone: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}/>
+            <Button type="button" className="sm:col-span-2" disabled={customerSaving || !quickCustomer.firstName.trim() || !quickCustomer.lastName.trim() || (!quickCustomer.email.trim() && !quickCustomer.phone.trim())} onClick={() => void createCustomerQuickly()}>{customerSaving ? 'Guardando cliente…' : 'Guardar y seleccionar cliente'}</Button>
+          </div>}
+          {customerNotice && <p role="status" className="text-sm text-emerald-700">{customerNotice}</p>}
         </div>
         <select aria-label="Equipo" className={field} value={deviceId} onChange={event => setDeviceId(event.target.value)}>
           <option value="">Equipo sin registrar</option>
