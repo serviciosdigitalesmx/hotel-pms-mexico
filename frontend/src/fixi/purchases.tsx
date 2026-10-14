@@ -29,6 +29,8 @@ export function Purchases() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [purchaseSearch, setPurchaseSearch] = useState('')
+  const [purchaseStatus, setPurchaseStatus] = useState('ALL')
 
   async function load() {
     setLoading(true); setError('')
@@ -119,6 +121,17 @@ export function Purchases() {
   }), { ordered: 0, received: 0 })
   const draftTotal = draftLines.reduce((total, line) => total + line.quantity * line.unitCost, 0)
   const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount)
+  const visiblePurchases = purchases.filter(order => (purchaseStatus === 'ALL' || order.status === purchaseStatus)
+    && `${order.id} ${supplierName(order.supplierId)} ${branchName(order.branchId)} ${order.lines.map(line => products.find(product => product.id === line.productId)?.name ?? line.productId).join(' ')}`
+      .toLocaleLowerCase().includes(purchaseSearch.trim().toLocaleLowerCase()))
+  function exportPurchasesCsv() {
+    const rows = [['orden', 'fecha', 'proveedor', 'sucursal', 'estado', 'producto', 'cantidad_pedida', 'cantidad_recibida', 'cantidad_pendiente', 'costo_unitario', 'importe_recibido'],
+      ...visiblePurchases.flatMap(order => order.lines.map(line => [order.id, order.createdAt, supplierName(order.supplierId), branchName(order.branchId), order.status,
+        products.find(product => product.id === line.productId)?.name ?? line.productId, line.quantityOrdered, line.quantityReceived,
+        Math.max(0, line.quantityOrdered - line.quantityReceived), line.unitCost, line.quantityReceived * line.unitCost]))]
+    const csv = '\uFEFF' + rows.map(row => row.map(api.csvCell).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-compras-y-recepciones.csv'; link.click(); URL.revokeObjectURL(url)
+  }
 
   return <BaseLayout title="Compras" description="Órdenes con partidas previstas y recepción parcial o completa.">
     <div className="grid gap-5 px-4 lg:grid-cols-2 lg:px-6">
@@ -172,9 +185,9 @@ export function Purchases() {
         </form>
       </CardContent></Card>
 
-      <Card className="lg:col-span-2"><CardHeader><CardTitle>Historial de órdenes de compra ({purchases.length})</CardTitle></CardHeader><CardContent className="space-y-2">
+      <Card className="lg:col-span-2"><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Historial de órdenes de compra ({visiblePurchases.length})</CardTitle><Button type="button" variant="outline" disabled={loading||!visiblePurchases.length} onClick={exportPurchasesCsv}>Exportar partidas CSV</Button></div><div className="grid gap-2 sm:grid-cols-2"><Input aria-label="Buscar órdenes de compra" placeholder="Buscar folio, proveedor, sucursal o producto" value={purchaseSearch} onChange={event=>setPurchaseSearch(event.target.value)}/><select aria-label="Filtrar órdenes de compra por estado" className={field} value={purchaseStatus} onChange={event=>setPurchaseStatus(event.target.value)}><option value="ALL">Todos los estados</option>{[...new Set(purchases.map(order=>order.status))].sort().map(status=><option key={status}>{status}</option>)}</select></div></CardHeader><CardContent className="space-y-2">
         {loading && <p role="status" className="text-sm text-muted-foreground">Cargando compras…</p>}
-        {purchases.map(order => <div className="flex flex-wrap items-center justify-between gap-2 rounded border p-3" key={order.id}>
+        {visiblePurchases.map(order => <div className="flex flex-wrap items-center justify-between gap-2 rounded border p-3" key={order.id}>
           <div><p className="font-medium">{supplierName(order.supplierId)} · {branchName(order.branchId)}</p>
             <p className="text-xs text-muted-foreground">{order.id}{order.serviceOrderId ? ` · Servicio ${order.serviceOrderId}` : ''}{order.createdAt ? ` · ${new Date(order.createdAt).toLocaleDateString('es-MX')}` : ''}</p>
             <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}{order.lines?.length ? <p className="border-t pt-1 font-medium">Recibido {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).received)} · Pendiente {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered - purchaseAmounts(order).received)} · Total {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered)}</p> : <p className="text-amber-700">Orden heredada sin partidas detalladas.</p>}</div>
@@ -183,7 +196,7 @@ export function Purchases() {
           </div>
           {correctionId===order.id&&<form className="basis-full space-y-3 border-t pt-3" onSubmit={event=>void correctReceipt(event,order)}><p className="text-sm text-muted-foreground">Captura la cantidad acumulada que realmente se recibió por producto. Los ajustes descontarán o reintegrarán existencias disponibles y se registrarán en auditoría.</p>{order.lines.map(line=><div className="grid items-center gap-2 sm:grid-cols-[1fr_8rem]" key={line.productId}><span className="text-sm">{products.find(product=>product.id===line.productId)?.name??line.productId} · actual {line.quantityReceived} de {line.quantityOrdered}</span><Input aria-label={`Corregir cantidad recibida ${line.productId}`} type="number" min="0" max={line.quantityOrdered} step="1" value={correctionQuantities[line.productId]??line.quantityReceived} onChange={event=>setCorrectionQuantities(current=>({...current,[line.productId]:Number(event.target.value)}))}/></div>)}<Button disabled={busy||order.lines.some(line=>!Number.isSafeInteger(correctionQuantities[line.productId]??line.quantityReceived)||(correctionQuantities[line.productId]??line.quantityReceived)<0||(correctionQuantities[line.productId]??line.quantityReceived)>line.quantityOrdered)}>{busy?'Guardando…':'Guardar cantidades corregidas'}</Button></form>}
         </div>)}
-        {!loading && !error && !purchases.length && <p className="text-sm text-muted-foreground">No hay órdenes de compra registradas.</p>}
+        {!loading && !error && !visiblePurchases.length && <p className="text-sm text-muted-foreground">{purchases.length ? 'No hay órdenes que coincidan con la búsqueda y estado.' : 'No hay órdenes de compra registradas.'}</p>}
         {error && <div className="flex flex-wrap items-center justify-between gap-2"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void load()}>Reintentar</Button></div>}
         {message && <p role="status" className="text-sm text-emerald-600">{message}</p>}
       </CardContent></Card>
