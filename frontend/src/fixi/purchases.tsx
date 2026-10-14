@@ -16,6 +16,7 @@ export function Purchases() {
   const [branches, setBranches] = useState<api.Branch[]>([])
   const [suppliers, setSuppliers] = useState<api.Supplier[]>([])
   const [products, setProducts] = useState<api.Product[]>([])
+  const [serviceOrders, setServiceOrders] = useState<api.ServiceOrder[]>([])
   const [form, setForm] = useState({ branchId: '', supplierId: '', serviceOrderId: '' })
   const [draftLines, setDraftLines] = useState<DraftLine[]>([{ productId: '', quantity: 1, unitCost: 0 }])
   const [purchaseId, setPurchaseId] = useState('')
@@ -28,10 +29,10 @@ export function Purchases() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [orders, branchRows, supplierRows, productRows] = await Promise.all([
-        api.listPurchases(), api.listBranches(), api.listSuppliers(), api.listProducts(),
+      const [orders, branchRows, supplierRows, productRows, serviceOrderRows] = await Promise.all([
+        api.listPurchases(), api.listBranches(), api.listSuppliers(), api.listProducts(), api.listServiceOrders().catch(() => []),
       ])
-      setPurchases(orders as Purchase[]); setBranches(branchRows); setSuppliers(supplierRows); setProducts(productRows)
+      setPurchases(orders as Purchase[]); setBranches(branchRows); setSuppliers(supplierRows); setProducts(productRows); setServiceOrders(serviceOrderRows)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron cargar las compras') }
     finally { setLoading(false) }
   }
@@ -81,7 +82,7 @@ export function Purchases() {
     <div className="grid gap-5 px-4 lg:grid-cols-2 lg:px-6">
       <Card><CardHeader><CardTitle>Nueva compra</CardTitle></CardHeader><CardContent>
         <form className="space-y-3" onSubmit={create}>
-          <select required aria-label="Sucursal de compra" className={field} value={form.branchId} onChange={event => setForm({ ...form, branchId: event.target.value })}>
+          <select required aria-label="Sucursal de compra" className={field} value={form.branchId} onChange={event => setForm(current => ({ ...current, branchId: event.target.value, serviceOrderId: '' }))}>
             <option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
           </select>
           <select required aria-label="Proveedor de compra" className={field} value={form.supplierId} onChange={event => {
@@ -93,7 +94,10 @@ export function Purchases() {
           }}>
             <option value="">Proveedor</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
           </select>
-          <Input aria-label="Orden de servicio asociada" placeholder="Orden de servicio opcional (ID)" value={form.serviceOrderId} onChange={event => setForm({ ...form, serviceOrderId: event.target.value })}/>
+          <select aria-label="Orden de servicio asociada" className={field} disabled={!form.branchId} value={form.serviceOrderId} onChange={event => setForm({ ...form, serviceOrderId: event.target.value })}>
+            <option value="">Sin orden de servicio asociada</option>
+            {serviceOrders.filter(order => order.branchId === form.branchId && !['COMPLETED', 'CANCELLED'].includes(order.status)).map(order => <option key={order.id} value={order.id}>{order.summary} · {order.status} · {order.id.slice(0, 8)}</option>)}
+          </select>
           {draftLines.map((line, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_6rem_8rem_auto]">
             <select required aria-label={`Producto ordenado ${index + 1}`} className={field} value={line.productId} onChange={event => setDraftLines(current => current.map((item, i) => i === index ? { ...item, productId: event.target.value, unitCost: Number(products.find(product => product.id === event.target.value)?.cost ?? 0) } : item))}>
               <option value="">Producto</option>{products.filter(product => (!product.supplierId || product.supplierId === form.supplierId)
