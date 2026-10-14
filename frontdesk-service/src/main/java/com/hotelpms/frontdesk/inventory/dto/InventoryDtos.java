@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 
 /** InventoryDtos domain type. */
 @SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
@@ -148,6 +149,13 @@ public final class InventoryDtos {
   public record ReceiptLine(@NotNull UUID productId, @Positive long quantity) { }
 
   public record PurchaseReceiptRequest(@NotNull java.util.List<@NotNull ReceiptLine> lines) { }
+
+  public record ReceiptCorrectionLine(@NotNull UUID productId,
+      @jakarta.validation.constraints.PositiveOrZero long quantityReceived) { }
+
+  public record PurchaseReceiptCorrectionRequest(
+      @NotNull @jakarta.validation.constraints.Size(min = 1)
+          java.util.List<@NotNull @Valid ReceiptCorrectionLine> lines) { }
 
   /**
    * DTO record.

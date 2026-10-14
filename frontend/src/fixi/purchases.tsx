@@ -20,6 +20,8 @@ export function Purchases() {
   const [form, setForm] = useState({ branchId: '', supplierId: '', serviceOrderId: '' })
   const [draftLines, setDraftLines] = useState<DraftLine[]>([{ productId: '', quantity: 1, unitCost: 0 }])
   const [purchaseId, setPurchaseId] = useState('')
+  const [correctionId, setCorrectionId] = useState('')
+  const [correctionQuantities, setCorrectionQuantities] = useState<Record<string, number>>({})
   const [receiptLines, setReceiptLines] = useState<Array<{ productId: string; quantity: number }>>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -53,6 +55,21 @@ export function Purchases() {
     const order = purchases.find(item => item.id === id)
     setReceiptLines(order?.lines.filter(line => line.quantityReceived < line.quantityOrdered)
       .map(line => ({ productId: line.productId, quantity: Math.max(1, line.quantityOrdered - line.quantityReceived) })) ?? [])
+  }
+
+  function beginCorrection(order: Purchase) {
+    setCorrectionId(order.id)
+    setCorrectionQuantities(Object.fromEntries(order.lines.map(line => [line.productId, line.quantityReceived])))
+    setError(''); setMessage('')
+  }
+
+  async function correctReceipt(event: FormEvent, order: Purchase) {
+    event.preventDefault(); setBusy(true); setError(''); setMessage('')
+    try {
+      await api.correctPurchaseReceipt(order.id, { lines: order.lines.map(line => ({ productId: line.productId, quantityReceived: correctionQuantities[line.productId] ?? line.quantityReceived })) })
+      setCorrectionId(''); setMessage('Cantidades recibidas corregidas; los ajustes de inventario quedaron auditados'); await load()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo corregir la recepción') }
+    finally { setBusy(false) }
   }
 
   async function receive(event: FormEvent) {
@@ -148,9 +165,10 @@ export function Purchases() {
           <div><p className="font-medium">{supplierName(order.supplierId)} · {branchName(order.branchId)}</p>
             <p className="text-xs text-muted-foreground">{order.id}{order.serviceOrderId ? ` · Servicio ${order.serviceOrderId}` : ''}{order.createdAt ? ` · ${new Date(order.createdAt).toLocaleDateString('es-MX')}` : ''}</p>
             <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}{order.lines?.length ? <p className="border-t pt-1 font-medium">Recibido {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).received)} · Pendiente {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered - purchaseAmounts(order).received)} · Total {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered)}</p> : <p className="text-amber-700">Orden heredada sin partidas detalladas.</p>}</div>
-          </div><div className="flex items-center gap-2"><Badge variant={order.status === 'RECEIVED' ? 'default' : 'outline'}>{order.status}</Badge>
+          </div><div className="flex items-center gap-2"><Badge variant={order.status === 'RECEIVED' ? 'default' : 'outline'}>{order.status}</Badge>{order.lines?.length>0&&order.status!=='CANCELLED'&&<Button type="button" size="sm" variant="outline" disabled={busy||loading} onClick={()=>correctionId===order.id?setCorrectionId(''):beginCorrection(order)}>{correctionId===order.id?'Cerrar corrección':'Corregir recepción'}</Button>}
             {!['RECEIVED', 'CANCELLED'].includes(order.status) && <Button type="button" variant="outline" disabled={busy || loading || order.lines?.some(line => line.quantityReceived > 0)} title={order.lines?.some(line => line.quantityReceived > 0) ? 'No se puede cancelar una orden con recepción parcial' : 'Cancelar orden'} onClick={() => void cancel(order)}>Cancelar</Button>}
           </div>
+          {correctionId===order.id&&<form className="basis-full space-y-3 border-t pt-3" onSubmit={event=>void correctReceipt(event,order)}><p className="text-sm text-muted-foreground">Captura la cantidad acumulada que realmente se recibió por producto. Los ajustes descontarán o reintegrarán existencias disponibles y se registrarán en auditoría.</p>{order.lines.map(line=><div className="grid items-center gap-2 sm:grid-cols-[1fr_8rem]" key={line.productId}><span className="text-sm">{products.find(product=>product.id===line.productId)?.name??line.productId} · actual {line.quantityReceived} de {line.quantityOrdered}</span><Input aria-label={`Corregir cantidad recibida ${line.productId}`} type="number" min="0" max={line.quantityOrdered} step="1" value={correctionQuantities[line.productId]??line.quantityReceived} onChange={event=>setCorrectionQuantities(current=>({...current,[line.productId]:Number(event.target.value)}))}/></div>)}<Button disabled={busy||order.lines.some(line=>!Number.isSafeInteger(correctionQuantities[line.productId]??line.quantityReceived)||(correctionQuantities[line.productId]??line.quantityReceived)<0||(correctionQuantities[line.productId]??line.quantityReceived)>line.quantityOrdered)}>{busy?'Guardando…':'Guardar cantidades corregidas'}</Button></form>}
         </div>)}
         {!loading && !error && !purchases.length && <p className="text-sm text-muted-foreground">No hay órdenes de compra registradas.</p>}
         {error && <div className="flex flex-wrap items-center justify-between gap-2"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void load()}>Reintentar</Button></div>}

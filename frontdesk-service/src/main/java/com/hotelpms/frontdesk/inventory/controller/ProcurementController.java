@@ -6,6 +6,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseRequestWithLines;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.SupplierRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseReceiptRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseReceiptCorrectionRequest;
 import com.hotelpms.frontdesk.inventory.service.ProcurementService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 
 /** Type domain type. */
 @RestController
@@ -89,6 +91,8 @@ public class ProcurementController {
   }
   @PostMapping("/purchases/{id}/receive") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public PurchaseOrder receive(@PathVariable UUID id,@Valid @RequestBody PurchaseReceiptRequest request){return service.receive(hotel(),id,request);}
+  @PatchMapping("/purchases/{id}/receipt") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public PurchaseOrder correctReceipt(@PathVariable UUID id,@Valid @RequestBody PurchaseReceiptCorrectionRequest request){return service.correctReceipt(hotel(),id,request);}
   @PostMapping("/purchases/{id}/cancel") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public PurchaseOrder cancel(@PathVariable UUID id){return service.cancel(hotel(),id);}
 

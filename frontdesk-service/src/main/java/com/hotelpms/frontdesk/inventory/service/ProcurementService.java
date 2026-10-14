@@ -7,6 +7,7 @@ import com.hotelpms.frontdesk.inventory.domain.Supplier;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.SupplierRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseReceiptRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseReceiptCorrectionRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseLineRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.repository.PurchaseOrderRepository;
@@ -201,6 +202,54 @@ public class ProcurementService {
     boolean complete = purchase.getLines().stream()
         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
     boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
+    purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
+    return purchases.save(purchase);
+  }
+
+  @Transactional
+  public PurchaseOrder correctReceipt(final UUID hotel, final UUID purchaseId,
+      final PurchaseReceiptCorrectionRequest request) {
+    final var purchase = purchases.findForUpdateByIdAndHotelId(purchaseId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("PURCHASE_NOT_FOUND"));
+    if ("CANCELLED".equals(purchase.getStatus())) throw new IllegalStateException("PURCHASE_CANCELLED");
+    if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
+      throw new IllegalStateException("LEGACY_PURCHASE_HAS_NO_ORDER_LINES");
+    }
+    final var correctedProducts = new java.util.HashSet<UUID>();
+    for (final var correction : request.lines()) {
+      if (!correctedProducts.add(correction.productId())) {
+        throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_RECEIPT_CORRECTION");
+      }
+      final var line = purchase.getLines().stream()
+          .filter(item -> item.getProductId().equals(correction.productId())).findFirst()
+          .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_ON_PURCHASE"));
+      if (correction.quantityReceived() > line.getQuantityOrdered()) {
+        throw new IllegalArgumentException("CORRECTED_RECEIPT_EXCEEDS_ORDERED_QUANTITY");
+      }
+      final long delta = correction.quantityReceived() - line.getQuantityReceived();
+      if (delta == 0) continue;
+      final var product = products.findForUpdateByIdAndHotelId(line.getProductId(), hotel)
+          .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+      final long currentQuantity = balances.sumQuantityByHotelAndProduct(hotel, product.getId())
+          + reservations.sumReservedQuantityByHotelAndProduct(hotel, product.getId());
+      final long nextQuantity = currentQuantity + delta;
+      if (nextQuantity < 0) throw new IllegalStateException("RECEIVED_STOCK_ALREADY_CONSUMED_OR_RESERVED");
+      inventory.move(hotel, new MovementRequest(purchase.getBranchId(), product.getId(), delta,
+          "Purchase receipt correction " + purchase.getId()));
+      if (nextQuantity > 0) {
+        final BigDecimal adjustedValue = product.getCost().multiply(BigDecimal.valueOf(currentQuantity))
+            .add(line.getUnitCost().multiply(BigDecimal.valueOf(delta)));
+        if (adjustedValue.compareTo(BigDecimal.ZERO) < 0) {
+          throw new IllegalStateException("RECEIPT_CORRECTION_WOULD_INVALIDATE_WEIGHTED_COST");
+        }
+        product.setCost(adjustedValue.divide(BigDecimal.valueOf(nextQuantity), 2, RoundingMode.HALF_UP));
+        products.save(product);
+      }
+      line.setQuantityReceived(correction.quantityReceived());
+    }
+    final boolean complete = purchase.getLines().stream()
+        .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
+    final boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
     purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
     return purchases.save(purchase);
   }
