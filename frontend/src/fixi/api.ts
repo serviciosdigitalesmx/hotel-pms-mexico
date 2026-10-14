@@ -2,7 +2,7 @@ export type Json = Record<string, unknown>
 export type SessionUser = { username:string; role:string; hotelId?:string; tenantId?:string; branchId?:string; businessName?:string; tenantStatus?:string; onboardingCompleted?:boolean; mustChangePassword?:boolean }
 export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
 export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; address?:string; city?:string; country?:string; dateOfBirth?:string; rfc?:string; fiscalName?:string; fiscalPostalCode?:string; fiscalRegime?:string; cfdiUse?:string; billingEmail?:string; createdAt?:string }
-export type Device = { id:string; customerId:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
+export type Device = { id:string; customerId:string; customerName?:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
@@ -66,6 +66,7 @@ export const getCustomer=(id:string)=>get<Customer>(`/api/v1/customers/${id}`)
 export const createCustomer=(body:unknown)=>post<Customer>('/api/v1/customers',body)
 export const updateCustomer=(id:string,body:unknown)=>put<Customer>(`/api/v1/customers/${id}`,body)
 export const listDevices=(customerId:string)=>get<Device[]>(`/api/v1/customers/${customerId}/devices`)
+export const searchDevices=(query:string,page=0)=>get<{content:Device[]} | Device[]>(`/api/v1/customers/search-devices?query=${encodeURIComponent(query)}&page=${page}&size=25`)
 export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v1/customers/${customerId}/devices`,body)
 export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/api/v1/service-orders/customer/${customerId}`)

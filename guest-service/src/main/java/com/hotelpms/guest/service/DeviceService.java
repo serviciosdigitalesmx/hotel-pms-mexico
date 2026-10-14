@@ -4,6 +4,8 @@ import com.hotelpms.guest.dto.request.DeviceRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /** Application service for customer devices. */
 public interface DeviceService {
@@ -26,6 +28,9 @@ public interface DeviceService {
    * @return active devices.
    */
   List<DeviceResponse> list(UUID customerId);
+
+  /** Searches active tenant devices by category, make, model, serial, or IMEI. */
+  Page<DeviceResponse> search(String query, Pageable pageable);
 
   /**
    * Finds one active device for a customer.

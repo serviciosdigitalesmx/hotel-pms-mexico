@@ -12,6 +12,8 @@ import com.hotelpms.guest.service.DeviceService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -102,6 +104,22 @@ public class DeviceServiceImpl implements DeviceService {
     return devices.findAllByHotelIdAndGuestId(hotel(), customerId).stream()
         .map(DeviceResponse::from)
         .toList();
+  }
+
+  /** Searches devices without crossing the authenticated tenant boundary. */
+  @Override
+  @Transactional(readOnly = true)
+  public Page<DeviceResponse> search(final String query, final Pageable pageable) {
+    final String term = query == null ? "" : query.trim();
+    if (term.length() < 2) {
+      return Page.empty(pageable);
+    }
+    final UUID hotelId = hotel();
+    return devices.searchTenantDevices(hotelId, term, pageable).map(device -> {
+      final String customerName = guests.findByIdAndHotelId(device.getGuestId(), hotelId)
+          .map(owner -> owner.getFirstName() + " " + owner.getLastName()).orElse("");
+      return DeviceResponse.from(device, customerName);
+    });
   }
 
   /** Gets one tenant-scoped device for a customer. */
