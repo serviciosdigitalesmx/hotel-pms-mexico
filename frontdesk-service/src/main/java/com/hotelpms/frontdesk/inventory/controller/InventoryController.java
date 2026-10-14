@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
@@ -66,8 +67,9 @@ public class InventoryController {
    */
   @PostMapping(value = "/products/import", consumes = "text/csv")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
-  public ImportResult importCsv(@RequestBody final String csv) {
-    return service.importCsv(hotel(), csv);
+  public ImportResult importCsv(@RequestBody final String csv,
+      @RequestParam(required = false) final UUID branchId) {
+    return service.importCsv(hotel(), csv, branchId);
   }
 
   /** Imports an XLSX supplier catalog. */

@@ -295,6 +295,11 @@ public class InventoryService {
    */
   @Transactional
   public ImportResult importCsv(final UUID hotel, final String csv) {
+    return importCsv(hotel, csv, null);
+  }
+
+  @Transactional
+  public ImportResult importCsv(final UUID hotel, final String csv, final UUID defaultBranchId) {
     int imported = 0;
     int rejected = 0;
     final List<String> errors = new ArrayList<>();
@@ -329,7 +334,7 @@ public class InventoryService {
         final UUID supplierId = values.containsKey("supplierid") && !values.get("supplierid").isBlank()
             ? UUID.fromString(values.get("supplierid")) : null;
         final UUID branchId = values.containsKey("branchid") && !values.get("branchid").isBlank()
-            ? UUID.fromString(values.get("branchid")) : null;
+            ? UUID.fromString(values.get("branchid")) : defaultBranchId;
         final long quantity = longValue(values.getOrDefault("quantity", values.get("stock")), 0);
         product(hotel, new ProductRequest(
             sku, name, values.getOrDefault("description", ""), Boolean.parseBoolean(values.getOrDefault("optional", "false")),

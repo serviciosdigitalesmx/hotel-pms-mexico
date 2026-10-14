@@ -97,9 +97,12 @@ export function InventoryCatalogPage() {
 function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
   const [csv, setCsv] = useState('')
   const [fileName, setFileName] = useState('')
+  const [branches, setBranches] = useState<api.Branch[]>([])
+  const [branchId, setBranchId] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState('')
   const [error, setError] = useState('')
+  useEffect(() => { let active = true; api.listBranches().then(rows => { if (active) setBranches(rows.filter(branch => branch.active)) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar las sucursales') }); return () => { active = false } }, [])
   function downloadTemplate() {
     const content = 'sku,name,description,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId\r\nREP-001,"Pantalla, modelo A",Pantalla compatible con modelo A,Pantallas,1200.00,1899.00,2,false,,,,\r\n'
     const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-productos-plantilla.csv'; link.click(); URL.revokeObjectURL(url)
@@ -107,7 +110,7 @@ function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setResult('')
     try {
-      const summary = await api.importProductsCsv(csv.replace(/^\uFEFF/, ''))
+      const summary = await api.importProductsCsv(csv.replace(/^\uFEFF/, ''), branchId || undefined)
       setResult(`${summary.imported} importados, ${summary.rejected} rechazados${summary.errors.length ? `: ${summary.errors.slice(0, 5).join(' · ')}` : ''}`)
       if (summary.imported) onImported()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo importar el CSV') }
@@ -120,7 +123,7 @@ function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
     try { setCsv((await file.text()).replace(/^\uFEFF/, '')); setFileName(file.name) }
     catch { setError('No se pudo leer el archivo CSV') }
   }
-  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Admite plantillas Fixi y SAMII. Incluye cantidad y branchId para crear existencias iniciales; SKU es opcional y se generará si falta.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><label className="block text-sm">Seleccionar archivo CSV<Input type="file" accept=".csv,text/csv" disabled={busy} onChange={event=>void readFile(event.currentTarget.files?.[0])}/></label>{fileName&&<p className="text-xs text-muted-foreground">Archivo seleccionado: {fileName}</p>}<textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="category,name,description,cost,price,quantity" value={csv} onChange={event => {setCsv(event.target.value);setFileName('')}}/><div className="flex gap-2"><Button disabled={busy||!csv.trim()}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
+  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Admite plantillas Fixi y SAMII. SKU se genera si falta. Si Quantity es mayor que cero, elige la sucursal donde se registrará la existencia inicial.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><label className="block text-sm">Seleccionar archivo CSV<Input type="file" accept=".csv,text/csv" disabled={busy} onChange={event=>void readFile(event.currentTarget.files?.[0])}/></label>{fileName&&<p className="text-xs text-muted-foreground">Archivo seleccionado: {fileName}</p>}<select aria-label="Sucursal para existencias iniciales" className={field} value={branchId} onChange={event=>setBranchId(event.target.value)}><option value="">Sucursal de importación (opcional si no hay cantidad inicial)</option>{branches.map(branch=><option key={branch.id} value={branch.id}>{branch.name}</option>)}</select><textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="category,name,description,cost,price,quantity" value={csv} onChange={event => {setCsv(event.target.value);setFileName('')}}/><div className="flex gap-2"><Button disabled={busy||!csv.trim()}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
 }
 
 function useQuery<T>(loader: () => Promise<T>, deps: unknown[] = []) {
