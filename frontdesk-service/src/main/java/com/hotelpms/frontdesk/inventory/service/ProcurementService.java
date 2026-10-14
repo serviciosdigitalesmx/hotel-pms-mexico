@@ -166,6 +166,9 @@ public class ProcurementService {
       throw new IllegalStateException("LEGACY_PURCHASE_HAS_NO_ORDER_LINES");
     }
     if (request.lines().isEmpty()) throw new IllegalArgumentException("RECEIPT_LINES_REQUIRED");
+    if (request.lines().stream().noneMatch(line -> line.quantity() > 0)) {
+      throw new IllegalArgumentException("RECEIPT_QUANTITY_REQUIRED");
+    }
     var receivedProducts = new java.util.HashSet<UUID>();
     var receiptLines = new java.util.ArrayList<java.util.Map.Entry<PurchaseOrderLine, Long>>();
     for (var received : request.lines()) {

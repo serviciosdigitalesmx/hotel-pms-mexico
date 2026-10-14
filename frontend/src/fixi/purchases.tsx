@@ -88,7 +88,9 @@ export function Purchases() {
   }
 
   async function receive(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError(''); setMessage('')
+    event.preventDefault(); setError(''); setMessage('')
+    if (!receiptLines.some(line => line.quantity > 0)) { setError('Captura al menos una cantidad mayor que cero para recibir'); return }
+    setBusy(true)
     try {
       await api.receivePurchase(purchaseId, { lines: receiptLines })
       setMessage('Recepción registrada y existencias actualizadas'); setPurchaseId(''); setReceiptLines([]); await load()
