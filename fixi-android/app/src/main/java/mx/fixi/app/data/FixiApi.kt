@@ -6,13 +6,14 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.PATCH
+import retrofit2.http.Query
 
 interface FixiApi {
     @POST("api/v1/auth/login") suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
     @POST("api/v1/auth/refresh") suspend fun refresh(): Response<AuthResponse>
     @POST("api/v1/auth/logout") suspend fun logout(): Response<Unit>
     @GET("api/v1/auth/me") suspend fun me(): Response<UserResponse>
-    @GET("api/v1/service-orders") suspend fun serviceOrders(): Response<List<ServiceOrder>>
+    @GET("api/v1/service-orders") suspend fun serviceOrders(@Query("page") page: Int = 0, @Query("size") size: Int = 100): Response<PageResponse<ServiceOrder>>
     @GET("api/v1/customers") suspend fun customers(): Response<PageResponse<Customer>>
     @GET("api/v1/customers/{id}") suspend fun customer(@Path("id") id: String): Response<Customer>
     @GET("api/v1/customers/{customerId}/devices") suspend fun devices(@Path("customerId") customerId: String): Response<List<Device>>
@@ -29,7 +30,7 @@ interface FixiApi {
     @POST("api/v1/service-orders/{id}/reject") suspend fun reject(@Path("id") id: String, @Body request: AuthorizationRequest): Response<ServiceOrder>
     @POST("api/v1/service-orders/{id}/quotation") suspend fun quote(@Path("id") id: String, @Body request: QuotationRequest): Response<ServiceOrder>
     @POST("api/v1/service-orders/{id}/tests") suspend fun addTest(@Path("id") id: String, @Body request: RepairTestRequest): Response<RepairTest>
-    @POST("api/v1/service-orders/{id}/deliver") suspend fun deliver(@Path("id") id: String): Response<ActionResponse>
+    @POST("api/v1/service-orders/{id}/deliver") suspend fun deliver(@Path("id") id: String): Response<ServiceOrder>
     @GET("api/v1/documents/order/{order}") suspend fun evidence(@Path("order") order: String): Response<List<Evidence>>
     @GET("api/v1/auth/branches") suspend fun branches(): Response<List<Branch>>
     @POST("api/v1/auth/select-branch") suspend fun selectBranch(@Body request: SelectBranchRequest): Response<Unit>
