@@ -1,8 +1,11 @@
 package com.hotelpms.frontdesk.serviceorder.service;
 
+import com.hotelpms.frontdesk.audit.domain.AuditEvent;
+import com.hotelpms.frontdesk.audit.service.AuditEventService;
 import com.hotelpms.frontdesk.exception.NotFoundException;
 import com.hotelpms.frontdesk.serviceorder.domain.WarrantyClaim;
 import com.hotelpms.frontdesk.serviceorder.dto.WarrantyClaimRequest;
+import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 import com.hotelpms.frontdesk.serviceorder.repository.WarrantyClaimRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class WarrantyClaimService {
   private final WarrantyClaimRepository repository;
+  private final ServiceOrderRepository serviceOrders;
+  private final AuditEventService auditEvents;
   /**
    * Executes the operation.
    *
@@ -28,7 +33,12 @@ public class WarrantyClaimService {
 
   @Transactional
   public WarrantyClaim open(final UUID hotel, final WarrantyClaimRequest r) {
-    return repository.save(
+    final var order = serviceOrders.findByIdAndHotelId(r.serviceOrderId(), hotel)
+        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    if (!order.getCustomerId().equals(r.customerId())) {
+      throw new IllegalArgumentException("WARRANTY_CUSTOMER_ORDER_MISMATCH");
+    }
+    final WarrantyClaim claim = repository.save(
         WarrantyClaim.builder()
             .hotelId(hotel)
             .serviceOrderId(r.serviceOrderId())
@@ -37,6 +47,11 @@ public class WarrantyClaimService {
             .description(r.description().trim())
             .createdAt(LocalDateTime.now())
             .build());
+    auditEvents.record(hotel, null, AuditEvent.Category.OPERATIONAL, "WARRANTY_CLAIM_OPENED",
+        claim.getId(), null, "{\"serviceOrderId\":\"" + claim.getServiceOrderId()
+            + "\",\"customerId\":\"" + claim.getCustomerId() + "\",\"expiresAt\":\""
+            + claim.getExpiresAt() + "\"}");
+    return claim;
   }
   /**
    * Executes the operation.
@@ -55,7 +70,11 @@ public class WarrantyClaimService {
             .findByIdAndHotelId(id, hotel)
             .orElseThrow(() -> new NotFoundException("WARRANTY_CLAIM_NOT_FOUND"));
     c.setStatus("CLOSED");
-    return repository.save(c);
+    final WarrantyClaim closed = repository.save(c);
+    auditEvents.record(hotel, null, AuditEvent.Category.OPERATIONAL, "WARRANTY_CLAIM_CLOSED",
+        closed.getId(), null, "{\"serviceOrderId\":\"" + closed.getServiceOrderId()
+            + "\",\"customerId\":\"" + closed.getCustomerId() + "\"}");
+    return closed;
   }
   /**
    * Executes the operation.
