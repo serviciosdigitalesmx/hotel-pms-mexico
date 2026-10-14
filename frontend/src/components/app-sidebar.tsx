@@ -6,6 +6,7 @@ import { NavMain } from '@/components/nav-main'
 import { NavUser } from '@/components/nav-user'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 const groups = [
+  { label: 'Prioridad', items: [{title:'Órdenes por asignar',url:'/orders/unassigned',icon:ClipboardList}] },
   { label: 'Fixi', items: [{title:'Dashboard',url:'/dashboard',icon:ClipboardList},{title:'Alertas operativas',url:'/notifications',icon:Bell},{title:'Agenda',url:'/calendar',icon:Calendar}] },
   { label: 'Operación', items: [{title:'Recepción',url:'/reception/new',icon:ClipboardList},{title:'Órdenes de servicio',url:'/service-orders',icon:Wrench},{title:'Servicios',url:'/services',icon:Wrench},{title:'Clientes',url:'/customers',icon:Users},{title:'Importar clientes',url:'/customers/import',icon:Users},{title:'Equipos',url:'/devices',icon:Laptop},{title:'Agenda',url:'/calendar',icon:Calendar}] },
   { label: 'Taller', items: [{title:'Diagnósticos',url:'/diagnostics',icon:ClipboardList},{title:'Reparaciones',url:'/repairs',icon:Wrench},{title:'Técnicos',url:'/technicians',icon:Users},{title:'Pruebas',url:'/tests',icon:CheckSquare},{title:'Entrega',url:'/delivery',icon:CheckSquare}] },
