@@ -47,6 +47,11 @@ public class WorkflowService {
   public WorkflowDefinition create(final UUID hotel, final CreateWorkflowRequest r) {
     return definitions.save(new WorkflowDefinition(hotel, r.verticalKey(), r.name()));
   }
+
+  @Transactional
+  public List<WorkflowDefinition> list(final UUID hotel) {
+    return definitions.findAllByHotelIdAndActiveTrue(hotel);
+  }
   /**
    * Executes the operation.
    *

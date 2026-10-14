@@ -32,6 +32,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkflowController {
   private final WorkflowService service;
 
+  @GetMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public java.util.List<WorkflowResponse> list() {
+    return service.list(hotel()).stream().map(this::view).toList();
+  }
+
   /**
    * Creates a workflow definition.
    *

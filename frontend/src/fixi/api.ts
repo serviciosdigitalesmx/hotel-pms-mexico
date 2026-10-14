@@ -78,6 +78,12 @@ export type CapabilityGrant={id:string;tenantId:string;userId:string;branchId?:s
 export const listUserCapabilityGrants=(userId:string)=>get<CapabilityGrant[]>(`/api/v1/auth/capabilities/users/${userId}`)
 export const setUserCapabilityGrant=(userId:string,capabilityKey:string,enabled:boolean,branchId?:string)=>put<CapabilityGrant>(`/api/v1/auth/capabilities/users/${userId}`,{capabilityKey,enabled,branchId:branchId||null})
 export const effectiveCapabilities=()=>get<{tenantId:string;capabilities:string[]}>('/api/v1/auth/capabilities/me')
+export type WorkflowState={key:string;label:string;semanticPhase:string;initialState:boolean;terminalState:boolean}
+export type Workflow={id:string;verticalKey:string;name:string;version:number;states:WorkflowState[];transitions:Array<{key:string;fromStateKey:string;toStateKey:string;requiredPermission:string}>}
+export const listWorkflows=()=>get<Workflow[]>('/api/v1/workflows')
+export const createWorkflow=(body:{verticalKey:string;name:string})=>post<Workflow>('/api/v1/workflows',body)
+export const addWorkflowState=(id:string,body:Omit<WorkflowState,'key'> & {key:string})=>post<WorkflowState>(`/api/v1/workflows/${id}/states`,body)
+export const addWorkflowTransition=(id:string,body:{fromStateKey:string;toStateKey:string;transitionKey:string;requiredPermission:string})=>post(`/api/v1/workflows/${id}/transitions`,body)
 export const listProducts=()=>get<Product[]>('/api/v1/inventory/products')
 export const createProduct=(body:unknown)=>post<Product>('/api/v1/inventory/products',body)
 export const updateProduct=(id:string,body:unknown)=>put<Product>(`/api/v1/inventory/products/${id}`,body)
