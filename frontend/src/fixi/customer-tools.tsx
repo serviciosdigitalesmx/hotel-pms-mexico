@@ -30,6 +30,8 @@ export function CustomerCsvTools() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [rowErrors, setRowErrors] = useState<string[]>([])
+  const [retryCsv, setRetryCsv] = useState('')
+  const [retryRowCount, setRetryRowCount] = useState(0)
 
   function downloadTemplate() {
     const csv = 'FullName,Email,Phone,Dni,ContactDescription\r\nAna Pérez,ana@example.com,5551234567,,\r\n'
@@ -41,7 +43,7 @@ export function CustomerCsvTools() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    setBusy(true); setError(''); setMessage(''); setRowErrors([])
+    setBusy(true); setError(''); setMessage(''); setRowErrors([]); setRetryCsv(''); setRetryRowCount(0)
     try {
       const rows = parseCsv((await file.text()).replace(/^\uFEFF/, ''))
       if (rows.length < 2) throw new Error('El CSV no contiene filas de clientes')
@@ -54,6 +56,7 @@ export function CustomerCsvTools() {
       const indexByHeader = new Map(headers.map((header, index) => [header, index]))
       const normalizedRows: Array<{ values: string[]; sourceRow: number }> = []
       const errors: string[] = []
+      const rejectedRows: Array<{ sourceRow: number; values: string[]; reason: string }> = []
       for (const [index, values] of rows.slice(1).entries()) {
         const value = (key: string) => {
           const column = aliases[key].map(alias => indexByHeader.get(alias)).find(column => column !== undefined)
@@ -66,8 +69,14 @@ export function CustomerCsvTools() {
           record.last_name = parts.join(' ')
         }
         if (Object.values(record).every(item => !item)) continue
-        if (!record.first_name || !record.last_name || (!record.email && !record.phone)) { errors.push(`Fila ${index + 2}: nombre, apellido y correo o teléfono son obligatorios`); continue }
-        normalizedRows.push({ values: columns.map(column => record[column]), sourceRow: index + 2 })
+        const normalized = { values: columns.map(column => record[column]), sourceRow: index + 2 }
+        if (!record.first_name || !record.last_name || (!record.email && !record.phone)) {
+          const reason = 'nombre, apellido y correo o teléfono son obligatorios'
+          errors.push(`Fila ${index + 2}: ${reason}`)
+          rejectedRows.push({ ...normalized, reason })
+          continue
+        }
+        normalizedRows.push(normalized)
       }
       let imported = 0
       for (let offset = 0; offset < normalizedRows.length; offset += 500) {
@@ -79,6 +88,8 @@ export function CustomerCsvTools() {
           errors.push(...result.errors.map(message => {
             const match = message.match(/^Fila (\d+):\s*(.*)$/)
             const sourceRow = match ? batch[Number(match[1]) - 2]?.sourceRow : undefined
+            const rejected = sourceRow === undefined ? undefined : batch.find(row => row.sourceRow === sourceRow)
+            if (rejected) rejectedRows.push({ ...rejected, reason: match?.[2] ?? message })
             return sourceRow ? `Fila ${sourceRow}: ${match?.[2]}` : message
           }))
         } catch (reason) {
@@ -86,6 +97,13 @@ export function CustomerCsvTools() {
         }
       }
       setRowErrors(errors)
+      const retryRows = [...rejectedRows].sort((left, right) => left.sourceRow - right.sourceRow)
+      if (retryRows.length) {
+        setRetryRowCount(retryRows.length)
+        const retryHeaders = [...columns, 'source_row', 'import_error']
+        setRetryCsv([retryHeaders, ...retryRows.map(row => [...row.values, row.sourceRow, row.reason])]
+          .map(row => row.map(csvCell).join(',')).join('\r\n'))
+      }
       setMessage(`Importación terminada: ${imported} creados; ${errors.length} omitidos.${errors.length ? ` ${errors.slice(0, 5).join(' · ')}` : ''}`)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo importar el CSV') }
     finally { setBusy(false) }
@@ -96,5 +114,10 @@ export function CustomerCsvTools() {
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes-errores-importacion.csv'; link.click(); URL.revokeObjectURL(url)
   }
 
-  return <BaseLayout title="Importar / Exportar" description="Carga y descarga CSV de clientes y productos, preservando sus datos comerciales y operativos."><div className="space-y-5 px-4 lg:px-6"><Card><CardHeader><CardTitle>Importar y exportar clientes</CardTitle><CardDescription>CSV UTF-8 con contacto y datos fiscales. Descarga la plantilla para usar las columnas admitidas.</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" disabled={busy} onClick={downloadTemplate}>Descargar plantilla de clientes</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm">{busy ? 'Procesando…' : 'Importar clientes CSV'}<input className="sr-only" type="file" accept=".csv,text/csv" disabled={busy} onChange={event => void importFile(event)}/></label><Button type="button" variant="outline" asChild><a href="/api/v1/customers/export">Exportar clientes CSV</a></Button>{rowErrors.length>0&&<Button type="button" variant="outline" onClick={downloadErrors}>Descargar errores ({rowErrors.length})</Button>}{message && <p role="status" className="w-full text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="w-full text-sm text-destructive">{error}</p>}</CardContent></Card><InventoryCatalogPage/></div></BaseLayout>
+  function downloadRetryCsv() {
+    const url = URL.createObjectURL(new Blob([`\uFEFF${retryCsv}`], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes-filas-rechazadas.csv'; link.click(); URL.revokeObjectURL(url)
+  }
+
+  return <BaseLayout title="Importar / Exportar" description="Carga y descarga CSV de clientes y productos, preservando sus datos comerciales y operativos."><div className="space-y-5 px-4 lg:px-6"><Card><CardHeader><CardTitle>Importar y exportar clientes</CardTitle><CardDescription>CSV UTF-8 con contacto y datos fiscales. Descarga la plantilla para usar las columnas admitidas.</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" disabled={busy} onClick={downloadTemplate}>Descargar plantilla de clientes</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm">{busy ? 'Procesando…' : 'Importar clientes CSV'}<input className="sr-only" type="file" accept=".csv,text/csv" disabled={busy} onChange={event => void importFile(event)}/></label><Button type="button" variant="outline" asChild><a href="/api/v1/customers/export">Exportar clientes CSV</a></Button>{retryCsv&&<Button type="button" variant="outline" onClick={downloadRetryCsv}>Descargar filas para corregir ({retryRowCount})</Button>}{rowErrors.length>0&&<Button type="button" variant="outline" onClick={downloadErrors}>Descargar errores ({rowErrors.length})</Button>}{message && <p role="status" className="w-full text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="w-full text-sm text-destructive">{error}</p>}</CardContent></Card><InventoryCatalogPage/></div></BaseLayout>
 }
