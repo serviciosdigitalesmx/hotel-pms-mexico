@@ -33,9 +33,17 @@ public final class InventoryDtos {
       @NotBlank @Size(max = 120) String category,
       @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal cost,
       @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal price,
-      @Min(0) long reorderLevel) {
+      @Min(0) long reorderLevel,
+      UUID supplierId,
+      @Min(0) long initialQuantity,
+      UUID branchId) {
+    public ProductRequest(final String sku, final String name, final boolean optional,
+        final String category, final BigDecimal cost, final BigDecimal price,
+        final long reorderLevel) {
+      this(sku, name, optional, category, cost, price, reorderLevel, null, 0, null);
+    }
     public ProductRequest(final String sku, final String name, final boolean optional) {
-      this(sku, name, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0);
+      this(sku, name, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0, null, 0, null);
     }
   }
 

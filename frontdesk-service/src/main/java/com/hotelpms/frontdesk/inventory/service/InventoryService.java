@@ -4,6 +4,7 @@ import com.hotelpms.frontdesk.inventory.domain.InventoryBalance;
 import com.hotelpms.frontdesk.audit.domain.AuditEvent;
 import com.hotelpms.frontdesk.audit.service.AuditEventService;
 import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
+import com.hotelpms.frontdesk.inventory.repository.SupplierRepository;
 import com.hotelpms.frontdesk.inventory.domain.StockReservation;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
@@ -37,6 +38,7 @@ public class InventoryService {
   private final InventoryBalanceRepository balances;
   private final AuditEventService auditEvents;
   private final StockReservationRepository reservations;
+  private final SupplierRepository suppliers;
 
   /**
    * Creates an inventory product.
@@ -56,7 +58,19 @@ public class InventoryService {
     p.setCost(r.cost());
     p.setPrice(r.price());
     p.setReorderLevel(r.reorderLevel());
-    return products.save(p);
+    if (r.supplierId() != null) {
+      suppliers.findByIdAndHotelId(r.supplierId(), hotel)
+          .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+    }
+    p.setSupplierId(r.supplierId());
+    final InventoryProduct saved = products.save(p);
+    if (r.initialQuantity() > 0) {
+      if (r.branchId() == null) {
+        throw new IllegalArgumentException("INITIAL_STOCK_BRANCH_REQUIRED");
+      }
+      move(hotel, new MovementRequest(r.branchId(), saved.getId(), r.initialQuantity()));
+    }
+    return saved;
   }
 
   /**

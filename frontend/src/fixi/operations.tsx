@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import * as a from './api'
+import { ProductImportPanel } from './services'
 
 const field='w-full rounded-md border bg-background px-3 py-2 text-sm'
 function Notice({error,ok}:{error?:string;ok?:string}){return <>{error&&<p className="text-sm text-destructive">{error}</p>}{ok&&<p className="text-sm text-emerald-600">{ok}</p>}</>}

@@ -54,6 +54,17 @@ public class ServiceOrder {
   @Column(name = "reported_failure", length = SUMMARY_LENGTH)
   private String reportedFailure;
 
+  @Column(nullable = false, length = 16)
+  @Builder.Default
+  private String priority = "NORMAL";
+
+  @Column(name = "service_name", length = 200)
+  private String serviceName;
+
+  @Column(name = "deposit_amount", precision = 12, scale = 2)
+  @Builder.Default
+  private BigDecimal depositAmount = BigDecimal.ZERO;
+
   @Column(name = "intake_checklist", length = 4000)
   private String intakeChecklist;
 

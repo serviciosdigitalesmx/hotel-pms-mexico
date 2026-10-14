@@ -62,6 +62,9 @@ public class InventoryProduct {
   @Builder.Default
   private long reorderLevel = 0;
 
+  @Column(name = "supplier_id")
+  private UUID supplierId;
+
   @Column(nullable = false)
   @Builder.Default
   private boolean optional = true;

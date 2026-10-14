@@ -1,11 +1,11 @@
 export type Json = Record<string, unknown>
 export type SessionUser = { username:string; role:string; hotelId?:string; tenantId?:string; branchId?:string; businessName?:string; tenantStatus?:string; onboardingCompleted?:boolean; mustChangePassword?:boolean }
-export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
+export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
 export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; city?:string; createdAt?:string }
 export type Device = { id:string; customerId:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
-export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number }
+export type Product = { id:string; sku:string; name:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string }
 export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; createdAt:string }
 
@@ -80,6 +80,7 @@ export const setUserCapabilityGrant=(userId:string,capabilityKey:string,enabled:
 export const effectiveCapabilities=()=>get<{tenantId:string;capabilities:string[]}>('/api/v1/auth/capabilities/me')
 export const listProducts=()=>get<Product[]>('/api/v1/inventory/products')
 export const createProduct=(body:unknown)=>post<Product>('/api/v1/inventory/products',body)
+export const importProductsCsv=(csv:string)=>api<{imported:number;rejected:number;errors:string[]}>('/api/v1/inventory/products/import',{method:'POST',headers:{'Content-Type':'text/csv'},body:csv})
 export const moveStock=(body:unknown)=>post('/api/v1/inventory/movements',body)
 export type StockBalance={id:string;branchId:string;productId:string;quantity:number;updatedAt:string}
 export const stock=(branch:string)=>get<StockBalance[]>(`/api/v1/inventory/branches/${branch}/stock`)
@@ -96,6 +97,10 @@ export const createPurchase=(body:unknown)=>post('/api/v1/procurement/purchases'
 export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement/purchases/${id}/receive`,body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string})=>post<Expense>('/api/v1/expenses',body)
+export type ServiceCatalogEntry={id:string;tenantId:string;name:string;active:boolean;createdAt:string}
+export const listServices=()=>get<ServiceCatalogEntry[]>('/api/v1/services')
+export const createService=(body:{name:string})=>post<ServiceCatalogEntry>('/api/v1/services',body)
+export const setServiceActive=(id:string,value:boolean)=>patch<ServiceCatalogEntry>(`/api/v1/services/${id}/active?value=${value}`)
 export const whatsappStatus=()=>get<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp')
 export const whatsappConnect=()=>post<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp/connect')
 export const whatsappMessages=(id:string)=>get<Array<{id:string;direction:string;body:string;createdAt:string}>>(`/api/v1/whatsapp/inbox/conversations/${id}/messages`)
