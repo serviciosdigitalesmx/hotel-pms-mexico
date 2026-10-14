@@ -56,12 +56,14 @@ import mx.fixi.app.data.ServiceOrder
 @Composable private fun ProfileScreen(vm: FixiViewModel) {
     val user = vm.user
     var branchId by remember { mutableStateOf("") }
+    var branchesExpanded by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { vm.loadBranches() }
     Scaffold(topBar={TopAppBar(title={Text("Perfil")})}) { pad -> Column(Modifier.padding(pad).padding(20.dp)) {
         Text(user?.email ?: user?.username ?: "Usuario", style=MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(16.dp)); Text("Tenant: ${user?.tenantId ?: "No disponible"}"); Text("Sucursal: ${user?.branchId ?: "No disponible"}")
         Spacer(Modifier.height(16.dp)); Text("Roles", style=MaterialTheme.typography.titleMedium); Text(user?.roles?.joinToString().orEmpty().ifBlank { "Sin roles" })
         Spacer(Modifier.height(16.dp)); Text("Capabilities", style=MaterialTheme.typography.titleMedium); Text(user?.capabilities?.joinToString().orEmpty().ifBlank { "Sin capabilities" })
-        Spacer(Modifier.height(16.dp)); OutlinedTextField(branchId,{branchId=it},Modifier.fillMaxWidth(),label={Text("ID de sucursal")}); Button({vm.selectBranch(branchId)},enabled=branchId.isNotBlank()&&!vm.busy){Text("Cambiar sucursal")}
+        Spacer(Modifier.height(16.dp)); Box { OutlinedButton({branchesExpanded=true},Modifier.fillMaxWidth()){Text(vm.branches.firstOrNull{it.id==branchId}?.name?:"Seleccionar sucursal")};DropdownMenu(expanded=branchesExpanded,onDismissRequest={branchesExpanded=false}){vm.branches.filter{it.id!=null}.forEach{branch->DropdownMenuItem(text={Text(branch.name?:"Sucursal")},onClick={branchId=branch.id.orEmpty();branchesExpanded=false})}} }; Button({vm.selectBranch(branchId)},enabled=branchId.isNotBlank()&&!vm.busy){Text("Cambiar sucursal")}
         vm.error?.let { Text(it,color=MaterialTheme.colorScheme.error) }
     } } }
 @Composable private fun OrderCard(order: ServiceOrder, onClick: () -> Unit) { Card(onClick=onClick, modifier=Modifier.fillMaxWidth().padding(vertical=5.dp)) { Column(Modifier.padding(16.dp)){ Text(order.orderNumber ?: order.id ?: "Orden", style=MaterialTheme.typography.titleMedium); Text(order.status ?: "Sin estado"); Text(order.customerName ?: "Cliente pendiente"); Text(order.deviceDescription ?: "Equipo pendiente") } } }
