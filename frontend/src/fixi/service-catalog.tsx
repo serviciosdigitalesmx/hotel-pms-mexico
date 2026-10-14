@@ -18,6 +18,8 @@ export function ServiceCatalogManagementPage() {
   const [message, setMessage] = useState('')
   const [importing, setImporting] = useState(false)
   const [importErrors, setImportErrors] = useState<string[]>([])
+  const [retryRows, setRetryRows] = useState<Array<{ sourceRow: number; values: string[] }>>([])
+  const [retryHeaders, setRetryHeaders] = useState<string[]>([])
 
   function parseCsv(text: string): string[][] {
     const rows: string[][] = []; let row: string[] = []; let cell = ''; let quoted = false
@@ -44,7 +46,7 @@ export function ServiceCatalogManagementPage() {
   }
 
   async function importCsv(file?: File) {
-    setError(''); setMessage(''); setImportErrors([])
+    setError(''); setMessage(''); setImportErrors([]); setRetryRows([]); setRetryHeaders([])
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { setError('El archivo supera el límite de 5 MB'); return }
     setImporting(true)
@@ -52,17 +54,18 @@ export function ServiceCatalogManagementPage() {
       const rows = parseCsv((await file.text()).replace(/^\uFEFF/, ''))
       if (rows.length < 2) throw new Error('El archivo debe incluir encabezados y al menos un servicio')
       if (rows.length > 301) throw new Error('Importa un máximo de 300 servicios por archivo')
+      setRetryHeaders(rows[0])
       const normalize = (value: string) => value.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ _-]/g, '')
       const aliases: Record<string, string> = { nombre: 'name', name: 'name', servicio: 'name', service: 'name', preciobase: 'price', baseprice: 'price', precio: 'price', price: 'price', duracionminutos: 'minutes', estimatedminutes: 'minutes', duracion: 'minutes', duration: 'minutes', activo: 'active', active: 'active' }
       const headers = rows[0].map(value => aliases[normalize(value)] ?? '')
       if (!headers.includes('name')) throw new Error('Falta la columna obligatoria nombre/servicio')
-      let created = 0; const rowErrors: string[] = []
+      let created = 0; const rowErrors: string[] = []; const rejectedRows: Array<{ sourceRow: number; values: string[] }> = []
       for (const [index, values] of rows.slice(1).entries()) {
         const record: Record<string, string> = {}; headers.forEach((key, column) => { if (key) record[key] = values[column]?.trim() ?? '' })
         const serviceName = record.name?.trim(); const price = Number(record.price || 0); const minutes = Number(record.minutes || 60)
-        if (!serviceName) { rowErrors.push(`Fila ${index + 2}: falta el nombre`); continue }
-        if (!Number.isFinite(price) || price < 0) { rowErrors.push(`Fila ${index + 2}: precio base inválido`); continue }
-        if (!Number.isSafeInteger(minutes) || minutes < 1) { rowErrors.push(`Fila ${index + 2}: duración inválida (debe ser un entero positivo)`); continue }
+        if (!serviceName) { rowErrors.push(`Fila ${index + 2}: falta el nombre`); rejectedRows.push({ sourceRow: index + 2, values }); continue }
+        if (!Number.isFinite(price) || price < 0) { rowErrors.push(`Fila ${index + 2}: precio base inválido`); rejectedRows.push({ sourceRow: index + 2, values }); continue }
+        if (!Number.isSafeInteger(minutes) || minutes < 1) { rowErrors.push(`Fila ${index + 2}: duración inválida (debe ser un entero positivo)`); rejectedRows.push({ sourceRow: index + 2, values }); continue }
         try {
           const service = await api.createService({ name: serviceName, basePrice: price, estimatedMinutes: minutes })
           created++
@@ -74,13 +77,14 @@ export function ServiceCatalogManagementPage() {
           }
         } catch (reason) { rowErrors.push(`Fila ${index + 2}: ${reason instanceof Error ? reason.message : 'no se pudo guardar'}`) }
       }
-      setImportErrors(rowErrors); setMessage(`${created} servicio(s) importados${rowErrors.length ? `; ${rowErrors.length} fila(s) requieren revisión` : ''}. La importación solo crea y no modifica servicios existentes.`)
+      setImportErrors(rowErrors); setRetryRows(rejectedRows); setMessage(`${created} servicio(s) importados${rowErrors.length ? `; ${rowErrors.length} fila(s) requieren revisión` : ''}. La importación solo crea y no modifica servicios existentes.`)
       if (created) await reload()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo leer el CSV') }
     finally { setImporting(false) }
   }
 
   function downloadImportErrors() { downloadCsv('fixi-servicios-errores.csv', [['fila', 'error'], ...importErrors.map(value => { const [row, ...description] = value.split(': '); return [row.replace('Fila ', ''), description.join(': ')] })]) }
+  function downloadRetryRows() { downloadCsv('fixi-servicios-filas-por-corregir.csv', [[...retryHeaders, 'fila_origen'], ...retryRows.map(row => [...row.values, row.sourceRow])]) }
 
   async function reload() {
     setLoading(true); setError('')
@@ -111,7 +115,7 @@ export function ServiceCatalogManagementPage() {
   const filtered = services.filter(service => service.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
   return <BaseLayout title="Servicios" description="Catálogo de trabajos cotizables, reutilizable en órdenes de reparación."><div className="space-y-5 px-4 lg:px-6">
     <Card><CardHeader><CardTitle>{editing ? 'Editar servicio' : 'Agregar servicio'}</CardTitle></CardHeader><CardContent><form className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" onSubmit={save}><Input required maxLength={200} placeholder="Nombre del servicio" value={name} onChange={event => setName(event.target.value)}/><Input required aria-label="Precio base" type="number" min="0" step="0.01" placeholder="Precio base MXN" value={basePrice} onChange={event => setBasePrice(event.target.value)}/><Input required aria-label="Duración estimada en minutos" type="number" min="1" step="1" placeholder="Duración en minutos" value={estimatedMinutes} onChange={event => setEstimatedMinutes(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !name.trim() || !Number.isFinite(Number(basePrice)) || Number(basePrice) < 0 || !Number.isSafeInteger(Number(estimatedMinutes)) || Number(estimatedMinutes) < 1}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Agregar servicio'}</Button>{editing && <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(''); setName(''); setBasePrice('0'); setEstimatedMinutes('60') }}>Cancelar</Button>}</div></form></CardContent></Card>
-    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Catálogo ({filtered.length})</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || !filtered.length} onClick={exportCsv}>Exportar filtrados</Button><Button type="button" variant="outline" disabled={importing} onClick={() => downloadCsv('fixi-servicios-plantilla.csv', [['nombre', 'precio_base', 'duracion_minutos', 'activo']])}>Plantilla CSV</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">{importing ? 'Importando…' : 'Importar CSV'}<Input className="sr-only" type="file" accept=".csv,text/csv" disabled={importing} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importCsv(file) }}/></label>{importErrors.length > 0 && <Button type="button" variant="outline" onClick={downloadImportErrors}>Descargar errores ({importErrors.length})</Button>}</div></div><Input aria-label="Buscar servicios" placeholder="Buscar servicio" value={search} onChange={event => setSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{loading && <p role="status">Cargando servicios…</p>}{filtered.map(service => <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p>{service.name} · <span className="text-sm text-muted-foreground">{service.active ? 'Activo' : 'Inactivo'}</span></p><p className="text-sm text-muted-foreground">Base {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setEditing(service.id); setName(service.name); setBasePrice(String(service.basePrice)); setEstimatedMinutes(String(service.estimatedMinutes)) }}>Editar</Button><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void toggle(service)}>{service.active ? 'Desactivar' : 'Activar'}</Button></div></div>)}{!loading && !error && !filtered.length && <p className="text-sm text-muted-foreground">No hay servicios que coincidan.</p>}</CardContent></Card>
+    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Catálogo ({filtered.length})</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || !filtered.length} onClick={exportCsv}>Exportar filtrados</Button><Button type="button" variant="outline" disabled={importing} onClick={() => downloadCsv('fixi-servicios-plantilla.csv', [['nombre', 'precio_base', 'duracion_minutos', 'activo']])}>Plantilla CSV</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">{importing ? 'Importando…' : 'Importar CSV'}<Input className="sr-only" type="file" accept=".csv,text/csv" disabled={importing} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importCsv(file) }}/></label>{retryRows.length > 0 && <Button type="button" variant="outline" onClick={downloadRetryRows}>Descargar filas por corregir ({retryRows.length})</Button>}{importErrors.length > 0 && <Button type="button" variant="outline" onClick={downloadImportErrors}>Descargar errores ({importErrors.length})</Button>}</div></div><Input aria-label="Buscar servicios" placeholder="Buscar servicio" value={search} onChange={event => setSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{loading && <p role="status">Cargando servicios…</p>}{filtered.map(service => <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p>{service.name} · <span className="text-sm text-muted-foreground">{service.active ? 'Activo' : 'Inactivo'}</span></p><p className="text-sm text-muted-foreground">Base {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setEditing(service.id); setName(service.name); setBasePrice(String(service.basePrice)); setEstimatedMinutes(String(service.estimatedMinutes)) }}>Editar</Button><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void toggle(service)}>{service.active ? 'Desactivar' : 'Activar'}</Button></div></div>)}{!loading && !error && !filtered.length && <p className="text-sm text-muted-foreground">No hay servicios que coincidan.</p>}</CardContent></Card>
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}{error && <div className="flex items-center justify-between"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload()}>Reintentar</Button></div>}
   </div></BaseLayout>
 }
