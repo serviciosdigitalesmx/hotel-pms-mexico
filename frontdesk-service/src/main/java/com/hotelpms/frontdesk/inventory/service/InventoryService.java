@@ -58,6 +58,7 @@ public class InventoryService {
     p.setHotelId(hotel);
     p.setSku(r.sku().trim());
     p.setName(r.name().trim());
+    p.setDescription(r.description() == null ? null : r.description().trim());
     p.setOptional(r.optional());
     p.setCategory(r.category().trim());
     p.setCost(r.cost());
@@ -89,6 +90,7 @@ public class InventoryService {
     }
     product.setSku(r.sku().trim());
     product.setName(r.name().trim());
+    product.setDescription(r.description() == null ? null : r.description().trim());
     product.setOptional(r.optional());
     product.setCategory(r.category().trim());
     product.setCost(r.cost());
@@ -299,8 +301,12 @@ public class InventoryService {
     final List<List<String>> rows = parseCsv(csv == null ? "" : csv.replaceFirst("^\\uFEFF", ""));
     List<String> headers = List.of("sku", "name", "optional");
     int firstDataRow = 0;
-    if (!rows.isEmpty() && rows.get(0).stream().anyMatch(value -> "sku".equalsIgnoreCase(value.trim()))) {
-      headers = rows.get(0).stream().map(value -> value.trim().toLowerCase(Locale.ROOT)).toList();
+    if (!rows.isEmpty() && rows.get(0).stream().map(value -> value.trim().toLowerCase(Locale.ROOT)
+        .replaceAll("[\\s_-]+", "")).anyMatch(value -> List.of(
+            "sku", "name", "product", "productname", "category", "description", "quantity", "stock")
+            .contains(value))) {
+      headers = rows.get(0).stream().map(value -> value.trim().toLowerCase(Locale.ROOT)
+          .replaceAll("[\\s_-]+", "")).toList();
       firstDataRow = 1;
     }
     for (int i = firstDataRow; i < rows.size(); i++) {
@@ -309,21 +315,24 @@ public class InventoryService {
       for (int column = 0; column < headers.size() && column < cells.size(); column++) {
         values.put(headers.get(column), cells.get(column).trim());
       }
-      final String sku = values.getOrDefault("sku", "");
-      final String name = values.getOrDefault("name", "");
-      if (sku.isBlank() || name.isBlank()) {
+      final String suppliedSku = values.getOrDefault("sku", "");
+      final String name = values.getOrDefault("name", values.getOrDefault("product", values.getOrDefault("productname", "")));
+      if (name.isBlank()) {
         rejected++;
-        errors.add("row " + (i + 1) + ": sku and name are required");
+        errors.add("row " + (i + 1) + ": product name is required");
         continue;
       }
       try {
+        final String sku = suppliedSku.isBlank()
+            ? "IMP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase(Locale.ROOT)
+            : suppliedSku;
         final UUID supplierId = values.containsKey("supplierid") && !values.get("supplierid").isBlank()
             ? UUID.fromString(values.get("supplierid")) : null;
         final UUID branchId = values.containsKey("branchid") && !values.get("branchid").isBlank()
             ? UUID.fromString(values.get("branchid")) : null;
-        final long quantity = longValue(values.get("quantity"), 0);
+        final long quantity = longValue(values.getOrDefault("quantity", values.get("stock")), 0);
         product(hotel, new ProductRequest(
-            sku, name, Boolean.parseBoolean(values.getOrDefault("optional", "false")),
+            sku, name, values.getOrDefault("description", ""), Boolean.parseBoolean(values.getOrDefault("optional", "false")),
             values.getOrDefault("category", "General").isBlank() ? "General" : values.get("category"),
             decimalValue(values.get("cost")), decimalValue(values.get("price")),
             longValue(values.get("reorderlevel"), 0), supplierId, quantity, branchId));

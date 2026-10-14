@@ -46,6 +46,9 @@ public class InventoryProduct {
   @Column(nullable = false, length = NAME_LENGTH)
   private String name;
 
+  @Column(length = 2000)
+  private String description;
+
   @Column(nullable = false, length = CATEGORY_LENGTH)
   @Builder.Default
   private String category = "General";
