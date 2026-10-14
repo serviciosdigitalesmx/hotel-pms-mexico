@@ -30,6 +30,10 @@ export function ReceptionOrderForm() {
   const [deviceSaving, setDeviceSaving] = useState(false)
   const [services, setServices] = useState<api.ServiceCatalogEntry[]>([])
   const [users, setUsers] = useState<api.TeamUser[]>([])
+  const [branchTechnicianIds, setBranchTechnicianIds] = useState<string[]>()
+  const [branchTechniciansLoading, setBranchTechniciansLoading] = useState(false)
+  const [capabilities, setCapabilities] = useState<Set<string>>(new Set())
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(true)
   const [checklistTemplate, setChecklistTemplate] = useState<string[]>([])
   const [checkedChecklist, setCheckedChecklist] = useState<string[]>([])
   const [customerId, setCustomerId] = useState('')
@@ -44,6 +48,15 @@ export function ReceptionOrderForm() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const selectedService = services.find(service => service.name === serviceName)
+  const assignableTechnicians = branchId && branchTechnicianIds ? users.filter(user => branchTechnicianIds.includes(user.id)) : branchId ? [] : users
+
+  useEffect(() => {
+    let active = true
+    api.effectiveCapabilities().then(result => { if (active) setCapabilities(new Set(result.capabilities)) })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los permisos') })
+      .finally(() => { if (active) setCapabilitiesLoading(false) })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -174,6 +187,16 @@ export function ReceptionOrderForm() {
     return () => { active = false }
   }, [customerId])
 
+  useEffect(() => {
+    let active = true
+    if (!branchId) { setBranchTechnicianIds(undefined); setBranchTechniciansLoading(false); return () => { active = false } }
+    setBranchTechnicianIds(undefined); setBranchTechniciansLoading(true)
+    api.listBranchMembers(branchId).then(ids => { if (active) setBranchTechnicianIds(ids) })
+      .catch(reason => { if (active) { setBranchTechnicianIds([]); setError(reason instanceof Error ? reason.message : 'No se pudieron consultar los técnicos de la sucursal') } })
+      .finally(() => { if (active) setBranchTechniciansLoading(false) })
+    return () => { active = false }
+  }, [branchId])
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!customerId) { setError('Busca y selecciona un cliente antes de crear la orden'); return }
@@ -207,7 +230,7 @@ export function ReceptionOrderForm() {
           </select>
         </div>
         <div className="space-y-2">
-          <Button type="button" variant="outline" size="sm" disabled={customerSaving} onClick={() => { setQuickCreateCustomer(value => !value); setError('') }}>{quickCreateCustomer ? 'Cancelar alta rápida' : 'Crear cliente rápido'}</Button>
+          {capabilitiesLoading&&<p role="status" className="text-xs text-muted-foreground">Consultando permisos de alta…</p>}{capabilities.has('CUSTOMERS_WRITE')&&<Button type="button" variant="outline" size="sm" disabled={customerSaving} onClick={() => { setQuickCreateCustomer(value => !value); setError('') }}>{quickCreateCustomer ? 'Cancelar alta rápida' : 'Crear cliente rápido'}</Button>}{!capabilitiesLoading&&!capabilities.has('CUSTOMERS_WRITE')&&<p className="text-xs text-muted-foreground">Para alta rápida de clientes se requiere CUSTOMERS_WRITE.</p>}
           {quickCreateCustomer && <div className="grid gap-2 rounded border p-3 sm:grid-cols-2">
             <Input required maxLength={100} aria-label="Nombre del nuevo cliente" placeholder="Nombre" value={quickCustomer.firstName} onChange={event => setQuickCustomer({ ...quickCustomer, firstName: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}/>
             <Input required maxLength={100} aria-label="Apellido del nuevo cliente" placeholder="Apellido" value={quickCustomer.lastName} onChange={event => setQuickCustomer({ ...quickCustomer, lastName: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') event.preventDefault() }}/>
@@ -222,7 +245,7 @@ export function ReceptionOrderForm() {
           {devices.map(device => <option key={device.id} value={device.id}>{device.manufacturer} {device.model} · {device.serialNumber || device.imei || device.category}</option>)}
         </select>
         <div className="space-y-2">
-          <Button type="button" size="sm" variant="outline" disabled={!customerId || deviceSaving} onClick={() => { setQuickCreateDevice(value => !value); setError('') }}>{quickCreateDevice ? 'Cancelar alta de equipo' : 'Registrar equipo para este cliente'}</Button>
+          {capabilities.has('DEVICES_WRITE')&&<Button type="button" size="sm" variant="outline" disabled={!customerId || deviceSaving} onClick={() => { setQuickCreateDevice(value => !value); setError('') }}>{quickCreateDevice ? 'Cancelar alta de equipo' : 'Registrar equipo para este cliente'}</Button>}{!capabilitiesLoading&&!capabilities.has('DEVICES_WRITE')&&<p className="text-xs text-muted-foreground">Para alta rápida de equipos se requiere DEVICES_WRITE.</p>}
           {quickCreateDevice && <div className="grid gap-2 rounded border p-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input required maxLength={80} aria-label="Categoría del equipo" placeholder="Categoría" value={quickDevice.category} onChange={event => setQuickDevice({ ...quickDevice, category: event.target.value })}/>
             <Input maxLength={120} aria-label="Marca del equipo" placeholder="Marca" value={quickDevice.manufacturer} onChange={event => setQuickDevice({ ...quickDevice, manufacturer: event.target.value })}/>
@@ -234,9 +257,9 @@ export function ReceptionOrderForm() {
           </div>}
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <select aria-label="Sucursal" className={field} value={branchId} onChange={event => setBranchId(event.target.value)}><option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
+          <select aria-label="Sucursal" className={field} value={branchId} onChange={event => { setBranchId(event.target.value); setAssignedUserId('') }}><option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>
           <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => <option key={service.id} value={service.name}>{service.name} · {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</option>)}</select>
-          <select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{users.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>
+          <label className="grid gap-1 text-sm text-muted-foreground">Responsable técnico<select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{assignableTechnicians.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>{branchTechniciansLoading&&<span role="status" className="text-xs">Consultando técnicos asignados…</span>}{branchId&&!branchTechniciansLoading&&!assignableTechnicians.length&&<span className="text-xs">No hay técnicos asignados a esta sucursal; la orden puede quedar sin asignar.</span>}</label>
           <select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select>
           <div><Label>Anticipo recibido</Label><Input required type="number" min="0" max="9999999999.99" step="0.01" inputMode="decimal" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/>{selectedService&&Number(depositAmount)>selectedService.basePrice&&<p role="note" className="mt-1 text-xs text-amber-700">El anticipo excede el precio base de {selectedService.name}; verifica que cubra cargos o piezas adicionales.</p>}</div>
         </div>
