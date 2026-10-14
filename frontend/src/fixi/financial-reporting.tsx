@@ -13,6 +13,7 @@ const today = () => localDate(new Date())
 export function FixiFinancialReportingPage() {
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
+  const [period, setPeriod] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM'>('MONTH')
   const [orders, setOrders] = useState<api.ServiceOrder[]>([])
   const [expenses, setExpenses] = useState<api.Expense[]>([])
   const [customers, setCustomers] = useState<api.Customer[]>([])
@@ -21,8 +22,8 @@ export function FixiFinancialReportingPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  async function generate() {
-    if (!from || !to || from > to) return
+  async function generate(rangeStart = from, rangeEnd = to) {
+    if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return
     setBusy(true); setError('')
     try {
       const [allOrders, allExpenses, allCustomers, allUsers] = await Promise.all([api.listAllServiceOrders(), api.listExpenses(), api.listAllCustomers().catch(() => []), api.listUsers().catch(() => [])])
@@ -30,15 +31,25 @@ export function FixiFinancialReportingPage() {
       setUsers(allUsers)
       setOrders(allOrders.filter(order => {
         const date = (order.status === 'COMPLETED' ? order.deliveredAt ?? order.updatedAt : order.createdAt)?.slice(0, 10) ?? ''
-        return date >= from && date <= to
+        return date >= rangeStart && date <= rangeEnd
       }))
       setExpenses(allExpenses.filter(expense => {
         const date = (expense.spentAt ?? expense.createdAt).slice(0, 10)
-        return date >= from && date <= to
+        return date >= rangeStart && date <= rangeEnd
       }))
       setLoaded(true)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo generar el reporte del taller') }
     finally { setBusy(false) }
+  }
+
+  function choosePeriod(next: 'TODAY' | 'WEEK' | 'MONTH') {
+    const now = new Date()
+    const end = localDate(now)
+    const start = next === 'TODAY' ? end : next === 'MONTH'
+      ? localDate(new Date(now.getFullYear(), now.getMonth(), 1))
+      : localDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)))
+    setPeriod(next); setFrom(start); setTo(end)
+    void generate(start, end)
   }
 
   const completed = orders.filter(order => order.status === 'COMPLETED')
@@ -90,7 +101,7 @@ export function FixiFinancialReportingPage() {
   }
 
   return <BaseLayout title="Finanzas del taller" description="Órdenes completadas, cotizaciones pendientes y gastos del periodo."><div className="space-y-5 px-4 lg:px-6">
-    <div className="grid gap-3 sm:grid-cols-3"><Input aria-label="Desde" type="date" value={from} onChange={event => setFrom(event.target.value)}/><Input aria-label="Hasta" type="date" value={to} onChange={event => setTo(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !from || !to || from > to} onClick={() => void generate()}>{busy ? 'Generando…' : 'Generar reporte'}</Button><Button type="button" variant="outline" disabled={!loaded} onClick={exportCsv}>Exportar CSV</Button><Button type="button" variant="outline" disabled={!loaded} onClick={() => window.print()}>Imprimir / PDF</Button></div></div>
+    <div className="space-y-3"><div className="flex flex-wrap gap-2">{([['TODAY','Hoy'],['WEEK','Semana'],['MONTH','Mes'],['CUSTOM','Rango personalizado']] as const).map(([key,label])=><Button key={key} type="button" size="sm" variant={period===key?'default':'outline'} onClick={() => key === 'CUSTOM' ? setPeriod('CUSTOM') : choosePeriod(key)}>{label}</Button>)}</div><div className="grid gap-3 sm:grid-cols-3"><Input aria-label="Desde" type="date" disabled={period!=='CUSTOM'} value={from} onChange={event => setFrom(event.target.value)}/><Input aria-label="Hasta" type="date" disabled={period!=='CUSTOM'} value={to} onChange={event => setTo(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !from || !to || from > to} onClick={() => void generate()}>{busy ? 'Generando…' : 'Generar reporte'}</Button><Button type="button" variant="outline" disabled={!loaded} onClick={exportCsv}>Exportar CSV</Button><Button type="button" variant="outline" disabled={!loaded} onClick={() => window.print()}>Imprimir / PDF</Button></div></div></div>
     {loaded && <><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[['Cotizado en órdenes completadas', completedValue], ['Pendiente en órdenes abiertas', openValue], ['Gastos pagados', paidCost], ['Gastos por pagar', pendingCost]].map(([label, value]) => <Card key={String(label)}><CardHeader><CardDescription>{label}</CardDescription><CardTitle className="text-xl">{money.format(Number(value))}</CardTitle></CardHeader></Card>)}</div>
       <div className="grid gap-4 md:grid-cols-3"><Card><CardHeader><CardDescription>Órdenes completadas</CardDescription><CardTitle className="text-3xl">{completed.length}</CardTitle></CardHeader></Card><Card><CardHeader><CardDescription>Ticket promedio cotizado</CardDescription><CardTitle className="text-2xl">{money.format(averageTicket)}</CardTitle></CardHeader></Card><Card><CardHeader><CardDescription>Tiempo promedio de cierre</CardDescription><CardTitle className="text-2xl">{avgHours.toFixed(1)} h</CardTitle></CardHeader></Card></div>
       <div className="grid gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle>Órdenes completadas por día</CardTitle><CardDescription>Importes basados en cotización, no representan cobros confirmados.</CardDescription></CardHeader><CardContent className="space-y-2">{Object.entries(byDay).sort(([a], [b]) => a.localeCompare(b)).map(([day, value]) => <div className="flex justify-between rounded border p-3" key={day}><span>{day} · {value.count} órdenes</span><span>{money.format(value.amount)}</span></div>)}{!completed.length && <p className="text-sm text-muted-foreground">Sin órdenes completadas en este periodo.</p>}</CardContent></Card><Card><CardHeader><CardTitle>Desglose de gastos</CardTitle></CardHeader><CardContent className="space-y-2">{Object.entries(byCategory).sort((a, b) => b[1] - a[1]).map(([category, amount]) => <div className="flex justify-between rounded border p-3" key={category}><span>{category}</span><span>{money.format(amount)}</span></div>)}{!expenses.length && <p className="text-sm text-muted-foreground">Sin gastos en este periodo.</p>}</CardContent></Card><Card><CardHeader><CardTitle>Ingresos cotizados por servicio</CardTitle></CardHeader><CardContent className="space-y-2">{Object.entries(byService).sort((a,b)=>b[1]-a[1]).map(([service,amount])=><div className="flex justify-between rounded border p-3" key={service}><span>{service}</span><span>{money.format(amount)}</span></div>)}{!completed.length&&<p className="text-sm text-muted-foreground">Sin datos de servicios.</p>}</CardContent></Card><Card><CardHeader><CardTitle>Clientes recurrentes</CardTitle><CardDescription>Top cinco por órdenes completadas en el periodo.</CardDescription></CardHeader><CardContent className="space-y-2">{Object.entries(byCustomer).filter(([,value])=>value.count>1).sort((a,b)=>b[1].count-a[1].count).slice(0,5).map(([id,value])=><div className="flex justify-between rounded border p-3" key={id}><span>{customerNames.get(id)??id}</span><span>{value.count} órdenes · {money.format(value.amount)}</span></div>)}{!Object.values(byCustomer).some(value=>value.count>1)&&<p className="text-sm text-muted-foreground">No hay clientes con más de una orden completada en este periodo.</p>}</CardContent></Card><Card><CardHeader><CardTitle>Rendimiento por técnico</CardTitle></CardHeader><CardContent className="space-y-2">{Object.entries(technicianCounts).sort((a,b)=>b[1]-a[1]).map(([id,count])=><div className="flex justify-between rounded border p-3" key={id}><span>{users.find(user=>user.id===id)?.username??id}</span><span>{count} órdenes completadas</span></div>)}{!Object.keys(technicianCounts).length&&<p className="text-sm text-muted-foreground">Sin cierres asignados a técnicos.</p>}</CardContent></Card></div>
