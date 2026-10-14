@@ -118,7 +118,9 @@ export function ExpensesPage() {
 
   async function generateRecurring(id:string) {
     setUpdatingId(id); setError(''); setMessage('')
-    try { await api.generateRecurringExpense(id); setMessage('Se creó un gasto pendiente para el siguiente periodo'); setRevision(value=>value+1) }
+    const template = recurring.find(row=>row.id===id)
+    if (!template) { setUpdatingId(''); setError('No se encontró la plantilla recurrente'); return }
+    try { await api.generateRecurringExpense(id,template.nextDueAt); setMessage('Se creó o confirmó el gasto pendiente de ese periodo'); setRevision(value=>value+1) }
     catch(reason) { setError(reason instanceof Error?reason.message:'No se pudo generar el gasto') }
     finally { setUpdatingId('') }
   }

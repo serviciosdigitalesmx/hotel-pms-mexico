@@ -185,15 +185,23 @@ public class ExpenseServiceImpl implements ExpenseService {
 
   @Override
   @Transactional
-  public Expense generateRecurring(final UUID hotelId, final UUID actor, final UUID templateId) {
-    final RecurringExpenseTemplate template = recurringTemplates.findByIdAndHotelId(templateId, hotelId)
+  public Expense generateRecurring(
+      final UUID hotelId, final UUID actor, final UUID templateId, final java.time.LocalDate expectedDueAt) {
+    final RecurringExpenseTemplate template = recurringTemplates.findForUpdateByIdAndHotelId(templateId, hotelId)
         .orElseThrow(() -> new NotFoundException("RECURRING_EXPENSE_NOT_FOUND"));
     if (!template.isActive()) throw new BillingValidationException("RECURRING_EXPENSE_INACTIVE");
     final var dueAt = template.getNextDueAt();
+    if (!dueAt.equals(expectedDueAt)) {
+      return expenses.findByHotelIdAndRecurringTemplateIdAndRecurringPeriodDueAt(hotelId, templateId, expectedDueAt)
+          .orElseThrow(() -> new BillingValidationException("RECURRING_EXPENSE_PERIOD_CHANGED"));
+    }
+    final var existing = expenses.findByHotelIdAndRecurringTemplateIdAndRecurringPeriodDueAt(hotelId, templateId, dueAt);
+    if (existing.isPresent()) return existing.get();
     final Expense expense = expenses.save(Expense.builder().hotelId(hotelId).createdBy(actor)
         .createdAt(LocalDateTime.now()).category(template.getCategory()).amount(template.getAmount())
         .description(template.getDescription()).reference(template.getReference()).expenseType("FIXED")
-        .subcategory(template.getSubcategory()).paid(false).dueAt(dueAt).build());
+        .subcategory(template.getSubcategory()).paid(false).dueAt(dueAt)
+        .recurringTemplateId(templateId).recurringPeriodDueAt(dueAt).build());
     template.setNextDueAt(switch (template.getFrequency()) {
       case "WEEKLY" -> dueAt.plusWeeks(1);
       case "YEARLY" -> dueAt.plusYears(1);

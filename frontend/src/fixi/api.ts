@@ -158,7 +158,7 @@ export const updateExpense=(id:string,body:{category:string;amount:number;descri
 export const markExpensePaid=(id:string,paymentMethod:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'='OTHER',cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId,paymentMethod})
 export const listRecurringExpenses=()=>get<RecurringExpenseTemplate[]>('/api/v1/expenses/recurring')
 export const createRecurringExpense=(body:{category:string;amount:number;description?:string;reference?:string;subcategory?:string;frequency:RecurringExpenseTemplate['frequency'];nextDueAt:string})=>post<RecurringExpenseTemplate>('/api/v1/expenses/recurring',body)
-export const generateRecurringExpense=(id:string)=>post<Expense>(`/api/v1/expenses/recurring/${id}/generate`)
+export const generateRecurringExpense=(id:string,expectedDueAt:string)=>post<Expense>(`/api/v1/expenses/recurring/${id}/generate`,{expectedDueAt})
 export const setRecurringExpenseActive=(id:string,active:boolean)=>patch<RecurringExpenseTemplate>(`/api/v1/expenses/recurring/${id}/active`,{active})
 export const getOpenCashSession=()=>get<CashSessionSummary|null>('/api/v1/cash/sessions/open')
 export type FinancialReport={startDate:string;endDate:string;totalRevenue:number;totalCollected:number;totalOutstanding:number;totalInvoices:number;paidInvoices:number;invoices:Array<{id:string;invoiceNumber?:string;status:string;totalAmount:number;issueDate:string;guestId?:string}>}

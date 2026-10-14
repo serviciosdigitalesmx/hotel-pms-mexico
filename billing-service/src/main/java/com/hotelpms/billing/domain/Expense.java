@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -80,4 +79,10 @@ public class Expense {
 
   @Column(name = "paid_at")
   private LocalDateTime paidAt;
+
+  @Column(name = "recurring_template_id")
+  private UUID recurringTemplateId;
+
+  @Column(name = "recurring_period_due_at")
+  private LocalDate recurringPeriodDueAt;
 }

@@ -68,9 +68,13 @@ public class ExpenseController {
 
   @PostMapping("/recurring/{id}/generate")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
-  public ResponseEntity<Expense> generateRecurring(@PathVariable final UUID id) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(service.generateRecurring(hotel(), actor(), id));
+  public ResponseEntity<Expense> generateRecurring(
+      @PathVariable final UUID id, @Valid @RequestBody final GenerateRecurringRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(service.generateRecurring(hotel(), actor(), id, request.expectedDueAt()));
   }
+
+  public record GenerateRecurringRequest(@jakarta.validation.constraints.NotNull java.time.LocalDate expectedDueAt) {}
 
   @PatchMapping("/recurring/{id}/active")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")

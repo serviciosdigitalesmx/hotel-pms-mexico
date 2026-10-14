@@ -39,7 +39,7 @@ public interface ExpenseService {
 
   RecurringExpenseTemplate createRecurring(UUID hotelId, UUID actor, RecurringExpenseRequest request);
 
-  Expense generateRecurring(UUID hotelId, UUID actor, UUID templateId);
+  Expense generateRecurring(UUID hotelId, UUID actor, UUID templateId, java.time.LocalDate expectedDueAt);
 
   RecurringExpenseTemplate setRecurringActive(UUID hotelId, UUID templateId, boolean active);
 }
