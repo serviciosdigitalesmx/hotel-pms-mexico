@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { baseURL, json, PmsApi, primaryCredentials, status, uniqueTag } from './support';
 
@@ -78,7 +78,7 @@ test('FIXI Web business contract: login, customer, device and reception', async 
   });
 
   await test.step('protected boundary rejects an unauthenticated request', async () => {
-    const unauthenticated = await page.context().request.newContext({ baseURL });
+    const unauthenticated = await request.newContext({ baseURL });
     try { await status(await unauthenticated.get('/api/v1/service-orders'), 401); }
     finally { await unauthenticated.dispose(); }
   });
