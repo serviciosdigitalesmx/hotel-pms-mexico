@@ -74,6 +74,8 @@ export function Purchases() {
     ordered: totals.ordered + line.quantityOrdered * line.unitCost,
     received: totals.received + line.quantityReceived * line.unitCost,
   }), { ordered: 0, received: 0 })
+  const draftTotal = draftLines.reduce((total, line) => total + line.quantity * line.unitCost, 0)
+  const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount)
 
   return <BaseLayout title="Compras" description="Órdenes con partidas previstas y recepción parcial o completa.">
     <div className="grid gap-5 px-4 lg:grid-cols-2 lg:px-6">
@@ -82,13 +84,21 @@ export function Purchases() {
           <select required aria-label="Sucursal de compra" className={field} value={form.branchId} onChange={event => setForm({ ...form, branchId: event.target.value })}>
             <option value="">Sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
           </select>
-          <select required aria-label="Proveedor de compra" className={field} value={form.supplierId} onChange={event => setForm({ ...form, supplierId: event.target.value })}>
+          <select required aria-label="Proveedor de compra" className={field} value={form.supplierId} onChange={event => {
+            const supplierId = event.target.value
+            setForm(current => ({ ...current, supplierId }))
+            const compatibleIds = new Set(products.filter(product => !product.supplierId || product.supplierId === supplierId).map(product => product.id))
+            setDraftLines(current => current.map(line => line.productId && !compatibleIds.has(line.productId)
+              ? { ...line, productId: '', unitCost: 0 } : line))
+          }}>
             <option value="">Proveedor</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
           </select>
           <Input aria-label="Orden de servicio asociada" placeholder="Orden de servicio opcional (ID)" value={form.serviceOrderId} onChange={event => setForm({ ...form, serviceOrderId: event.target.value })}/>
           {draftLines.map((line, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_6rem_8rem_auto]">
             <select required aria-label={`Producto ordenado ${index + 1}`} className={field} value={line.productId} onChange={event => setDraftLines(current => current.map((item, i) => i === index ? { ...item, productId: event.target.value, unitCost: Number(products.find(product => product.id === event.target.value)?.cost ?? 0) } : item))}>
-              <option value="">Producto</option>{products.filter(product => !product.supplierId || product.supplierId === form.supplierId).map(product => <option key={product.id} value={product.id}>{product.sku} · {product.name}</option>)}
+              <option value="">Producto</option>{products.filter(product => (!product.supplierId || product.supplierId === form.supplierId)
+                && (product.id === line.productId || !draftLines.some((selected, selectedIndex) => selectedIndex !== index && selected.productId === product.id)))
+                .map(product => <option key={product.id} value={product.id}>{product.sku} · {product.name}</option>)}
             </select>
             <Input required aria-label={`Cantidad ordenada ${index + 1}`} type="number" min="1" step="1" value={line.quantity} onChange={event => setDraftLines(current => current.map((item, i) => i === index ? { ...item, quantity: Number(event.target.value) } : item))}/>
             <Input required aria-label={`Costo unitario ${index + 1}`} type="number" min="0" step="0.01" value={line.unitCost} onChange={event => setDraftLines(current => current.map((item, i) => i === index ? { ...item, unitCost: Number(event.target.value) } : item))}/>
@@ -96,8 +106,9 @@ export function Purchases() {
           </div>)}
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => setDraftLines(current => [...current, { productId: '', quantity: 1, unitCost: 0 }])}>Agregar producto</Button>
-            <Button disabled={busy || loading || !form.supplierId || draftLines.some(line => !line.productId || line.quantity < 1 || line.unitCost < 0)}>{busy ? 'Guardando…' : 'Crear orden de compra'}</Button>
+            <Button disabled={busy || loading || !form.supplierId || draftLines.some(line => !line.productId || !Number.isSafeInteger(line.quantity) || line.quantity < 1 || !Number.isFinite(line.unitCost) || line.unitCost < 0)}>{busy ? 'Guardando…' : 'Crear orden de compra'}</Button>
           </div>
+          <p className="text-right text-sm font-medium">Total estimado: {formatMoney(draftTotal)}</p>
         </form>
       </CardContent></Card>
 
