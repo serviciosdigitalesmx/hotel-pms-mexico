@@ -31,6 +31,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class ServiceOrderController {
   private final ServiceOrderService service;
 
+  @GetMapping("/{id}/configured-workflow")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public ServiceOrderService.ConfiguredWorkflowView configuredWorkflow(@PathVariable final UUID id) {
+    return service.configuredWorkflow(hotel(), id);
+  }
+
+  @PostMapping("/{id}/configured-workflow/transitions/{transitionKey}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public ServiceOrderService.ConfiguredWorkflowView advanceConfiguredWorkflow(
+      @PathVariable final UUID id, @PathVariable final String transitionKey) {
+    var authentication = SecurityContextHolder.getContext().getAuthentication();
+    return service.advanceConfiguredWorkflow(hotel(), id, transitionKey,
+        authentication.getName(), authentication.getAuthorities().stream()
+            .map(org.springframework.security.core.GrantedAuthority::getAuthority).toList());
+  }
+
   /**
    * Creates a service order within the active tenant.
    *

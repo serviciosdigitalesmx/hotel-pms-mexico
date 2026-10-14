@@ -156,6 +156,18 @@ public class WorkflowService {
             actor));
     return t;
   }
+
+  @Transactional(readOnly = true)
+  public WorkflowDefinition activeForVertical(final UUID hotel, final String verticalKey) {
+    return definitions.findByVerticalKeyAndHotelIdAndActiveTrue(verticalKey, hotel).orElse(null);
+  }
+
+  @Transactional(readOnly = true)
+  public WorkflowState stateForAggregate(final UUID hotel, final UUID workflowId, final UUID aggregateId) {
+    return instances.findByHotelIdAndWorkflowIdAndAggregateId(hotel, workflowId, aggregateId)
+        .flatMap(instance -> states.findByWorkflowIdAndKey(workflowId, instance.getStateKey()))
+        .orElse(null);
+  }
   /**
    * Executes the operation.
    *

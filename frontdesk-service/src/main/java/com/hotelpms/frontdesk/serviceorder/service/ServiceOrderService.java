@@ -15,6 +15,12 @@ import com.hotelpms.frontdesk.serviceorder.domain.RepairTest;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory;
 import com.hotelpms.frontdesk.serviceorder.dto.QuotationUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.RepairTestRequest;
+import com.hotelpms.frontdesk.workflow.domain.WorkflowDefinition;
+import com.hotelpms.frontdesk.workflow.domain.WorkflowState;
+import com.hotelpms.frontdesk.workflow.domain.WorkflowTransition;
+import com.hotelpms.frontdesk.workflow.dto.WorkflowDtos.TransitionRequest;
+import com.hotelpms.frontdesk.workflow.repository.WorkflowTransitionRepository;
+import com.hotelpms.frontdesk.workflow.service.WorkflowService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +36,79 @@ public class ServiceOrderService {
   private final RepairTestRepository repairTests;
   private final ServiceOrderStatusHistoryRepository history;
   private final AuditEventService auditEvents;
+  private final WorkflowService workflows;
+  private final WorkflowTransitionRepository workflowTransitions;
+
+  public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
+  public record ConfiguredWorkflowTransition(String key, String fromStateKey, String toStateKey) { }
+  public record ConfiguredWorkflowView(String id, String name, String currentState, String initialState,
+      java.util.List<ConfiguredWorkflowTransition> transitions) { }
+
+  @Transactional(readOnly = true)
+  public ConfiguredWorkflowView configuredWorkflow(final UUID hotelId, final UUID orderId) {
+    get(hotelId, orderId);
+    WorkflowDefinition workflow = workflows.activeForVertical(hotelId, "REPAIR");
+    if (workflow == null) return null;
+    WorkflowState current = workflows.stateForAggregate(hotelId, workflow.getId(), orderId);
+    String initialState = workflows.states(hotelId, workflow.getId()).stream()
+        .filter(WorkflowState::isInitialState).map(WorkflowState::getKey).findFirst().orElse(null);
+    return new ConfiguredWorkflowView(workflow.getId().toString(), workflow.getName(),
+        current == null ? null : current.getKey(),
+        initialState,
+        workflowTransitions.findAllByWorkflowId(workflow.getId()).stream()
+            .map(t -> new ConfiguredWorkflowTransition(t.getKey(), t.getFromState().getKey(), t.getToState().getKey()))
+            .toList());
+  }
+
+  @Transactional
+  public ConfiguredWorkflowView advanceConfiguredWorkflow(final UUID hotelId, final UUID orderId,
+      final String transitionKey, final String actor, final java.util.Collection<String> authorities) {
+    ServiceOrder order = get(hotelId, orderId);
+    WorkflowDefinition workflow = workflows.activeForVertical(hotelId, "REPAIR");
+    if (workflow == null) throw new NotFoundException("No active REPAIR workflow configured");
+    WorkflowState current = workflows.stateForAggregate(hotelId, workflow.getId(), orderId);
+    String fromKey = current == null ? workflows.states(hotelId, workflow.getId()).stream()
+        .filter(WorkflowState::isInitialState).map(WorkflowState::getKey).findFirst()
+        .orElseThrow(() -> new IllegalStateException("REPAIR workflow has no initial state")) : current.getKey();
+    WorkflowTransition transition = workflows.transitions(hotelId, workflow.getId()).stream()
+        .filter(t -> t.getKey().equals(transitionKey) && t.getFromState().getKey().equals(fromKey))
+        .findFirst().orElseThrow(() -> new IllegalStateException("Transition is not allowed from current state"));
+    if (!authorities.contains(transition.getRequiredPermission())
+        && !authorities.contains("ROLE_ADMIN") && !authorities.contains("ROLE_OWNER")) {
+      throw new org.springframework.security.access.AccessDeniedException("Missing workflow permission");
+    }
+    workflows.transition(hotelId, workflow.getId(), new TransitionRequest(orderId, fromKey, transitionKey), actor);
+    WorkflowState destination = transition.getToState();
+    ServiceOrderStatus nextStatus = switch (destination.getSemanticPhase()) {
+      case INTAKE -> ServiceOrderStatus.INTAKE;
+      case DIAGNOSIS -> ServiceOrderStatus.DIAGNOSIS;
+      case QUOTE -> ServiceOrderStatus.QUOTED;
+      case AUTHORIZATION -> ServiceOrderStatus.AUTHORIZED;
+      case WORK -> ServiceOrderStatus.IN_PROGRESS;
+      case READY -> ServiceOrderStatus.QA;
+      case DELIVERED, CLOSED -> ServiceOrderStatus.COMPLETED;
+      case WARRANTY -> order.getStatus();
+      case CANCELLED -> ServiceOrderStatus.CANCELLED;
+    };
+    if (nextStatus == ServiceOrderStatus.COMPLETED && order.getStatus() != ServiceOrderStatus.QA) {
+      throw new IllegalStateException("Service order must pass QA before configured delivery");
+    }
+    if (nextStatus == ServiceOrderStatus.COMPLETED
+        && repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, orderId)
+            .stream().anyMatch(test -> !test.isPassed())) {
+      throw new IllegalStateException("REPAIR_TESTS_FAILED");
+    }
+    ServiceOrderStatus previous = order.getStatus();
+    order.setStatus(nextStatus);
+    if (nextStatus == ServiceOrderStatus.COMPLETED && previous != ServiceOrderStatus.COMPLETED) {
+      order.setDeliveredAt(LocalDateTime.now());
+    }
+    order.setUpdatedAt(LocalDateTime.now());
+    repository.save(order);
+    if (previous != nextStatus) record(order, previous, nextStatus, actor, "Flujo configurable: " + transitionKey);
+    return configuredWorkflow(hotelId, orderId);
+  }
+
 
   /**
    * Executes the operation.

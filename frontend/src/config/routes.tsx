@@ -9,11 +9,11 @@ import { ExpensesPage } from '@/fixi/expenses'
 import { ServiceCatalogManagementPage } from '@/fixi/service-catalog'
 import { ReceptionOrderForm } from '@/fixi/reception'
 import { InventoryCatalogPage } from '@/fixi/inventory'
-import { FinancialReportingPage } from '@/fixi/operations'
 import { CustomerCsvTools } from '@/fixi/customer-tools'
 import { WorkflowSettingsPage } from '@/fixi/workflow-settings'
 import { DeviceManagementPage } from '@/fixi/devices'
 import { NotificationSettingsPage } from '@/fixi/notification-settings'
+import { FixiFinancialReportingPage } from '@/fixi/financial-reporting'
 export interface RouteConfig { path:string; element:ReactNode; children?:RouteConfig[] }
 const secure=(element:ReactNode,roles?:string[],capabilities?:string[])=><Protected roles={roles} capabilities={capabilities}>{element}</Protected>
 export const routes:RouteConfig[]=[
@@ -30,6 +30,6 @@ export const routes:RouteConfig[]=[
   {path:'/devices',element:secure(<DeviceManagementPage/>)},
   {path:'/settings/order-workflows',element:secure(<WorkflowSettingsPage/>,['ADMIN','OWNER'])},
   {path:'/settings/notifications',element:secure(<NotificationSettingsPage/>,['ADMIN','OWNER','MANAGER'])},
-  {path:'/reports/finance',element:secure(<FinancialReportingPage/>,['ADMIN','OWNER'])},
+  {path:'/reports/finance',element:secure(<FixiFinancialReportingPage/>,['ADMIN','OWNER'])},
   {path:'*',element:<Navigate to="/" replace/>},
 ]

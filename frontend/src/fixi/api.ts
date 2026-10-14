@@ -34,6 +34,9 @@ export const resetPassword=(token:string,password:string)=>post<void>('/api/v1/a
 export const acceptInvitation=(body:unknown)=>post<void>('/api/v1/auth/public/invitations/accept',body)
 export const completeOnboarding=(body:unknown)=>post<void>('/api/v1/auth/onboarding/complete',body)
 export const listServiceOrders=()=>get<ServiceOrder[]>('/api/v1/service-orders')
+export type ConfiguredWorkflow={id:string;name:string;currentState:string|null;initialState:string|null;transitions:Array<{key:string;fromStateKey:string;toStateKey:string}>}
+export const configuredOrderWorkflow=(id:string)=>get<ConfiguredWorkflow|null>(`/api/v1/service-orders/${id}/configured-workflow`)
+export const advanceConfiguredOrderWorkflow=(id:string,key:string)=>post<ConfiguredWorkflow>(`/api/v1/service-orders/${id}/configured-workflow/transitions/${encodeURIComponent(key)}`)
 export const getServiceOrder=(id:string)=>get<ServiceOrder>(`/api/v1/service-orders/${id}`)
 export const createServiceOrder=(body:unknown)=>post<ServiceOrder>('/api/v1/service-orders',body)
 export const updateServiceOrder=(id:string,body:unknown)=>patch<ServiceOrder>(`/api/v1/service-orders/${id}`,body)

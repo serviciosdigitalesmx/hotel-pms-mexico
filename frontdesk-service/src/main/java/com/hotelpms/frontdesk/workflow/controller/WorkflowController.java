@@ -86,7 +86,7 @@ public class WorkflowController {
    * @return transition result
    */
   @PostMapping("/{id}/transition")
-  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST', 'TECHNICIAN')")
   public TransitionResponse transition(
       @PathVariable final UUID id, @Valid @RequestBody final TransitionRequest r) {
     final var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -101,15 +101,22 @@ public class WorkflowController {
                 () ->
                     new com.hotelpms.frontdesk.exception.ConflictException(
                         "Transition is not allowed from current state"));
-    if (!authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
-        || a.getAuthority().equals("ROLE_OWNER"))
-        && authentication.getAuthorities().stream()
-        .noneMatch(a -> a.getAuthority().equals(candidate.getRequiredPermission()))) {
+    if (!authentication.getAuthorities().stream().anyMatch(a ->
+        a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_OWNER")
+            || a.getAuthority().equals(candidate.getRequiredPermission()))) {
       throw new org.springframework.security.access.AccessDeniedException(
           "Missing workflow permission");
     }
     return transitionView(
         service.transition(hotel(), id, r, String.valueOf(authentication.getPrincipal())));
+  }
+
+  @GetMapping("/{id}/instances/{aggregateId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST', 'TECHNICIAN')")
+  public StateResponse instanceState(@PathVariable final UUID id, @PathVariable final UUID aggregateId) {
+    final var state = service.stateForAggregate(hotel(), id, aggregateId);
+    if (state == null) return null;
+    return stateView(state);
   }
 
   /**
