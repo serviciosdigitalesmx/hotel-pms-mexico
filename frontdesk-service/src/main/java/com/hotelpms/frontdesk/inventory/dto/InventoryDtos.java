@@ -79,7 +79,13 @@ public final class InventoryDtos {
   /** Audited physical stock count that replaces the current branch quantity. */
   public record StockCountRequest(
       @NotNull UUID branchId, @NotNull UUID productId, @Min(0) long countedQuantity,
-      @NotBlank @Size(max = 500) String reason) { }
+      @NotBlank @Size(max = 500) String reason,
+      @jakarta.validation.constraints.PositiveOrZero Long expectedCurrentQuantity) {
+    public StockCountRequest(final UUID branchId, final UUID productId,
+        final long countedQuantity, final String reason) {
+      this(branchId, productId, countedQuantity, reason, null);
+    }
+  }
 
   /**
    * DTO record.

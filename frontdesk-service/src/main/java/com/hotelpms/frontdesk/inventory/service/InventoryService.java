@@ -10,6 +10,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.StockCountRequest;
+import com.hotelpms.frontdesk.exception.ConflictException;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductConsumption;
 import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
@@ -192,6 +193,11 @@ public class InventoryService {
         hotel, request.branchId(), product.getId()).orElseGet(() -> InventoryBalance.builder()
             .hotelId(hotel).branchId(request.branchId()).productId(product.getId()).build());
     final long previous = balance.getQuantity();
+    if (request.expectedCurrentQuantity() != null
+        && request.expectedCurrentQuantity().longValue() != previous) {
+      throw new ConflictException("STOCK_COUNT_STALE: current stock changed from "
+          + request.expectedCurrentQuantity() + " to " + previous);
+    }
     balance.setQuantity(request.countedQuantity());
     final InventoryBalance saved = balances.save(balance);
     auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_STOCK_COUNTED",
