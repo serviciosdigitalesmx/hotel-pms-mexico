@@ -82,6 +82,7 @@ export const portalAuthorize=(token:string,evidence:string)=>post<{authorized:bo
 export const listCustomers=(page=0,size=100)=>get<{content:Customer[];number?:number;totalPages?:number;totalElements?:number;last?:boolean} | Customer[]>(`/api/v1/customers?page=${page}&size=${Math.min(200,Math.max(1,size))}`)
 export async function listAllCustomers(pageSize=200){const rows:Customer[]=[];for(let page=0;;page++){const result=await listCustomers(page,pageSize);if(Array.isArray(result)){rows.push(...result);if(result.length<pageSize)return rows;continue}rows.push(...result.content);if(result.last||result.content.length===0||rows.length>=(result.totalElements??Number.POSITIVE_INFINITY)||page+1>=(result.totalPages??Number.POSITIVE_INFINITY))return rows}}
 export const searchCustomers=(query:string,page=0)=>get<{content:Customer[]} | Customer[]>(`/api/v1/customers/search?query=${encodeURIComponent(query)}&page=${page}&size=100`)
+export const potentialDuplicateCustomer=(values:{email?:string;phone?:string;rfc?:string})=>get<Customer|undefined>(`/api/v1/customers/potential-duplicate?${new URLSearchParams(Object.fromEntries(Object.entries(values).filter(([,value])=>Boolean(value)) as Array<[string,string]>))}`)
 export const getCustomer=(id:string)=>get<Customer>(`/api/v1/customers/${id}`)
 export const createCustomer=(body:unknown)=>post<Customer>('/api/v1/customers',body)
 export const importCustomersCsv=(file:File)=>{const body=new FormData();body.append('file',file);return api<{imported:number;errors:string[]}>('/api/v1/customers/import',{method:'POST',body})}
