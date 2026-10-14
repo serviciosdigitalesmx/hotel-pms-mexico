@@ -61,6 +61,7 @@ export function ReceptionOrderForm() {
       setCustomerLoading(false)
       return () => { active = false }
     }
+    setCustomers([])
     setCustomerLoading(true)
     const timer = window.setTimeout(() => {
       api.searchCustomers(query).then(result => {
