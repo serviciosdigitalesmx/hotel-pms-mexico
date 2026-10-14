@@ -32,7 +32,7 @@ export function CustomerCsvTools() {
   const [rowErrors, setRowErrors] = useState<string[]>([])
 
   function downloadTemplate() {
-    const csv = 'FullName,Email,Phone,Dni,ContactDescription\r\nAna Pérez,ana@example.com,5551234567,,,\r\n'
+    const csv = 'FullName,Email,Phone,Dni,ContactDescription\r\nAna Pérez,ana@example.com,5551234567,,\r\n'
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes-plantilla.csv'; link.click(); URL.revokeObjectURL(url)
   }
@@ -52,7 +52,7 @@ export function CustomerCsvTools() {
       const columns = ['first_name', 'last_name', 'email', 'phone', 'rfc', 'dni', 'fiscal_name', 'fiscal_postal_code', 'fiscal_regime', 'cfdi_use', 'billing_email', 'address', 'city', 'country']
       const aliases: Record<string, string[]> = { first_name: ['first_name', 'firstname'], last_name: ['last_name', 'lastname'], full_name: ['full_name', 'fullname', 'name'], email: ['email'], phone: ['phone'], rfc: ['rfc'], dni: ['dni', 'identity_number', 'identitynumber'], fiscal_name: ['fiscal_name', 'fiscalname'], fiscal_postal_code: ['fiscal_postal_code', 'fiscalpostalcode'], fiscal_regime: ['fiscal_regime', 'fiscalregime'], cfdi_use: ['cfdi_use', 'cfdiuse'], billing_email: ['billing_email', 'billingemail'], address: ['address', 'contactdescription'], city: ['city'], country: ['country'] }
       const indexByHeader = new Map(headers.map((header, index) => [header, index]))
-      const normalizedRows: string[][] = []
+      const normalizedRows: Array<{ values: string[]; sourceRow: number }> = []
       const errors: string[] = []
       for (const [index, values] of rows.slice(1).entries()) {
         const value = (key: string) => {
@@ -67,18 +67,22 @@ export function CustomerCsvTools() {
         }
         if (Object.values(record).every(item => !item)) continue
         if (!record.first_name || !record.last_name || (!record.email && !record.phone)) { errors.push(`Fila ${index + 2}: nombre, apellido y correo o teléfono son obligatorios`); continue }
-        normalizedRows.push(columns.map(column => record[column]))
+        normalizedRows.push({ values: columns.map(column => record[column]), sourceRow: index + 2 })
       }
       let imported = 0
       for (let offset = 0; offset < normalizedRows.length; offset += 500) {
         const batch = normalizedRows.slice(offset, offset + 500)
-        const csv = [columns, ...batch].map(row => row.map(csvCell).join(',')).join('\r\n')
+        const csv = [columns, ...batch.map(row => row.values)].map(row => row.map(csvCell).join(',')).join('\r\n')
         try {
           const result = await api.importCustomersCsv(new File([`\uFEFF${csv}`], `clientes-${offset + 1}.csv`, { type: 'text/csv' }))
           imported += result.imported
-          errors.push(...result.errors.map(message => `Lote filas ${offset + 2}-${offset + batch.length + 1}: ${message}`))
+          errors.push(...result.errors.map(message => {
+            const match = message.match(/^Fila (\d+):\s*(.*)$/)
+            const sourceRow = match ? batch[Number(match[1]) - 2]?.sourceRow : undefined
+            return sourceRow ? `Fila ${sourceRow}: ${match?.[2]}` : message
+          }))
         } catch (reason) {
-          errors.push(`Lote filas ${offset + 2}-${offset + batch.length + 1}: ${reason instanceof Error ? reason.message : 'no se pudo importar'}`)
+          errors.push(`Lote desde fila ${batch[0]?.sourceRow ?? offset + 2}: ${reason instanceof Error ? reason.message : 'no se pudo importar'}`)
         }
       }
       setRowErrors(errors)

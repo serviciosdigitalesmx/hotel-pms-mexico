@@ -2,6 +2,7 @@ package com.hotelpms.guest.controller;
 
 import com.hotelpms.guest.dto.request.GuestRequest;
 import com.hotelpms.guest.service.GuestService;
+import com.hotelpms.guest.exception.GuestConflictException;
 import com.hotelpms.guest.dto.response.GuestResponse;
 import com.hotelpms.guest.service.DeviceService;
 import com.hotelpms.guest.dto.response.DeviceResponse;
@@ -18,6 +19,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.dao.DataIntegrityViolationException;
 
 /** Fixi customer contract backed by the mature tenant-scoped guest aggregate. */
 @RestController @RequestMapping("/api/v1/customers") @RequiredArgsConstructor
@@ -39,9 +41,13 @@ public class CustomerController {
     for(int i=0;i<rows.get(0).size();i++)headers.put(rows.get(0).get(i).replace("\uFEFF","").trim().toLowerCase(Locale.ROOT),i);
     final boolean splitName=headers.containsKey("first_name")&&headers.containsKey("last_name");
     if(!splitName&&!headers.containsKey("fullname"))return ResponseEntity.unprocessableEntity().body(new CsvImportResult(0,List.of("Incluye FullName o las columnas first_name y last_name.")));
-    final List<GuestRequest> requests=new ArrayList<>();final List<String> errors=new ArrayList<>();
+    final List<Map.Entry<Integer,GuestRequest>> requests=new ArrayList<>();final List<String> errors=new ArrayList<>();
     for(int rowIndex=1;rowIndex<rows.size();rowIndex++){
       final List<String> row=rows.get(rowIndex);if(row.stream().allMatch(String::isBlank))continue;
+      if(row.size()!=rows.get(0).size()){
+        errors.add("Fila "+(rowIndex+1)+": se esperaban "+rows.get(0).size()+" columnas y se recibieron "+row.size()+".");
+        continue;
+      }
       String first=cell(row,headers,splitName?"first_name":"fullname");String last=cell(row,headers,"last_name");
       if(!splitName){String[] names=first.trim().split("\\s+",2);first=names[0];last=names.length>1?names[1]:"";}
       final String email=cell(row,headers,"email"),phone=cell(row,headers,"phone");
@@ -49,11 +55,15 @@ public class CustomerController {
       GuestRequest request=new GuestRequest(first,last,email,phone,cell(row,headers,"contactdescription","address"),cell(row,headers,"city"),cell(row,headers,"country"),null,rfc,cell(row,headers,"fiscal_name"),cell(row,headers,"fiscal_postal_code"),cell(row,headers,"fiscal_regime"),cell(row,headers,"cfdi_use"),cell(row,headers,"billing_email"),null,null,null,null,null,null,null,null,dni);
       Set<ConstraintViolation<GuestRequest>> violations=validator.validate(request);
       if(!violations.isEmpty())errors.add("Fila "+(rowIndex+1)+": "+violations.stream().map(ConstraintViolation::getMessage).sorted().distinct().reduce((a,b)->a+", "+b).orElse("datos inválidos"));
-      else requests.add(request);
+      else requests.add(Map.entry(rowIndex+1,request));
     }
-    if(!errors.isEmpty())return ResponseEntity.unprocessableEntity().body(new CsvImportResult(0,errors));
-    if(requests.isEmpty())return ResponseEntity.unprocessableEntity().body(new CsvImportResult(0,List.of("El CSV no contiene filas de clientes válidas.")));
-    return ResponseEntity.ok(new CsvImportResult(service.importGuests(requests).size(),List.of()));
+    int imported=0;
+    for(final Map.Entry<Integer,GuestRequest> entry:requests){
+      try{service.importGuests(List.of(entry.getValue()));imported++;}
+      catch(GuestConflictException|DataIntegrityViolationException exception){errors.add("Fila "+entry.getKey()+": cliente duplicado o en conflicto con un registro existente.");}
+    }
+    if(imported==0&&errors.isEmpty())errors.add("El CSV no contiene filas de clientes válidas.");
+    return ResponseEntity.ok(new CsvImportResult(imported,errors));
   }
   @PostMapping public ResponseEntity<GuestResponse> create(@Valid @RequestBody GuestRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(service.createGuest(request));}
   @GetMapping public Page<GuestResponse> list(@PageableDefault(size=50,sort="lastName",direction=Sort.Direction.ASC) Pageable pageable){return service.getAllGuests(pageable);}
