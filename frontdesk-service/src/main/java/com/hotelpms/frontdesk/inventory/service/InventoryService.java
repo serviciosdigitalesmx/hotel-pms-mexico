@@ -71,7 +71,7 @@ public class InventoryService {
       if (r.branchId() == null) {
         throw new IllegalArgumentException("INITIAL_STOCK_BRANCH_REQUIRED");
       }
-      move(hotel, new MovementRequest(r.branchId(), saved.getId(), r.initialQuantity()));
+      move(hotel, new MovementRequest(r.branchId(), saved.getId(), r.initialQuantity(), "Initial product stock"));
     }
     return saved;
   }
@@ -142,10 +142,36 @@ public class InventoryService {
     }
     b.setQuantity(next);
     final InventoryBalance saved = balances.save(b);
+    final String reason = r.reason() == null || r.reason().isBlank()
+        ? "Manual stock adjustment" : r.reason().trim();
+    final String escapedReason = escapeJson(reason);
     auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_MOVEMENT_RECORDED",
         saved.getId(), null, "{\"branchId\":\"" + r.branchId() + "\",\"productId\":\""
-            + r.productId() + "\",\"quantity\":" + r.quantity() + "}");
+            + r.productId() + "\",\"delta\":" + r.delta() + ",\"previous\":"
+            + (next - r.delta()) + ",\"quantity\":" + next + ",\"reason\":\""
+            + escapedReason + "\"}");
     return saved;
+  }
+
+  private static String escapeJson(final String value) {
+    final StringBuilder escaped = new StringBuilder(value.length());
+    for (int index = 0; index < value.length(); index++) {
+      final char character = value.charAt(index);
+      switch (character) {
+        case '"' -> escaped.append("\\\"");
+        case '\\' -> escaped.append("\\\\");
+        case '\b' -> escaped.append("\\b");
+        case '\f' -> escaped.append("\\f");
+        case '\n' -> escaped.append("\\n");
+        case '\r' -> escaped.append("\\r");
+        case '\t' -> escaped.append("\\t");
+        default -> {
+          if (character < 0x20) escaped.append(String.format("\\u%04x", (int) character));
+          else escaped.append(character);
+        }
+      }
+    }
+    return escaped.toString();
   }
 
   /** Sets a physically counted stock quantity and retains the adjustment reason in audit. */

@@ -158,7 +158,8 @@ public class ProcurementService {
       var line = receipt.getKey();
       var product = products.findByIdAndHotelId(line.getProductId(), hotel)
           .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
-      inventory.move(hotel, new MovementRequest(purchase.getBranchId(), line.getProductId(), receipt.getValue()));
+      inventory.move(hotel, new MovementRequest(purchase.getBranchId(), line.getProductId(),
+          receipt.getValue(), "Purchase receipt " + purchase.getId()));
       product.setCost(line.getUnitCost());
       if (product.getSupplierId() == null) {
         product.setSupplierId(purchase.getSupplierId());

@@ -60,7 +60,12 @@ public final class InventoryDtos {
    * @param delta signed movement quantity.
    */
   public record MovementRequest(
-      @NotNull UUID branchId, @NotNull UUID productId, @Min(MIN_MOVEMENT_DELTA) long delta) { }
+      @NotNull UUID branchId, @NotNull UUID productId, @Min(MIN_MOVEMENT_DELTA) long delta,
+      @jakarta.validation.constraints.Size(max = 500) String reason) {
+    public MovementRequest(final UUID branchId, final UUID productId, final long delta) {
+      this(branchId, productId, delta, null);
+    }
+  }
 
   /** Audited physical stock count that replaces the current branch quantity. */
   public record StockCountRequest(
