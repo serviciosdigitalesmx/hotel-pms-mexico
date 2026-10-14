@@ -30,6 +30,7 @@ public class ExpenseServiceImpl implements ExpenseService {
   @Transactional
   public Expense create(
       final UUID hotelId, final UUID actor, final ExpenseRequest request) {
+    validateDates(request);
     final boolean paid = request.paid() == null || request.paid();
     if (!paid && request.cashSessionId() != null) {
       throw new BillingValidationException("PENDING_EXPENSE_CANNOT_USE_CASH_SESSION");
@@ -68,7 +69,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             .expenseType(request.expenseType() == null ? "VARIABLE" : request.expenseType())
             .subcategory(request.subcategory())
             .paid(paid)
-            .spentAt(request.spentAt())
+            .spentAt(request.spentAt() == null && paid ? java.time.LocalDate.now() : request.spentAt())
             .dueAt(request.dueAt())
             .build());
   }
@@ -83,6 +84,7 @@ public class ExpenseServiceImpl implements ExpenseService {
   @Override
   @Transactional
   public Expense updateUnpaid(final UUID hotelId, final UUID expenseId, final ExpenseRequest request) {
+    validateDates(request);
     final Expense expense = expenses.findByIdAndHotelId(expenseId, hotelId)
         .orElseThrow(() -> new NotFoundException("EXPENSE_NOT_FOUND"));
     if (expense.isPaid() || expense.getCashSessionId() != null) {
@@ -100,6 +102,13 @@ public class ExpenseServiceImpl implements ExpenseService {
     expense.setSpentAt(request.spentAt());
     expense.setDueAt(request.dueAt());
     return expenses.save(expense);
+  }
+
+  private static void validateDates(final ExpenseRequest request) {
+    if (request.spentAt() != null && request.dueAt() != null
+        && request.dueAt().isBefore(request.spentAt())) {
+      throw new BillingValidationException("EXPENSE_DUE_DATE_BEFORE_SPENT_DATE");
+    }
   }
 
   /** {@inheritDoc} */
