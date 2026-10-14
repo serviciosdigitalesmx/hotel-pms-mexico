@@ -6,6 +6,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.FetchType;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -45,4 +50,12 @@ public class PurchaseOrder {
 
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true,
+      fetch = FetchType.LAZY)
+  @Builder.Default
+  private List<PurchaseOrderLine> lines = new ArrayList<>();
+
+  /** Keeps old purchase rows and pre-migration API consumers readable. */
+  public List<PurchaseOrderLine> getLines() { return lines; }
 }

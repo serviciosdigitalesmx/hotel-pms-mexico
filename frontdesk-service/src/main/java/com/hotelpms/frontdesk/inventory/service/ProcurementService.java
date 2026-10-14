@@ -1,12 +1,16 @@
 package com.hotelpms.frontdesk.inventory.service;
 
 import com.hotelpms.frontdesk.inventory.domain.PurchaseOrder;
+import com.hotelpms.frontdesk.inventory.domain.PurchaseOrderLine;
+import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
 import com.hotelpms.frontdesk.inventory.domain.Supplier;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.SupplierRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseReceiptRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseLineRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.repository.PurchaseOrderRepository;
+import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
 import com.hotelpms.frontdesk.inventory.repository.SupplierRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +26,7 @@ public class ProcurementService {
   private final SupplierRepository suppliers;
   private final PurchaseOrderRepository purchases;
   private final InventoryService inventory;
+  private final InventoryProductRepository products;
   /**
    * Executes the operation.
    *
@@ -76,14 +81,32 @@ public class ProcurementService {
     if (suppliers.findByIdAndHotelId(r.supplierId(), hotel).isEmpty()) {
       throw new IllegalArgumentException("SUPPLIER_NOT_FOUND");
     }
-    return purchases.save(
-        PurchaseOrder.builder()
+    final PurchaseOrder order = PurchaseOrder.builder()
             .hotelId(hotel)
             .branchId(r.branchId())
             .supplierId(r.supplierId())
             .serviceOrderId(r.serviceOrderId())
             .createdAt(LocalDateTime.now())
-            .build());
+            .build();
+    for (final PurchaseLineRequest requestedLine : r.lines()) {
+      final InventoryProduct product = products.findById(requestedLine.productId())
+          .filter(item -> hotel.equals(item.getHotelId()))
+          .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+      if (product.getSupplierId() != null && !r.supplierId().equals(product.getSupplierId())) {
+        throw new IllegalArgumentException("PURCHASE_PRODUCT_SUPPLIER_MISMATCH");
+      }
+      final PurchaseOrderLine line = new PurchaseOrderLine();
+      line.setPurchaseOrder(order);
+      line.setProductId(product.getId());
+      line.setQuantityOrdered(requestedLine.quantity());
+      line.setQuantityReceived(0);
+      line.setUnitCost(requestedLine.unitCost());
+      order.getLines().add(line);
+    }
+    if (order.getLines().isEmpty()) {
+      throw new IllegalArgumentException("PURCHASE_LINES_REQUIRED");
+    }
+    return purchases.save(order);
   }
   /**
    * Executes the operation.
@@ -110,5 +133,31 @@ public class ProcurementService {
     return purchases.findAllByHotelIdOrderByCreatedAtDesc(hotel);
   }
   @Transactional
-  public PurchaseOrder receive(UUID hotel,UUID purchaseId,PurchaseReceiptRequest request){var purchase=purchases.findById(purchaseId).filter(p->hotel.equals(p.getHotelId())).orElseThrow(()->new IllegalArgumentException("PURCHASE_NOT_FOUND"));if("RECEIVED".equals(purchase.getStatus()))return purchase;request.lines().forEach(line->inventory.move(hotel,new MovementRequest(purchase.getBranchId(),line.productId(),line.quantity())));purchase.setStatus("RECEIVED");return purchases.save(purchase);}
+  public PurchaseOrder receive(UUID hotel,UUID purchaseId,PurchaseReceiptRequest request){
+    var purchase=purchases.findByIdAndHotelId(purchaseId,hotel)
+        .orElseThrow(()->new IllegalArgumentException("PURCHASE_NOT_FOUND"));
+    if("RECEIVED".equals(purchase.getStatus()))throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
+    if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
+      throw new IllegalStateException("LEGACY_PURCHASE_HAS_NO_ORDER_LINES");
+    }
+    if (request.lines().isEmpty()) throw new IllegalArgumentException("RECEIPT_LINES_REQUIRED");
+    var receivedProducts = new java.util.HashSet<UUID>();
+    for (var received : request.lines()) {
+      if (!receivedProducts.add(received.productId())) {
+        throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_RECEIPT");
+      }
+      var line = purchase.getLines().stream().filter(item -> item.getProductId().equals(received.productId()))
+          .findFirst().orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_ON_PURCHASE"));
+      if (received.quantity() > line.getQuantityOrdered() - line.getQuantityReceived()) {
+        throw new IllegalArgumentException("RECEIPT_EXCEEDS_ORDERED_QUANTITY");
+      }
+      inventory.move(hotel,new MovementRequest(purchase.getBranchId(),line.getProductId(),received.quantity()));
+      line.setQuantityReceived(line.getQuantityReceived() + received.quantity());
+    }
+    boolean complete = purchase.getLines().stream()
+        .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
+    boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
+    purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
+    return purchases.save(purchase);
+  }
 }

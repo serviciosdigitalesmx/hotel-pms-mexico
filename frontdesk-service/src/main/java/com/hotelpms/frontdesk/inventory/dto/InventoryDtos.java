@@ -62,6 +62,11 @@ public final class InventoryDtos {
   public record MovementRequest(
       @NotNull UUID branchId, @NotNull UUID productId, @Min(MIN_MOVEMENT_DELTA) long delta) { }
 
+  /** Audited physical stock count that replaces the current branch quantity. */
+  public record StockCountRequest(
+      @NotNull UUID branchId, @NotNull UUID productId, @Min(0) long countedQuantity,
+      @NotBlank @Size(max = 500) String reason) { }
+
   /**
    * DTO record.
    *
@@ -110,7 +115,21 @@ public final class InventoryDtos {
    * @param serviceOrderId optional service order identifier.
    */
   public record PurchaseRequest(
-      @NotNull UUID branchId, @NotNull UUID supplierId, UUID serviceOrderId) { }
+      @NotNull UUID branchId, @NotNull UUID supplierId, UUID serviceOrderId,
+      @jakarta.validation.constraints.Size(min = 1, max = 200)
+          java.util.List<@NotNull PurchaseLineRequest> lines) {
+    public PurchaseRequest(final UUID branchId, final UUID supplierId, final UUID serviceOrderId) {
+      this(branchId, supplierId, serviceOrderId, java.util.List.of());
+    }
+  }
+
+  public record PurchaseRequestWithLines(
+      @NotNull UUID branchId, @NotNull UUID supplierId, UUID serviceOrderId,
+      @NotNull @jakarta.validation.constraints.Size(min = 1, max = 200)
+          java.util.List<@NotNull PurchaseLineRequest> lines) { }
+
+  public record PurchaseLineRequest(@NotNull UUID productId, @Positive long quantity,
+      @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal unitCost) { }
 
   public record ReceiptLine(@NotNull UUID productId, @Positive long quantity) { }
 

@@ -6,6 +6,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.BulkPriceRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.StockCountRequest;
 import com.hotelpms.frontdesk.inventory.service.InventoryService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -105,6 +106,13 @@ public class InventoryController {
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public InventoryBalance move(@Valid @RequestBody final MovementRequest request) {
     return service.move(hotel(), request);
+  }
+
+  /** Reconciles a branch balance with a physical stock count. */
+  @PostMapping("/stock-counts")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public InventoryBalance count(@Valid @RequestBody final StockCountRequest request) {
+    return service.count(hotel(), request);
   }
 
   /**

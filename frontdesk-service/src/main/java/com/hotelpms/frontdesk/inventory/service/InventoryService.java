@@ -9,6 +9,7 @@ import com.hotelpms.frontdesk.inventory.domain.StockReservation;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.StockCountRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
 import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
@@ -144,6 +145,27 @@ public class InventoryService {
     auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_MOVEMENT_RECORDED",
         saved.getId(), null, "{\"branchId\":\"" + r.branchId() + "\",\"productId\":\""
             + r.productId() + "\",\"quantity\":" + r.quantity() + "}");
+    return saved;
+  }
+
+  /** Sets a physically counted stock quantity and retains the adjustment reason in audit. */
+  @Transactional
+  public InventoryBalance count(final UUID hotel, final StockCountRequest request) {
+    final InventoryProduct product = products.findById(request.productId())
+        .filter(item -> hotel.equals(item.getHotelId()))
+        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+    final InventoryBalance balance = balances.findByHotelIdAndBranchIdAndProductId(
+        hotel, request.branchId(), product.getId()).orElseGet(() -> InventoryBalance.builder()
+            .hotelId(hotel).branchId(request.branchId()).productId(product.getId()).build());
+    final long previous = balance.getQuantity();
+    balance.setQuantity(request.countedQuantity());
+    final InventoryBalance saved = balances.save(balance);
+    auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_STOCK_COUNTED",
+        saved.getId(), null, "{\"branchId\":\"" + request.branchId()
+            + "\",\"productId\":\"" + request.productId() + "\",\"previous\":"
+            + previous + ",\"counted\":" + request.countedQuantity()
+            + ",\"reason\":\"" + request.reason().replace("\\", "\\\\")
+                .replace("\"", "\\\"") + "\"}");
     return saved;
   }
 

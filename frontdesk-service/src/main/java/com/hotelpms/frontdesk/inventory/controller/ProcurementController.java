@@ -3,6 +3,7 @@ package com.hotelpms.frontdesk.inventory.controller;
 import com.hotelpms.frontdesk.inventory.domain.PurchaseOrder;
 import com.hotelpms.frontdesk.inventory.domain.Supplier;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseRequestWithLines;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.SupplierRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseReceiptRequest;
 import com.hotelpms.frontdesk.inventory.service.ProcurementService;
@@ -68,6 +69,12 @@ public class ProcurementController {
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public PurchaseOrder purchase(@Valid @RequestBody final PurchaseRequest r) {
     return service.purchase(hotel(), r);
+  }
+
+  @PostMapping("/purchases/with-lines")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public PurchaseOrder purchaseWithLines(@Valid @RequestBody final PurchaseRequestWithLines r) {
+    return service.purchase(hotel(), new PurchaseRequest(r.branchId(), r.supplierId(), r.serviceOrderId(), r.lines()));
   }
   /**
    * Executes the operation.
