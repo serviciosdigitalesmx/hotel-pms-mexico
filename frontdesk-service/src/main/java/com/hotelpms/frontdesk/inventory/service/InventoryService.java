@@ -29,7 +29,6 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -303,6 +302,7 @@ public class InventoryService {
     int imported = 0;
     int rejected = 0;
     final List<String> errors = new ArrayList<>();
+    final java.util.Set<String> seenSkus = new java.util.HashSet<>();
     final List<List<String>> rows = parseCsv(csv == null ? "" : csv.replaceFirst("^\\uFEFF", ""));
     List<String> headers = List.of("sku", "name", "optional");
     int firstDataRow = 0;
@@ -316,6 +316,11 @@ public class InventoryService {
     }
     for (int i = firstDataRow; i < rows.size(); i++) {
       final List<String> cells = rows.get(i);
+      if (cells.size() > headers.size()) {
+        rejected++;
+        errors.add("row " + (i + 1) + ": more columns than the CSV header");
+        continue;
+      }
       final java.util.Map<String, String> values = new java.util.HashMap<>();
       for (int column = 0; column < headers.size() && column < cells.size(); column++) {
         values.put(headers.get(column), cells.get(column).trim());
@@ -327,31 +332,81 @@ public class InventoryService {
         errors.add("row " + (i + 1) + ": product name is required");
         continue;
       }
+      final String category = values.getOrDefault("category", "General").isBlank()
+          ? "General" : values.get("category");
+      final String description = values.getOrDefault("description", "");
+      final String rawOptional = values.getOrDefault("optional", "false");
+      if (name.length() > 200 || description.length() > 2000 || category.length() > 120) {
+        rejected++;
+        errors.add("row " + (i + 1) + ": name, description, or category exceeds its maximum length");
+        continue;
+      }
+      if (!"true".equalsIgnoreCase(rawOptional) && !"false".equalsIgnoreCase(rawOptional)) {
+        rejected++;
+        errors.add("row " + (i + 1) + ": optional must be true or false");
+        continue;
+      }
+      final ProductRequest productRequest;
       try {
         final String sku = suppliedSku.isBlank()
             ? "IMP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase(Locale.ROOT)
             : suppliedSku;
+        if (sku.length() > 80 || products.findByHotelIdAndSku(hotel, sku).isPresent()
+            || seenSkus.contains(sku)) {
+          rejected++;
+          errors.add("row " + (i + 1) + ": SKU is too long or already exists");
+          continue;
+        }
         final UUID supplierId = values.containsKey("supplierid") && !values.get("supplierid").isBlank()
             ? UUID.fromString(values.get("supplierid")) : null;
         final UUID branchId = values.containsKey("branchid") && !values.get("branchid").isBlank()
             ? UUID.fromString(values.get("branchid")) : defaultBranchId;
         final long quantity = longValue(values.getOrDefault("quantity", values.get("stock")), 0);
-        product(hotel, new ProductRequest(
-            sku, name, values.getOrDefault("description", ""), Boolean.parseBoolean(values.getOrDefault("optional", "false")),
-            values.getOrDefault("category", "General").isBlank() ? "General" : values.get("category"),
-            decimalValue(values.get("cost")), decimalValue(values.get("price")),
-            longValue(values.get("reorderlevel"), 0), supplierId, quantity, branchId));
-        imported++;
-      } catch (final IllegalArgumentException | IllegalStateException | DataAccessException ex) {
+        final long reorderLevel = longValue(values.get("reorderlevel"), 0);
+        final BigDecimal cost = decimalValue(values.get("cost"));
+        final BigDecimal price = decimalValue(values.get("price"));
+        if (quantity < 0 || reorderLevel < 0 || !fitsProductAmount(cost) || !fitsProductAmount(price)) {
+          rejected++;
+          errors.add("row " + (i + 1) + ": quantity and minimum stock must be nonnegative; cost and price must fit 10 digits and 2 decimals");
+          continue;
+        }
+        if (supplierId != null && suppliers.findByIdAndHotelId(supplierId, hotel).isEmpty()) {
+          rejected++;
+          errors.add("row " + (i + 1) + ": supplier does not belong to this business");
+          continue;
+        }
+        if (quantity > 0) {
+          try {
+            branchValidation.requireActiveBranch(hotel, branchId);
+          } catch (IllegalArgumentException invalidBranch) {
+            rejected++;
+            errors.add("row " + (i + 1) + ": choose an active branch for the initial stock");
+            continue;
+          }
+        }
+        productRequest = new ProductRequest(sku, name, description,
+            Boolean.parseBoolean(rawOptional), category, cost, price, reorderLevel,
+            supplierId, quantity, branchId);
+        seenSkus.add(sku);
+      } catch (final IllegalArgumentException ex) {
         rejected++;
-        errors.add("row " + (i + 1) + ": " + ex.getMessage());
+        errors.add("row " + (i + 1) + ": invalid UUID or numeric value");
+        continue;
       }
+      product(hotel, productRequest);
+      imported++;
     }
     return new ImportResult(imported, rejected, errors);
   }
 
   private BigDecimal decimalValue(final String value) {
     return value == null || value.isBlank() ? BigDecimal.ZERO : new BigDecimal(value.trim());
+  }
+
+  private boolean fitsProductAmount(final BigDecimal value) {
+    final BigDecimal normalized = value.stripTrailingZeros();
+    return normalized.signum() >= 0 && normalized.scale() <= 2
+        && normalized.precision() - normalized.scale() <= 10;
   }
 
   private long longValue(final String value, final long fallback) {
