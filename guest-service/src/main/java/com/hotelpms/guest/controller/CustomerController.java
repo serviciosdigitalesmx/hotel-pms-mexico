@@ -60,9 +60,9 @@ public class CustomerController {
   @GetMapping(value="/export", produces="text/csv")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
   public ResponseEntity<byte[]> export(){
-    final StringBuilder csv=new StringBuilder("first_name,last_name,email,phone,rfc,identity_number,fiscal_name,fiscal_postal_code,fiscal_regime,cfdi_use,address,city,country\r\n");
+    final StringBuilder csv=new StringBuilder("first_name,last_name,email,billing_email,phone,rfc,identity_number,fiscal_name,fiscal_postal_code,fiscal_regime,cfdi_use,address,city,country\r\n");
     service.getAllGuests(Pageable.unpaged()).getContent().forEach(customer->csv.append(String.join(",",
-        cell(customer.firstName()),cell(customer.lastName()),cell(customer.email()),cell(customer.phone()),
+        cell(customer.firstName()),cell(customer.lastName()),cell(customer.email()),cell(customer.billingEmail()),cell(customer.phone()),
         cell(customer.rfc()),cell(customer.identityNumber()),cell(customer.fiscalName()),cell(customer.fiscalPostalCode()),
         cell(customer.fiscalRegime()),cell(customer.cfdiUse()),cell(customer.address()),cell(customer.city()),
         cell(customer.country()))).append("\r\n"));

@@ -37,24 +37,6 @@ export function CustomerCsvTools() {
     const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes-plantilla.csv'; link.click(); URL.revokeObjectURL(url)
   }
 
-  async function exportCustomers() {
-    setBusy(true); setError(''); setMessage('')
-    try {
-      const customers: api.Customer[] = []
-      for (let page = 0; page < 100; page++) {
-        const result = await api.listCustomers(page)
-        const content = Array.isArray(result) ? result : result.content
-        customers.push(...content)
-        if (content.length < 100 || Array.isArray(result)) break
-      }
-      const columns = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'country', 'rfc', 'fiscalName', 'fiscalPostalCode', 'fiscalRegime', 'cfdiUse'] as const
-      const csv = [columns, ...customers.map(customer => columns.map(column => customer[column] ?? ''))].map(row => row.map(csvCell).join(',')).join('\r\n')
-      const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes.csv'; link.click(); URL.revokeObjectURL(url)
-      setMessage(`Exportación lista: ${customers.length} clientes.`)
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron exportar los clientes') }
-    finally { setBusy(false) }
-  }
-
   async function importFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -104,5 +86,5 @@ export function CustomerCsvTools() {
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes-errores-importacion.csv'; link.click(); URL.revokeObjectURL(url)
   }
 
-  return <BaseLayout title="Importar / Exportar" description="Carga y descarga CSV de clientes y productos, preservando sus datos comerciales y operativos."><div className="space-y-5 px-4 lg:px-6"><Card><CardHeader><CardTitle>Importar y exportar clientes</CardTitle><CardDescription>CSV UTF-8 con contacto y datos fiscales. Descarga la plantilla para usar las columnas admitidas.</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" disabled={busy} onClick={downloadTemplate}>Descargar plantilla de clientes</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm">{busy ? 'Procesando…' : 'Importar clientes CSV'}<input className="sr-only" type="file" accept=".csv,text/csv" disabled={busy} onChange={event => void importFile(event)}/></label><Button type="button" variant="outline" disabled={busy} onClick={() => void exportCustomers()}>Exportar clientes CSV</Button>{rowErrors.length>0&&<Button type="button" variant="outline" onClick={downloadErrors}>Descargar errores ({rowErrors.length})</Button>}{message && <p role="status" className="w-full text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="w-full text-sm text-destructive">{error}</p>}</CardContent></Card><InventoryCatalogPage/></div></BaseLayout>
+  return <BaseLayout title="Importar / Exportar" description="Carga y descarga CSV de clientes y productos, preservando sus datos comerciales y operativos."><div className="space-y-5 px-4 lg:px-6"><Card><CardHeader><CardTitle>Importar y exportar clientes</CardTitle><CardDescription>CSV UTF-8 con contacto y datos fiscales. Descarga la plantilla para usar las columnas admitidas.</CardDescription></CardHeader><CardContent className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" disabled={busy} onClick={downloadTemplate}>Descargar plantilla de clientes</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm">{busy ? 'Procesando…' : 'Importar clientes CSV'}<input className="sr-only" type="file" accept=".csv,text/csv" disabled={busy} onChange={event => void importFile(event)}/></label><Button type="button" variant="outline" asChild><a href="/api/v1/customers/export">Exportar clientes CSV</a></Button>{rowErrors.length>0&&<Button type="button" variant="outline" onClick={downloadErrors}>Descargar errores ({rowErrors.length})</Button>}{message && <p role="status" className="w-full text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="w-full text-sm text-destructive">{error}</p>}</CardContent></Card><InventoryCatalogPage/></div></BaseLayout>
 }
