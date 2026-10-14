@@ -106,7 +106,13 @@ public record GuestRequest(
         String pecEmail,
         @Pattern(regexp = "^$|\\d{5}", message = "CAP must be 5 digits") String cap,
         @Size(max = 100) String comune,
-        @Pattern(regexp = "^$|[A-Za-z]{2}", message = "Provincia must be 2 letters") String provincia) {
+        @Pattern(regexp = "^$|[A-Za-z]{2}", message = "Provincia must be 2 letters") String provincia,
+        @Size(max = 100) @Pattern(regexp = "^$|^[A-Za-z0-9\\-]+$", message = "IDENTITY_NUMBER_INVALID") String identityNumber) {
+
+    /** Compatibility constructor for existing integrations that do not send identityNumber. */
+    public GuestRequest(String firstName,String lastName,String email,String phone,String address,String city,String country,LocalDate dateOfBirth,String rfc,String fiscalName,String fiscalPostalCode,String fiscalRegime,String cfdiUse,String billingEmail,String fiscalCode,String vatNumber,String companyName,String sdiCode,String pecEmail,String cap,String comune,String provincia) {
+        this(firstName,lastName,email,phone,address,city,country,dateOfBirth,rfc,fiscalName,fiscalPostalCode,fiscalRegime,cfdiUse,billingEmail,fiscalCode,vatNumber,companyName,sdiCode,pecEmail,cap,comune,provincia,null);
+    }
 
     /**
      * Validates that at least one of email or phone is provided.

@@ -1,7 +1,7 @@
 export type Json = Record<string, unknown>
 export type SessionUser = { username:string; role:string; hotelId?:string; tenantId?:string; branchId?:string; businessName?:string; tenantStatus?:string; onboardingCompleted?:boolean; mustChangePassword?:boolean }
 export type ServiceOrder = { id:string; customerId:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; deliveredAt?:string; createdAt?:string; updatedAt?:string }
-export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; address?:string; city?:string; country?:string; dateOfBirth?:string; rfc?:string; fiscalName?:string; fiscalPostalCode?:string; fiscalRegime?:string; cfdiUse?:string; billingEmail?:string; createdAt?:string }
+export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; address?:string; city?:string; country?:string; dateOfBirth?:string; rfc?:string; identityNumber?:string; fiscalName?:string; fiscalPostalCode?:string; fiscalRegime?:string; cfdiUse?:string; billingEmail?:string; createdAt?:string }
 export type Device = { id:string; customerId:string; customerName?:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
@@ -11,7 +11,7 @@ export type Expense = { id:string; hotelId:string; category:string; amount:numbe
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
 async function raw(path:string, init:RequestInit={}, retry=true){
-  const headers=new Headers(init.headers); if(init.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json')
+  const headers=new Headers(init.headers); if(init.body&&!(init.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json')
   const token=csrfToken(); if(token&&init.method&&init.method!=='GET')headers.set('X-CSRF-Token',decodeURIComponent(token))
   const response=await fetch(path,{...init,headers,credentials:'include'})
   if(response.status===401&&retry&&!path.includes('/login')&&!path.includes('/refresh')){const refreshed=await fetch('/api/v1/auth/refresh',{method:'POST',credentials:'include'});if(refreshed.ok)return raw(path,init,false)}
@@ -64,6 +64,7 @@ export const listCustomers=(page=0)=>get<{content:Customer[]} | Customer[]>(`/ap
 export const searchCustomers=(query:string,page=0)=>get<{content:Customer[]} | Customer[]>(`/api/v1/customers/search?query=${encodeURIComponent(query)}&page=${page}&size=100`)
 export const getCustomer=(id:string)=>get<Customer>(`/api/v1/customers/${id}`)
 export const createCustomer=(body:unknown)=>post<Customer>('/api/v1/customers',body)
+export const importCustomersCsv=(file:File)=>{const body=new FormData();body.append('file',file);return api<{imported:number;errors:string[]}>('/api/v1/customers/import',{method:'POST',body})}
 export const potentialCustomerDuplicate=(body:Record<string,unknown>)=>get<Customer|null>(`/api/v1/customers/potential-duplicate?${new URLSearchParams(Object.entries(body).filter(([,value])=>typeof value==='string'&&value.trim()).map(([key,value])=>[key,String(value)]))}`).catch(error=>{if(error instanceof Error&&error.message==='HTTP 404')return null;throw error})
 export const updateCustomer=(id:string,body:unknown)=>put<Customer>(`/api/v1/customers/${id}`,body)
 export const listDevices=(customerId:string)=>get<Device[]>(`/api/v1/customers/${customerId}/devices`)

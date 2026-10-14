@@ -66,7 +66,13 @@ public record GuestResponse(
         List<IdentityDocumentResponseDTO> identityDocuments,
         LocalDate gdprConsentDate,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        String identityNumber) {
+
+    /** Compatibility constructor for clients that use the pre-identity-number response shape. */
+    public GuestResponse(UUID id,String firstName,String lastName,String email,String phone,String address,String city,String country,LocalDate dateOfBirth,String rfc,String fiscalName,String fiscalPostalCode,String fiscalRegime,String cfdiUse,String billingEmail,String fiscalCode,String vatNumber,String companyName,String sdiCode,String pecEmail,String cap,String comune,String provincia,List<IdentityDocumentResponseDTO> identityDocuments,LocalDate gdprConsentDate,LocalDateTime createdAt,LocalDateTime updatedAt) {
+        this(id,firstName,lastName,email,phone,address,city,country,dateOfBirth,rfc,fiscalName,fiscalPostalCode,fiscalRegime,cfdiUse,billingEmail,fiscalCode,vatNumber,companyName,sdiCode,pecEmail,cap,comune,provincia,identityDocuments,gdprConsentDate,createdAt,updatedAt,null);
+    }
 
     /**
      * Compact constructor — defensively copies the mutable list on construction.

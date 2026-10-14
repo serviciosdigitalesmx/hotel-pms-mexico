@@ -94,6 +94,43 @@ public class GuestServiceImpl implements GuestService {
         return guestMapper.toResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public List<GuestResponse> importGuests(final List<GuestRequest> requests) {
+        if (requests == null || requests.isEmpty() || requests.size() > 500) {
+            throw new IllegalArgumentException("CSV_IMPORT_REQUIRES_1_TO_500_CUSTOMERS");
+        }
+        final java.util.Set<String> emails = new java.util.HashSet<>();
+        final java.util.Set<String> phones = new java.util.HashSet<>();
+        final java.util.Set<String> rfcs = new java.util.HashSet<>();
+        for (final GuestRequest request : requests) {
+            final GuestResponse existing = findPotentialDuplicate(request);
+            if (existing != null) throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
+            if (request.email() != null && !request.email().isBlank()
+                    && !emails.add(request.email().trim().toLowerCase(java.util.Locale.ROOT))) {
+                throw new GuestConflictException("CUSTOMER_DUPLICATE_IN_IMPORT");
+            }
+            if (request.phone() != null && !request.phone().isBlank()
+                    && !phones.add(request.phone().trim())) {
+                throw new GuestConflictException("CUSTOMER_DUPLICATE_IN_IMPORT");
+            }
+            if (request.rfc() != null && !request.rfc().isBlank()
+                    && !rfcs.add(request.rfc().trim().toUpperCase(java.util.Locale.ROOT))) {
+                throw new GuestConflictException("CUSTOMER_DUPLICATE_IN_IMPORT");
+            }
+        }
+        final UUID hotelId = extractHotelId();
+        final List<Guest> entities = requests.stream().map(request -> {
+            final Guest guest = guestMapper.toEntity(request);
+            normalizeMexicoGuest(guest);
+            guest.setActive(true);
+            guest.setHotelId(hotelId);
+            guest.setGdprConsentDate(LocalDate.now());
+            return guest;
+        }).toList();
+        return guestRepository.saveAll(entities).stream().map(guestMapper::toResponse).toList();
+    }
+
     /**
      * Finds a tenant-scoped duplicate using the available identity fields.
      *
@@ -180,7 +217,9 @@ public class GuestServiceImpl implements GuestService {
         if (duplicate != null) {
             throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
         }
+        final String existingIdentityNumber = guest.getIdentityNumber();
         guestMapper.updateEntityFromRequest(request, guest);
+        if (request.identityNumber() == null) guest.setIdentityNumber(existingIdentityNumber);
         normalizeMexicoGuest(guest);
         final Guest savedGuest = Objects.requireNonNull(guestRepository.save(guest));
         return guestMapper.toResponse(savedGuest);

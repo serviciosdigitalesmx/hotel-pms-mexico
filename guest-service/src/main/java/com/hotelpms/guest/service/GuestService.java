@@ -24,6 +24,9 @@ public interface GuestService {
      */
     GuestResponse createGuest(GuestRequest request);
 
+    /** Imports a validated customer batch atomically for the authenticated tenant. */
+    List<GuestResponse> importGuests(List<GuestRequest> requests);
+
     /**
      * Finds a matching guest in the current tenant.
      *

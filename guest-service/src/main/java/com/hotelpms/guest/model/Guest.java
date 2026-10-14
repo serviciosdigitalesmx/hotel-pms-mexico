@@ -94,6 +94,9 @@ public class Guest {
     @Column(name = "rfc", length = MAX_RFC_LENGTH)
     private String rfc;
 
+    @Column(name = "identity_number", length = 100)
+    private String identityNumber;
+
     @Column(name = "fiscal_name", length = MAX_FISCAL_NAME_LENGTH)
     private String fiscalName;
 
