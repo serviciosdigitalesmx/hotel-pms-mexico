@@ -16,6 +16,66 @@ export function ServiceCatalogManagementPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importErrors, setImportErrors] = useState<string[]>([])
+
+  function parseCsv(text: string): string[][] {
+    const rows: string[][] = []; let row: string[] = []; let cell = ''; let quoted = false
+    for (let index = 0; index < text.length; index++) {
+      const char = text[index]
+      if (char === '"' && quoted && text[index + 1] === '"') { cell += '"'; index++ }
+      else if (char === '"') quoted = !quoted
+      else if (char === ',' && !quoted) { row.push(cell); cell = '' }
+      else if ((char === '\n' || char === '\r') && !quoted) { if (char === '\r' && text[index + 1] === '\n') index++; row.push(cell); if (row.some(value => value.trim())) rows.push(row); row = []; cell = '' }
+      else cell += char
+    }
+    if (quoted) throw new Error('El CSV tiene comillas sin cerrar')
+    row.push(cell); if (row.some(value => value.trim())) rows.push(row)
+    return rows
+  }
+
+  function downloadCsv(fileName: string, rows: unknown[][]) {
+    const content = '\uFEFF' + rows.map(row => row.map(api.csvCell).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url)
+  }
+
+  function exportCsv() {
+    downloadCsv('fixi-servicios.csv', [['nombre', 'precio_base', 'duracion_minutos', 'activo'], ...filtered.map(service => [service.name, service.basePrice, service.estimatedMinutes, service.active])])
+  }
+
+  async function importCsv(file?: File) {
+    setError(''); setMessage(''); setImportErrors([])
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setError('El archivo supera el límite de 5 MB'); return }
+    setImporting(true)
+    try {
+      const rows = parseCsv((await file.text()).replace(/^\uFEFF/, ''))
+      if (rows.length < 2) throw new Error('El archivo debe incluir encabezados y al menos un servicio')
+      if (rows.length > 301) throw new Error('Importa un máximo de 300 servicios por archivo')
+      const normalize = (value: string) => value.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ _-]/g, '')
+      const aliases: Record<string, string> = { nombre: 'name', name: 'name', servicio: 'name', service: 'name', preciobase: 'price', baseprice: 'price', precio: 'price', price: 'price', duracionminutos: 'minutes', estimatedminutes: 'minutes', duracion: 'minutes', duration: 'minutes', activo: 'active', active: 'active' }
+      const headers = rows[0].map(value => aliases[normalize(value)] ?? '')
+      if (!headers.includes('name')) throw new Error('Falta la columna obligatoria nombre/servicio')
+      let created = 0; const rowErrors: string[] = []
+      for (const [index, values] of rows.slice(1).entries()) {
+        const record: Record<string, string> = {}; headers.forEach((key, column) => { if (key) record[key] = values[column]?.trim() ?? '' })
+        const serviceName = record.name?.trim(); const price = Number(record.price || 0); const minutes = Number(record.minutes || 60)
+        if (!serviceName) { rowErrors.push(`Fila ${index + 2}: falta el nombre`); continue }
+        if (!Number.isFinite(price) || price < 0) { rowErrors.push(`Fila ${index + 2}: precio base inválido`); continue }
+        if (!Number.isSafeInteger(minutes) || minutes < 1) { rowErrors.push(`Fila ${index + 2}: duración inválida (debe ser un entero positivo)`); continue }
+        try {
+          const service = await api.createService({ name: serviceName, basePrice: price, estimatedMinutes: minutes })
+          if (record.active && /^(false|no|0|inactivo)$/i.test(record.active)) await api.setServiceActive(service.id, false)
+          created++
+        } catch (reason) { rowErrors.push(`Fila ${index + 2}: ${reason instanceof Error ? reason.message : 'no se pudo guardar'}`) }
+      }
+      setImportErrors(rowErrors); setMessage(`${created} servicio(s) importados${rowErrors.length ? `; ${rowErrors.length} fila(s) requieren revisión` : ''}. La importación solo crea y no modifica servicios existentes.`)
+      if (created) await reload()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo leer el CSV') }
+    finally { setImporting(false) }
+  }
+
+  function downloadImportErrors() { downloadCsv('fixi-servicios-errores.csv', [['fila', 'error'], ...importErrors.map(value => { const [row, ...description] = value.split(': '); return [row.replace('Fila ', ''), description.join(': ')] })]) }
 
   async function reload() {
     setLoading(true); setError('')
@@ -46,7 +106,7 @@ export function ServiceCatalogManagementPage() {
   const filtered = services.filter(service => service.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
   return <BaseLayout title="Servicios" description="Catálogo de trabajos cotizables, reutilizable en órdenes de reparación."><div className="space-y-5 px-4 lg:px-6">
     <Card><CardHeader><CardTitle>{editing ? 'Editar servicio' : 'Agregar servicio'}</CardTitle></CardHeader><CardContent><form className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" onSubmit={save}><Input required maxLength={200} placeholder="Nombre del servicio" value={name} onChange={event => setName(event.target.value)}/><Input required aria-label="Precio base" type="number" min="0" step="0.01" placeholder="Precio base MXN" value={basePrice} onChange={event => setBasePrice(event.target.value)}/><Input required aria-label="Duración estimada en minutos" type="number" min="1" step="1" placeholder="Duración en minutos" value={estimatedMinutes} onChange={event => setEstimatedMinutes(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !name.trim() || !Number.isFinite(Number(basePrice)) || Number(basePrice) < 0 || !Number.isSafeInteger(Number(estimatedMinutes)) || Number(estimatedMinutes) < 1}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Agregar servicio'}</Button>{editing && <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(''); setName(''); setBasePrice('0'); setEstimatedMinutes('60') }}>Cancelar</Button>}</div></form></CardContent></Card>
-    <Card><CardHeader><CardTitle>Catálogo ({filtered.length})</CardTitle><Input aria-label="Buscar servicios" placeholder="Buscar servicio" value={search} onChange={event => setSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{loading && <p role="status">Cargando servicios…</p>}{filtered.map(service => <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p>{service.name} · <span className="text-sm text-muted-foreground">{service.active ? 'Activo' : 'Inactivo'}</span></p><p className="text-sm text-muted-foreground">Base {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setEditing(service.id); setName(service.name); setBasePrice(String(service.basePrice)); setEstimatedMinutes(String(service.estimatedMinutes)) }}>Editar</Button><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void toggle(service)}>{service.active ? 'Desactivar' : 'Activar'}</Button></div></div>)}{!loading && !error && !filtered.length && <p className="text-sm text-muted-foreground">No hay servicios que coincidan.</p>}</CardContent></Card>
+    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Catálogo ({filtered.length})</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || !filtered.length} onClick={exportCsv}>Exportar filtrados</Button><Button type="button" variant="outline" disabled={importing} onClick={() => downloadCsv('fixi-servicios-plantilla.csv', [['nombre', 'precio_base', 'duracion_minutos', 'activo']])}>Plantilla CSV</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">{importing ? 'Importando…' : 'Importar CSV'}<Input className="sr-only" type="file" accept=".csv,text/csv" disabled={importing} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importCsv(file) }}/></label>{importErrors.length > 0 && <Button type="button" variant="outline" onClick={downloadImportErrors}>Descargar errores ({importErrors.length})</Button>}</div></div><Input aria-label="Buscar servicios" placeholder="Buscar servicio" value={search} onChange={event => setSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{loading && <p role="status">Cargando servicios…</p>}{filtered.map(service => <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p>{service.name} · <span className="text-sm text-muted-foreground">{service.active ? 'Activo' : 'Inactivo'}</span></p><p className="text-sm text-muted-foreground">Base {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setEditing(service.id); setName(service.name); setBasePrice(String(service.basePrice)); setEstimatedMinutes(String(service.estimatedMinutes)) }}>Editar</Button><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void toggle(service)}>{service.active ? 'Desactivar' : 'Activar'}</Button></div></div>)}{!loading && !error && !filtered.length && <p className="text-sm text-muted-foreground">No hay servicios que coincidan.</p>}</CardContent></Card>
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}{error && <div className="flex items-center justify-between"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload()}>Reintentar</Button></div>}
   </div></BaseLayout>
 }
