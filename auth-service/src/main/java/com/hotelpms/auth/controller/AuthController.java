@@ -4,6 +4,7 @@ import com.hotelpms.auth.dto.AuthResponse;
 import com.hotelpms.auth.dto.ChangePasswordRequest;
 import com.hotelpms.auth.dto.LoginRequest;
 import com.hotelpms.auth.dto.SelectBranchRequest;
+import com.hotelpms.auth.dto.SessionSecurityPreferenceRequest;
 import com.hotelpms.auth.exception.BadCredentialsException;
 import com.hotelpms.auth.service.AuthService;
 import com.hotelpms.auth.service.JwtService;
@@ -23,6 +24,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -315,6 +317,38 @@ public class AuthController {
     } catch (final JwtException | IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
+  }
+
+  /** Reads the authenticated user's idle-lock preference. */
+  @GetMapping("/session-security")
+  public ResponseEntity<Map<String, Integer>> getSessionSecurity(
+      @CookieValue(name = COOKIE_NAME, required = false) final String token) {
+    final com.hotelpms.auth.domain.UserAccount user = authenticatedUser(token);
+    return ResponseEntity.ok(Map.of("idleTimeoutMinutes", user.getSessionIdleTimeoutMinutes()));
+  }
+
+  /** Saves an allowed idle-lock preference for the authenticated account. */
+  @PutMapping("/session-security")
+  public ResponseEntity<Map<String, Integer>> updateSessionSecurity(
+      @CookieValue(name = COOKIE_NAME, required = false) final String token,
+      @NonNull @Valid @RequestBody final SessionSecurityPreferenceRequest request) {
+    if (request.idleTimeoutMinutes() != 0 && request.idleTimeoutMinutes() != 15
+        && request.idleTimeoutMinutes() != 60) {
+      throw new IllegalArgumentException("SESSION_IDLE_TIMEOUT_NOT_SUPPORTED");
+    }
+    final com.hotelpms.auth.domain.UserAccount user = authenticatedUser(token);
+    user.setSessionIdleTimeoutMinutes(request.idleTimeoutMinutes());
+    userRepository.save(user);
+    return ResponseEntity.ok(Map.of("idleTimeoutMinutes", user.getSessionIdleTimeoutMinutes()));
+  }
+
+  private com.hotelpms.auth.domain.UserAccount authenticatedUser(final String token) {
+    if (token == null || !jwtService.isTokenValid(token)) {
+      throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
+    }
+    final String username = jwtService.extractUsername(token);
+    return userRepository.findByUsername(username)
+        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED));
   }
 
   private ResponseEntity<Void> buildUnauthorizedResponse() {

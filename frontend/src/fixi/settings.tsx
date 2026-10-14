@@ -63,6 +63,7 @@ export function BusinessSettings() {
   const [warrantyPolicy, setWarrantyPolicy] = useState('')
   const [business, setBusiness] = useState<api.BusinessProfile>(emptyBusiness)
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '' })
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState<0 | 15 | 60>(0)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -70,13 +71,14 @@ export function BusinessSettings() {
 
   useEffect(() => {
     let active = true
-    Promise.all([api.industryProfile(), api.getBusinessProfile()])
-      .then(([industry, settings]) => {
+    Promise.all([api.industryProfile(), api.getBusinessProfile(), api.getSessionSecurityPreference().catch(() => null)])
+      .then(([industry, settings, sessionPreference]) => {
         if (!active) return
         setProfile(industry)
         setChecklistText(checklistFrom(industry.catalogsTemplatesJson).join('\n'))
         setWarrantyPolicy(warrantyPolicyFrom(industry.catalogsTemplatesJson))
         setBusiness(current => ({ ...current, ...settings }))
+        if (sessionPreference) setIdleTimeoutMinutes(sessionPreference.idleTimeoutMinutes)
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudo cargar la configuración') })
       .finally(() => { if (active) setLoading(false) })
@@ -121,6 +123,17 @@ export function BusinessSettings() {
     } finally { setSaving(false) }
   }
 
+  async function saveSessionSecurity() {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      const saved = await api.updateSessionSecurityPreference(idleTimeoutMinutes)
+      setIdleTimeoutMinutes(saved.idleTimeoutMinutes)
+      window.dispatchEvent(new Event('fixi:session-security-changed'))
+      setMessage(saved.idleTimeoutMinutes === 0 ? 'Bloqueo automático desactivado' : `Bloqueo automático después de ${saved.idleTimeoutMinutes} minutos sin actividad`)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo guardar la duración de sesión') }
+    finally { setSaving(false) }
+  }
+
   return <BaseLayout title="Configuración" description="Perfil del negocio, políticas operativas y seguridad.">
     <div className="grid gap-5 px-4 lg:grid-cols-2 lg:px-6">
       {loading && <p role="status" className="text-sm text-muted-foreground">Cargando configuración…</p>}
@@ -161,7 +174,7 @@ export function BusinessSettings() {
           <Input type="password" autoComplete="current-password" required minLength={6} placeholder="Contraseña actual" value={password.currentPassword} onChange={e => setPassword({ ...password, currentPassword: e.target.value })}/>
           <Input type="password" autoComplete="new-password" required minLength={6} placeholder="Nueva contraseña" value={password.newPassword} onChange={e => setPassword({ ...password, newPassword: e.target.value })}/>
           <Button disabled={saving}>{saving ? 'Guardando…' : 'Actualizar contraseña'}</Button>
-        </form></CardContent>
+        </form><div className="mt-5 space-y-3 border-t pt-4"><Label htmlFor="idle-timeout">Bloqueo por inactividad</Label><select id="idle-timeout" aria-label="Duración de la sesión" className="h-10 w-full rounded-md border bg-background px-3 text-sm" disabled={loading || saving} value={idleTimeoutMinutes} onChange={event => setIdleTimeoutMinutes(Number(event.target.value) as 0 | 15 | 60)}><option value={0}>Nunca bloquear (recomendado)</option><option value={15}>Después de 15 minutos</option><option value={60}>Después de 1 hora</option></select><Button type="button" variant="outline" disabled={loading || saving} onClick={() => void saveSessionSecurity()}>{saving ? 'Guardando…' : 'Guardar seguridad de sesión'}</Button><p className="text-xs text-muted-foreground">Al bloquear, la pantalla requerirá volver a autenticar tu cuenta para continuar.</p></div></CardContent>
       </Card>
       {message && <p role="status" className="text-emerald-600">{message}</p>}
       {error && <p role="alert" className="text-destructive">{error}</p>}

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
+import { SessionIdleLock } from "@/components/session-idle-lock"
 import {
   SidebarInset,
   SidebarProvider,
@@ -27,6 +28,7 @@ export function BaseLayout({ children, title, description }: BaseLayoutProps) {
       className=""
     >
       <AppSidebar variant="inset" collapsible="icon" side="left" />
+      <SessionIdleLock />
           <SidebarInset>
             <SiteHeader />
             <div className="flex flex-1 flex-col">

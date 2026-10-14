@@ -76,6 +76,11 @@ public class UserAccount {
   @Column(nullable = false)
   private boolean mustChangePassword;
 
+  /** User-selected idle screen lock: 0 disables it, supported values are 15 or 60 minutes. */
+  @Builder.Default
+  @Column(name = "session_idle_timeout_minutes", nullable = false)
+  private int sessionIdleTimeoutMinutes = 0;
+
   /**
    * Monotonically incrementing counter embedded in the JWT {@code tv} claim.
    *

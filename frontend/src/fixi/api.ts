@@ -145,3 +145,6 @@ export type NotificationPreferences=Record<string,Record<'EMAIL'|'WEB'|'APP',boo
 export const getNotificationPreferences=()=>get<NotificationPreferences>('/api/v1/notifications/preferences')
 export const updateNotificationPreferences=(body:NotificationPreferences)=>put<NotificationPreferences>('/api/v1/notifications/preferences',body)
 export const changePassword=(currentPassword:string,newPassword:string)=>post<void>('/api/v1/auth/change-password',{currentPassword,newPassword})
+export type SessionSecurityPreference={idleTimeoutMinutes:0|15|60}
+export const getSessionSecurityPreference=()=>get<SessionSecurityPreference>('/api/v1/auth/session-security')
+export const updateSessionSecurityPreference=(idleTimeoutMinutes:0|15|60)=>put<SessionSecurityPreference>('/api/v1/auth/session-security',{idleTimeoutMinutes})

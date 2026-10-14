@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import * as api from './api'
 
-type Alert = { id: string; title: string; detail: string; href: string; urgency: number }
+type Alert = { id: string; event: keyof api.NotificationPreferences; title: string; detail: string; href: string; urgency: number }
 const terminal = new Set(['COMPLETED', 'CANCELLED'])
 
 export function OperationalAlertsPage() {
@@ -14,16 +14,18 @@ export function OperationalAlertsPage() {
   const [branches, setBranches] = useState<api.Branch[]>([])
   const [balances, setBalances] = useState<api.StockBalance[]>([])
   const [expenses, setExpenses] = useState<api.Expense[]>([])
+  const [preferences, setPreferences] = useState<api.NotificationPreferences>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   useEffect(() => {
     let active = true
-    Promise.all([api.listServiceOrders(), api.listProducts(), api.listBranches(), api.listExpenses()])
-      .then(async ([orderRows, productRows, branchRows, expenseRows]) => {
+    Promise.all([api.listServiceOrders(), api.listProducts(), api.listBranches(), api.listExpenses(), api.getNotificationPreferences().catch(() => null)])
+      .then(async ([orderRows, productRows, branchRows, expenseRows, notificationPreferences]) => {
         const stockRows = await Promise.all(branchRows.filter(branch => branch.active).map(branch => api.stock(branch.id).catch(() => [])))
         if (!active) return
         setOrders(orderRows); setProducts(productRows); setBranches(branchRows); setExpenses(expenseRows); setBalances(stockRows.flat())
+        if (notificationPreferences) setPreferences(notificationPreferences)
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar las alertas') })
       .finally(() => { if (active) setLoading(false) })
@@ -36,24 +38,25 @@ export function OperationalAlertsPage() {
     for (const order of orders) {
       if (terminal.has(order.status)) continue
       if (order.promisedAt && new Date(order.promisedAt).getTime() < now) {
-        result.push({ id: `late:${order.id}`, title: 'Orden vencida', detail: `${order.summary} · compromiso ${new Date(order.promisedAt).toLocaleString('es-MX')}`, href: `/service-orders/${order.id}`, urgency: 0 })
+        result.push({ id: `late:${order.id}`, event: 'DELIVERY_DUE', title: 'Orden vencida', detail: `${order.summary} · compromiso ${new Date(order.promisedAt).toLocaleString('es-MX')}`, href: `/service-orders/${order.id}`, urgency: 0 })
       }
-      if (order.status === 'QA') result.push({ id: `ready:${order.id}`, title: 'Lista para entrega', detail: order.summary, href: `/service-orders/${order.id}`, urgency: 1 })
+      if (order.status === 'QA') result.push({ id: `ready:${order.id}`, event: 'ORDER_READY', title: 'Lista para entrega', detail: order.summary, href: `/service-orders/${order.id}`, urgency: 1 })
     }
     for (const product of products) {
       const low = balances.filter(balance => balance.productId === product.id && balance.quantity <= Number(product.reorderLevel ?? 0))
       for (const balance of low) {
         const branch = branches.find(item => item.id === balance.branchId)
-        result.push({ id: `stock:${balance.id}`, title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2 })
+        result.push({ id: `stock:${balance.id}`, event: 'STOCK_LOW', title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2 })
       }
     }
     for (const expense of expenses) {
       if (expense.paid === false && expense.dueAt && expense.dueAt < new Date().toISOString().slice(0, 10)) {
-        result.push({ id: `expense:${expense.id}`, title: 'Gasto vencido', detail: `${expense.category} · ${expense.description ?? ''} · vence ${expense.dueAt}`, href: '/expenses', urgency: 0 })
+        result.push({ id: `expense:${expense.id}`, event: 'PAYMENT_DUE', title: 'Gasto vencido', detail: `${expense.category} · ${expense.description ?? ''} · vence ${expense.dueAt}`, href: '/expenses', urgency: 0 })
       }
     }
-    return result.sort((a, b) => a.urgency - b.urgency || a.title.localeCompare(b.title))
-  }, [orders, products, balances, branches, expenses])
+    return result.filter(alert => preferences[alert.event]?.WEB !== false)
+      .sort((a, b) => a.urgency - b.urgency || a.title.localeCompare(b.title))
+  }, [orders, products, balances, branches, expenses, preferences])
 
   return <BaseLayout title="Alertas operativas" description="Vencimientos de órdenes, entregas listas, stock bajo y gastos vencidos."><div className="space-y-4 px-4 lg:px-6">
     <Card><CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>{alerts.length} alertas actuales</CardTitle><Button type="button" variant="outline" disabled={loading} onClick={() => { setLoading(true); setError(''); setRevision(value => value + 1) }}>Actualizar</Button></div></CardHeader><CardContent className="space-y-2">
