@@ -43,6 +43,7 @@ export function ReceptionOrderForm() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const selectedService = services.find(service => service.name === serviceName)
 
   useEffect(() => {
     let active = true
@@ -178,6 +179,7 @@ export function ReceptionOrderForm() {
     if (!customerId) { setError('Busca y selecciona un cliente antes de crear la orden'); return }
     const intakeChecklist = [...checkedChecklist, form.intakeChecklist.trim()].filter(Boolean).join('\n')
     if (!intakeChecklist) { setError('Completa al menos un punto del checklist o agrega una nota de recepción'); return }
+    if (!/^\d{1,10}(?:\.\d{1,2})?$/.test(depositAmount.trim())) { setError('El anticipo debe ser un monto positivo o cero, con máximo dos decimales'); return }
     setBusy(true); setError(''); setMessage('')
     try {
       const order = await api.createServiceOrder({
@@ -236,7 +238,7 @@ export function ReceptionOrderForm() {
           <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => <option key={service.id} value={service.name}>{service.name} · {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(service.basePrice)} · {service.estimatedMinutes} min</option>)}</select>
           <select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{users.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>
           <select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select>
-          <div><Label>Anticipo recibido</Label><Input required type="number" min="0" step="0.01" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/></div>
+          <div><Label>Anticipo recibido</Label><Input required type="number" min="0" max="9999999999.99" step="0.01" inputMode="decimal" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/>{selectedService&&Number(depositAmount)>selectedService.basePrice&&<p role="note" className="mt-1 text-xs text-amber-700">El anticipo excede el precio base de {selectedService.name}; verifica que cubra cargos o piezas adicionales.</p>}</div>
         </div>
         <textarea required aria-label="Falla reportada" className={field} placeholder="Falla reportada por el cliente" value={form.reportedFailure} onChange={event => setForm({ ...form, reportedFailure: event.target.value })}/>
         {checklistTemplate.length > 0 && <fieldset className="space-y-2 rounded border p-3"><legend className="px-1 text-sm font-medium">Checklist configurable de recepción</legend>{checklistTemplate.map(item => <label className="flex items-start gap-2 text-sm" key={item}><input type="checkbox" checked={checkedChecklist.includes(item)} onChange={event => setCheckedChecklist(current => event.target.checked ? [...current, item] : current.filter(value => value !== item))}/>{item}</label>)}</fieldset>}

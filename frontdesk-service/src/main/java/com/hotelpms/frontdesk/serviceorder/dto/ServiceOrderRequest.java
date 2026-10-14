@@ -27,7 +27,8 @@ public record ServiceOrderRequest(
     @FutureOrPresent LocalDateTime promisedAt, String intakeEvidence,
     @Pattern(regexp = "LOW|NORMAL|HIGH|URGENT") String priority,
     @Size(max = 200) String serviceName,
-    @DecimalMin("0.00") BigDecimal depositAmount,
+    @DecimalMin("0.00") @jakarta.validation.constraints.Digits(integer = 10, fraction = 2)
+        BigDecimal depositAmount,
     UUID assignedUserId) {
   public ServiceOrderRequest(UUID customerId, UUID deviceId, UUID branchId, String summary,
       String reportedFailure, String intakeChecklist, LocalDateTime promisedAt, String intakeEvidence) {
