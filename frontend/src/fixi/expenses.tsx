@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input'
 import * as api from './api'
 
 const money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+const localToday = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}` }
 
 export function ExpensesPage() {
   const [expenses, setExpenses] = useState<api.Expense[]>([])
-  const [form, setForm] = useState({ expenseType: 'VARIABLE' as 'FIXED' | 'VARIABLE' | 'INVENTORY', category: '', subcategory: '', amount: '', description: '', reference: '', paid: true, spentAt: new Date().toISOString().slice(0, 10), dueAt: '' })
+  const [form, setForm] = useState({ expenseType: 'VARIABLE' as 'FIXED' | 'VARIABLE' | 'INVENTORY', category: '', subcategory: '', amount: '', description: '', reference: '', paid: true, spentAt: localToday(), dueAt: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -66,7 +67,7 @@ export function ExpensesPage() {
       if (editingId) await api.updateExpense(editingId, { ...expense, paid: false })
       else await api.createExpense({ ...expense, paid: form.paid, paymentMethod: form.paid ? paymentMethod : undefined })
       setEditingId('')
-      setForm({ expenseType: 'VARIABLE', category: '', subcategory: '', amount: '', description: '', reference: '', paid: true, spentAt: new Date().toISOString().slice(0, 10), dueAt: '' })
+      setForm({ expenseType: 'VARIABLE', category: '', subcategory: '', amount: '', description: '', reference: '', paid: true, spentAt: localToday(), dueAt: '' })
       setMessage('Gasto registrado')
       setRevision(value => value + 1)
     } catch (reason) {
@@ -103,7 +104,7 @@ export function ExpensesPage() {
           {!editingId && form.paid && <label className="grid gap-1 text-sm text-muted-foreground">Forma de pago<select aria-label="Forma de pago inicial" className="h-10 rounded-md border bg-background px-3 text-sm text-foreground" value={paymentMethod} onChange={event => setPaymentMethod(event.target.value as typeof paymentMethod)}><option value="BANK_TRANSFER">Transferencia</option><option value="CARD">Tarjeta</option><option value="OTHER">Otro / externo</option></select></label>}
           <label className="grid gap-1 text-sm text-muted-foreground">Fecha del gasto<Input type="date" value={form.spentAt} onChange={event => setForm({ ...form, spentAt: event.target.value })}/></label>
           {!form.paid && <label className="grid gap-1 text-sm text-muted-foreground">Vence el<Input type="date" value={form.dueAt} onChange={event => setForm({ ...form, dueAt: event.target.value })}/></label>}
-          <div className="flex gap-2"><Button disabled={saving}>{saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Registrar gasto'}</Button>{editingId&&<Button type="button" variant="outline" disabled={saving} onClick={()=>{setEditingId('');setForm({ expenseType:'VARIABLE',category:'',subcategory:'',amount:'',description:'',reference:'',paid:true,spentAt:new Date().toISOString().slice(0,10),dueAt:'' })}}>Cancelar</Button>}</div>
+          <div className="flex gap-2"><Button disabled={saving}>{saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Registrar gasto'}</Button>{editingId&&<Button type="button" variant="outline" disabled={saving} onClick={()=>{setEditingId('');setForm({ expenseType:'VARIABLE',category:'',subcategory:'',amount:'',description:'',reference:'',paid:true,spentAt:localToday(),dueAt:'' })}}>Cancelar</Button>}</div>
         </form>{message && <p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent>
       </Card>
       <Card><CardHeader><CardDescription>Pagado · Pendiente</CardDescription><CardTitle className="text-2xl">{money.format(paidTotal)}</CardTitle><CardDescription>{money.format(pendingTotal)} por pagar</CardDescription></CardHeader><CardContent className="space-y-2">{Object.entries(grouped).sort((a,b)=>b[1]-a[1]).map(([category, amount])=><div className="flex justify-between text-sm" key={category}><span>{category}</span><span>{money.format(amount)}</span></div>)}</CardContent></Card>
