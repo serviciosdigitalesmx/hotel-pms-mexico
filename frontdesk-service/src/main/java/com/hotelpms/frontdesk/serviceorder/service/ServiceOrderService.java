@@ -3,6 +3,8 @@ package com.hotelpms.frontdesk.serviceorder.service;
 import com.hotelpms.frontdesk.exception.NotFoundException;
 import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
 import com.hotelpms.frontdesk.client.CapabilityClient;
+import com.hotelpms.frontdesk.client.GuestClient;
+import com.hotelpms.frontdesk.client.dto.CustomerDeviceResponse;
 import com.hotelpms.frontdesk.audit.domain.AuditEvent;
 import com.hotelpms.frontdesk.audit.service.AuditEventService;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
@@ -42,6 +44,7 @@ public class ServiceOrderService {
   private final WorkflowTransitionRepository workflowTransitions;
   private final CapabilityClient capabilityClient;
   private final HotelSettingsRepository hotelSettingsRepository;
+  private final GuestClient guestClient;
 
   public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
   public record ConfiguredWorkflowTransition(String key, String fromStateKey, String toStateKey) { }
@@ -130,6 +133,7 @@ public class ServiceOrderService {
 
   @Transactional
   public ServiceOrder create(final UUID hotelId, final ServiceOrderRequest request) {
+    validateCustomerDevice(request.customerId(), request.deviceId());
     final LocalDateTime now = LocalDateTime.now();
     final ServiceOrder saved = repository.save(
         ServiceOrder.builder()
@@ -202,6 +206,14 @@ public class ServiceOrderService {
           saved.getId(), null, "{\"from\":\"" + previous + "\",\"to\":\"" + request.status() + "\"}");
     }
     return saved;
+  }
+
+  private void validateCustomerDevice(final UUID customerId, final UUID deviceId) {
+    if (deviceId == null) return;
+    final CustomerDeviceResponse device = guestClient.getCustomerDevice(customerId, deviceId);
+    if (!customerId.equals(device.customerId())) {
+      throw new IllegalArgumentException("DEVICE_CUSTOMER_MISMATCH");
+    }
   }
 
   private boolean isManualStatusTransitionAllowed(

@@ -3,6 +3,7 @@ package com.hotelpms.frontdesk.client;
 import com.hotelpms.frontdesk.client.dto.GuestCreateRequest;
 import com.hotelpms.frontdesk.client.dto.GuestResponse;
 import com.hotelpms.frontdesk.client.dto.GuestSearchPageResponse;
+import com.hotelpms.frontdesk.client.dto.CustomerDeviceResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.List;
 import java.util.UUID;
@@ -58,6 +59,11 @@ public interface GuestClient {
    */
   @GetMapping("/api/v1/guests/{id}")
   GuestResponse getGuestById(@PathVariable("id") UUID id);
+
+  /** Resolves a device only when it belongs to the requested customer in the active tenant. */
+  @GetMapping("/api/v1/customers/{customerId}/devices/{deviceId}")
+  CustomerDeviceResponse getCustomerDevice(
+      @PathVariable("customerId") UUID customerId, @PathVariable("deviceId") UUID deviceId);
 
   /**
    * Creates a new guest profile. Used when converting a quotation made for a prospect (no {@code
