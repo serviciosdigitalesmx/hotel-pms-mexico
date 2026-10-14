@@ -2,6 +2,7 @@ package com.hotelpms.guest.service.impl;
 
 import com.hotelpms.guest.dto.request.DeviceRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
+import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
 import com.hotelpms.guest.exception.NotFoundException;
 import com.hotelpms.guest.model.Device;
 import com.hotelpms.guest.model.DeviceOwnershipTransfer;
@@ -169,6 +170,19 @@ public class DeviceServiceImpl implements DeviceService {
     device.setGuestId(toCustomerId);
     device.setUpdatedAt(LocalDateTime.now());
     return DeviceResponse.from(devices.save(device));
+  }
+
+  /** Lists ownership changes only after confirming the current device and owner are in-tenant. */
+  @Override
+  @Transactional(readOnly = true)
+  public List<DeviceOwnershipTransferResponse> ownershipHistory(final UUID customerId,
+      final UUID deviceId) {
+    customer(customerId);
+    final UUID hotelId = hotel();
+    devices.findByIdAndHotelIdAndGuestId(deviceId, hotelId, customerId)
+        .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
+    return transfers.findAllByHotelIdAndDeviceIdOrderByTransferredAtDesc(hotelId, deviceId)
+        .stream().map(DeviceOwnershipTransferResponse::from).toList();
   }
 
   private static String normalize(final String value, final boolean uppercase) {

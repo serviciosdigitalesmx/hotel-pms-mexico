@@ -2,6 +2,7 @@ package com.hotelpms.guest.service;
 
 import com.hotelpms.guest.dto.request.DeviceRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
+import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -43,4 +44,7 @@ public interface DeviceService {
 
   /** Transfers an asset and appends an auditable ownership record. */
   DeviceResponse transfer(UUID deviceId, UUID fromCustomerId, UUID toCustomerId, String evidence);
+
+  /** Returns the tenant-scoped ownership audit for a device currently owned by the customer. */
+  List<DeviceOwnershipTransferResponse> ownershipHistory(UUID customerId, UUID deviceId);
 }

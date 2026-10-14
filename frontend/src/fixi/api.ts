@@ -88,6 +88,8 @@ export const searchDevices=(query:string,page=0)=>get<{content:Device[]} | Devic
 export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v1/customers/${customerId}/devices`,body)
 export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const transferDevice=(customerId:string,id:string,toCustomerId:string,evidence?:string)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}/transfer?${new URLSearchParams({toCustomerId,...(evidence?{evidence}:{})})}`)
+export type DeviceOwnershipTransfer={id:string;fromCustomerId?:string;toCustomerId:string;actorId?:string;evidence?:string;transferredAt:string}
+export const deviceOwnershipHistory=(customerId:string,id:string)=>get<DeviceOwnershipTransfer[]>(`/api/v1/customers/${customerId}/devices/${id}/transfers`)
 export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/api/v1/service-orders/customer/${customerId}`)
 export type CustomerOrderCount={customerId:string;count:number}
 export const customerOrderCounts=(customerIds:string[])=>customerIds.length?get<CustomerOrderCount[]>(`/api/v1/service-orders/customer-counts?${customerIds.map(id=>`customerIds=${encodeURIComponent(id)}`).join('&')}`):Promise.resolve([])

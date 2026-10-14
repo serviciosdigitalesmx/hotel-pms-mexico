@@ -2,6 +2,7 @@ package com.hotelpms.guest.controller;
 
 import com.hotelpms.guest.dto.request.DeviceRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
+import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
 import com.hotelpms.guest.service.DeviceService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -78,5 +79,12 @@ public final class DeviceController {
   public DeviceResponse transfer(@PathVariable final UUID customerId, @PathVariable final UUID id,
       @RequestParam final UUID toCustomerId, @RequestParam(required = false) final String evidence) {
     return service.transfer(id, customerId, toCustomerId, evidence);
+  }
+
+  /** Returns ownership changes for a device currently owned by this tenant customer. */
+  @GetMapping("/{id}/transfers")
+  public List<DeviceOwnershipTransferResponse> ownershipHistory(
+      @PathVariable final UUID customerId, @PathVariable final UUID id) {
+    return service.ownershipHistory(customerId, id);
   }
 }
