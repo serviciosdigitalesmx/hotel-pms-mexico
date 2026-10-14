@@ -229,7 +229,7 @@ export function ReceptionOrderForm() {
             <Input maxLength={120} aria-label="Modelo del equipo" placeholder="Modelo" value={quickDevice.model} onChange={event => setQuickDevice({ ...quickDevice, model: event.target.value })}/>
             <Input maxLength={120} aria-label="Serie del equipo" placeholder="Número de serie" value={quickDevice.serialNumber} onChange={event => setQuickDevice({ ...quickDevice, serialNumber: event.target.value })}/>
             <Input maxLength={120} aria-label="IMEI del equipo" placeholder="IMEI" value={quickDevice.imei} onChange={event => setQuickDevice({ ...quickDevice, imei: event.target.value })}/>
-            <Input maxLength={1000} aria-label="Detalles adicionales del equipo" placeholder="Detalles adicionales" value={quickDevice.customFields} onChange={event => setQuickDevice({ ...quickDevice, customFields: event.target.value })}/>
+            <textarea maxLength={1000} aria-label="Detalles adicionales del equipo" className={field} rows={3} placeholder="Detalles y condición del equipo (color, accesorios, daños visibles…)" value={quickDevice.customFields} onChange={event => setQuickDevice({ ...quickDevice, customFields: event.target.value })}/>
             <Button type="button" className="sm:col-span-2 lg:col-span-3" disabled={deviceSaving || !quickDevice.category.trim()} onClick={() => void createDeviceQuickly()}>{deviceSaving ? 'Registrando equipo…' : 'Registrar y seleccionar equipo'}</Button>
           </div>}
         </div>
