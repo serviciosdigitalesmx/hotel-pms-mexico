@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Landing,LoginPage,SignupPage,ForgotPasswordPage,ResetPasswordPage,VerifyEmailPage,AcceptInvitationPage,CustomerPortalPage } from '@/fixi/pages'
-import { Protected,RealDashboard,BranchDashboard,OrderReportingPage,InventoryReportingPage,ProductivityReportingPage,CustomersPage,CustomerDetailPage,EquipmentPage,ReceptionPage,OrdersPage,BranchesPage,TeamPage,InventoryPage,SuppliersPage,OnboardingPage,SettingsPage,IntegrationPage } from '@/fixi/operations'
+import { Protected,RealDashboard,BranchDashboard,OrderReportingPage,InventoryReportingPage,ProductivityReportingPage,CustomersPage,CustomerDetailPage,EquipmentPage,ReceptionPage,OrdersPage,BranchesPage,TeamPage,SuppliersPage,OnboardingPage,SettingsPage,IntegrationPage } from '@/fixi/operations'
 import { ServiceOrderDetail } from '@/fixi/order-detail'
 import { Purchases } from '@/fixi/purchases'
 import { BusinessSettings } from '@/fixi/settings'

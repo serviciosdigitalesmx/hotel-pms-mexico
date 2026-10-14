@@ -72,7 +72,6 @@ export const listBranches=()=>get<Branch[]>('/api/v1/auth/branches')
 export type BranchWrite={name:string;phone?:string;extraField?:string;address?:string;timeZone?:string;dateFormat?:string;country?:string;currency?:string}
 export const createBranch=(body:BranchWrite)=>post<Branch>('/api/v1/auth/branches',body)
 export const updateBranch=(id:string,body:BranchWrite)=>patch<Branch>(`/api/v1/auth/branches/${id}`,body)
-export const updateBranch=(id:string,name:string)=>patch<Branch>(`/api/v1/auth/branches/${id}`,{name})
 export const setBranchActive=(id:string,value:boolean)=>patch<void>(`/api/v1/auth/branches/${id}/active?value=${value}`)
 export const selectBranch=(branchId:string)=>post<void>('/api/v1/auth/select-branch',{branchId})
 export const listUsers=()=>get<TeamUser[]>('/api/v1/auth/users')

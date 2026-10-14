@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import * as a from './api'
 
 const field='w-full rounded-md border bg-background px-3 py-2 text-sm'
+const money=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'})
 function Notice({error,ok}:{error?:string;ok?:string}){return <>{error&&<p className="text-sm text-destructive">{error}</p>}{ok&&<p className="text-sm text-emerald-600">{ok}</p>}</>}
 function Page({title,description,children}:{title:string;description:string;children:ReactNode}){return <BaseLayout title={title} description={description}><div className="space-y-5 px-4 lg:px-6">{children}</div></BaseLayout>}
 function useAsync<T>(loader:()=>Promise<T>,deps:unknown[]=[]){const [data,setData]=useState<T>();const [error,setError]=useState('');const [loading,setLoading]=useState(true);const reload=async()=>{setLoading(true);setError('');try{setData(await loader())}catch(e){setError(e instanceof Error?e.message:String(e))}finally{setLoading(false)}};useEffect(()=>{void reload()},deps);return{data,error,loading,reload}}
