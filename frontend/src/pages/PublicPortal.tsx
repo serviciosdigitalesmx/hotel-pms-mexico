@@ -11,6 +11,14 @@ type Operation = {
   expiresAt: string;
 };
 type DocumentEvidence = { id: string; fileName: string; contentType: string; storageKey: string };
+const safeEvidenceUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
 
 /** Token-scoped customer portal for OTP verification and authorization. */
 export function PublicPortal() {
@@ -68,7 +76,13 @@ export function PublicPortal() {
           {documents.map((document) => <li key={document.id} className="rounded-lg border p-3">
             <span>{document.fileName}</span>
             <span className="ml-2 text-on-surface-variant">{document.contentType}</span>
-            <span className="ml-2 break-all text-on-surface-variant">{document.storageKey}</span>
+            {safeEvidenceUrl(document.storageKey) ? (
+              <a className="ml-2 underline" href={safeEvidenceUrl(document.storageKey)!} target="_blank" rel="noopener noreferrer">
+                Open document
+              </a>
+            ) : (
+              <span className="ml-2 text-on-surface-variant">Stored document reference</span>
+            )}
           </li>)}
         </ul>}
         {operation && <div className="mt-6 flex gap-3">
