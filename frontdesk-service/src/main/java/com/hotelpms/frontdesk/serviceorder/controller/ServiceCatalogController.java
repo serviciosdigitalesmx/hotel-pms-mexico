@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,6 +42,12 @@ public class ServiceCatalogController {
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public ServiceCatalogEntry setActive(@PathVariable UUID id, @RequestParam boolean value) {
     return service.setActive(tenantId(), id, value);
+  }
+
+  @PutMapping("/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public ServiceCatalogEntry update(@PathVariable UUID id, @Valid @RequestBody ServiceCatalogRequest request) {
+    return service.update(tenantId(), id, request);
   }
 
   private UUID tenantId() {

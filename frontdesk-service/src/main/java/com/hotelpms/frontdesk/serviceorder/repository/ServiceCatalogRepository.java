@@ -10,4 +10,5 @@ public interface ServiceCatalogRepository extends JpaRepository<ServiceCatalogEn
   List<ServiceCatalogEntry> findAllByTenantIdOrderByNameAsc(UUID tenantId);
   Optional<ServiceCatalogEntry> findByIdAndTenantId(UUID id, UUID tenantId);
   boolean existsByTenantIdAndNameIgnoreCase(UUID tenantId, String name);
+  boolean existsByTenantIdAndNameIgnoreCaseAndIdNot(UUID tenantId, String name, UUID id);
 }

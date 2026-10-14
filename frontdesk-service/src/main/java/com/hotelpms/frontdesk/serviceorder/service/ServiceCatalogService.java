@@ -37,4 +37,16 @@ public class ServiceCatalogService {
     service.setActive(active);
     return repository.save(service);
   }
+
+  @Transactional
+  public ServiceCatalogEntry update(UUID tenantId, UUID id, ServiceCatalogRequest request) {
+    final ServiceCatalogEntry service = repository.findByIdAndTenantId(id, tenantId)
+        .orElseThrow(() -> new IllegalArgumentException("SERVICE_NOT_FOUND"));
+    final String name = request.name().trim();
+    if (repository.existsByTenantIdAndNameIgnoreCaseAndIdNot(tenantId, name, id)) {
+      throw new IllegalArgumentException("SERVICE_ALREADY_EXISTS");
+    }
+    service.setName(name);
+    return repository.save(service);
+  }
 }

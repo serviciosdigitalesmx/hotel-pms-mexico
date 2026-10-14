@@ -113,6 +113,7 @@ export const financialReport=(startDate:string,endDate:string)=>get<FinancialRep
 export type ServiceCatalogEntry={id:string;tenantId:string;name:string;active:boolean;createdAt:string}
 export const listServices=()=>get<ServiceCatalogEntry[]>('/api/v1/services')
 export const createService=(body:{name:string})=>post<ServiceCatalogEntry>('/api/v1/services',body)
+export const updateService=(id:string,body:{name:string})=>put<ServiceCatalogEntry>(`/api/v1/services/${id}`,body)
 export const setServiceActive=(id:string,value:boolean)=>patch<ServiceCatalogEntry>(`/api/v1/services/${id}/active?value=${value}`)
 export const whatsappStatus=()=>get<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp')
 export const whatsappConnect=()=>post<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp/connect')
