@@ -14,6 +14,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
 import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
 import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
+import com.hotelpms.frontdesk.client.BranchValidationService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +43,7 @@ public class InventoryService {
   private final AuditEventService auditEvents;
   private final StockReservationRepository reservations;
   private final SupplierRepository suppliers;
+  private final BranchValidationService branchValidation;
 
   /**
    * Creates an inventory product.
@@ -121,6 +123,7 @@ public class InventoryService {
    */
   @Transactional
   public InventoryBalance move(final UUID hotel, final MovementRequest r) {
+    branchValidation.requireActiveBranch(hotel, r.branchId());
     final InventoryProduct p =
         products
             .findForUpdateByIdAndHotelId(r.productId(), hotel)
@@ -176,6 +179,7 @@ public class InventoryService {
   /** Sets a physically counted stock quantity and retains the adjustment reason in audit. */
   @Transactional
   public InventoryBalance count(final UUID hotel, final StockCountRequest request) {
+    branchValidation.requireActiveBranch(hotel, request.branchId());
     final InventoryProduct product = products.findForUpdateByIdAndHotelId(request.productId(), hotel)
         .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
     final InventoryBalance balance = balances.findByHotelIdAndBranchIdAndProductId(
@@ -202,6 +206,7 @@ public class InventoryService {
    */
   @Transactional
   public StockReservation reserve(final UUID hotel, final ReservationRequest r) {
+    branchValidation.requireActiveBranch(hotel, r.branchId());
     final Optional<StockReservation> existing =
         reservations.findByHotelIdAndServiceOrderIdAndProductId(
             hotel, r.serviceOrderId(), r.productId());
@@ -275,6 +280,7 @@ public class InventoryService {
    */
   @Transactional(readOnly = true)
   public List<InventoryBalance> stock(final UUID hotel, final UUID branch) {
+    branchValidation.requireActiveBranch(hotel, branch);
     return balances.findAllByHotelIdAndBranchId(hotel, branch);
   }
 

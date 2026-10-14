@@ -1,0 +1,16 @@
+package com.hotelpms.frontdesk.client;
+
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+
+/** Tenant-scoped branch validation through auth-service. */
+@FeignClient(
+    name = "auth-service",
+    url = "${APPLICATION_CONFIG_AUTH_SERVICE_URL:http://auth-service:8087}")
+public interface BranchClient {
+  @PostMapping("/api/v1/auth/branches/{branchId}/validate")
+  Map<String, Object> validateBranch(@PathVariable("branchId") UUID branchId);
+}

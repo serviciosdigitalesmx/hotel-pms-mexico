@@ -14,6 +14,7 @@ import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
 import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
 import com.hotelpms.frontdesk.inventory.repository.SupplierRepository;
+import com.hotelpms.frontdesk.client.BranchValidationService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.HashSet;
@@ -35,6 +36,7 @@ public class ProcurementService {
   private final InventoryProductRepository products;
   private final InventoryBalanceRepository balances;
   private final StockReservationRepository reservations;
+  private final BranchValidationService branchValidation;
   /**
    * Executes the operation.
    *
@@ -94,6 +96,7 @@ public class ProcurementService {
 
   @Transactional
   public PurchaseOrder purchase(final UUID hotel, final PurchaseRequest r) {
+    branchValidation.requireActiveBranch(hotel, r.branchId());
     if (suppliers.findByIdAndHotelId(r.supplierId(), hotel).isEmpty()) {
       throw new IllegalArgumentException("SUPPLIER_NOT_FOUND");
     }
