@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import mx.fixi.app.data.*
 import javax.inject.Inject
 
@@ -36,5 +37,5 @@ import javax.inject.Inject
     fun addEvidence(orderId: String, fileName: String, contentType: String, storageKey: String) = call { val r=api.addEvidence(DocumentEvidenceRequest(serviceOrderId=orderId,fileName=fileName,contentType=contentType,storageKey=storageKey,accessLevel="STAFF")); if(!r.isSuccessful) error="No se pudo registrar la evidencia (${r.code()})" else { evidence=evidence+listOfNotNull(r.body()); message="Evidencia registrada" } }
     fun orderAction(id: String, action: String, evidenceText: String) = call { if(evidenceText.isBlank()){error="Agrega la evidencia o nota requerida";return@call};val response=when(action){"deliver"->api.deliver(id);"authorize"->api.authorize(id,AuthorizationRequest(evidenceText.trim()));else->api.reject(id,AuthorizationRequest(evidenceText.trim()))};if(!response.isSuccessful)error="No se pudo ${if(action=="deliver")"entregar" else if(action=="authorize")"autorizar" else "rechazar"} la orden (${response.code()})" else {message=when(action){"deliver"->"Orden entregada";"authorize"->"Cotización autorizada";else->"Cotización rechazada"};loadOrder(id)} }
     fun loadBranches() = call { branches=api.branches().body().orEmpty() }
-    private fun call(block: suspend () -> Unit) = viewModelScope.launch { loading=true; error=null; runCatching { block() }.onFailure { error = "No se pudo cargar la información (${it.message ?: "error de red"})" }; loading=false }
+    private fun call(block: suspend () -> Unit) = viewModelScope.launch { loading=true;error=null;message=null;try{block()}catch(cancelled:CancellationException){throw cancelled}catch(failure:Exception){error="No se pudo completar la operación (${failure.message?:"error de red"})"}finally{loading=false} }
 }
