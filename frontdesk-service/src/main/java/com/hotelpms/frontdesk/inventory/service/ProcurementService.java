@@ -11,10 +11,16 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.PurchaseLineRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.repository.PurchaseOrderRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
+import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
+import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
 import com.hotelpms.frontdesk.inventory.repository.SupplierRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.HashSet;
 import java.util.UUID;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Comparator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +33,8 @@ public class ProcurementService {
   private final PurchaseOrderRepository purchases;
   private final InventoryService inventory;
   private final InventoryProductRepository products;
+  private final InventoryBalanceRepository balances;
+  private final StockReservationRepository reservations;
   /**
    * Executes the operation.
    *
@@ -88,7 +96,11 @@ public class ProcurementService {
             .serviceOrderId(r.serviceOrderId())
             .createdAt(LocalDateTime.now())
             .build();
+    final var lineProducts = new HashSet<UUID>();
     for (final PurchaseLineRequest requestedLine : r.lines()) {
+      if (!lineProducts.add(requestedLine.productId())) {
+        throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_PURCHASE");
+      }
       final InventoryProduct product = products.findById(requestedLine.productId())
           .filter(item -> hotel.equals(item.getHotelId()))
           .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
@@ -134,7 +146,7 @@ public class ProcurementService {
   }
   @Transactional
   public PurchaseOrder receive(UUID hotel,UUID purchaseId,PurchaseReceiptRequest request){
-    var purchase=purchases.findByIdAndHotelId(purchaseId,hotel)
+    var purchase=purchases.findForUpdateByIdAndHotelId(purchaseId,hotel)
         .orElseThrow(()->new IllegalArgumentException("PURCHASE_NOT_FOUND"));
     if("RECEIVED".equals(purchase.getStatus()))throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
     if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
@@ -154,13 +166,20 @@ public class ProcurementService {
       }
       receiptLines.add(java.util.Map.entry(line, received.quantity()));
     }
+    receiptLines.sort(Comparator.comparing(entry -> entry.getKey().getProductId()));
     for (var receipt : receiptLines) {
       var line = receipt.getKey();
-      var product = products.findByIdAndHotelId(line.getProductId(), hotel)
+      var product = products.findForUpdateByIdAndHotelId(line.getProductId(), hotel)
           .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+      final long availableQuantity = balances.sumQuantityByHotelAndProduct(hotel, product.getId())
+          + reservations.sumReservedQuantityByHotelAndProduct(hotel, product.getId());
       inventory.move(hotel, new MovementRequest(purchase.getBranchId(), line.getProductId(),
           receipt.getValue(), "Purchase receipt " + purchase.getId()));
-      product.setCost(line.getUnitCost());
+      final long newQuantity = availableQuantity + receipt.getValue();
+      final BigDecimal weightedCost = product.getCost().multiply(BigDecimal.valueOf(availableQuantity))
+          .add(line.getUnitCost().multiply(BigDecimal.valueOf(receipt.getValue())))
+          .divide(BigDecimal.valueOf(newQuantity), 2, RoundingMode.HALF_UP);
+      product.setCost(weightedCost);
       if (product.getSupplierId() == null) {
         product.setSupplierId(purchase.getSupplierId());
       }

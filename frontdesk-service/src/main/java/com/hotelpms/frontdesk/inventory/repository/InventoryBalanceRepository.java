@@ -5,6 +5,8 @@ import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
@@ -35,4 +37,9 @@ public interface InventoryBalanceRepository extends JpaRepository<InventoryBalan
    */
 
   List<InventoryBalance> findAllByHotelIdAndBranchId(UUID hotelId, UUID branchId);
+
+  @Query("select coalesce(sum(balance.quantity), 0) from InventoryBalance balance "
+      + "where balance.hotelId = :hotelId and balance.productId = :productId")
+  Long sumQuantityByHotelAndProduct(
+      @Param("hotelId") UUID hotelId, @Param("productId") UUID productId);
 }

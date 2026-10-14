@@ -123,8 +123,7 @@ public class InventoryService {
   public InventoryBalance move(final UUID hotel, final MovementRequest r) {
     final InventoryProduct p =
         products
-            .findById(r.productId())
-            .filter(x -> x.getHotelId().equals(hotel))
+            .findForUpdateByIdAndHotelId(r.productId(), hotel)
             .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
     final InventoryBalance b =
         balances
@@ -177,8 +176,7 @@ public class InventoryService {
   /** Sets a physically counted stock quantity and retains the adjustment reason in audit. */
   @Transactional
   public InventoryBalance count(final UUID hotel, final StockCountRequest request) {
-    final InventoryProduct product = products.findById(request.productId())
-        .filter(item -> hotel.equals(item.getHotelId()))
+    final InventoryProduct product = products.findForUpdateByIdAndHotelId(request.productId(), hotel)
         .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
     final InventoryBalance balance = balances.findByHotelIdAndBranchIdAndProductId(
         hotel, request.branchId(), product.getId()).orElseGet(() -> InventoryBalance.builder()

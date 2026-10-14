@@ -121,7 +121,7 @@ public final class InventoryDtos {
    */
   public record PurchaseRequest(
       @NotNull UUID branchId, @NotNull UUID supplierId, UUID serviceOrderId,
-      @jakarta.validation.constraints.Size(min = 1, max = 200)
+      @NotNull @jakarta.validation.constraints.Size(min = 1, max = 200)
           java.util.List<@NotNull PurchaseLineRequest> lines) {
     public PurchaseRequest(final UUID branchId, final UUID supplierId, final UUID serviceOrderId) {
       this(branchId, supplierId, serviceOrderId, java.util.List.of());
