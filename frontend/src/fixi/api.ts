@@ -122,6 +122,8 @@ export const increaseProductPrices=(productIds:string[],percentage:number)=>post
 export const importProductsCsv=(csv:string,branchId?:string)=>api<{imported:number;rejected:number;errors:string[]}>(`/api/v1/inventory/products/import${branchId?`?branchId=${encodeURIComponent(branchId)}`:''}`,{method:'POST',headers:{'Content-Type':'text/csv'},body:csv})
 export const moveStock=(body:unknown)=>post('/api/v1/inventory/movements',body)
 export type StockBalance={id:string;branchId:string;productId:string;quantity:number;updatedAt:string}
+export type AuditEvent={id:string;hotelId:string;actorId?:string;category:'SECURITY'|'OPERATIONAL'|'FINANCIAL'|'INVENTORY';eventType:string;aggregateId?:string;details:string;createdAt:string}
+export const listAuditEvents=()=>get<AuditEvent[]>('/api/v1/audit-events')
 export const stock=(branch:string)=>get<StockBalance[]>(`/api/v1/inventory/branches/${branch}/stock`)
 export const reserveStock=(body:unknown)=>post('/api/v1/inventory/reservations',body)
 export const releaseStock=(orderId:string,productId:string)=>post(`/api/v1/inventory/reservations/${orderId}/${productId}/release`)
