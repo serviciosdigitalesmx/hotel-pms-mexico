@@ -142,6 +142,7 @@ public class ProcurementService {
     }
     if (request.lines().isEmpty()) throw new IllegalArgumentException("RECEIPT_LINES_REQUIRED");
     var receivedProducts = new java.util.HashSet<UUID>();
+    var receiptLines = new java.util.ArrayList<java.util.Map.Entry<PurchaseOrderLine, Long>>();
     for (var received : request.lines()) {
       if (!receivedProducts.add(received.productId())) {
         throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_RECEIPT");
@@ -151,8 +152,16 @@ public class ProcurementService {
       if (received.quantity() > line.getQuantityOrdered() - line.getQuantityReceived()) {
         throw new IllegalArgumentException("RECEIPT_EXCEEDS_ORDERED_QUANTITY");
       }
-      inventory.move(hotel,new MovementRequest(purchase.getBranchId(),line.getProductId(),received.quantity()));
-      line.setQuantityReceived(line.getQuantityReceived() + received.quantity());
+      receiptLines.add(java.util.Map.entry(line, received.quantity()));
+    }
+    for (var receipt : receiptLines) {
+      var line = receipt.getKey();
+      var product = products.findByIdAndHotelId(line.getProductId(), hotel)
+          .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+      inventory.move(hotel, new MovementRequest(purchase.getBranchId(), line.getProductId(), receipt.getValue()));
+      product.setCost(line.getUnitCost());
+      products.save(product);
+      line.setQuantityReceived(line.getQuantityReceived() + receipt.getValue());
     }
     boolean complete = purchase.getLines().stream()
         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
