@@ -14,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,6 +51,15 @@ public class ExpenseController {
   public List<Expense> list() {
     return service.list(hotel());
   }
+
+  @PatchMapping("/{id}/paid")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public Expense markPaid(
+      @PathVariable final UUID id, @RequestBody(required = false) final PayExpenseRequest request) {
+    return service.markPaid(hotel(), actor(), id, request == null ? null : request.cashSessionId());
+  }
+
+  public record PayExpenseRequest(UUID cashSessionId) {}
 
   private UUID hotel() {
     return UUID.fromString(

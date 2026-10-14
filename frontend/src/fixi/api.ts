@@ -97,6 +97,7 @@ export const createPurchase=(body:unknown)=>post('/api/v1/procurement/purchases'
 export const receivePurchase=(id:string,body:unknown)=>post(`/api/v1/procurement/purchases/${id}/receive`,body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string})=>post<Expense>('/api/v1/expenses',body)
+export const markExpensePaid=(id:string,cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId})
 export type ServiceCatalogEntry={id:string;tenantId:string;name:string;active:boolean;createdAt:string}
 export const listServices=()=>get<ServiceCatalogEntry[]>('/api/v1/services')
 export const createService=(body:{name:string})=>post<ServiceCatalogEntry>('/api/v1/services',body)
@@ -111,4 +112,7 @@ export const whatsappHandoff=(id:string)=>post(`/api/v1/whatsapp/inbox/conversat
 export const assistantChat=(content:string)=>post<{answer:string;toolCalls:unknown[]}>('/api/v1/stays/assistant/chat',{messages:[{role:'user',content,toolCallId:null,toolName:null,toolCalls:[]}]})
 export const industryProfile=()=>get<{industryKey:string;enabledModulesJson:string;dynamicFieldsJson:string;formsLabelsJson:string;catalogsTemplatesJson:string}>('/api/v1/auth/industry-profile')
 export const updateIndustryProfile=(body:unknown)=>put('/api/v1/auth/industry-profile',body)
+export type BusinessProfile={hotelName:string;address:string;city:string;state:string;country:string;postalCode:string;currency:string;locale:string;timezone:string;publicSlug:string;vatNumber:string}
+export const getBusinessProfile=()=>get<Partial<BusinessProfile>>('/api/v1/stays/settings')
+export const updateBusinessProfile=(body:Partial<BusinessProfile>)=>put<Partial<BusinessProfile>>('/api/v1/stays/settings',body)
 export const changePassword=(currentPassword:string,newPassword:string)=>post<void>('/api/v1/auth/change-password',{currentPassword,newPassword})

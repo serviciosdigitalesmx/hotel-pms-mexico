@@ -15,6 +15,8 @@ export function ExpensesPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [revision, setRevision] = useState(0)
+  const [view, setView] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL')
+  const [updatingId, setUpdatingId] = useState('')
 
   useEffect(() => {
     let active = true
@@ -28,6 +30,7 @@ export function ExpensesPage() {
 
   const paidTotal = expenses.filter(expense => expense.paid !== false).reduce((sum, expense) => sum + Number(expense.amount), 0)
   const pendingTotal = expenses.filter(expense => expense.paid === false).reduce((sum, expense) => sum + Number(expense.amount), 0)
+  const visibleExpenses = expenses.filter(expense => view === 'ALL' || (view === 'PAID' ? expense.paid !== false : expense.paid === false))
   const grouped = expenses.reduce<Record<string, number>>((result, expense) => {
     result[expense.category] = (result[expense.category] ?? 0) + Number(expense.amount)
     return result
@@ -50,6 +53,19 @@ export function ExpensesPage() {
     }
   }
 
+  async function markPaid(id: string) {
+    setUpdatingId(id)
+    setError('')
+    try {
+      await api.markExpensePaid(id)
+      setRevision(value => value + 1)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No se pudo actualizar el gasto')
+    } finally {
+      setUpdatingId('')
+    }
+  }
+
   return <BaseLayout title="Gastos" description="Captura y consulta los egresos operativos del negocio.">
     <div className="grid gap-5 px-4 lg:grid-cols-3 lg:px-6">
       <Card className="lg:col-span-2"><CardHeader><CardTitle>Registrar gasto</CardTitle><CardDescription>Clasifica el egreso y distingue pagos realizados de cuentas pendientes.</CardDescription></CardHeader>
@@ -67,9 +83,9 @@ export function ExpensesPage() {
         </form>{message && <p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent>
       </Card>
       <Card><CardHeader><CardDescription>Pagado · Pendiente</CardDescription><CardTitle className="text-2xl">{money.format(paidTotal)}</CardTitle><CardDescription>{money.format(pendingTotal)} por pagar</CardDescription></CardHeader><CardContent className="space-y-2">{Object.entries(grouped).sort((a,b)=>b[1]-a[1]).map(([category, amount])=><div className="flex justify-between text-sm" key={category}><span>{category}</span><span>{money.format(amount)}</span></div>)}</CardContent></Card>
-      <Card className="lg:col-span-3"><CardHeader><CardTitle>Movimientos recientes</CardTitle></CardHeader><CardContent className="space-y-2">
+      <Card className="lg:col-span-3"><CardHeader><CardTitle>Movimientos recientes</CardTitle><div className="flex flex-wrap gap-2 pt-2">{([['ALL','Todos'],['PAID','Realizados'],['PENDING','Pendientes']] as const).map(([key,label])=><Button key={key} type="button" size="sm" variant={view===key?'default':'outline'} onClick={()=>setView(key)}>{label} ({key==='ALL'?expenses.length:key==='PAID'?expenses.filter(e=>e.paid!==false).length:expenses.filter(e=>e.paid===false).length})</Button>)}</div></CardHeader><CardContent className="space-y-2">
         {loading && <p role="status" className="text-sm text-muted-foreground">Cargando gastos…</p>}
-        {!loading && !error && expenses.map(expense => <div className="flex flex-wrap items-center justify-between gap-2 rounded border p-3" key={expense.id}><div><p className="font-medium">{expense.category}{expense.subcategory ? ` · ${expense.subcategory}` : ''}</p><p className="text-sm text-muted-foreground">{{FIXED:'Fijo',VARIABLE:'Variable',INVENTORY:'Inventario'}[expense.expenseType ?? 'VARIABLE']} · {expense.description || 'Sin descripción'}{expense.reference ? ` · ${expense.reference}` : ''}</p><p className="text-xs text-muted-foreground">{expense.paid === false ? `Pendiente${expense.dueAt ? ` · vence ${expense.dueAt}` : ''}` : 'Pagado'}{expense.spentAt ? ` · ${expense.spentAt}` : ''}</p></div><div className="text-right"><p className="font-semibold">{money.format(Number(expense.amount))}</p><p className="text-xs text-muted-foreground">{new Date(expense.createdAt).toLocaleString('es-MX')}</p></div></div>)}
+        {!loading && !error && visibleExpenses.map(expense => <div className="flex flex-wrap items-center justify-between gap-2 rounded border p-3" key={expense.id}><div><p className="font-medium">{expense.category}{expense.subcategory ? ` · ${expense.subcategory}` : ''}</p><p className="text-sm text-muted-foreground">{{FIXED:'Fijo',VARIABLE:'Variable',INVENTORY:'Inventario'}[expense.expenseType ?? 'VARIABLE']} · {expense.description || 'Sin descripción'}{expense.reference ? ` · ${expense.reference}` : ''}</p><p className="text-xs text-muted-foreground">{expense.paid === false ? `Pendiente${expense.dueAt ? ` · vence ${expense.dueAt}` : ''}` : 'Pagado'}{expense.spentAt ? ` · ${expense.spentAt}` : ''}</p></div><div className="flex items-center gap-3">{expense.paid === false&&<Button size="sm" variant="outline" disabled={updatingId===expense.id} onClick={()=>void markPaid(expense.id)}>{updatingId===expense.id?'Actualizando…':'Marcar pagado'}</Button>}<div className="text-right"><p className="font-semibold">{money.format(Number(expense.amount))}</p><p className="text-xs text-muted-foreground">{new Date(expense.createdAt).toLocaleString('es-MX')}</p></div></div></div>)}
         {!loading && !error && expenses.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay gastos registrados.</p>}
         {error && <div className="flex items-center justify-between gap-3"><p role="alert" className="text-sm text-destructive">{error}</p><Button variant="outline" onClick={() => setRevision(value => value + 1)}>Reintentar</Button></div>}
       </CardContent></Card>

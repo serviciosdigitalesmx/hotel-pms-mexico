@@ -26,4 +26,7 @@ public interface ExpenseService {
    * @return expenses ordered by creation time.
    */
   List<Expense> list(UUID hotelId);
+
+  /** Marks an outstanding expense paid, optionally recording its cash outflow. */
+  Expense markPaid(UUID hotelId, UUID actor, UUID expenseId, UUID cashSessionId);
 }

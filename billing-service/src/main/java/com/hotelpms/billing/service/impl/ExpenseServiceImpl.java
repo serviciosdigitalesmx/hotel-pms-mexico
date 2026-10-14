@@ -79,4 +79,38 @@ public class ExpenseServiceImpl implements ExpenseService {
   public List<Expense> list(final UUID hotelId) {
     return expenses.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
   }
+
+  /** {@inheritDoc} */
+  @Override
+  @Transactional
+  public Expense markPaid(
+      final UUID hotelId, final UUID actor, final UUID expenseId, final UUID cashSessionId) {
+    final Expense expense = expenses.findByIdAndHotelId(expenseId, hotelId)
+        .orElseThrow(() -> new NotFoundException("EXPENSE_NOT_FOUND"));
+    if (expense.isPaid()) {
+      throw new BillingValidationException("EXPENSE_ALREADY_PAID");
+    }
+    if (cashSessionId != null) {
+      final CashSession session = sessions.findByIdAndHotelId(cashSessionId, hotelId)
+          .orElseThrow(() -> new NotFoundException("CASH_SESSION_NOT_FOUND"));
+      if (session.getStatus() != CashSessionStatus.OPEN) {
+        throw new BillingValidationException("CASH_SESSION_CLOSED");
+      }
+      session.getMovements().add(CashMovement.builder()
+          .session(session)
+          .type(CashMovementType.CASH_OUT)
+          .amount(expense.getAmount())
+          .reference(expense.getReference())
+          .createdBy(actor)
+          .createdAt(LocalDateTime.now())
+          .build());
+      sessions.save(session);
+    }
+    expense.setPaid(true);
+    expense.setCashSessionId(cashSessionId);
+    if (expense.getSpentAt() == null) {
+      expense.setSpentAt(java.time.LocalDate.now());
+    }
+    return expenses.save(expense);
+  }
 }
