@@ -71,6 +71,7 @@ export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/ap
 export const listBranches=()=>get<Branch[]>('/api/v1/auth/branches')
 export const createBranch=(name:string)=>post<Branch>('/api/v1/auth/branches',{name})
 export const updateBranch=(id:string,name:string)=>patch<Branch>(`/api/v1/auth/branches/${id}`,{name})
+export const updateBranch=(id:string,name:string)=>patch<Branch>(`/api/v1/auth/branches/${id}`,{name})
 export const setBranchActive=(id:string,value:boolean)=>patch<void>(`/api/v1/auth/branches/${id}/active?value=${value}`)
 export const selectBranch=(branchId:string)=>post<void>('/api/v1/auth/select-branch',{branchId})
 export const listUsers=()=>get<TeamUser[]>('/api/v1/auth/users')
