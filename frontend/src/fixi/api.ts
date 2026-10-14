@@ -128,6 +128,8 @@ export const listAuditEvents=()=>get<AuditEvent[]>('/api/v1/audit-events')
 export const stock=(branch:string)=>get<StockBalance[]>(`/api/v1/inventory/branches/${branch}/stock`)
 export const reserveStock=(body:unknown)=>post('/api/v1/inventory/reservations',body)
 export const releaseStock=(orderId:string,productId:string)=>post(`/api/v1/inventory/reservations/${orderId}/${productId}/release`)
+export type StockReservation={id:string;branchId:string;productId:string;serviceOrderId:string;quantity:number;status:'RESERVED'|'RELEASED'|'CONSUMED';createdAt:string}
+export const listOrderStockReservations=(orderId:string)=>get<StockReservation[]>(`/api/v1/inventory/reservations/order/${orderId}`)
 export type WarrantyClaim={id:string;serviceOrderId:string;customerId:string;expiresAt:string;description:string;status:string;createdAt:string}
 export const listWarrantyClaims=(customerId:string)=>get<WarrantyClaim[]>(`/api/v1/warranty-claims/customer/${customerId}`)
 export const listWarrantyClaimsForOrder=(serviceOrderId:string)=>get<WarrantyClaim[]>(`/api/v1/warranty-claims/service-order/${serviceOrderId}`)

@@ -15,6 +15,8 @@ import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
 import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
 import com.hotelpms.frontdesk.client.BranchValidationService;
+import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatus;
+import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +45,7 @@ public class InventoryService {
   private final StockReservationRepository reservations;
   private final SupplierRepository suppliers;
   private final BranchValidationService branchValidation;
+  private final ServiceOrderRepository serviceOrders;
 
   /**
    * Creates an inventory product.
@@ -208,30 +211,55 @@ public class InventoryService {
   @Transactional
   public StockReservation reserve(final UUID hotel, final ReservationRequest r) {
     branchValidation.requireActiveBranch(hotel, r.branchId());
-    final Optional<StockReservation> existing =
-        reservations.findByHotelIdAndServiceOrderIdAndProductId(
-            hotel, r.serviceOrderId(), r.productId());
-    if (existing.isPresent()) {
+    final var order = serviceOrders.findForUpdateByIdAndHotelId(r.serviceOrderId(), hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+    if (order.getStatus() == ServiceOrderStatus.COMPLETED || order.getStatus() == ServiceOrderStatus.CANCELLED) {
+      throw new IllegalStateException("SERVICE_ORDER_NOT_OPEN_FOR_STOCK_RESERVATION");
+    }
+    if (order.getBranchId() == null || !order.getBranchId().equals(r.branchId())) {
+      throw new IllegalArgumentException("RESERVATION_BRANCH_MISMATCH");
+    }
+    final InventoryProduct product = products.findForUpdateByIdAndHotelId(r.productId(), hotel)
+        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+    final Optional<StockReservation> existing = reservations.findForUpdateByHotelIdAndServiceOrderIdAndProductId(
+        hotel, r.serviceOrderId(), product.getId());
+    if (existing.isPresent() && "CONSUMED".equals(existing.get().getStatus())) {
+      throw new IllegalStateException("RESERVATION_ALREADY_CONSUMED");
+    }
+    if (existing.isPresent() && "RESERVED".equals(existing.get().getStatus())
+        && existing.get().getQuantity() == r.quantity()
+        && existing.get().getBranchId().equals(r.branchId())) {
       return existing.get();
     }
     final InventoryBalance b =
         balances
-            .findByHotelIdAndBranchIdAndProductId(hotel, r.branchId(), r.productId())
-            .orElseThrow(() -> new IllegalStateException(INSUFFICIENT_STOCK));
-    if (b.getQuantity() < r.quantity()) {
+            .findByHotelIdAndBranchIdAndProductId(hotel, r.branchId(), product.getId())
+            .orElseGet(() -> InventoryBalance.builder().hotelId(hotel).branchId(r.branchId())
+                .productId(product.getId()).build());
+    final long previousReservation = existing.filter(item -> "RESERVED".equals(item.getStatus()))
+        .map(StockReservation::getQuantity).orElse(0L);
+    final long difference = r.quantity() - previousReservation;
+    if (difference > b.getQuantity()) {
       throw new IllegalStateException(INSUFFICIENT_STOCK);
     }
-    b.setQuantity(b.getQuantity() - r.quantity());
+    b.setQuantity(b.getQuantity() - difference);
     balances.save(b);
-    return reservations.save(
-        StockReservation.builder()
+    final StockReservation reservation = existing.map(item -> {
+      item.setBranchId(r.branchId()); item.setQuantity(r.quantity()); item.setStatus("RESERVED"); return item;
+    }).orElseGet(() -> StockReservation.builder()
             .hotelId(hotel)
             .branchId(r.branchId())
-            .productId(r.productId())
+            .productId(product.getId())
             .serviceOrderId(r.serviceOrderId())
             .quantity(r.quantity())
             .createdAt(java.time.LocalDateTime.now())
             .build());
+    final StockReservation saved = reservations.save(reservation);
+    auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "SERVICE_ORDER_STOCK_RESERVED",
+        saved.getId(), null, "{\"serviceOrderId\":\"" + r.serviceOrderId()
+            + "\",\"branchId\":\"" + r.branchId() + "\",\"productId\":\""
+            + product.getId() + "\",\"quantity\":" + r.quantity() + "}");
+    return saved;
   }
 
   /**
@@ -244,13 +272,23 @@ public class InventoryService {
    */
   @Transactional
   public StockReservation release(final UUID hotel, final UUID order, final UUID product) {
+    final var serviceOrder = serviceOrders.findForUpdateByIdAndHotelId(order, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+    if (serviceOrder.getStatus() == ServiceOrderStatus.COMPLETED) {
+      throw new IllegalStateException("DELIVERED_SERVICE_ORDER_STOCK_CANNOT_BE_RELEASED");
+    }
     final StockReservation r =
         reservations
-            .findByHotelIdAndServiceOrderIdAndProductId(hotel, order, product)
+            .findForUpdateByHotelIdAndServiceOrderIdAndProductId(hotel, order, product)
             .orElseThrow(() -> new IllegalArgumentException("RESERVATION_NOT_FOUND"));
     if ("RELEASED".equals(r.getStatus())) {
       return r;
     }
+    if ("CONSUMED".equals(r.getStatus())) {
+      throw new IllegalStateException("RESERVATION_ALREADY_CONSUMED");
+    }
+    products.findForUpdateByIdAndHotelId(r.getProductId(), hotel)
+        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
     final InventoryBalance b =
         balances
             .findByHotelIdAndBranchIdAndProductId(hotel, r.getBranchId(), r.getProductId())
@@ -258,7 +296,34 @@ public class InventoryService {
     b.setQuantity(b.getQuantity() + r.getQuantity());
     balances.save(b);
     r.setStatus("RELEASED");
-    return reservations.save(r);
+    final StockReservation released = reservations.save(r);
+    auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "SERVICE_ORDER_STOCK_RELEASED",
+        released.getId(), null, "{\"serviceOrderId\":\"" + order + "\",\"productId\":\""
+            + product + "\",\"quantity\":" + released.getQuantity() + "}");
+    return released;
+  }
+
+  @Transactional
+  public List<StockReservation> consumeReservations(final UUID hotel, final UUID orderId) {
+    final List<StockReservation> orderReservations = reservations
+        .findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+    for (final StockReservation reservation : orderReservations) {
+      if (!"RESERVED".equals(reservation.getStatus())) continue;
+      reservation.setStatus("CONSUMED");
+      final StockReservation consumed = reservations.save(reservation);
+      auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "SERVICE_ORDER_STOCK_CONSUMED",
+          consumed.getId(), null, "{\"serviceOrderId\":\"" + orderId
+              + "\",\"productId\":\"" + consumed.getProductId()
+              + "\",\"quantity\":" + consumed.getQuantity() + "}");
+    }
+    return orderReservations;
+  }
+
+  @Transactional(readOnly = true)
+  public List<StockReservation> reservationsForOrder(final UUID hotel, final UUID orderId) {
+    serviceOrders.findByIdAndHotelId(orderId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+    return reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
   }
 
   /**
