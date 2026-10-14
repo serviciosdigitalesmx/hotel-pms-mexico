@@ -12,6 +12,7 @@ import { ReceptionOrderForm } from '@/fixi/reception'
 import { InventoryCatalogPage } from '@/fixi/inventory'
 import { CustomerCsvTools } from '@/fixi/customer-tools'
 import { WorkflowSettingsPage } from '@/fixi/workflow-settings'
+import { OrderPreferencesPage } from '@/fixi/order-preferences'
 import { DeviceManagementPage } from '@/fixi/devices'
 import { NotificationSettingsPage } from '@/fixi/notification-settings'
 import { FixiFinancialReportingPage } from '@/fixi/financial-reporting'
@@ -34,6 +35,7 @@ export const routes:RouteConfig[]=[
   {path:'/devices',element:secure(<DeviceManagementPage/>,undefined,['DEVICES_READ'])},
   {path:'/notifications',element:secure(<OperationalAlertsPage/>,undefined,['ORDERS_READ','INVENTORY_READ','FINANCE_READ'])},
   {path:'/settings/order-workflows',element:secure(<WorkflowSettingsPage/>,['ADMIN','OWNER'],['WORKFLOWS_MANAGE'])},
+  {path:'/settings/order-preferences',element:secure(<OrderPreferencesPage/>,['ADMIN','OWNER','MANAGER'],['SETTINGS_MANAGE'])},
   {path:'/settings/notifications',element:secure(<NotificationSettingsPage/>,['ADMIN','OWNER','MANAGER'],['SETTINGS_MANAGE'])},
   {path:'/reports/finance',element:secure(<FixiFinancialReportingPage/>,['ADMIN','OWNER'],['FINANCE_READ'])},
   {path:'/orders/unassigned',element:secure(<OrdersPage title="Por asignar" unassignedOnly/>,undefined,['ORDERS_READ'])},
