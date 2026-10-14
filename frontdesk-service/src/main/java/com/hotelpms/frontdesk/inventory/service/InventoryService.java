@@ -305,6 +305,24 @@ public class InventoryService {
     return released;
   }
 
+  /** Releases every still-reserved product when a service order is cancelled. */
+  @Transactional
+  public List<StockReservation> releaseReservationsForOrder(final UUID hotel, final UUID orderId) {
+    final var serviceOrder = serviceOrders.findForUpdateByIdAndHotelId(orderId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+    if (serviceOrder.getStatus() == ServiceOrderStatus.COMPLETED) {
+      throw new IllegalStateException("DELIVERED_SERVICE_ORDER_STOCK_CANNOT_BE_RELEASED");
+    }
+    final List<StockReservation> orderReservations = reservations
+        .findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+    for (final StockReservation reservation : orderReservations) {
+      if ("RESERVED".equals(reservation.getStatus())) {
+        release(hotel, orderId, reservation.getProductId());
+      }
+    }
+    return reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+  }
+
   @Transactional
   public List<StockReservation> consumeReservations(final UUID hotel, final UUID orderId) {
     final List<StockReservation> orderReservations = reservations

@@ -121,6 +121,9 @@ public class ServiceOrderService {
     }
     order.setUpdatedAt(LocalDateTime.now());
     repository.save(order);
+    if (nextStatus == ServiceOrderStatus.CANCELLED && previous != ServiceOrderStatus.CANCELLED) {
+      inventoryService.releaseReservationsForOrder(hotelId, orderId);
+    }
     if (previous != nextStatus) record(order, previous, nextStatus, actor, "Flujo configurable: " + transitionKey);
     return configuredWorkflow(hotelId, orderId);
   }
