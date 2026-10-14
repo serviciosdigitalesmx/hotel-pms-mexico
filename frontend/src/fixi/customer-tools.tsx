@@ -32,7 +32,7 @@ export function CustomerCsvTools() {
   const [rowErrors, setRowErrors] = useState<string[]>([])
 
   function downloadTemplate() {
-    const csv = 'firstName,lastName,email,phone,address,city,country,rfc,fiscalName,fiscalPostalCode,fiscalRegime,cfdiUse\r\nAna,Pérez,ana@example.com,5551234567,,,,,,,,\r\n'
+    const csv = 'FullName,Email,Phone,Dni,ContactDescription\r\nAna Pérez,ana@example.com,5551234567,,,\r\n'
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a'); link.href = url; link.download = 'fixi-clientes-plantilla.csv'; link.click(); URL.revokeObjectURL(url)
   }
@@ -46,10 +46,11 @@ export function CustomerCsvTools() {
       const rows = parseCsv((await file.text()).replace(/^\uFEFF/, ''))
       if (rows.length < 2) throw new Error('El CSV no contiene filas de clientes')
       const headers = rows[0].map(header => header.trim().toLowerCase().replace(/[\s-]+/g, '_'))
-      const required = [headers.some(header => ['first_name', 'firstname'].includes(header)), headers.some(header => ['last_name', 'lastname'].includes(header))]
-      if (!required.every(Boolean)) throw new Error('El CSV requiere firstName y lastName, y al menos email o phone por registro')
+      const hasFullName = headers.some(header => ['full_name', 'fullname', 'name'].includes(header))
+      const hasSplitName = headers.some(header => ['first_name', 'firstname'].includes(header)) && headers.some(header => ['last_name', 'lastname'].includes(header))
+      if (!hasSplitName && !hasFullName) throw new Error('El CSV requiere FullName o las columnas firstName y lastName')
       const columns = ['first_name', 'last_name', 'email', 'phone', 'rfc', 'dni', 'fiscal_name', 'fiscal_postal_code', 'fiscal_regime', 'cfdi_use', 'billing_email', 'address', 'city', 'country']
-      const aliases: Record<string, string[]> = { first_name: ['first_name', 'firstname'], last_name: ['last_name', 'lastname'], email: ['email'], phone: ['phone'], rfc: ['rfc'], dni: ['dni', 'identity_number', 'identitynumber'], fiscal_name: ['fiscal_name', 'fiscalname'], fiscal_postal_code: ['fiscal_postal_code', 'fiscalpostalcode'], fiscal_regime: ['fiscal_regime', 'fiscalregime'], cfdi_use: ['cfdi_use', 'cfdiuse'], billing_email: ['billing_email', 'billingemail'], address: ['address', 'contactdescription'], city: ['city'], country: ['country'] }
+      const aliases: Record<string, string[]> = { first_name: ['first_name', 'firstname'], last_name: ['last_name', 'lastname'], full_name: ['full_name', 'fullname', 'name'], email: ['email'], phone: ['phone'], rfc: ['rfc'], dni: ['dni', 'identity_number', 'identitynumber'], fiscal_name: ['fiscal_name', 'fiscalname'], fiscal_postal_code: ['fiscal_postal_code', 'fiscalpostalcode'], fiscal_regime: ['fiscal_regime', 'fiscalregime'], cfdi_use: ['cfdi_use', 'cfdiuse'], billing_email: ['billing_email', 'billingemail'], address: ['address', 'contactdescription'], city: ['city'], country: ['country'] }
       const indexByHeader = new Map(headers.map((header, index) => [header, index]))
       const normalizedRows: string[][] = []
       const errors: string[] = []
@@ -59,6 +60,11 @@ export function CustomerCsvTools() {
           return column === undefined ? '' : values[column]?.trim() ?? ''
         }
         const record = Object.fromEntries(columns.map(column => [column, value(column)]))
+        if (!record.first_name && !record.last_name && value('full_name')) {
+          const parts = value('full_name').trim().split(/\s+/)
+          record.first_name = parts.shift() ?? ''
+          record.last_name = parts.join(' ')
+        }
         if (Object.values(record).every(item => !item)) continue
         if (!record.first_name || !record.last_name || (!record.email && !record.phone)) { errors.push(`Fila ${index + 2}: nombre, apellido y correo o teléfono son obligatorios`); continue }
         normalizedRows.push(columns.map(column => record[column]))
