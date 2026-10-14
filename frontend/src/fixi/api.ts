@@ -36,7 +36,7 @@ export const resetPassword=(token:string,password:string)=>post<void>('/api/v1/a
 export const acceptInvitation=(body:unknown)=>post<void>('/api/v1/auth/public/invitations/accept',body)
 export const completeOnboarding=(body:unknown)=>post<void>('/api/v1/auth/onboarding/complete',body)
 export type ServiceOrderPage={content:ServiceOrder[];number:number;size:number;totalElements:number;totalPages:number;last:boolean}
-export const listServiceOrders=()=>get<ServiceOrder[]>('/api/v1/service-orders')
+export const listServiceOrders=()=>listAllServiceOrders()
 export const listServiceOrderPage=(page=0,size=100)=>get<ServiceOrderPage>(`/api/v1/service-orders?page=${Math.max(0,page)}&size=${Math.min(200,Math.max(1,size))}`)
 export async function listAllServiceOrders(pageSize=200){
   const rows:ServiceOrder[]=[]
