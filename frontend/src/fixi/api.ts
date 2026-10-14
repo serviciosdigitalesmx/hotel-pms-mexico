@@ -89,6 +89,9 @@ export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v
 export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const transferDevice=(customerId:string,id:string,toCustomerId:string,evidence?:string)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}/transfer?${new URLSearchParams({toCustomerId,...(evidence?{evidence}:{})})}`)
 export const customerServiceOrders=(customerId:string)=>get<ServiceOrder[]>(`/api/v1/service-orders/customer/${customerId}`)
+export type CustomerOrderCount={customerId:string;count:number}
+export const customerOrderCounts=(customerIds:string[])=>customerIds.length?get<CustomerOrderCount[]>(`/api/v1/service-orders/customer-counts?${customerIds.map(id=>`customerIds=${encodeURIComponent(id)}`).join('&')}`):Promise.resolve([])
+export const anonymizeCustomer=(id:string)=>del<void>(`/api/v1/customers/${id}`)
 export const listBranches=()=>get<Branch[]>('/api/v1/auth/branches')
 export const listBranchMembers=(branchId:string)=>get<string[]>(`/api/v1/auth/branches/${branchId}/members`)
 export type BranchWrite={name:string;phone?:string;extraField?:string;address?:string;timeZone?:string;dateFormat?:string;country?:string;currency?:string}

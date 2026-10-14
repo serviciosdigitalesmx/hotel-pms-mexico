@@ -104,6 +104,12 @@ public class CustomerController {
   }
   @GetMapping("/{id}") public GuestResponse get(@PathVariable UUID id){return service.getGuestById(id);}
   @PutMapping("/{id}") public GuestResponse update(@PathVariable UUID id,@Valid @RequestBody GuestRequest request){return service.updateGuest(id,request);}
+  @DeleteMapping("/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+  public ResponseEntity<Void> anonymize(@PathVariable final UUID id) {
+    service.deleteGuest(id);
+    return ResponseEntity.noContent().build();
+  }
   @GetMapping("/search") public Page<GuestResponse> search(@RequestParam(required=false) String query,@PageableDefault(size=50) Pageable pageable){return service.searchGuests(query,pageable);}
   @GetMapping("/search-devices") public Page<DeviceResponse> searchDevices(@RequestParam String query,@PageableDefault(size=25) Pageable pageable){return devices.search(query,pageable);}
 }

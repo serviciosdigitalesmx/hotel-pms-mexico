@@ -2,6 +2,7 @@ package com.hotelpms.frontdesk.serviceorder.repository;
 
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -51,4 +52,10 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
 
   List<ServiceOrder> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
       UUID hotelId, UUID customerId);
+
+  @Query("select serviceOrder.customerId, count(serviceOrder.id) from ServiceOrder serviceOrder "
+      + "where serviceOrder.hotelId = :hotelId and serviceOrder.customerId in :customerIds "
+      + "group by serviceOrder.customerId")
+  List<Object[]> countOrdersForCustomers(@Param("hotelId") UUID hotelId,
+      @Param("customerIds") Collection<UUID> customerIds);
 }

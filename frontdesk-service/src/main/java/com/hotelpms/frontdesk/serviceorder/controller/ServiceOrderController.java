@@ -106,6 +106,13 @@ public class ServiceOrderController {
     return service.list(hotel(), customerId);
   }
 
+  @GetMapping("/customer-counts")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public List<ServiceOrderService.CustomerOrderCount> customerOrderCounts(
+      @RequestParam final List<UUID> customerIds) {
+    return service.customerOrderCounts(hotel(), customerIds);
+  }
+
   /**
    * Updates a service order.
    *

@@ -54,6 +54,7 @@ public class ServiceOrderService {
 
   public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
   public record ConfiguredWorkflowTransition(String key, String fromStateKey, String toStateKey) { }
+  public record CustomerOrderCount(UUID customerId, long count) { }
   public record ConfiguredWorkflowView(String id, String name, String currentState, String initialState,
       java.util.List<ConfiguredWorkflowTransition> transitions) { }
 
@@ -284,6 +285,13 @@ public class ServiceOrderService {
   @Transactional(readOnly = true)
   public List<ServiceOrder> listAll(final UUID hotelId) {
     return repository.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
+  }
+
+  @Transactional(readOnly = true)
+  public List<CustomerOrderCount> customerOrderCounts(final UUID hotelId, final List<UUID> customerIds) {
+    if (customerIds == null || customerIds.isEmpty()) return List.of();
+    return repository.countOrdersForCustomers(hotelId, customerIds.stream().distinct().toList()).stream()
+        .map(row -> new CustomerOrderCount((UUID) row[0], ((Number) row[1]).longValue())).toList();
   }
 
   @Transactional(readOnly = true)
