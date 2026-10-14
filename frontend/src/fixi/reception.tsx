@@ -9,6 +9,7 @@ import * as api from './api'
 
 const field = 'w-full rounded-md border bg-background px-3 py-2 text-sm'
 const customerRows = (result: { content: api.Customer[] } | api.Customer[]) => Array.isArray(result) ? result : result.content
+const localDateTime = (value: string) => value ? `${value}:00` : null
 
 export function ReceptionOrderForm() {
   const navigate = useNavigate()
@@ -119,7 +120,7 @@ export function ReceptionOrderForm() {
         ...form, intakeChecklist, customerId, deviceId: deviceId || null, branchId: branchId || null,
         serviceName: serviceName || null, assignedUserId: assignedUserId || null, priority,
         depositAmount: Number(depositAmount),
-        promisedAt: form.promisedAt ? new Date(form.promisedAt).toISOString() : null,
+        promisedAt: localDateTime(form.promisedAt),
       })
       setMessage('Orden creada')
       navigate(`/service-orders/${order.id}`)
@@ -133,8 +134,8 @@ export function ReceptionOrderForm() {
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2 rounded border p-3"><Label htmlFor="reception-device-search">Localizar por IMEI o número de serie</Label><Input id="reception-device-search" type="search" placeholder="IMEI, serie, marca o modelo" value={deviceSearch} onChange={event => setDeviceSearch(event.target.value)}/>{deviceSearchLoading && <p role="status" className="text-sm text-muted-foreground">Buscando equipo…</p>}{deviceResults.map(device => <button type="button" key={device.id} className="block w-full rounded border p-2 text-left text-sm hover:bg-muted" onClick={() => void selectLocatedDevice(device)}><span className="font-medium">{device.manufacturer} {device.model}</span><span className="block text-muted-foreground">{device.serialNumber || device.imei || device.category} · {device.customerName || device.customerId}</span></button>)}</div>
         <div className="grid gap-2 md:grid-cols-2">
-          <Input type="search" aria-label="Buscar cliente" placeholder="Buscar cliente por nombre, teléfono o correo" value={customerSearch} onChange={event => { setCustomerSearch(event.target.value); setCustomerId(''); setDeviceId('') }}/>
-          <select required aria-label="Cliente encontrado" className={field} value={customerId} onChange={event => setCustomerId(event.target.value)}>
+          <Input type="search" aria-label="Buscar cliente" placeholder="Buscar cliente por nombre, teléfono o correo" value={customerSearch} onChange={event => { setCustomerSearch(event.target.value); setCustomerId(''); setDeviceId(''); setError('') }}/>
+          <select required aria-label="Cliente encontrado" className={field} value={customerId} onChange={event => {setCustomerId(event.target.value);setDeviceId('');setError('')}}>
             <option value="">{customerLoading ? 'Buscando clientes…' : customers.length ? 'Selecciona cliente' : 'Escribe al menos 2 caracteres para buscar'}</option>
             {customers.map(customer => <option key={customer.id} value={customer.id}>{customer.firstName} {customer.lastName} · {customer.phone || customer.email || ''}</option>)}
           </select>
@@ -154,7 +155,7 @@ export function ReceptionOrderForm() {
         {checklistTemplate.length > 0 && <fieldset className="space-y-2 rounded border p-3"><legend className="px-1 text-sm font-medium">Checklist configurable de recepción</legend>{checklistTemplate.map(item => <label className="flex items-start gap-2 text-sm" key={item}><input type="checkbox" checked={checkedChecklist.includes(item)} onChange={event => setCheckedChecklist(current => event.target.checked ? [...current, item] : current.filter(value => value !== item))}/>{item}</label>)}</fieldset>}
         <textarea aria-label="Notas del checklist de recepción" className={field} placeholder="Notas de recepción o checklist adicional" value={form.intakeChecklist} onChange={event => setForm({ ...form, intakeChecklist: event.target.value })}/>
         <textarea required aria-label="Resumen de orden" className={field} placeholder="Resumen de síntomas y condición" value={form.summary} onChange={event => setForm({ ...form, summary: event.target.value })}/>
-        <div className="grid gap-3 md:grid-cols-2"><div><Label>Fecha compromiso</Label><Input required type="datetime-local" value={form.promisedAt} onChange={event => setForm({ ...form, promisedAt: event.target.value })}/></div><div><Label>Evidencia inicial / imágenes (URL o referencia)</Label><Input value={form.intakeEvidence} onChange={event => setForm({ ...form, intakeEvidence: event.target.value })}/></div></div>
+        <div className="grid gap-3 md:grid-cols-2"><div><Label>Fecha compromiso (opcional)</Label><Input type="datetime-local" value={form.promisedAt} onChange={event => setForm({ ...form, promisedAt: event.target.value })}/></div><div><Label>Evidencia inicial / imágenes (URL o referencia)</Label><Input value={form.intakeEvidence} onChange={event => setForm({ ...form, intakeEvidence: event.target.value })}/></div></div>
         <Button disabled={busy || customerLoading || !customerId}>{busy ? 'Creando…' : 'Crear orden'}</Button>
         {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
