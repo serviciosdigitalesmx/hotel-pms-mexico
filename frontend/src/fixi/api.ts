@@ -128,10 +128,10 @@ export const updateExpense=(id:string,body:{category:string;amount:number;descri
 export const markExpensePaid=(id:string,cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId})
 export type FinancialReport={startDate:string;endDate:string;totalRevenue:number;totalCollected:number;totalOutstanding:number;totalInvoices:number;paidInvoices:number;invoices:Array<{id:string;invoiceNumber?:string;status:string;totalAmount:number;issueDate:string;guestId?:string}>}
 export const financialReport=(startDate:string,endDate:string)=>get<FinancialReport>(`/api/v1/reports/owner?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)
-export type ServiceCatalogEntry={id:string;tenantId:string;name:string;active:boolean;createdAt:string}
+export type ServiceCatalogEntry={id:string;tenantId:string;name:string;basePrice:number;estimatedMinutes:number;active:boolean;createdAt:string}
 export const listServices=()=>get<ServiceCatalogEntry[]>('/api/v1/services')
-export const createService=(body:{name:string})=>post<ServiceCatalogEntry>('/api/v1/services',body)
-export const updateService=(id:string,body:{name:string})=>put<ServiceCatalogEntry>(`/api/v1/services/${id}`,body)
+export const createService=(body:{name:string;basePrice?:number;estimatedMinutes?:number})=>post<ServiceCatalogEntry>('/api/v1/services',body)
+export const updateService=(id:string,body:{name:string;basePrice?:number;estimatedMinutes?:number})=>put<ServiceCatalogEntry>(`/api/v1/services/${id}`,body)
 export const setServiceActive=(id:string,value:boolean)=>patch<ServiceCatalogEntry>(`/api/v1/services/${id}/active?value=${value}`)
 export const whatsappStatus=()=>get<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp')
 export const whatsappConnect=()=>post<{state:string;qrCode?:string}>('/api/v1/stays/whatsapp/connect')

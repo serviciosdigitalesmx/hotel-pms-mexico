@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,14 @@ public class ServiceCatalogEntry {
 
   @Column(nullable = false, length = 200)
   private String name;
+
+  @Column(name = "base_price", nullable = false, precision = 12, scale = 2)
+  @Builder.Default
+  private BigDecimal basePrice = BigDecimal.ZERO;
+
+  @Column(name = "estimated_minutes", nullable = false)
+  @Builder.Default
+  private Integer estimatedMinutes = 60;
 
   @Column(nullable = false)
   @Builder.Default
