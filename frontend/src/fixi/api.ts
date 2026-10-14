@@ -81,6 +81,7 @@ export const effectiveCapabilities=()=>get<{tenantId:string;capabilities:string[
 export const listProducts=()=>get<Product[]>('/api/v1/inventory/products')
 export const createProduct=(body:unknown)=>post<Product>('/api/v1/inventory/products',body)
 export const updateProduct=(id:string,body:unknown)=>put<Product>(`/api/v1/inventory/products/${id}`,body)
+export const increaseProductPrices=(productIds:string[],percentage:number)=>post<Product[]>('/api/v1/inventory/products/bulk-price',{productIds,percentage})
 export const importProductsCsv=(csv:string)=>api<{imported:number;rejected:number;errors:string[]}>('/api/v1/inventory/products/import',{method:'POST',headers:{'Content-Type':'text/csv'},body:csv})
 export const moveStock=(body:unknown)=>post('/api/v1/inventory/movements',body)
 export type StockBalance={id:string;branchId:string;productId:string;quantity:number;updatedAt:string}

@@ -5,6 +5,7 @@ import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.BulkPriceRequest;
 import com.hotelpms.frontdesk.inventory.service.InventoryService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -47,6 +48,12 @@ public class InventoryController {
   public InventoryProduct updateProduct(
       @PathVariable final UUID id, @Valid @RequestBody final ProductRequest request) {
     return service.updateProduct(hotel(), id, request);
+  }
+
+  @PostMapping("/products/bulk-price")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public List<InventoryProduct> increasePrices(@Valid @RequestBody final BulkPriceRequest request) {
+    return service.increasePrices(hotel(), request.productIds(), request.percentage());
   }
 
   /**

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.math.RoundingMode;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.pdfbox.Loader;
@@ -91,6 +92,22 @@ public class InventoryService {
     product.setReorderLevel(r.reorderLevel());
     product.setSupplierId(r.supplierId());
     return products.save(product);
+  }
+
+  /** Applies a validated percentage increase to the selected tenant-owned sale prices. */
+  @Transactional
+  public List<InventoryProduct> increasePrices(
+      final UUID hotel, final List<UUID> productIds, final java.math.BigDecimal percentage) {
+    final List<InventoryProduct> selected = products.findAllById(productIds).stream()
+        .filter(product -> hotel.equals(product.getHotelId())).toList();
+    if (selected.size() != productIds.stream().distinct().count()) {
+      throw new IllegalArgumentException("PRODUCT_NOT_FOUND");
+    }
+    final java.math.BigDecimal multiplier = java.math.BigDecimal.ONE.add(
+        percentage.divide(java.math.BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+    selected.forEach(product -> product.setPrice(
+        product.getPrice().multiply(multiplier).setScale(2, RoundingMode.HALF_UP)));
+    return products.saveAll(selected);
   }
 
   /**

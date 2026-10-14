@@ -47,6 +47,11 @@ public final class InventoryDtos {
     }
   }
 
+  public record BulkPriceRequest(
+      @NotNull @jakarta.validation.constraints.Size(min = 1, max = 500) java.util.List<@NotNull UUID> productIds,
+      @NotNull @DecimalMin("0.00") @jakarta.validation.constraints.DecimalMax("1000.00")
+          @Digits(integer = 4, fraction = 2) BigDecimal percentage) { }
+
   /**
    * DTO record.
    *
