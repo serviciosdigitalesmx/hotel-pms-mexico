@@ -34,9 +34,13 @@ export function OperationalAlertsPage() {
 
   const alerts = useMemo(() => {
     const now = Date.now()
+    const today = new Date().toISOString().slice(0, 10)
     const result: Alert[] = []
     for (const order of orders) {
       if (terminal.has(order.status)) continue
+      if (order.assignedUserId && order.createdAt?.slice(0, 10) === today) {
+        result.push({ id: `assigned:${order.id}`, event: 'ORDER_ASSIGNED', title: 'Orden asignada', detail: `${order.summary} · asignada a un técnico`, href: `/service-orders/${order.id}`, urgency: 1 })
+      }
       if (order.promisedAt && new Date(order.promisedAt).getTime() < now) {
         result.push({ id: `late:${order.id}`, event: 'DELIVERY_DUE', title: 'Orden vencida', detail: `${order.summary} · compromiso ${new Date(order.promisedAt).toLocaleString('es-MX')}`, href: `/service-orders/${order.id}`, urgency: 0 })
       }
@@ -48,6 +52,10 @@ export function OperationalAlertsPage() {
         const branch = branches.find(item => item.id === balance.branchId)
         result.push({ id: `stock:${balance.id}`, event: 'STOCK_LOW', title: 'Existencia baja', detail: `${product.sku} · ${product.name}: ${balance.quantity} unidades en ${branch?.name ?? 'sucursal'}`, href: '/reports/inventory', urgency: 2 })
       }
+    }
+    const completedToday = orders.filter(order => order.status === 'COMPLETED' && (order.deliveredAt ?? order.updatedAt ?? order.createdAt)?.slice(0, 10) === today)
+    if (completedToday.length) {
+      result.push({ id: `summary:${today}`, event: 'DAY_SUMMARY', title: 'Cierre del día disponible', detail: `${completedToday.length} órdenes completadas hoy`, href: '/reports/finance', urgency: 3 })
     }
     for (const expense of expenses) {
       if (expense.paid === false && expense.dueAt && expense.dueAt < new Date().toISOString().slice(0, 10)) {

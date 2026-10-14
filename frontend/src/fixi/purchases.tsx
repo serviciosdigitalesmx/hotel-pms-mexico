@@ -70,6 +70,10 @@ export function Purchases() {
     const line = selectedPurchase?.lines.find(item => item.productId === productId)
     return Math.max(0, (line?.quantityOrdered ?? 0) - (line?.quantityReceived ?? 0))
   }
+  const purchaseAmounts = (order: Purchase) => (order.lines ?? []).reduce((totals, line) => ({
+    ordered: totals.ordered + line.quantityOrdered * line.unitCost,
+    received: totals.received + line.quantityReceived * line.unitCost,
+  }), { ordered: 0, received: 0 })
 
   return <BaseLayout title="Compras" description="Órdenes con partidas previstas y recepción parcial o completa.">
     <div className="grid gap-5 px-4 lg:grid-cols-2 lg:px-6">
@@ -116,7 +120,7 @@ export function Purchases() {
         {purchases.map(order => <div className="flex flex-wrap items-center justify-between gap-2 rounded border p-3" key={order.id}>
           <div><p className="font-medium">{supplierName(order.supplierId)} · {branchName(order.branchId)}</p>
             <p className="text-xs text-muted-foreground">{order.id}{order.serviceOrderId ? ` · Servicio ${order.serviceOrderId}` : ''}{order.createdAt ? ` · ${new Date(order.createdAt).toLocaleDateString('es-MX')}` : ''}</p>
-            <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}</div>
+            <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}{order.lines?.length ? <p className="border-t pt-1 font-medium">Recibido {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).received)} · Pendiente {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered - purchaseAmounts(order).received)} · Total {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered)}</p> : <p className="text-amber-700">Orden heredada sin partidas detalladas.</p>}</div>
           </div><Badge variant={order.status === 'RECEIVED' ? 'default' : 'outline'}>{order.status}</Badge>
         </div>)}
         {!loading && !error && !purchases.length && <p className="text-sm text-muted-foreground">No hay órdenes de compra registradas.</p>}

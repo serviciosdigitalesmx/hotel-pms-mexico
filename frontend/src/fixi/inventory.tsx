@@ -96,6 +96,7 @@ export function InventoryCatalogPage() {
 
 function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
   const [csv, setCsv] = useState('')
+  const [fileName, setFileName] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState('')
   const [error, setError] = useState('')
@@ -112,7 +113,14 @@ function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo importar el CSV') }
     finally { setBusy(false) }
   }
-  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Columnas: SKU, producto, categoría, costo, precio, mínimo, opcional, proveedor, cantidad inicial y sucursal. Para registrar existencias, indica cantidad y branchId.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><label className="block text-sm">Seleccionar archivo CSV<Input type="file" accept=".csv,text/csv" disabled={busy} onChange={event=>{const file=event.currentTarget.files?.[0];if(file)void file.text().then(setCsv).catch(()=>setError('No se pudo leer el archivo CSV'))}}/></label><textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="sku,name,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId" value={csv} onChange={event => setCsv(event.target.value)}/><div className="flex gap-2"><Button disabled={busy}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
+  async function readFile(file?: File) {
+    setError(''); setResult('')
+    if (!file) { setFileName(''); return }
+    if (file.size > 5 * 1024 * 1024) { setError('El archivo supera el límite de 5 MB'); return }
+    try { setCsv((await file.text()).replace(/^\uFEFF/, '')); setFileName(file.name) }
+    catch { setError('No se pudo leer el archivo CSV') }
+  }
+  return <Card><CardHeader><CardTitle>Importar catálogo CSV</CardTitle><CardDescription>Columnas: SKU, producto, categoría, costo, precio, mínimo, opcional, proveedor, cantidad inicial y sucursal. Para registrar existencias, indica cantidad y branchId.</CardDescription></CardHeader><CardContent><form className="space-y-3" onSubmit={submit}><label className="block text-sm">Seleccionar archivo CSV<Input type="file" accept=".csv,text/csv" disabled={busy} onChange={event=>void readFile(event.currentTarget.files?.[0])}/></label>{fileName&&<p className="text-xs text-muted-foreground">Archivo seleccionado: {fileName}</p>}<textarea required aria-label="Contenido CSV" className={field} rows={5} placeholder="sku,name,category,cost,price,reorderLevel,optional,supplierId,quantity,branchId" value={csv} onChange={event => {setCsv(event.target.value);setFileName('')}}/><div className="flex gap-2"><Button disabled={busy||!csv.trim()}>{busy ? 'Importando…' : 'Importar CSV'}</Button><Button type="button" variant="outline" onClick={downloadTemplate}>Descargar plantilla</Button></div></form>{result && <p role="status" className="mt-3 text-sm text-emerald-700">{result}</p>}{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card>
 }
 
 function useQuery<T>(loader: () => Promise<T>, deps: unknown[] = []) {
