@@ -37,7 +37,7 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     await page.locator('form').getByPlaceholder('Correo').fill(email);
     await page.locator('form').getByPlaceholder('Teléfono').fill('8112345678');
     await page.getByRole('button', { name: 'Guardar cliente' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Cliente creado correctamente' })).toBeVisible();
+    await expect(page.getByText('Cliente creado correctamente')).toBeVisible();
     const list = await json<{content?: Array<{id:string;email?:string}>} | Array<{id:string;email?:string}>>(await api.get('/api/v1/customers?page=0&size=100'));
     const rows = Array.isArray(list) ? list : list.content ?? [];
     const created = rows.find(row => row.email === email);
@@ -68,13 +68,13 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     await page.getByPlaceholder('Síntomas, accesorios y condición física').fill(summary);
     await page.getByRole('button', { name: 'Crear orden' }).click();
     await expect(page).toHaveURL(/\/service-orders\//);
-    await expect(page.getByText('Detalle de orden')).toBeVisible();
+    await expect(page.getByText('Orden de servicio')).toBeVisible();
     const orderId = new URL(page.url()).pathname.split('/').pop();
     expect(orderId).toBeTruthy();
     const order = await json<{id:string;customerId:string;deviceId?:string;summary:string;status:string}>(await api.get(`/api/v1/service-orders/${orderId}`));
     expect(order).toMatchObject({ id: orderId, customerId: customer.id, deviceId: device.id, summary });
     await page.reload();
-    await expect(page.getByText('Detalle de orden')).toBeVisible();
+    await expect(page.getByText('Orden de servicio')).toBeVisible();
   });
 
   await test.step('protected boundary rejects an unauthenticated request', async () => {
