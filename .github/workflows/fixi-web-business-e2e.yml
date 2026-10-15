@@ -62,6 +62,8 @@ jobs:
           corepack prepare pnpm@11.25.0 --activate
           pnpm install --frozen-lockfile
           pnpm exec playwright install --with-deps chromium
+      - name: Build isolated frontend image
+        run: docker build --tag hotel-pms/frontend:business-ci frontend
       - name: Start isolated source-built stack
         run: |
           compose=(docker compose --project-name "fixi-web-${GITHUB_RUN_ID}" \
