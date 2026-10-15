@@ -40,6 +40,10 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   await quoteForm.getByPlaceholder('Mano de obra').fill('450');
   await quoteForm.getByPlaceholder('Refacciones').fill('0');
   await quoteForm.getByRole('button', { name: 'Generar cotización' }).click();
+  await expect.poll(async () => {
+    const current = await json<{ status: string }>(await api.get(`/api/v1/service-orders/${order.id}`));
+    return current.status;
+  }).toBe('QUOTED');
   await expect(page.getByRole('button', { name: 'Autorizar' })).toBeVisible();
   const quoted = await json<{ status: string; quoteTotal: number }>(await api.get(`/api/v1/service-orders/${order.id}`));
   expect(quoted.status).toBe('QUOTED');
