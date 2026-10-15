@@ -33,6 +33,7 @@ class WorkflowConcurrencyTest {
              var statement = connection.createStatement()) {
             statement.execute(Files.readString(Path.of("src/main/resources/db/migration/V25__add_configurable_workflows.sql")));
             statement.execute(Files.readString(Path.of("src/main/resources/db/migration/V26__enforce_workflow_instance_identity.sql")));
+            statement.execute(Files.readString(Path.of("src/main/resources/db/migration/V52__add_workflow_state_activation.sql")));
         }
         context = new AnnotationConfigApplicationContext(DatabaseConfig.class);
     }

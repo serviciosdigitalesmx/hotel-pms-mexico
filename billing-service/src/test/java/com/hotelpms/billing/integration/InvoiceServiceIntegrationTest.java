@@ -13,6 +13,7 @@ import com.hotelpms.billing.mapper.InvoiceMapperImpl;
 import com.hotelpms.billing.mapper.PaymentMapperImpl;
 import com.hotelpms.billing.repository.InvoiceRepository;
 import com.hotelpms.billing.service.InvoiceService;
+import com.hotelpms.billing.service.LedgerService;
 import com.hotelpms.billing.service.impl.InvoiceServiceImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +57,8 @@ import static org.mockito.Mockito.when;
  * now takes {@link GuestClient} as a constructor dependency (C12 invoice search); since
  * this slice doesn't configure OpenFeign, it's provided as a {@code @MockitoBean} purely
  * so the context can wire the constructor — stubbed only in the {@code searchInvoices}
- * tests below, which are the only ones that call it.
+ * tests below, which are the only ones that call it. {@link LedgerService} is imported
+ * with its real repository so invoice creation exercises the ledger write boundary.
  * {@code BillingApplication}'s {@code @EnableJpaAuditing} is processed by the slice
  * bootstrapper, so {@code Invoice}'s {@code @CreatedDate}/{@code @LastModifiedDate} fields
  * are populated. Flyway applies all migrations at context startup; each test rolls back
@@ -72,6 +74,7 @@ import static org.mockito.Mockito.when;
 })
 @Import({
         InvoiceServiceImpl.class,
+        LedgerService.class,
         InvoiceMapperImpl.class,
         InvoiceChargeMapperImpl.class,
         PaymentMapperImpl.class
