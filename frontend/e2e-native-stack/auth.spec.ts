@@ -5,7 +5,12 @@ import { baseURL, csrfHeaders, json, loginUI, PmsApi, status, uniqueTag } from '
 
 test('UI login, auth/me, cookie refresh rotation/replay and CSRF enforcement', async ({ page, browser }) => {
   const api = await loginUI(page);
+  await test.step('authenticated settings and capability routes are reachable', async () => {
+    await status(await api.get('/api/v1/auth/session-security'), 200);
+    await status(await api.get('/api/v1/auth/capabilities/me'), 200);
+  });
   const oldCsrf = await csrfHeaders(page);
+  // Rotate the pair before negative probes so `oldCsrf` is genuinely stale.
   await status(await api.mutate('POST', '/api/v1/auth/refresh'), 200);
   const currentCsrf = await csrfHeaders(page);
   expect(currentCsrf['X-CSRF-Token']).not.toBe(oldCsrf['X-CSRF-Token']);
