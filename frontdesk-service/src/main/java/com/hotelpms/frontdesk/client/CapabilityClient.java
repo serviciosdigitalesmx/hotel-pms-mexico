@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 /** Server-side capability evaluation using the signed tenant/user context. */
 @FeignClient(
+    contextId = "capabilityClient",
     name = "auth-service",
     url = "${APPLICATION_CONFIG_AUTH_SERVICE_URL:http://auth-service:8087}")
 public interface CapabilityClient {
