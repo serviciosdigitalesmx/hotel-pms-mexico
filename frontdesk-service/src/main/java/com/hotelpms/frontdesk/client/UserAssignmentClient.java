@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 /** Tenant-scoped technician assignment validation through auth-service. */
 @FeignClient(
+    contextId = "authUserAssignmentClient",
     name = "auth-service",
     url = "${APPLICATION_CONFIG_AUTH_SERVICE_URL:http://auth-service:8087}")
 public interface UserAssignmentClient {
