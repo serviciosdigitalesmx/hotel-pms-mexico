@@ -9,7 +9,7 @@ export type Branch = { id:string; hotelId:string; name:string; active:boolean; c
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string; posMenuItemId?:string }
 export const isAtOrBelowReorderLevel=(quantity:number,reorderLevel?:number)=>typeof reorderLevel==='number'&&Number.isFinite(reorderLevel)&&reorderLevel>0&&quantity<=reorderLevel
-export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string }
+export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string; active:boolean }
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}
 export type PurchaseOrder={id:string;branchId:string;supplierId:string;serviceOrderId?:string;status:string;createdAt:string;lines:PurchaseOrderLine[]}
 export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; expenseType?:'FIXED'|'VARIABLE'|'INVENTORY'; subcategory?:string; paid?:boolean; spentAt?:string; dueAt?:string; paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'; paidAt?:string; createdAt:string }
@@ -151,6 +151,7 @@ export const closeWarrantyClaim=(id:string)=>post<WarrantyClaim>(`/api/v1/warran
 export const listSuppliers=()=>get<Supplier[]>('/api/v1/procurement/suppliers')
 export const createSupplier=(body:unknown)=>post<Supplier>('/api/v1/procurement/suppliers',body)
 export const updateSupplier=(id:string,body:unknown)=>put<Supplier>(`/api/v1/procurement/suppliers/${id}`,body)
+export const setSupplierActive=(id:string,active:boolean)=>patch<Supplier>(`/api/v1/procurement/suppliers/${id}/active?value=${active}`)
 export const listPurchases=()=>get<PurchaseOrder[]>('/api/v1/procurement/purchases')
 export const createPurchase=(body:{branchId:string;supplierId:string;serviceOrderId?:string|null;lines:Array<{productId:string;quantity:number;unitCost:number}>})=>post<PurchaseOrder>('/api/v1/procurement/purchases/with-lines',body)
 export const receivePurchase=(id:string,body:{lines:Array<{productId:string;quantity:number}>})=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/receive`,body)

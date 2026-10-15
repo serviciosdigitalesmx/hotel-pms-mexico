@@ -1,0 +1,2 @@
+ALTER TABLE inventory_suppliers
+    ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;

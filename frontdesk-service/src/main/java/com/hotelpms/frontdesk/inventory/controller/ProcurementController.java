@@ -48,6 +48,13 @@ public class ProcurementController {
   public Supplier updateSupplier(@PathVariable final UUID id, @Valid @RequestBody final SupplierRequest r) {
     return service.updateSupplier(hotel(), id, r);
   }
+
+  @PatchMapping("/suppliers/{id}/active")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public Supplier setSupplierActive(@PathVariable final UUID id,
+      @org.springframework.web.bind.annotation.RequestParam final boolean value) {
+    return service.setSupplierActive(hotel(), id, value);
+  }
   /**
    * Executes the operation.
    *

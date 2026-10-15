@@ -85,6 +85,14 @@ public class ProcurementService {
     supplier.setDescription(normalize(r.description()));
     return suppliers.save(supplier);
   }
+
+  @Transactional
+  public Supplier setSupplierActive(final UUID hotel, final UUID supplierId, final boolean active) {
+    final Supplier supplier = suppliers.findByIdAndHotelId(supplierId, hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+    supplier.setActive(active);
+    return suppliers.save(supplier);
+  }
   /**
    * Executes the operation.
    *
@@ -98,9 +106,9 @@ public class ProcurementService {
   @Transactional
   public PurchaseOrder purchase(final UUID hotel, final PurchaseRequest r) {
     branchValidation.requireActiveBranch(hotel, r.branchId());
-    if (suppliers.findByIdAndHotelId(r.supplierId(), hotel).isEmpty()) {
-      throw new IllegalArgumentException("SUPPLIER_NOT_FOUND");
-    }
+    final Supplier supplier = suppliers.findByIdAndHotelId(r.supplierId(), hotel)
+        .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+    if (!supplier.isActive()) throw new IllegalArgumentException("SUPPLIER_INACTIVE");
     final PurchaseOrder order = PurchaseOrder.builder()
             .hotelId(hotel)
             .branchId(r.branchId())

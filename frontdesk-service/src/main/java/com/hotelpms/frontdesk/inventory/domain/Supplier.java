@@ -59,4 +59,7 @@ public class Supplier {
 
   @Column(length = 1000)
   private String description;
+
+  @Column(nullable = false)
+  private boolean active = true;
 }
