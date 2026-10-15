@@ -11,7 +11,11 @@ import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -42,7 +46,10 @@ class PublicBookingFilterTest {
             assertThat(
                     request.headers()
                             .getFirst("X-Internal-Signature"))
-                    .isNotBlank();
+                    .isEqualTo(signature(
+                            "public-booking-web", "RECEPTIONIST", RESOLVER_HOTEL,
+                            request.headers().getFirst("X-Auth-Timestamp"),
+                            request.headers().getFirst("X-Auth-Nonce")));
 
             return Mono.just(
                     ClientResponse
@@ -110,6 +117,25 @@ class PublicBookingFilterTest {
                         .getHeaders()
                         .getFirst("X-Auth-User"))
                 .isEqualTo("public-booking-web");
+        assertThat(forwarded.get().getRequest().getHeaders().getFirst("X-Internal-Signature"))
+                .isEqualTo(signature(
+                        "public-booking-web", "RECEPTIONIST", TARGET_HOTEL,
+                        forwarded.get().getRequest().getHeaders().getFirst("X-Auth-Timestamp"),
+                        forwarded.get().getRequest().getHeaders().getFirst("X-Auth-Nonce")));
+    }
+
+    private static String signature(
+            final String user, final String role, final String hotel,
+            final String timestamp, final String nonce) {
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return HexFormat.of().formatHex(mac.doFinal(
+                    (user + ":" + role + ":" + hotel + "::" + timestamp + ":" + nonce)
+                            .getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.GeneralSecurityException exception) {
+            throw new AssertionError("HmacSHA256 must be available", exception);
+        }
     }
 
     @Test

@@ -41,6 +41,10 @@ jobs:
       PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
       NATIVE_API_BASE_URL: http://127.0.0.1:18080
       GW_CORS_ALLOWED_ORIGINS: http://127.0.0.1:18080
+      GW_DEFAULT_RATE_LIMIT_REPLENISH_RATE: '60'
+      GW_DEFAULT_RATE_LIMIT_BURST_CAPACITY: '120'
+      GW_AUTH_RATE_LIMIT_REPLENISH_RATE: '30'
+      GW_AUTH_RATE_LIMIT_BURST_CAPACITY: '60'
       NATIVE_E2E_OUTPUT_DIR: ${{ github.workspace }}/build/fixi-web-business-e2e/playwright
     steps:
       - uses: actions/checkout@v4

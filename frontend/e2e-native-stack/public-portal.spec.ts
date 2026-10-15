@@ -16,6 +16,7 @@ test('public portal binds authorization to an OTP-verified customer token', asyn
       await staff.mutate('POST', '/api/v1/service-orders', {
         customerId: randomUUID(), deviceId: randomUUID(), branchId: branch.id,
         summary: `${uniqueTag()} public portal authorization`,
+        reportedFailure: 'Fixture failure', intakeChecklist: 'Public portal intake',
       }), 201);
     await status(await staff.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
       status: 'QUOTED', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E quote',

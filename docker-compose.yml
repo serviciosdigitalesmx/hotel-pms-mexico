@@ -340,6 +340,11 @@ services:
       - GW_FB_SERVICE_URI=http://fb-service:8086
       # CORS – override for production frontend URL
       - GW_CORS_ALLOWED_ORIGINS=${GW_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      # Gateway-wide and unauthenticated auth-route rate limits.
+      - GW_DEFAULT_RATE_LIMIT_REPLENISH_RATE=${GW_DEFAULT_RATE_LIMIT_REPLENISH_RATE:-10}
+      - GW_DEFAULT_RATE_LIMIT_BURST_CAPACITY=${GW_DEFAULT_RATE_LIMIT_BURST_CAPACITY:-20}
+      - GW_AUTH_RATE_LIMIT_REPLENISH_RATE=${GW_AUTH_RATE_LIMIT_REPLENISH_RATE:-5}
+      - GW_AUTH_RATE_LIMIT_BURST_CAPACITY=${GW_AUTH_RATE_LIMIT_BURST_CAPACITY:-10}
     depends_on:
       postgres:
         condition: service_healthy

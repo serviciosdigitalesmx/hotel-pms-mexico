@@ -105,8 +105,8 @@ spring:
           filters:
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: 5
-                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.replenishRate: "${GW_AUTH_RATE_LIMIT_REPLENISH_RATE:5}"
+                redis-rate-limiter.burstCapacity: "${GW_AUTH_RATE_LIMIT_BURST_CAPACITY:10}"
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@remoteAddrKeyResolver}"
 

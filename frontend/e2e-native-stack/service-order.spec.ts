@@ -16,6 +16,7 @@ test('creates a no-inventory service order, diagnoses it and records authorizati
     const product = await json<{ id: string; hotelId: string }>(
       await api.mutate('POST', '/api/v1/inventory/products', {
         sku: `${uniqueTag()}-SKU`, name: 'Repair part', optional: false,
+        category: 'Repair', cost: 5, price: 10,
       }), 200);
     const balance = await json<{ branchId: string; productId: string; quantity: number }>(
       await api.mutate('POST', '/api/v1/inventory/movements', {
@@ -25,6 +26,7 @@ test('creates a no-inventory service order, diagnoses it and records authorizati
     const order = await json<{ id: string; hotelId: string; status: string }>(
       await api.mutate('POST', '/api/v1/service-orders', {
         customerId, deviceId, branchId: branch.id, summary: `${uniqueTag()} no-inventory repair`,
+        reportedFailure: 'Fixture failure', intakeChecklist: 'No physical inventory consumed',
       }), 201);
     expect(order.hotelId).toBe(user.hotelId);
     expect(order.status).toBe('INTAKE');
