@@ -55,6 +55,7 @@ class AuthControllerTest {
     private static final String TEST_PASSWORD = "password123";
     private static final String STRONG_PASSWORD = "TestPassword@@22";
     private static final String ROLE_ADMIN = "ADMIN";
+    private static final String TEST_HOTEL_ID = "00000000-0000-0000-0000-000000000001";
 
     @Mock
     private AuthService authService;
@@ -187,17 +188,16 @@ class AuthControllerTest {
         when(jwtService.extractClaim(eq(TEST_TOKEN), any())).thenReturn(ROLE_ADMIN);
         when(jwtService.isTokenValid(TEST_TOKEN)).thenReturn(true);
         when(jwtService.extractHotelId(TEST_TOKEN)).thenReturn(
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"));
+                java.util.UUID.fromString(TEST_HOTEL_ID));
         when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.empty());
-        when(hotelRepository.findById(java.util.UUID.fromString(
-                "00000000-0000-0000-0000-000000000001"))).thenReturn(Optional.empty());
+        when(hotelRepository.findById(java.util.UUID.fromString(TEST_HOTEL_ID))).thenReturn(Optional.empty());
 
         mockMvc.perform(get(BASE_URL + PATH_ME)
                         .cookie(new Cookie(COOKIE_JWT, TEST_TOKEN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(TEST_USERNAME))
                 .andExpect(jsonPath("$.role").value(ROLE_ADMIN))
-                .andExpect(jsonPath("$.hotelId").value("00000000-0000-0000-0000-000000000001"));
+                .andExpect(jsonPath("$.hotelId").value(TEST_HOTEL_ID));
     }
 
     @Test
