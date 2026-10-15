@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/customers/{customerId}/devices")
-public final class DeviceController {
+public class DeviceController {
   private final DeviceService service;
 
 
