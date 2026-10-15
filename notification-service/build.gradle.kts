@@ -56,6 +56,7 @@ dependencies {
     // Core web (REST endpoints to receive notification requests from other services)
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
     // Email sending — Jakarta Mail via Spring Boot Starter Mail
     implementation("org.springframework.boot:spring-boot-starter-mail")
