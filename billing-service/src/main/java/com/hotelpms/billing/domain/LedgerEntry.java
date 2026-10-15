@@ -36,7 +36,7 @@ public class LedgerEntry {
   private EntryType entryType;
   @Column(nullable = false, precision = 19, scale = 4)
   private BigDecimal amount;
-  @Column(name = "reference_key", nullable = false, unique = true, length = 180)
+  @Column(name = "reference_key", nullable = false, length = 180)
   private String referenceKey;
   @Column(nullable = false, length = 3)
   private String currency = "MXN";

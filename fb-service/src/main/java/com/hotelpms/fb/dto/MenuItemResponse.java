@@ -22,5 +22,6 @@ public record MenuItemResponse(
         BigDecimal price,
         String category,
         String description,
-        boolean available) {
+        boolean available,
+        UUID inventoryProductId) {
 }

@@ -14,6 +14,8 @@ import com.hotelpms.billing.repository.CashSessionRepository;
 import com.hotelpms.billing.repository.ExpenseRepository;
 import com.hotelpms.billing.repository.RecurringExpenseTemplateRepository;
 import com.hotelpms.billing.service.ExpenseService;
+import com.hotelpms.billing.service.LedgerService;
+import com.hotelpms.billing.domain.LedgerEntry;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +30,7 @@ public class ExpenseServiceImpl implements ExpenseService {
   private final ExpenseRepository expenses;
   private final CashSessionRepository sessions;
   private final RecurringExpenseTemplateRepository recurringTemplates;
+  private final LedgerService ledgerService;
 
   /** {@inheritDoc} */
   @Override
@@ -61,7 +64,7 @@ public class ExpenseServiceImpl implements ExpenseService {
       sessions.save(session);
     }
     final String paymentMethod = resolvePaymentMethod(paid, request.cashSessionId(), request.paymentMethod());
-    return expenses.save(
+    final Expense saved = expenses.save(
         Expense.builder()
             .hotelId(hotelId)
             .category(request.category().trim())
@@ -79,6 +82,11 @@ public class ExpenseServiceImpl implements ExpenseService {
             .paymentMethod(paymentMethod)
             .paidAt(paid ? LocalDateTime.now() : null)
             .build());
+    if (paid) {
+      ledgerService.record(hotelId, saved.getId(), LedgerEntry.EntryType.EXPENSE,
+          saved.getAmount(), "expense:" + saved.getId());
+    }
+    return saved;
   }
 
   /** {@inheritDoc} */
@@ -154,7 +162,10 @@ public class ExpenseServiceImpl implements ExpenseService {
     if (expense.getSpentAt() == null) {
       expense.setSpentAt(java.time.LocalDate.now());
     }
-    return expenses.save(expense);
+    final Expense saved = expenses.save(expense);
+    ledgerService.record(hotelId, saved.getId(), LedgerEntry.EntryType.EXPENSE,
+        saved.getAmount(), "expense:" + saved.getId());
+    return saved;
   }
 
   private static String resolvePaymentMethod(

@@ -146,9 +146,9 @@ class BranchControllerTest {
     void createBranchReturns201WhenCapabilityAllowed() throws Exception {
         final TenantBranchResponse response = new TenantBranchResponse(
                 BRANCH_ID, HOTEL_ID, NORTH, true, LocalDateTime.now());
-        when(branchAccessService.createBranch(eq(HOTEL_ID), eq(NORTH), eq(USERNAME)))
-                .thenReturn(response);
         final CreateBranchRequest request = new CreateBranchRequest(NORTH);
+        when(branchAccessService.createBranch(eq(HOTEL_ID), eq(request), eq(USERNAME)))
+                .thenReturn(response);
 
         mockMvc.perform(post(BASE_URL)
                         .header(HEADER_HOTEL, HOTEL_ID.toString())

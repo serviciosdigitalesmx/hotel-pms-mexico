@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Handles tenant-scoped capability evaluation requests. */
@@ -49,11 +50,15 @@ public class CapabilityController {
   @GetMapping("/me")
   public ResponseEntity<Map<String, Object>> effectiveCapabilities(
       @RequestHeader("X-Auth-Hotel") final UUID tenantId,
+      @RequestParam(required = false) final UUID branchId,
       final Authentication authentication) {
+    final var capabilities = service.effectiveCapabilities(authentication.getName(), tenantId, branchId);
+    final var response = new java.util.HashMap<String, Object>();
+    response.put("tenantId", tenantId);
+    response.put("capabilities", capabilities);
+    if (branchId != null) response.put("branchId", branchId);
     return ResponseEntity.ok(
-        Map.of(
-            "tenantId", tenantId,
-            "capabilities", service.effectiveCapabilities(authentication.getName(), tenantId)));
+        response);
   }
 
   /**

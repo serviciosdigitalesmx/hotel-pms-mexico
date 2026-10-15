@@ -36,7 +36,7 @@ public class Deposit {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 24)
   private Status status = Status.RECEIVED;
-  @Column(name = "reference_key", nullable = false, unique = true, length = 180)
+  @Column(name = "reference_key", nullable = false, length = 180)
   private String referenceKey;
   @Column(name = "received_at", nullable = false)
   private LocalDateTime receivedAt = LocalDateTime.now();

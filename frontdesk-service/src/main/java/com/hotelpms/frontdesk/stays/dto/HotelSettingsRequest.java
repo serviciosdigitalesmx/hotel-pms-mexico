@@ -200,6 +200,7 @@ public record HotelSettingsRequest(
         null,
         null,
         null,
+        null,
         null);
   }
 }

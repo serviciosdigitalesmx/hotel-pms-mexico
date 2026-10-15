@@ -37,7 +37,9 @@ class ServiceOrderAuthorizationTest {
         .build();
     when(repository.findByIdAndHotelId(orderId, hotelId)).thenReturn(Optional.of(order));
     when(repository.save(any(ServiceOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
-    final ServiceOrderService service = new ServiceOrderService(repository, repairTests, history);
+    final ServiceOrderService service = new ServiceOrderService(repository, repairTests, history,
+        org.mockito.Mockito.mock(com.hotelpms.frontdesk.audit.service.AuditEventService.class),
+        null, null, null, null, null, null, null);
 
     service.authorize(hotelId, orderId, firstActor, new AuthorizationRequest("first"));
     order.setStatus(ServiceOrderStatus.QUOTED);

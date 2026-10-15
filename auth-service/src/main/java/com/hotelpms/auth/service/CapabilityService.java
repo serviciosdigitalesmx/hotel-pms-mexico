@@ -62,9 +62,10 @@ public class CapabilityService {
     if (!actualTenant.equals(requestedTenant)) {
       throw new AccessDeniedException("Tenant access denied");
     }
-    if (branchId != null
-        && branches.findByIdAndHotelId(branchId, actualTenant).isEmpty()) {
-      throw new AccessDeniedException("Branch access denied");
+    if (branchId != null) {
+      final var branch = branches.findByIdAndHotelId(branchId, actualTenant)
+          .orElseThrow(() -> new AccessDeniedException("Branch access denied"));
+      if (!branch.isActive()) throw new AccessDeniedException("Branch access denied");
     }
     final UUID userId = users.findByUsername(username).orElseThrow().getId();
     final var grant =
@@ -172,9 +173,16 @@ public class CapabilityService {
   /** Returns the effective tenant capabilities for the authenticated user. */
   @Transactional(readOnly = true)
   public List<String> effectiveCapabilities(final String username, final UUID tenantId) {
+    return effectiveCapabilities(username, tenantId, null);
+  }
+
+  /** Returns effective capabilities for a tenant or a validated branch scope. */
+  @Transactional(readOnly = true)
+  public List<String> effectiveCapabilities(
+      final String username, final UUID tenantId, final UUID branchId) {
     return java.util.Arrays.stream(Capability.values())
         .map(Capability::name)
-        .filter(key -> isEnabled(username, tenantId, key))
+        .filter(key -> isEnabled(username, tenantId, branchId, key))
         .toList();
   }
 }

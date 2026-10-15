@@ -10,6 +10,7 @@ import com.hotelpms.auth.exception.BadCredentialsException;
 import com.hotelpms.auth.exception.GlobalExceptionHandler;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.auth.repository.HotelRegistryRepository;
+import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
 import com.hotelpms.auth.service.AuthService;
 import com.hotelpms.auth.service.JwtService;
 import jakarta.servlet.http.Cookie;
@@ -66,6 +67,9 @@ class AuthControllerTest {
 
     @Mock
     private HotelRegistryRepository hotelRepository;
+
+    @Mock
+    private TenantIndustryProfileRepository industryProfiles;
 
     @InjectMocks
     private AuthController authController;

@@ -56,6 +56,14 @@ public class OrderItem {
     @Column(name = "item_name", nullable = false)
     private String itemName;
 
+    /** Stable menu catalog reference used to apply linked inventory consumption. */
+    @Column(name = "menu_item_id")
+    private UUID menuItemId;
+
+    /** Inventory product resolved from the menu catalog at order creation. */
+    @Column(name = "inventory_product_id")
+    private UUID inventoryProductId;
+
     /** Quantity of the item. */
     @Column(name = "quantity", nullable = false)
     private Integer quantity;

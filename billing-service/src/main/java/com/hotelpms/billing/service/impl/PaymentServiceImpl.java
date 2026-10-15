@@ -4,8 +4,10 @@ import com.hotelpms.billing.domain.CashMovement;
 import com.hotelpms.billing.domain.CashMovementType;
 import com.hotelpms.billing.domain.CashSession;
 import com.hotelpms.billing.domain.CashSessionStatus;
+import com.hotelpms.billing.domain.Deposit;
 import com.hotelpms.billing.domain.Invoice;
 import com.hotelpms.billing.domain.InvoiceStatus;
+import com.hotelpms.billing.domain.LedgerEntry;
 import com.hotelpms.billing.domain.Payment;
 import com.hotelpms.billing.domain.PaymentMethod;
 import com.hotelpms.billing.dto.PaymentRequest;
@@ -16,10 +18,12 @@ import com.hotelpms.billing.exception.InvoiceConflictException;
 import com.hotelpms.billing.exception.NotFoundException;
 import com.hotelpms.billing.mapper.PaymentMapper;
 import com.hotelpms.billing.repository.CashSessionRepository;
+import com.hotelpms.billing.repository.DepositRepository;
 import com.hotelpms.billing.repository.InvoiceFiscalExportRepository;
 import com.hotelpms.billing.repository.InvoiceRepository;
 import com.hotelpms.billing.repository.PaymentRepository;
 import com.hotelpms.billing.service.PaymentService;
+import com.hotelpms.billing.service.LedgerService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +36,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 /** Implementation of the PaymentService interface. */
 @Service
@@ -46,6 +51,8 @@ public class PaymentServiceImpl implements PaymentService {
   private final PaymentMapper paymentMapper;
   private final InvoiceFiscalExportRepository invoiceFiscalExportRepository;
   private final CashSessionRepository cashSessionRepository;
+  private final DepositRepository depositRepository;
+  private final LedgerService ledgerService;
 
   /** {@inheritDoc} */
   @Override
@@ -59,10 +66,13 @@ public class PaymentServiceImpl implements PaymentService {
             .orElseThrow(() -> new NotFoundException(INVOICE_NOT_FOUND));
 
     if (request.transactionReference() != null && !request.transactionReference().isBlank()) {
-      final var existing =
-          paymentRepository.findByInvoiceIdAndTransactionReference(
-              invoiceId, request.transactionReference());
+      final var existing = paymentRepository.findByInvoiceIdAndTransactionReference(
+          invoiceId, request.transactionReference());
       if (existing.isPresent()) {
+        if (existing.get().getAmount().compareTo(request.amount().setScale(2, RoundingMode.HALF_UP)) != 0
+            || existing.get().getPaymentMethod() != request.paymentMethod()) {
+          throw new BillingValidationException("PAYMENT_REFERENCE_CONFLICT");
+        }
         return paymentMapper.toResponse(existing.get());
       }
     }
@@ -101,7 +111,10 @@ public class PaymentServiceImpl implements PaymentService {
     final BigDecimal currentTotalPaid =
         invoice.getPayments().stream()
             .map((@NonNull Payment p) -> p.getAmount().subtract(p.getReversedAmount()))
-            .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b));
+            .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b))
+            .add(depositRepository.findAllByHotelIdAndInvoiceIdAndStatusIn(hotelId, invoiceId,
+                java.util.List.of(Deposit.Status.RECEIVED, Deposit.Status.APPLIED)).stream()
+                .map(Deposit::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
 
     final BigDecimal balanceDue = invoice.getTotalAmount().subtract(currentTotalPaid);
 
@@ -128,7 +141,21 @@ public class PaymentServiceImpl implements PaymentService {
     payment.setPaymentDate(LocalDateTime.now());
 
     invoice.addPayment(payment);
-    final Payment savedPayment = paymentRepository.save(payment);
+    final Payment savedPayment;
+    try {
+      savedPayment = paymentRepository.saveAndFlush(payment);
+    } catch (final DataIntegrityViolationException conflict) {
+      if (request.transactionReference() == null || request.transactionReference().isBlank()) throw conflict;
+      final Payment replay = paymentRepository.findByInvoiceIdAndTransactionReference(
+          invoiceId, request.transactionReference()).orElseThrow(() -> conflict);
+      if (replay.getAmount().compareTo(paymentAmount) != 0
+          || replay.getPaymentMethod() != request.paymentMethod()) {
+        throw new BillingValidationException("PAYMENT_REFERENCE_CONFLICT", conflict);
+      }
+      return paymentMapper.toResponse(replay);
+    }
+    ledgerService.record(hotelId, invoiceId, LedgerEntry.EntryType.PAYMENT, paymentAmount,
+        "payment:" + savedPayment.getId());
 
     if (cashSession != null) {
       cashSession
@@ -211,10 +238,15 @@ public class PaymentServiceImpl implements PaymentService {
     payment.setReversedAmount(payment.getReversedAmount().add(amount));
     payment.setReversalReference(request.reference());
     paymentRepository.save(payment);
+    ledgerService.record(hotelId, invoiceId, LedgerEntry.EntryType.REFUND, amount,
+        "refund:" + paymentId + ":" + request.reference());
     final BigDecimal collected =
         invoice.getPayments().stream()
             .map(item -> item.getAmount().subtract(item.getReversedAmount()))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .add(depositRepository.findAllByHotelIdAndInvoiceIdAndStatusIn(hotelId, invoiceId,
+                java.util.List.of(Deposit.Status.RECEIVED, Deposit.Status.APPLIED)).stream()
+                .map(Deposit::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
     if (collected.compareTo(invoice.getTotalAmount()) < 0
         && invoice.getStatus() == InvoiceStatus.PAID) {
       invoice.setStatus(InvoiceStatus.ISSUED);

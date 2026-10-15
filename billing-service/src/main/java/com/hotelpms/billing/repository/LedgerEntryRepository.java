@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Tenant-scoped immutable ledger access. */
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> {
-  boolean existsByReferenceKey(String referenceKey);
+  boolean existsByHotelIdAndReferenceKey(UUID hotelId, String referenceKey);
+  java.util.Optional<LedgerEntry> findByHotelIdAndReferenceKey(UUID hotelId, String referenceKey);
   List<LedgerEntry> findAllByHotelIdOrderByCreatedAtAsc(UUID hotelId);
 }

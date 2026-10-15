@@ -8,6 +8,7 @@ import com.hotelpms.billing.domain.Invoice;
 import com.hotelpms.billing.domain.InvoiceCharge;
 import com.hotelpms.billing.domain.InvoiceSequence;
 import com.hotelpms.billing.domain.InvoiceStatus;
+import com.hotelpms.billing.domain.LedgerEntry;
 import com.hotelpms.billing.dto.ChargeRequest;
 import com.hotelpms.billing.dto.ChargeResponse;
 import com.hotelpms.billing.dto.GuestInvoiceCheckResponse;
@@ -24,6 +25,7 @@ import com.hotelpms.billing.repository.InvoiceFiscalExportRepository;
 import com.hotelpms.billing.repository.InvoiceRepository;
 import com.hotelpms.billing.repository.InvoiceSequenceRepository;
 import com.hotelpms.billing.service.InvoiceService;
+import com.hotelpms.billing.service.LedgerService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,6 +62,7 @@ public class InvoiceServiceImpl implements InvoiceService {
   private final InvoiceMapper invoiceMapper;
   private final InvoiceChargeMapper invoiceChargeMapper;
   private final GuestClient guestClient;
+  private final LedgerService ledgerService;
 
   /** {@inheritDoc} */
   @Override
@@ -126,9 +129,10 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     invoice.addCharge(charge);
     final InvoiceCharge savedCharge = invoiceChargeRepository.save(Objects.requireNonNull(charge));
-
     invoice.setTotalAmount(invoice.getTotalAmount().add(request.amount()));
     invoiceRepository.save(Objects.requireNonNull(invoice));
+    ledgerService.record(hotelId, invoice.getId(), LedgerEntry.EntryType.CHARGE,
+        request.amount(), "charge:" + savedCharge.getId());
 
     log.info(
         "Added {} charge of {} to invoice {} (new total: {})",

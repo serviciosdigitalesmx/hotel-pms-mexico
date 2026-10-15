@@ -1,6 +1,9 @@
 package com.hotelpms.fb.service.impl;
 
 import com.hotelpms.fb.client.BillingClient;
+import com.hotelpms.fb.client.InventoryClient;
+import com.hotelpms.fb.client.InventoryClient.ConsumptionLine;
+import com.hotelpms.fb.client.InventoryClient.ConsumptionRequest;
 import com.hotelpms.fb.client.StayClient;
 import com.hotelpms.fb.client.dto.ChargeRequest;
 import com.hotelpms.fb.client.dto.ChargeResponse;
@@ -59,6 +62,7 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
     private final StayClient stayClient;
     private final MenuItemRepository menuItemRepository;
     private final BillingClient billingClient;
+    private final InventoryClient inventoryClient;
 
     /**
      * {@inheritDoc}
@@ -92,6 +96,12 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
         // Build the order shell (no items yet)
         final RestaurantOrder order = orderMapper.toEntity(request);
         order.setHotelId(hotelId);   // T-FB-01: set server-side, never from client
+        if (request.branchId() != null && request.items().stream()
+                .anyMatch(item -> menuItemRepository.findByIdAndHotelId(item.menuItemId(), hotelId)
+                        .map(MenuItem::getInventoryProductId).orElse(null) != null)) {
+            inventoryClient.validateBranch(request.branchId());
+        }
+        order.setBranchId(request.branchId());
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
         // Denormalized at creation time so the order keeps showing the correct
@@ -171,6 +181,22 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
             log.warn("[FB] CONFIRM_FAILED | orderId={} | stayId={} | reason=STAY_NOT_CHECKED_IN | stayStatus={}",
                     orderId, order.getStayId(), stayStatus);
             throw new OrderValidationException("STAY_NOT_CHECKED_IN");
+        }
+
+        if (order.getItems() != null) {
+            final List<ConsumptionLine> linkedProducts = order.getItems().stream()
+                    .filter(item -> item.getInventoryProductId() != null)
+                    .collect(Collectors.groupingBy(OrderItem::getInventoryProductId,
+                            Collectors.summingLong(item -> item.getQuantity().longValue())))
+                    .entrySet().stream()
+                    .map(entry -> new ConsumptionLine(entry.getKey(), entry.getValue()))
+                    .toList();
+            if (!linkedProducts.isEmpty() && order.getBranchId() == null) {
+                throw new OrderValidationException("INVENTORY_BRANCH_REQUIRED");
+            }
+            if (!linkedProducts.isEmpty()) {
+                inventoryClient.consume(orderId, new ConsumptionRequest(order.getBranchId(), linkedProducts));
+            }
         }
 
         order.setStatus(OrderStatus.BILLED_TO_ROOM);
@@ -323,6 +349,8 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
 
             final OrderItem item = OrderItem.builder()
                     .restaurantOrder(order)
+                    .menuItemId(menuItem.getId())
+                    .inventoryProductId(menuItem.getInventoryProductId())
                     .itemName(menuItem.getName())
                     .unitPrice(menuItem.getPrice())   // server-side price — never from client
                     .quantity(req.quantity())

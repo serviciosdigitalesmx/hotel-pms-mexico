@@ -10,6 +10,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { getErrorMessage } from '../../utils/errorMessage';
 import type { MenuItemResponse } from '../../types/fb.types';
 import type { StayResponse } from '../../types/stay.types';
+import * as fixiApi from '../../fixi/api';
 
 const ACTIVE_STAYS_PAGE_SIZE = 500;
 
@@ -82,6 +83,8 @@ export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
   const currency = useSettingsStore((state) => state.currency);
 
   const [stayId, setStayId] = useState('');
+  const [branchId, setBranchId] = useState('');
+  const [branches, setBranches] = useState<fixiApi.Branch[]>([]);
   const [activeStays, setActiveStays] = useState<StayResponse[]>([]);
   const [staysLoading, setStaysLoading] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItemResponse[]>([]);
@@ -99,6 +102,7 @@ export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
   }, []);
 
   useEffect(() => {
+    void fixiApi.listBranches().then(setBranches).catch(() => setBranches([]));
     stayService
       .getAllStays(0, ACTIVE_STAYS_PAGE_SIZE)
       .then((page) => setActiveStays(page.content.filter((s) => s.status === 'CHECKED_IN')))
@@ -160,7 +164,7 @@ export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
       }
       setLoading(true);
       try {
-        await fbService.createOrder({ stayId: trimmedStayId, items });
+        await fbService.createOrder({ stayId: trimmedStayId, branchId: branchId || null, items });
         addToast(t('order_created_success'), 'success');
         onCreated();
         onClose();
@@ -170,7 +174,7 @@ export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
         setLoading(false);
       }
     },
-    [stayId, quantities, t, addToast, onCreated, onClose],
+    [stayId, branchId, quantities, t, addToast, onCreated, onClose],
   );
 
   return (
@@ -181,6 +185,15 @@ export const OrderFormModal = memo(({ onClose, onCreated }: Props) => {
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <div>
+          <label htmlFor="order-branch" className="block text-sm font-medium font-body text-on-surface mb-1">Sucursal de inventario</label>
+          <select id="order-branch" value={branchId} onChange={(event) => setBranchId(event.target.value)}
+            className="w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface">
+            <option value="">Selecciona sucursal</option>
+            {branches.filter((branch) => branch.active).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+          </select>
+          <p className="mt-1 text-xs text-on-surface-variant">Opcional. Se requiere si el menú está vinculado a productos inventariables.</p>
+        </div>
         <div>
           <label htmlFor="order-room" className="block text-sm font-medium text-on-surface mb-1">
             {t('room_label')} <span aria-hidden="true">*</span>

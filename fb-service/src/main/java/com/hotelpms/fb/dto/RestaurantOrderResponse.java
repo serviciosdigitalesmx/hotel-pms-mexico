@@ -13,6 +13,7 @@ import java.util.UUID;
  *
  * @param id                the ID of the order
  * @param stayId            the ID of the stay this order is associated with
+ * @param branchId           optional inventory branch for the order
  * @param roomNumber        the room the order is charged to, denormalized at creation time
  * @param guestDisplayName  the primary guest's "Cognome Nome", denormalized at creation time
  * @param orderDate         the date and time the order was placed
@@ -27,6 +28,7 @@ import java.util.UUID;
 public record RestaurantOrderResponse(
                 UUID id,
                 UUID stayId,
+                UUID branchId,
                 String roomNumber,
                 String guestDisplayName,
                 LocalDateTime orderDate,
@@ -36,6 +38,15 @@ public record RestaurantOrderResponse(
                 List<OrderItemResponse> items,
                 LocalDateTime createdAt,
                 LocalDateTime updatedAt) {
+
+        /** Backward-compatible constructor retained for existing response consumers. */
+        public RestaurantOrderResponse(final UUID id, final UUID stayId, final String roomNumber,
+                final String guestDisplayName, final LocalDateTime orderDate, final BigDecimal totalAmount,
+                final UUID paymentId, final OrderStatus status, final List<OrderItemResponse> items,
+                final LocalDateTime createdAt, final LocalDateTime updatedAt) {
+                this(id, stayId, null, roomNumber, guestDisplayName, orderDate, totalAmount,
+                        paymentId, status, items, createdAt, updatedAt);
+        }
 
         /**
          * Compact constructor to ensure defensive copying of the items list.

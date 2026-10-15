@@ -6,6 +6,7 @@ import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.OwnerFinancialReportDto;
 import com.hotelpms.billing.mapper.InvoiceMapper;
 import com.hotelpms.billing.repository.InvoiceRepository;
+import com.hotelpms.billing.repository.DepositRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,6 +49,9 @@ class OwnerReportServiceImplTest {
 
         @Mock
         private InvoiceMapper invoiceMapper;
+
+        @Mock
+        private DepositRepository depositRepository;
 
         @InjectMocks
         private OwnerReportServiceImpl ownerReportService;
@@ -94,6 +98,8 @@ class OwnerReportServiceImplTest {
                                 .guestId(UUID.randomUUID())
                                 .reservationId(UUID.randomUUID())
                                 .build();
+                org.mockito.Mockito.lenient().when(depositRepository.findAllByHotelIdAndInvoiceIdAndStatusIn(
+                        any(), any(), any())).thenReturn(List.of());
         }
 
         @Test

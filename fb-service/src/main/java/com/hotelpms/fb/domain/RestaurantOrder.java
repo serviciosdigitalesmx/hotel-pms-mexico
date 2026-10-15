@@ -58,6 +58,10 @@ public class RestaurantOrder {
     @Column(name = "stay_id", nullable = false)
     private UUID stayId;
 
+    /** Branch is captured at intake to scope downstream inventory consumption. */
+    @Column(name = "branch_id")
+    private UUID branchId;
+
     /**
      * Denormalized room number, copied from the stay at order-creation time so the
      * order always shows the room it was charged to even after the guest checks

@@ -54,11 +54,11 @@ export function ReceptionOrderForm() {
 
   useEffect(() => {
     let active = true
-    api.effectiveCapabilities().then(result => { if (active) setCapabilities(new Set(result.capabilities)) })
+    api.effectiveCapabilities(branchId || undefined).then(result => { if (active) setCapabilities(new Set(result.capabilities)) })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los permisos') })
       .finally(() => { if (active) setCapabilitiesLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [branchId])
 
   useEffect(() => {
     let active = true

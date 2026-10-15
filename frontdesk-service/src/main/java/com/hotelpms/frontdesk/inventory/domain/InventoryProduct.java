@@ -68,6 +68,10 @@ public class InventoryProduct {
   @Column(name = "supplier_id")
   private UUID supplierId;
 
+  /** Linked food-and-beverage menu item whose sale consumes this stock product. */
+  @Column(name = "pos_menu_item_id")
+  private UUID posMenuItemId;
+
   @Column(nullable = false)
   @Builder.Default
   private boolean optional = true;

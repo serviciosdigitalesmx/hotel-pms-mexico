@@ -13,6 +13,8 @@ import com.hotelpms.billing.mapper.PaymentMapper;
 import com.hotelpms.billing.repository.InvoiceFiscalExportRepository;
 import com.hotelpms.billing.repository.InvoiceRepository;
 import com.hotelpms.billing.repository.PaymentRepository;
+import com.hotelpms.billing.repository.DepositRepository;
+import com.hotelpms.billing.service.LedgerService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,6 +62,12 @@ class PaymentServiceImplTest {
 
     @Mock
     private InvoiceFiscalExportRepository invoiceFiscalExportRepository;
+
+    @Mock
+    private DepositRepository depositRepository;
+
+    @Mock
+    private LedgerService ledgerService;
 
     @InjectMocks
     private PaymentServiceImpl paymentService;
@@ -101,7 +111,7 @@ class PaymentServiceImplTest {
 
         when(invoiceRepository.findByIdAndHotelId(Objects.requireNonNull(invoiceId), hotelId)).thenReturn(Optional.of(invoice));
         when(paymentMapper.toEntity(Objects.requireNonNull(request))).thenReturn(payment);
-        when(paymentRepository.save(Objects.requireNonNull(payment))).thenReturn(payment);
+        when(paymentRepository.saveAndFlush(Objects.requireNonNull(payment))).thenReturn(payment);
         when(paymentMapper.toResponse(Objects.requireNonNull(payment))).thenReturn(response);
 
         // Act
@@ -127,7 +137,7 @@ class PaymentServiceImplTest {
 
         when(invoiceRepository.findByIdAndHotelId(Objects.requireNonNull(invoiceId), hotelId)).thenReturn(Optional.of(invoice));
         when(paymentMapper.toEntity(Objects.requireNonNull(request))).thenReturn(payment);
-        when(paymentRepository.save(Objects.requireNonNull(payment))).thenReturn(payment);
+        when(paymentRepository.saveAndFlush(Objects.requireNonNull(payment))).thenReturn(payment);
         when(paymentMapper.toResponse(Objects.requireNonNull(payment))).thenReturn(response);
 
         // Act
@@ -232,7 +242,7 @@ class PaymentServiceImplTest {
         when(invoiceRepository.findByIdAndHotelId(Objects.requireNonNull(invoiceId), hotelId))
                 .thenReturn(Optional.of(invoice));
         when(paymentMapper.toEntity(Objects.requireNonNull(request))).thenReturn(payment);
-        when(paymentRepository.save(Objects.requireNonNull(payment))).thenReturn(payment);
+        when(paymentRepository.saveAndFlush(Objects.requireNonNull(payment))).thenReturn(payment);
         when(paymentMapper.toResponse(Objects.requireNonNull(payment))).thenReturn(response);
 
         // Act

@@ -38,21 +38,29 @@ public final class InventoryDtos {
       @Min(0) long reorderLevel,
       UUID supplierId,
       @Min(0) long initialQuantity,
-      UUID branchId) {
+      UUID branchId,
+      UUID posMenuItemId) {
+    public ProductRequest(final String sku, final String name, final String description,
+        final boolean optional, final String category, final BigDecimal cost,
+        final BigDecimal price, final long reorderLevel, final UUID supplierId,
+        final long initialQuantity, final UUID branchId) {
+      this(sku, name, description, optional, category, cost, price, reorderLevel,
+          supplierId, initialQuantity, branchId, null);
+    }
     public ProductRequest(final String sku, final String name, final boolean optional,
         final String category, final BigDecimal cost, final BigDecimal price,
         final long reorderLevel, final UUID supplierId, final long initialQuantity,
         final UUID branchId) {
       this(sku, name, null, optional, category, cost, price, reorderLevel, supplierId,
-          initialQuantity, branchId);
+          initialQuantity, branchId, null);
     }
     public ProductRequest(final String sku, final String name, final boolean optional,
         final String category, final BigDecimal cost, final BigDecimal price,
         final long reorderLevel) {
-      this(sku, name, null, optional, category, cost, price, reorderLevel, null, 0, null);
+      this(sku, name, null, optional, category, cost, price, reorderLevel, null, 0, null, null);
     }
     public ProductRequest(final String sku, final String name, final boolean optional) {
-      this(sku, name, null, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0, null, 0, null);
+      this(sku, name, null, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0, null, 0, null, null);
     }
   }
 

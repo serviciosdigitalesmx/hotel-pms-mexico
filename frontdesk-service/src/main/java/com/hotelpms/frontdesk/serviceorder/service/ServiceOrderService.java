@@ -416,7 +416,7 @@ public class ServiceOrderService {
     }
     final BigDecimal previousPaid = order.getPaidAmount() == null
         ? zero(order.getDepositAmount()) : order.getPaidAmount();
-    final BigDecimal outstanding = order.getQuoteTotal().subtract(previousPaid);
+    final BigDecimal outstanding = order.getQuoteTotal().subtract(previousPaid).max(BigDecimal.ZERO);
     if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalStateException("SERVICE_ORDER_HAS_NO_OUTSTANDING_BALANCE");
     }

@@ -15,6 +15,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductConsumption;
 import com.hotelpms.frontdesk.inventory.repository.InventoryBalanceRepository;
 import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
+import com.hotelpms.frontdesk.inventory.repository.PosInventoryConsumptionRepository;
 import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
 import com.hotelpms.frontdesk.client.BranchValidationService;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatus;
@@ -49,6 +50,7 @@ public class InventoryService {
   private final SupplierRepository suppliers;
   private final BranchValidationService branchValidation;
   private final ServiceOrderRepository serviceOrders;
+  private final PosInventoryConsumptionRepository posConsumptions;
 
   /**
    * Creates an inventory product.
@@ -59,6 +61,7 @@ public class InventoryService {
    */
   @Transactional
   public InventoryProduct product(final UUID hotel, final ProductRequest r) {
+    validatePosMenuItemLink(hotel, r.posMenuItemId(), null);
     final InventoryProduct p = new InventoryProduct();
     p.setHotelId(hotel);
     p.setSku(r.sku().trim());
@@ -74,6 +77,7 @@ public class InventoryService {
           .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
     }
     p.setSupplierId(r.supplierId());
+    p.setPosMenuItemId(r.posMenuItemId());
     final InventoryProduct saved = products.save(p);
     if (r.initialQuantity() > 0) {
       if (r.branchId() == null) {
@@ -87,6 +91,7 @@ public class InventoryService {
   /** Updates commercial catalog fields without changing branch stock. */
   @Transactional
   public InventoryProduct updateProduct(final UUID hotel, final UUID productId, final ProductRequest r) {
+    validatePosMenuItemLink(hotel, r.posMenuItemId(), productId);
     final InventoryProduct product = products.findByIdAndHotelId(productId, hotel)
         .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
     if (r.supplierId() != null) {
@@ -102,7 +107,16 @@ public class InventoryService {
     product.setPrice(r.price());
     product.setReorderLevel(r.reorderLevel());
     product.setSupplierId(r.supplierId());
+    product.setPosMenuItemId(r.posMenuItemId());
     return products.save(product);
+  }
+
+  private void validatePosMenuItemLink(final UUID hotel, final UUID menuItemId, final UUID productId) {
+    if (menuItemId == null) return;
+    final boolean linkedElsewhere = productId == null
+        ? products.existsByHotelIdAndPosMenuItemId(hotel, menuItemId)
+        : products.existsByHotelIdAndPosMenuItemIdAndIdNot(hotel, menuItemId, productId);
+    if (linkedElsewhere) throw new IllegalArgumentException("POS_MENU_ITEM_ALREADY_LINKED");
   }
 
   /** Applies a validated percentage increase to the selected tenant-owned sale prices. */
@@ -161,6 +175,46 @@ public class InventoryService {
             + escapedReason + "\"}");
     return saved;
   }
+
+  /** Consumes linked POS products once per order, even when confirmation is retried. */
+  @Transactional
+  public void consumePosOrder(final UUID hotel, final UUID orderId, final UUID branchId,
+      final List<PosConsumptionLine> lines) {
+    if (orderId == null || branchId == null || lines == null || lines.isEmpty()) {
+      throw new IllegalArgumentException("POS_ORDER_BRANCH_AND_LINES_REQUIRED");
+    }
+    branchValidation.requireActiveBranch(hotel, branchId);
+    final var consolidated = new java.util.TreeMap<UUID, Long>();
+    for (final PosConsumptionLine line : lines) {
+      if (line.quantity() < 1) throw new IllegalArgumentException("INVALID_POS_QUANTITY");
+      consolidated.merge(line.productId(), line.quantity(), Math::addExact);
+    }
+    for (final var entry : consolidated.entrySet()) {
+      final PosConsumptionLine line = new PosConsumptionLine(entry.getKey(), entry.getValue());
+      products.findByIdAndHotelId(line.productId(), hotel)
+          .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+      final var existing = posConsumptions.findByHotelIdAndOrderIdAndProductId(
+          hotel, orderId, line.productId()).orElse(null);
+      if (existing != null) {
+        if (!existing.getBranchId().equals(branchId) || existing.getQuantity() != line.quantity()) {
+          throw new IllegalStateException("POS_CONSUMPTION_REPLAY_CONFLICT");
+        }
+        continue;
+      }
+      final var record = new com.hotelpms.frontdesk.inventory.domain.PosInventoryConsumption();
+      record.setHotelId(hotel);
+      record.setOrderId(orderId);
+      record.setProductId(line.productId());
+      record.setBranchId(branchId);
+      record.setQuantity(line.quantity());
+      posConsumptions.saveAndFlush(record);
+      move(hotel, new MovementRequest(branchId, line.productId(), -line.quantity(),
+          "POS order " + orderId));
+    }
+  }
+
+  /** Product and quantity to deduct for a confirmed POS order. */
+  public record PosConsumptionLine(UUID productId, long quantity) { }
 
   private static String escapeJson(final String value) {
     final StringBuilder escaped = new StringBuilder(value.length());

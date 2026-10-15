@@ -48,6 +48,7 @@ public class MenuItemServiceImpl implements MenuItemService {
                 .category(request.category())
                 .description(request.description())
                 .available(request.available())
+                .inventoryProductId(request.inventoryProductId())
                 .build();
         final MenuItem saved = menuItemRepository.save(item);
         log.info("[FB] MENU_ITEM_CREATED | id={} | hotel={} | name={}", saved.getId(), hotelId, saved.getName());
@@ -65,6 +66,7 @@ public class MenuItemServiceImpl implements MenuItemService {
         item.setCategory(request.category());
         item.setDescription(request.description());
         item.setAvailable(request.available());
+        item.setInventoryProductId(request.inventoryProductId());
         final MenuItem saved = menuItemRepository.save(item);
         log.info("[FB] MENU_ITEM_UPDATED | id={} | hotel={}", itemId, hotelId);
         return toResponse(saved);
@@ -88,6 +90,7 @@ public class MenuItemServiceImpl implements MenuItemService {
                 .category(item.getCategory())
                 .description(item.getDescription())
                 .available(item.isAvailable())
+                .inventoryProductId(item.getInventoryProductId())
                 .build();
     }
 }

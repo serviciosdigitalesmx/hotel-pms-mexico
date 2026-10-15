@@ -6,6 +6,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ImportResult;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.BulkPriceRequest;
+import com.hotelpms.frontdesk.inventory.service.InventoryService.PosConsumptionLine;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.StockCountRequest;
 import com.hotelpms.frontdesk.inventory.service.InventoryService;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -109,6 +111,16 @@ public class InventoryController {
   public InventoryBalance move(@Valid @RequestBody final MovementRequest request) {
     return service.move(hotel(), request);
   }
+
+  /** Idempotently deducts linked products for a confirmed POS order. */
+  @PostMapping("/pos/orders/{orderId}/consume")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
+  public void consumePosOrder(@PathVariable final UUID orderId,
+      @RequestBody final PosConsumptionRequest request) {
+    service.consumePosOrder(hotel(), orderId, request.branchId(), request.lines());
+  }
+
+  public record PosConsumptionRequest(UUID branchId, List<PosConsumptionLine> lines) { }
 
   /** Reconciles a branch balance with a physical stock count. */
   @PostMapping("/stock-counts")

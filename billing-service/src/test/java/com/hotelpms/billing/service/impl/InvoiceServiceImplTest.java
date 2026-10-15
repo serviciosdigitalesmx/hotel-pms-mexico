@@ -23,6 +23,7 @@ import com.hotelpms.billing.repository.InvoiceChargeRepository;
 import com.hotelpms.billing.repository.InvoiceFiscalExportRepository;
 import com.hotelpms.billing.repository.InvoiceRepository;
 import com.hotelpms.billing.repository.InvoiceSequenceRepository;
+import com.hotelpms.billing.service.LedgerService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -96,6 +97,9 @@ class InvoiceServiceImplTest {
 
         @Mock
         private InvoiceChargeMapper invoiceChargeMapper;
+
+        @Mock
+        private LedgerService ledgerService;
 
         @Mock
         private GuestClient guestClient;

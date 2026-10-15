@@ -2,11 +2,12 @@ package com.hotelpms.billing.service.impl;
 
 import com.hotelpms.billing.domain.Invoice;
 import com.hotelpms.billing.domain.InvoiceStatus;
-import com.hotelpms.billing.domain.Payment;
+import com.hotelpms.billing.domain.Deposit;
 import com.hotelpms.billing.dto.InvoiceResponse;
 import com.hotelpms.billing.dto.OwnerFinancialReportDto;
 import com.hotelpms.billing.mapper.InvoiceMapper;
 import com.hotelpms.billing.repository.InvoiceRepository;
+import com.hotelpms.billing.repository.DepositRepository;
 import com.hotelpms.billing.service.OwnerReportService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ public class OwnerReportServiceImpl implements OwnerReportService {
 
   private final InvoiceRepository invoiceRepository;
   private final InvoiceMapper invoiceMapper;
+  private final DepositRepository depositRepository;
 
   /** {@inheritDoc} */
   @Override
@@ -53,9 +55,15 @@ public class OwnerReportServiceImpl implements OwnerReportService {
     final BigDecimal totalCollected =
         invoices.stream()
             .flatMap((@NonNull Invoice invoice) -> invoice.getPayments().stream())
-            .map(Payment::getAmount)
+            .map(payment -> payment.getAmount().subtract(payment.getReversedAmount()))
             .reduce(BigDecimal.ZERO, (@NonNull BigDecimal a, @NonNull BigDecimal b) -> a.add(b));
-    final BigDecimal totalOutstanding = totalRevenue.subtract(totalCollected).max(BigDecimal.ZERO);
+    final BigDecimal totalDeposits = invoices.stream()
+        .flatMap(invoice -> depositRepository.findAllByHotelIdAndInvoiceIdAndStatusIn(
+            hotelId, invoice.getId(), List.of(Deposit.Status.RECEIVED, Deposit.Status.APPLIED)).stream())
+        .map(Deposit::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    final BigDecimal actualCollected = totalCollected.add(totalDeposits);
+    final BigDecimal totalOutstanding = totalRevenue.subtract(actualCollected).max(BigDecimal.ZERO);
 
     final long totalInvoices = invoices.size();
     final long paidInvoices =
@@ -74,7 +82,7 @@ public class OwnerReportServiceImpl implements OwnerReportService {
         startDate,
         endDate,
         totalRevenue,
-        totalCollected,
+        actualCollected,
         totalOutstanding,
         totalInvoices,
         paidInvoices,

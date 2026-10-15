@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fbService } from '../../services/fbService';
 import { useToastStore } from '../../store/toastStore';
@@ -6,6 +6,7 @@ import { M3Button } from '../../components/m3/M3Button';
 import { M3Dialog } from '../../components/m3/M3Dialog';
 import { getErrorMessage } from '../../utils/errorMessage';
 import type { MenuItemRequest, MenuItemResponse } from '../../types/fb.types';
+import * as fixiApi from '../../fixi/api';
 
 interface Props {
   item?: MenuItemResponse;
@@ -13,10 +14,10 @@ interface Props {
   onSaved: () => void;
 }
 
-const EMPTY_FORM: MenuItemRequest = { name: '', price: 0, category: '', description: '', available: true };
+const EMPTY_FORM: MenuItemRequest = { name: '', price: 0, category: '', description: '', available: true, inventoryProductId: '' };
 
 function itemToForm(item: MenuItemResponse): MenuItemRequest {
-  return { name: item.name, price: item.price, category: item.category, description: item.description ?? '', available: item.available };
+  return { name: item.name, price: item.price, category: item.category, description: item.description ?? '', available: item.available, inventoryProductId: item.inventoryProductId ?? '' };
 }
 
 const INPUT_CLASS = 'w-full rounded-md border border-outline bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
@@ -27,7 +28,9 @@ export const MenuFormModal = memo(({ item, onClose, onSaved }: Props) => {
   const [form, setForm] = useState<MenuItemRequest>(item ? itemToForm(item) : EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [products, setProducts] = useState<fixiApi.Product[]>([]);
   const isEdit = item != null;
+  useEffect(() => { void fixiApi.listProducts().then(setProducts).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'No se pudo cargar inventario')); }, []);
 
   const handleName = useCallback((e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, name: e.target.value })), []);
@@ -92,6 +95,15 @@ export const MenuFormModal = memo(({ item, onClose, onSaved }: Props) => {
         <div>
           <label htmlFor="menu-description" className="block text-sm font-medium text-on-surface mb-1">{t('menu_description')}</label>
           <textarea id="menu-description" value={form.description ?? ''} onChange={handleDescription} rows={3} className={INPUT_CLASS} />
+        </div>
+        <div>
+          <label htmlFor="menu-inventory-product" className="block text-sm font-medium text-on-surface mb-1">Producto de inventario</label>
+          <select id="menu-inventory-product" value={form.inventoryProductId ?? ''}
+            onChange={(e) => setForm((current) => ({ ...current, inventoryProductId: e.target.value || null }))}
+            className={INPUT_CLASS}>
+            <option value="">Sin consumo de inventario</option>
+            {products.map((product) => <option key={product.id} value={product.id}>{product.sku} · {product.name}</option>)}
+          </select>
         </div>
         <div className="flex items-center gap-3">
           <input id="menu-available" type="checkbox" checked={form.available} onChange={handleAvailable}

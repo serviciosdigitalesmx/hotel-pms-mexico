@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /**
  * Request payload for creating or updating a menu item.
@@ -20,5 +21,10 @@ public record MenuItemRequest(
         @NotNull @Positive BigDecimal price,
         @NotBlank String category,
         String description,
-        boolean available) {
+        boolean available,
+        UUID inventoryProductId) {
+    public MenuItemRequest(final String name, final BigDecimal price, final String category,
+            final String description, final boolean available) {
+        this(name, price, category, description, available, null);
+    }
 }

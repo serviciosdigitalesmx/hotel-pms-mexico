@@ -12,13 +12,21 @@ import java.util.UUID;
  * DTO for creating a new restaurant order.
  *
  * @param stayId the ID of the stay this order is associated with
+ * @param branchId optional inventory branch for POS consumption
  * @param items  the list of items in the order
  */
 @Builder
 public record RestaurantOrderRequest(
                 @NotNull(message = "Stay ID must not be null") UUID stayId,
 
+                UUID branchId,
+
                 @NotEmpty(message = "Order must contain at least one item") @Valid List<OrderItemRequest> items) {
+
+        /** Backward-compatible constructor for clients that have not selected a branch. */
+        public RestaurantOrderRequest(final UUID stayId, final List<OrderItemRequest> items) {
+                this(stayId, null, items);
+        }
 
         /**
          * Compact constructor to ensure defensive copying of the items list.

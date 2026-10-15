@@ -18,7 +18,7 @@ import com.hotelpms.frontdesk.workflow.repository.WorkflowInstanceRepository;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowStateRepository;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowTransitionAuditRepository;
 import com.hotelpms.frontdesk.workflow.repository.WorkflowTransitionRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -233,7 +233,7 @@ public class WorkflowService {
       throw new ConflictException("The initial workflow state cannot be deactivated");
     }
     if (!active && state.isActive()
-        && instances.existsByWorkflowIdAndStateKey(workflowId, key)) {
+        && instances.existsByHotelIdAndWorkflowIdAndStateKey(hotel, workflowId, key)) {
       throw new ConflictException("A state used by active orders cannot be deactivated");
     }
     state.setActive(active);

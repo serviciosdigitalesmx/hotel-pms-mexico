@@ -10,6 +10,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 /** Applies deposits without confusing order value with money collected. */
 @Service
@@ -17,16 +18,26 @@ import org.springframework.transaction.annotation.Transactional;
 public class DepositService {
   private final DepositRepository deposits;
   private final InvoiceRepository invoices;
+  private final LedgerService ledger;
 
   @Transactional
   public Deposit receive(final UUID hotelId, final UUID invoiceId, final DepositRequest request) {
     final Deposit existing = deposits.findByHotelIdAndReferenceKey(hotelId, request.referenceKey()).orElse(null);
     if (existing != null) {
+      if (!invoiceId.equals(existing.getInvoiceId())
+          || existing.getAmount().compareTo(request.amount()) != 0) {
+        throw new IllegalStateException("DEPOSIT_REFERENCE_CONFLICT");
+      }
       return existing;
     }
-    final Invoice invoice = invoices.findById(invoiceId).filter(i -> hotelId.equals(i.getHotelId()))
+    final Invoice invoice = invoices.findByIdAndHotelId(invoiceId, hotelId)
         .orElseThrow(() -> new IllegalArgumentException("INVOICE_NOT_FOUND"));
-    final BigDecimal paid = invoice.getPayments().stream().map(p -> p.getAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
+    final BigDecimal paid = invoice.getPayments().stream()
+        .map(p -> p.getAmount().subtract(p.getReversedAmount()))
+        .reduce(BigDecimal.ZERO, BigDecimal::add)
+        .add(deposits.findAllByHotelIdAndInvoiceIdAndStatusIn(hotelId, invoiceId,
+            java.util.List.of(Deposit.Status.RECEIVED, Deposit.Status.APPLIED)).stream()
+            .map(Deposit::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
     if (paid.add(request.amount()).compareTo(invoice.getTotalAmount()) > 0) {
       throw new IllegalArgumentException("DEPOSIT_EXCEEDS_BALANCE");
     }
@@ -35,6 +46,21 @@ public class DepositService {
     deposit.setInvoiceId(invoiceId);
     deposit.setAmount(request.amount());
     deposit.setReferenceKey(request.referenceKey());
-    return deposits.save(deposit);
+    final Deposit saved;
+    try {
+      saved = deposits.saveAndFlush(deposit);
+    } catch (final DataIntegrityViolationException conflict) {
+      final Deposit replay = deposits.findByHotelIdAndReferenceKey(hotelId, request.referenceKey())
+          .orElseThrow(() -> conflict);
+      if (!invoiceId.equals(replay.getInvoiceId())
+          || replay.getAmount().compareTo(request.amount()) != 0) {
+        throw new IllegalStateException("DEPOSIT_REFERENCE_CONFLICT", conflict);
+      }
+      return replay;
+    }
+    ledger.record(hotelId, invoiceId,
+        com.hotelpms.billing.domain.LedgerEntry.EntryType.PAYMENT,
+        request.amount(), "deposit:" + saved.getId());
+    return saved;
   }
 }

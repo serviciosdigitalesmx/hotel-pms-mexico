@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 /** WorkflowInstanceRepository domain type. */
 public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstance, UUID> {
-  boolean existsByWorkflowIdAndStateKey(UUID workflowId, String stateKey);
+  boolean existsByHotelIdAndWorkflowIdAndStateKey(UUID hotelId, UUID workflowId, String stateKey);
   /**
    * Executes the locked lookup.
    *

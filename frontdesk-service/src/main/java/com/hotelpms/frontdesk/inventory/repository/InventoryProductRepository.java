@@ -32,6 +32,10 @@ public interface InventoryProductRepository extends JpaRepository<InventoryProdu
 
   Optional<InventoryProduct> findByHotelIdAndSku(UUID hotelId, String sku);
 
+  boolean existsByHotelIdAndPosMenuItemIdAndIdNot(UUID hotelId, UUID posMenuItemId, UUID id);
+
+  boolean existsByHotelIdAndPosMenuItemId(UUID hotelId, UUID posMenuItemId);
+
   Optional<InventoryProduct> findByIdAndHotelId(UUID id, UUID hotelId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)

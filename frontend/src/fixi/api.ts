@@ -7,7 +7,7 @@ export type Customer = { id:string; firstName:string; lastName:string; email?:st
 export type Device = { id:string; customerId:string; customerName?:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
-export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string }
+export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string; posMenuItemId?:string }
 export const isAtOrBelowReorderLevel=(quantity:number,reorderLevel?:number)=>typeof reorderLevel==='number'&&Number.isFinite(reorderLevel)&&reorderLevel>0&&quantity<=reorderLevel
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string }
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}
@@ -118,7 +118,7 @@ export const removeUserBranch=(branchId:string,userId:string)=>del<void>(`/api/v
 export type CapabilityGrant={id:string;tenantId:string;userId:string;branchId?:string;capabilityKey:string;enabled:boolean;updatedAt:string}
 export const listUserCapabilityGrants=(userId:string)=>get<CapabilityGrant[]>(`/api/v1/auth/capabilities/users/${userId}`)
 export const setUserCapabilityGrant=(userId:string,capabilityKey:string,enabled:boolean,branchId?:string)=>put<CapabilityGrant>(`/api/v1/auth/capabilities/users/${userId}`,{capabilityKey,enabled,branchId:branchId||null})
-export const effectiveCapabilities=()=>get<{tenantId:string;capabilities:string[]}>('/api/v1/auth/capabilities/me')
+export const effectiveCapabilities=(branchId?:string)=>get<{tenantId:string;branchId?:string;capabilities:string[]}>(`/api/v1/auth/capabilities/me${branchId?`?branchId=${encodeURIComponent(branchId)}`:''}`)
 export type WorkflowState={key:string;label:string;semanticPhase:string;initialState:boolean;terminalState:boolean;active:boolean}
 export type Workflow={id:string;verticalKey:string;name:string;version:number;states:WorkflowState[];transitions:Array<{key:string;fromStateKey:string;toStateKey:string;requiredPermission:string}>}
 export const listWorkflows=()=>get<Workflow[]>('/api/v1/workflows')

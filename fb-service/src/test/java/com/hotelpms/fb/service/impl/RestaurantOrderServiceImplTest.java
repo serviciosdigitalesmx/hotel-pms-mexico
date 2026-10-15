@@ -1,11 +1,13 @@
 package com.hotelpms.fb.service.impl;
 
 import com.hotelpms.fb.client.BillingClient;
+import com.hotelpms.fb.client.InventoryClient;
 import com.hotelpms.fb.client.StayClient;
 import com.hotelpms.fb.client.dto.ChargeRequest;
 import com.hotelpms.fb.client.dto.ChargeResponse;
 import com.hotelpms.fb.client.dto.StayResponse;
 import com.hotelpms.fb.domain.MenuItem;
+import com.hotelpms.fb.domain.OrderItem;
 import com.hotelpms.fb.domain.OrderStatus;
 import com.hotelpms.fb.domain.RestaurantOrder;
 import com.hotelpms.fb.dto.OrderItemRequest;
@@ -69,6 +71,9 @@ class RestaurantOrderServiceImplTest {
 
     @Mock
     private BillingClient billingClient;
+
+    @Mock
+    private InventoryClient inventoryClient;
 
     @InjectMocks
     private RestaurantOrderServiceImpl orderService;
@@ -319,6 +324,40 @@ class RestaurantOrderServiceImplTest {
         assertEquals(OrderStatus.BILLED_TO_ROOM, pendingOrder.getStatus());
         verify(orderRepository).save(Objects.requireNonNull(pendingOrder));
         verify(billingClient).addCharge(any(UUID.class), any(ChargeRequest.class));
+    }
+
+    @Test
+    void shouldConsumeLinkedInventoryWhenConfirmingOrder() {
+        final UUID orderId = UUID.randomUUID();
+        final UUID branchId = UUID.randomUUID();
+        final UUID productId = UUID.randomUUID();
+        final RestaurantOrder pendingOrder = RestaurantOrder.builder()
+                .id(orderId)
+                .stayId(stayId)
+                .hotelId(hotelId)
+                .branchId(branchId)
+                .items(new java.util.ArrayList<>(List.of(OrderItem.builder()
+                        .inventoryProductId(productId)
+                        .quantity(2)
+                        .build())))
+                .totalAmount(new BigDecimal(AMOUNT_30))
+                .status(OrderStatus.PENDING)
+                .build();
+        when(orderRepository.findByIdAndHotelId(orderId, hotelId)).thenReturn(Optional.of(pendingOrder));
+        when(orderRepository.save(pendingOrder)).thenReturn(pendingOrder);
+        when(stayClient.getStayById(stayId)).thenReturn(
+                new StayResponse(stayId, STATUS_CHECKED_IN, ROOM_NUMBER, GUEST_DISPLAY_NAME));
+        when(billingClient.addCharge(any(UUID.class), any(ChargeRequest.class)))
+                .thenReturn(new ChargeResponse(UUID.randomUUID()));
+        when(orderMapper.toResponse(pendingOrder)).thenReturn(RestaurantOrderResponse.builder()
+                .id(orderId).stayId(stayId).totalAmount(new BigDecimal(AMOUNT_30))
+                .status(OrderStatus.BILLED_TO_ROOM).build());
+
+        orderService.confirmOrder(orderId);
+
+        verify(inventoryClient).consume(orderId,
+                new InventoryClient.ConsumptionRequest(branchId,
+                        List.of(new InventoryClient.ConsumptionLine(productId, 2L))));
     }
 
     @Test

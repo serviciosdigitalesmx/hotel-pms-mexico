@@ -4,6 +4,7 @@ import { BaseLayout } from '@/components/layouts/base-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import * as api from './api'
+import { useCurrentTime } from './use-current-time'
 
 type Alert = { id: string; event: keyof api.NotificationPreferences; title: string; detail: string; href: string; urgency: number; branchId?: string }
 const terminal = new Set(['COMPLETED', 'CANCELLED'])
@@ -14,6 +15,7 @@ const localDateOf = (value?: string) => {
 }
 
 export function OperationalAlertsPage() {
+  const now = useCurrentTime()
   const [orders, setOrders] = useState<api.ServiceOrder[]>([])
   const [products, setProducts] = useState<api.Product[]>([])
   const [branches, setBranches] = useState<api.Branch[]>([])
@@ -59,7 +61,6 @@ export function OperationalAlertsPage() {
   }, [revision])
 
   const alerts = useMemo(() => {
-    const now = Date.now()
     const today = localDateKey(new Date())
     const result: Alert[] = []
     for (const order of orders) {
@@ -97,7 +98,7 @@ export function OperationalAlertsPage() {
       .filter(alert => eventFilter === 'ALL' || alert.event === eventFilter)
       .filter(alert => branchFilter === 'ALL' || !alert.branchId || alert.branchId === branchFilter)
       .sort((a, b) => a.urgency - b.urgency || a.title.localeCompare(b.title))
-  }, [orders, products, balances, branches, expenses, preferences, eventFilter, branchFilter])
+  }, [orders, products, balances, branches, expenses, preferences, eventFilter, branchFilter, now])
 
   return <BaseLayout title="Alertas operativas" description="Órdenes vencidas o con saldo pendiente, entregas listas, stock bajo y pagos de gastos vencidos."><div className="space-y-4 px-4 lg:px-6">
     <div className="grid gap-2 sm:grid-cols-2"><select aria-label="Filtrar alertas por sucursal" className="h-10 rounded-md border bg-background px-3 text-sm" value={branchFilter} onChange={event => setBranchFilter(event.target.value)}><option value="ALL">Todas las sucursales</option>{branches.filter(branch => branch.active).map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select><select aria-label="Filtrar alertas por tipo" className="h-10 rounded-md border bg-background px-3 text-sm" value={eventFilter} onChange={event => setEventFilter(event.target.value)}><option value="ALL">Todos los tipos</option><option value="ORDER_ASSIGNED">Órdenes nuevas asignadas</option><option value="STOCK_LOW">Existencia baja</option><option value="DELIVERY_DUE">Fecha compromiso vencida</option><option value="PAYMENT_DUE">Pagos pendientes</option><option value="ORDER_READY">Listas para entregar</option><option value="DAY_SUMMARY">Resumen del día</option></select></div>
