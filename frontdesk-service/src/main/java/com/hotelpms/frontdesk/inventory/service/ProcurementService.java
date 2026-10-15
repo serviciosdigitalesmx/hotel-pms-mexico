@@ -168,6 +168,15 @@ public class ProcurementService {
   public PurchaseOrder receive(UUID hotel,UUID purchaseId,PurchaseReceiptRequest request){
     var purchase=purchases.findForUpdateByIdAndHotelId(purchaseId,hotel)
         .orElseThrow(()->new IllegalArgumentException("PURCHASE_NOT_FOUND"));
+    final String receiptDigest = request.requestId() == null ? null : receiptDigest(request);
+    if (receiptDigest != null) {
+      final String previousDigest = purchase.getReceiptRequestDigests() == null ? null
+          : purchase.getReceiptRequestDigests().get(request.requestId().toString());
+      if (previousDigest != null) {
+        if (previousDigest.equals(receiptDigest)) return purchase;
+        throw new IllegalArgumentException("PURCHASE_RECEIPT_REQUEST_ID_REUSED");
+      }
+    }
     if ("CANCELLED".equals(purchase.getStatus())) throw new IllegalStateException("PURCHASE_CANCELLED");
     if("RECEIVED".equals(purchase.getStatus()))throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
     if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
@@ -180,6 +189,9 @@ public class ProcurementService {
     var receivedProducts = new java.util.HashSet<UUID>();
     var receiptLines = new java.util.ArrayList<java.util.Map.Entry<PurchaseOrderLine, Long>>();
     for (var received : request.lines()) {
+      if (received.quantity() <= 0) {
+        throw new IllegalArgumentException("RECEIPT_QUANTITY_MUST_BE_POSITIVE");
+      }
       if (!receivedProducts.add(received.productId())) {
         throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_RECEIPT");
       }
@@ -191,6 +203,7 @@ public class ProcurementService {
       receiptLines.add(java.util.Map.entry(line, received.quantity()));
     }
     receiptLines.sort(Comparator.comparing(entry -> entry.getKey().getProductId()));
+    final LocalDateTime receivedAt = LocalDateTime.now();
     for (var receipt : receiptLines) {
       var line = receipt.getKey();
       var product = products.findForUpdateByIdAndHotelId(line.getProductId(), hotel)
@@ -209,12 +222,35 @@ public class ProcurementService {
       }
       products.save(product);
       line.setQuantityReceived(line.getQuantityReceived() + receipt.getValue());
+      appendReceiptEvent(purchase, line, receipt.getValue(), "RECEIPT", receivedAt);
     }
     boolean complete = purchase.getLines().stream()
         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
     boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
+    purchase.setLastReceivedAt(receivedAt);
     purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
+    if (receiptDigest != null) {
+      final var requestDigests = purchase.getReceiptRequestDigests() == null
+          ? new java.util.HashMap<String, String>()
+          : new java.util.HashMap<>(purchase.getReceiptRequestDigests());
+      requestDigests.put(request.requestId().toString(), receiptDigest);
+      purchase.setReceiptRequestDigests(requestDigests);
+    }
     return purchases.save(purchase);
+  }
+
+  private String receiptDigest(final PurchaseReceiptRequest request) {
+    final String canonical = request.lines().stream()
+        .sorted(Comparator.comparing(line -> line.productId().toString()))
+        .map(line -> line.productId() + ":" + line.quantity())
+        .collect(java.util.stream.Collectors.joining("|"));
+    try {
+      final byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+          .digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      return java.util.HexFormat.of().formatHex(digest);
+    } catch (java.security.NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("RECEIPT_DIGEST_UNAVAILABLE", exception);
+    }
   }
 
   @Transactional
@@ -257,6 +293,7 @@ public class ProcurementService {
       if (nextQuantity < 0) throw new IllegalStateException("RECEIVED_STOCK_ALREADY_CONSUMED_OR_RESERVED");
       inventory.move(hotel, new MovementRequest(purchase.getBranchId(), product.getId(), delta,
           "Purchase receipt correction " + purchase.getId()));
+      appendReceiptEvent(purchase, line, delta, "CORRECTION", LocalDateTime.now());
       if (nextQuantity > 0) {
         final BigDecimal adjustedValue = product.getCost().multiply(BigDecimal.valueOf(currentQuantity))
             .add(line.getUnitCost().multiply(BigDecimal.valueOf(delta)));
@@ -271,8 +308,20 @@ public class ProcurementService {
     final boolean complete = purchase.getLines().stream()
         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
     final boolean anyReceived = purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
+    purchase.setLastReceivedAt(anyReceived ? java.time.LocalDateTime.now() : null);
     purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
     return purchases.save(purchase);
+  }
+
+  private void appendReceiptEvent(final PurchaseOrder purchase, final PurchaseOrderLine line,
+      final long quantityDelta, final String kind, final LocalDateTime occurredAt) {
+    final var events = purchase.getReceiptEvents() == null
+        ? new java.util.ArrayList<java.util.Map<String, String>>()
+        : new java.util.ArrayList<>(purchase.getReceiptEvents());
+    events.add(java.util.Map.of("kind", kind, "productId", line.getProductId().toString(),
+        "quantity", Long.toString(quantityDelta), "unitCost", line.getUnitCost().toPlainString(),
+        "receivedAt", occurredAt.toString()));
+    purchase.setReceiptEvents(events);
   }
 
   @Transactional

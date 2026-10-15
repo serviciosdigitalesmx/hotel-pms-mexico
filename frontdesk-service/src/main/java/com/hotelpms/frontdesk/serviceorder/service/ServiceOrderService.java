@@ -9,6 +9,7 @@ import com.hotelpms.frontdesk.client.BranchValidationService;
 import com.hotelpms.frontdesk.client.dto.CustomerDeviceResponse;
 import com.hotelpms.frontdesk.audit.domain.AuditEvent;
 import com.hotelpms.frontdesk.audit.service.AuditEventService;
+import com.hotelpms.frontdesk.notifications.OperationalNotificationOutboxService;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatus;
 import com.hotelpms.frontdesk.serviceorder.dto.AuthorizationRequest;
@@ -53,6 +54,7 @@ public class ServiceOrderService {
   private final GuestClient guestClient;
   private final BranchValidationService branchValidation;
   private final InventoryService inventoryService;
+  private final OperationalNotificationOutboxService notificationOutbox;
 
   public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
   public record ConfiguredWorkflowTransition(String key, String fromStateKey, String toStateKey) { }
@@ -145,11 +147,26 @@ public class ServiceOrderService {
 
   @Transactional
   public ServiceOrder create(final UUID hotelId, final ServiceOrderRequest request) {
+    return create(hotelId, request, "system");
+  }
+
+  @Transactional
+  public ServiceOrder create(final UUID hotelId, final ServiceOrderRequest request,
+      final String actor) {
+    final BigDecimal deposit = request.depositAmount() == null
+        ? BigDecimal.ZERO : request.depositAmount();
+    final String depositMethod = request.depositPaymentMethod() == null
+        && deposit.compareTo(BigDecimal.ZERO) > 0 ? "OTHER" : request.depositPaymentMethod();
+    if (deposit.compareTo(BigDecimal.ZERO) > 0
+        && !java.util.Set.of("CASH", "CHECK", "BANK_DEPOSIT", "PAYPAL", "CARD", "OTHER")
+            .contains(depositMethod)) {
+      throw new IllegalArgumentException("DEPOSIT_PAYMENT_METHOD_REQUIRED");
+    }
     if (request.branchId() != null) branchValidation.requireActiveBranch(hotelId, request.branchId());
     branchValidation.requireTechnician(request.assignedUserId(), request.branchId());
     validateCustomerDevice(request.customerId(), request.deviceId());
     final LocalDateTime now = LocalDateTime.now();
-    final ServiceOrder saved = repository.save(
+    ServiceOrder saved = repository.save(
         ServiceOrder.builder()
             .hotelId(hotelId)
             .branchId(request.branchId())
@@ -159,8 +176,9 @@ public class ServiceOrderService {
             .reportedFailure(request.reportedFailure().trim())
             .priority(request.priority() == null ? "NORMAL" : request.priority())
             .serviceName(request.serviceName() == null ? null : request.serviceName().trim())
-            .depositAmount(request.depositAmount() == null ? java.math.BigDecimal.ZERO : request.depositAmount())
-            .paidAmount(request.depositAmount() == null ? java.math.BigDecimal.ZERO : request.depositAmount())
+            .depositAmount(deposit)
+            .paidAmount(deposit)
+            .paymentMethod(deposit.compareTo(BigDecimal.ZERO) > 0 ? depositMethod : null)
             .assignedUserId(request.assignedUserId())
             .intakeChecklist(request.intakeChecklist().trim())
             .promisedAt(request.promisedAt())
@@ -168,9 +186,23 @@ public class ServiceOrderService {
             .createdAt(now)
             .updatedAt(now)
             .build());
-    record(saved, null, saved.getStatus(), "system", "Orden recibida");
+    if (deposit.compareTo(BigDecimal.ZERO) > 0) {
+      appendPaymentEvent(saved, deposit, depositMethod, "DEPOSIT", now);
+      saved = repository.save(saved);
+    }
+    final String historyActor = actor == null || actor.isBlank() ? "system" : actor;
+    record(saved, null, saved.getStatus(), historyActor, "Orden recibida");
+    if (deposit.compareTo(BigDecimal.ZERO) > 0) {
+      record(saved, saved.getStatus(), saved.getStatus(), historyActor,
+          "Anticipo recibido " + deposit.toPlainString() + " · método " + depositMethod);
+    }
     auditEvents.record(hotelId, null, AuditEvent.Category.OPERATIONAL, "SERVICE_ORDER_CREATED",
         saved.getId(), null, "{\"branchId\":\"" + saved.getBranchId() + "\"}");
+    if (saved.getAssignedUserId() != null) {
+      notificationOutbox.enqueue(hotelId, "ORDER_ASSIGNED", "Orden de servicio asignada",
+          "Se asignó la orden " + saved.getId() + ". Consulta el tablero de Fixi para ver a la persona responsable.",
+          "ORDER_ASSIGNED:" + saved.getId() + ":" + UUID.randomUUID());
+    }
     return saved;
   }
   /**
@@ -208,6 +240,7 @@ public class ServiceOrderService {
     branchValidation.requireTechnician(request.assignedUserId(), order.getBranchId());
     final ServiceOrderStatus previous = order.getStatus();
     final String previousWorkLog = order.getWorkLog();
+    final UUID previousAssignedUserId = order.getAssignedUserId();
     order.setStatus(request.status());
     order.setDiagnosis(request.diagnosis());
     order.setWorkLog(request.workLog());
@@ -217,6 +250,12 @@ public class ServiceOrderService {
     else if (Boolean.TRUE.equals(request.clearPromisedAt())) order.setPromisedAt(null);
     order.setUpdatedAt(LocalDateTime.now());
     final ServiceOrder saved = repository.save(order);
+    if (!java.util.Objects.equals(previousAssignedUserId, request.assignedUserId())
+        && request.assignedUserId() != null) {
+      notificationOutbox.enqueue(hotelId, "ORDER_ASSIGNED", "Orden de servicio reasignada",
+          "La orden " + saved.getId() + " cambió de responsable. Consulta el tablero de Fixi para ver la asignación actual.",
+          "ORDER_ASSIGNED:" + saved.getId() + ":" + UUID.randomUUID());
+    }
     if(previous != request.status()) record(saved, previous, request.status(), "operator", request.workLog());
     else if (!java.util.Objects.equals(previousWorkLog, request.workLog())
         && ((previousWorkLog != null && !previousWorkLog.isBlank())
@@ -334,10 +373,53 @@ public class ServiceOrderService {
   @Transactional public ServiceOrder reject(UUID hotelId,UUID id,UUID actor,AuthorizationRequest request){var order=get(hotelId,id);if(order.getStatus()!=ServiceOrderStatus.QUOTED)throw new IllegalStateException("SERVICE_ORDER_NOT_QUOTED");order.setStatus(ServiceOrderStatus.QUOTE_REJECTED);order.setAuthorizationEvidence(request.evidence().trim());order.setAuthorizedBy(actor);order.setAuthorizedAt(LocalDateTime.now());order.setUpdatedAt(LocalDateTime.now());var saved=repository.save(order);record(saved,ServiceOrderStatus.QUOTED,ServiceOrderStatus.QUOTE_REJECTED,actor.toString(),request.evidence());return saved;}
 
   @Transactional
-  public ServiceOrder quote(UUID hotelId,UUID id,QuotationUpdateRequest request){var o=get(hotelId,id);if(o.getStatus()!=ServiceOrderStatus.DIAGNOSIS&&o.getStatus()!=ServiceOrderStatus.REVIEW)throw new IllegalStateException("SERVICE_ORDER_NOT_DIAGNOSED");o.setProposedSolution(request.proposedSolution());o.setEstimatedMinutes(request.estimatedMinutes());o.setLaborAmount(request.laborAmount());o.setPartsAmount(request.partsAmount());var rate=hotelSettingsRepository.findById(hotelId).map(s->s.getDefaultTaxRate()).orElse(null);var tax=rate==null?request.taxAmount():request.laborAmount().add(request.partsAmount()).multiply(rate).divide(new java.math.BigDecimal("100"),2,java.math.RoundingMode.HALF_UP);o.setTaxAmount(tax);o.setQuoteTotal(request.laborAmount().add(request.partsAmount()).add(tax));var previous=o.getStatus();o.setStatus(ServiceOrderStatus.QUOTED);o.setUpdatedAt(LocalDateTime.now());var saved=repository.save(o);record(saved,previous,ServiceOrderStatus.QUOTED,"operator","Cotización generada");return saved;}
+  public ServiceOrder quote(UUID hotelId, UUID id, QuotationUpdateRequest request) {
+    final ServiceOrder order = get(hotelId, id);
+    if (order.getStatus() != ServiceOrderStatus.DIAGNOSIS
+        && order.getStatus() != ServiceOrderStatus.REVIEW) {
+      throw new IllegalStateException("SERVICE_ORDER_NOT_DIAGNOSED");
+    }
+    order.setProposedSolution(request.proposedSolution());
+    order.setEstimatedMinutes(request.estimatedMinutes());
+    order.setLaborAmount(request.laborAmount());
+    order.setPartsAmount(request.partsAmount());
+    final var rate = hotelSettingsRepository.findById(hotelId)
+        .map(settings -> settings.getDefaultTaxRate()).orElse(null);
+    final var tax = rate == null ? request.taxAmount()
+        : request.laborAmount().add(request.partsAmount()).multiply(rate)
+            .divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+    order.setTaxAmount(tax);
+    order.setQuoteTotal(request.laborAmount().add(request.partsAmount()).add(tax));
+    final BigDecimal received = order.getPaidAmount() == null
+        ? zero(order.getDepositAmount()) : order.getPaidAmount();
+    order.setPaymentStatus(received.compareTo(order.getQuoteTotal()) >= 0 ? "PAID" : "PENDING");
+    final var previous = order.getStatus();
+    order.setStatus(ServiceOrderStatus.QUOTED);
+    order.setUpdatedAt(LocalDateTime.now());
+    final ServiceOrder saved = repository.save(order);
+    record(saved, previous, ServiceOrderStatus.QUOTED, "operator", "Cotización generada");
+    return saved;
+  }
 
   @Transactional
-  public RepairTest addTest(UUID hotelId,UUID id,RepairTestRequest r){var o=get(hotelId,id);if(o.getStatus()!=ServiceOrderStatus.IN_PROGRESS&&o.getStatus()!=ServiceOrderStatus.QA)throw new IllegalStateException("SERVICE_ORDER_NOT_TESTABLE");if(o.getStatus()==ServiceOrderStatus.IN_PROGRESS){o.setStatus(ServiceOrderStatus.QA);o.setUpdatedAt(LocalDateTime.now());repository.save(o);record(o,ServiceOrderStatus.IN_PROGRESS,ServiceOrderStatus.QA,"operator","Pruebas iniciadas");}return repairTests.save(RepairTest.builder().hotelId(hotelId).serviceOrderId(id).testName(r.testName().trim()).passed(r.passed()).notes(r.notes()).technicianId(r.technicianId()).createdAt(LocalDateTime.now()).build());}
+  public RepairTest addTest(final UUID hotelId, final UUID id, final RepairTestRequest request) {
+    final ServiceOrder order = get(hotelId, id);
+    if (order.getStatus() != ServiceOrderStatus.IN_PROGRESS && order.getStatus() != ServiceOrderStatus.QA) {
+      throw new IllegalStateException("SERVICE_ORDER_NOT_TESTABLE");
+    }
+    if (order.getStatus() == ServiceOrderStatus.IN_PROGRESS) {
+      order.setStatus(ServiceOrderStatus.QA);
+      order.setUpdatedAt(LocalDateTime.now());
+      repository.save(order);
+      record(order, ServiceOrderStatus.IN_PROGRESS, ServiceOrderStatus.QA, "operator", "Pruebas iniciadas");
+      notificationOutbox.enqueue(hotelId, "ORDER_READY", "Orden lista para control de calidad",
+          "La orden " + order.getId() + " está lista para control de calidad.",
+          "ORDER_READY:" + order.getId() + ":" + UUID.randomUUID());
+    }
+    return repairTests.save(RepairTest.builder().hotelId(hotelId).serviceOrderId(id)
+        .testName(request.testName().trim()).passed(request.passed()).notes(request.notes())
+        .technicianId(request.technicianId()).createdAt(LocalDateTime.now()).build());
+  }
   @Transactional(readOnly=true) public List<RepairTest> tests(UUID hotelId,UUID id){get(hotelId,id);return repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId,id);}
   @Transactional(readOnly=true) public List<ServiceOrderStatusHistory> history(UUID hotelId,UUID id){get(hotelId,id);return history.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId,id);}
 
@@ -356,6 +438,10 @@ public class ServiceOrderService {
       final String paymentMethod) {
     final ServiceOrder order = repository.findForUpdateByIdAndHotelId(id, hotelId)
         .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    if (order.getStatus() == ServiceOrderStatus.COMPLETED && order.getDeliveredAt() != null) {
+      if (paymentMethod != null && paymentMethod.equals(order.getPaymentMethod())) return order;
+      throw new IllegalStateException("SERVICE_ORDER_ALREADY_DELIVERED");
+    }
     if (order.getStatus() != ServiceOrderStatus.QA) {
       throw new IllegalStateException("SERVICE_ORDER_NOT_READY_FOR_DELIVERY");
     }
@@ -384,10 +470,20 @@ public class ServiceOrderService {
     order.setDeliveredAt(LocalDateTime.now());
     order.setDeliveredBy(actor);
     order.setUpdatedAt(LocalDateTime.now());
+    if (receivedOnDelivery.compareTo(BigDecimal.ZERO) > 0) {
+      appendPaymentEvent(order, receivedOnDelivery, paymentMethod, "DELIVERY",
+          order.getDeliveredAt());
+    }
     final ServiceOrder saved = repository.save(order);
     record(saved, ServiceOrderStatus.QA, ServiceOrderStatus.COMPLETED, actor.toString(),
         "Equipo entregado · pago " + order.getPaymentStatus() + " · recibido "
             + receivedOnDelivery.toPlainString() + " · método " + paymentMethod);
+    if ("PENDING".equals(paymentMethod) && outstanding.compareTo(BigDecimal.ZERO) > 0) {
+      notificationOutbox.enqueue(hotelId, "PAYMENT_DUE", "Saldo pendiente de una orden entregada",
+          "La orden " + saved.getId() + " se entregó con un saldo pendiente de "
+              + outstanding.toPlainString() + ". Registra el pago cuando se reciba.",
+          "PAYMENT_DUE:" + saved.getId() + ":" + UUID.randomUUID());
+    }
     return saved;
   }
   private boolean hasFailedLatestRepairTest(UUID hotelId, UUID orderId) {var latestByTest=new java.util.LinkedHashMap<String,RepairTest>();repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId,orderId).forEach(test->latestByTest.put(test.getTestName().trim().toLowerCase(Locale.ROOT),test));return latestByTest.values().stream().anyMatch(test->!test.isPassed());}
@@ -400,8 +496,24 @@ public class ServiceOrderService {
   @Transactional
   public ServiceOrder recordPendingPayment(final UUID hotelId, final UUID id, final UUID actor,
       final String paymentMethod, final BigDecimal requestedAmount) {
+    return recordPendingPayment(hotelId, id, actor, paymentMethod, requestedAmount, null);
+  }
+
+  @Transactional
+  public ServiceOrder recordPendingPayment(final UUID hotelId, final UUID id, final UUID actor,
+      final String paymentMethod, final BigDecimal requestedAmount, final UUID requestId) {
     final ServiceOrder order = repository.findForUpdateByIdAndHotelId(id, hotelId)
         .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+    final String requestFingerprint = paymentMethod + "|" + (requestedAmount == null ? "AUTO"
+        : requestedAmount.stripTrailingZeros().toPlainString());
+    if (requestId != null && order.getPaymentEvents() != null) {
+      final var previous = order.getPaymentEvents().stream()
+          .filter(event -> requestId.toString().equals(event.get("requestId"))).findFirst();
+      if (previous.isPresent()) {
+        if (requestFingerprint.equals(previous.get().get("requestFingerprint"))) return order;
+        throw new IllegalArgumentException("SERVICE_ORDER_PAYMENT_REQUEST_ID_REUSED");
+      }
+    }
     if (order.getStatus() != ServiceOrderStatus.COMPLETED) {
       throw new IllegalStateException("SERVICE_ORDER_NOT_DELIVERED");
     }
@@ -426,6 +538,8 @@ public class ServiceOrderService {
     }
     final BigDecimal cumulativePaid = previousPaid.add(received);
     order.setPaidAmount(cumulativePaid);
+    appendPaymentEvent(order, received, paymentMethod, "BALANCE", LocalDateTime.now(),
+        requestId, requestFingerprint);
     order.setPaymentMethod(paymentMethod);
     order.setPaymentStatus(cumulativePaid.compareTo(order.getQuoteTotal()) >= 0 ? "PAID" : "PENDING");
     order.setUpdatedAt(LocalDateTime.now());
@@ -439,6 +553,26 @@ public class ServiceOrderService {
 
   private BigDecimal zero(final BigDecimal value) {
     return value == null ? BigDecimal.ZERO : value;
+  }
+  private void appendPaymentEvent(final ServiceOrder order, final BigDecimal amount,
+      final String paymentMethod, final String kind, final LocalDateTime recordedAt) {
+    appendPaymentEvent(order, amount, paymentMethod, kind, recordedAt, null, null);
+  }
+  private void appendPaymentEvent(final ServiceOrder order, final BigDecimal amount,
+      final String paymentMethod, final String kind, final LocalDateTime recordedAt,
+      final UUID requestId, final String requestFingerprint) {
+    final var events = order.getPaymentEvents() == null
+        ? new java.util.ArrayList<java.util.Map<String, String>>()
+        : new java.util.ArrayList<>(order.getPaymentEvents());
+    final var event = new java.util.HashMap<String, String>();
+    event.put("amount", amount.toPlainString()); event.put("method", paymentMethod);
+    event.put("kind", kind); event.put("recordedAt", recordedAt.toString());
+    if (requestId != null) {
+      event.put("requestId", requestId.toString());
+      event.put("requestFingerprint", requestFingerprint);
+    }
+    events.add(event);
+    order.setPaymentEvents(events);
   }
   private void record(ServiceOrder o,ServiceOrderStatus from,ServiceOrderStatus to,String actor,String notes){history.save(ServiceOrderStatusHistory.builder().hotelId(o.getHotelId()).serviceOrderId(o.getId()).fromStatus(from).toStatus(to).actor(actor).notes(notes).createdAt(LocalDateTime.now()).build());}
   private boolean isBlank(String value) { return value == null || value.trim().isEmpty(); }

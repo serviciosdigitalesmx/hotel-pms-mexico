@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import * as api from './api'
 
 export function ServiceCatalogManagementPage() {
+  const [role, setRole] = useState('')
+  const canManage = ['ADMIN', 'OWNER', 'MANAGER'].includes(role.replace(/^ROLE_/, ''))
   const [services, setServices] = useState<api.ServiceCatalogEntry[]>([])
   const [currency, setCurrency] = useState('MXN')
   const [name, setName] = useState('')
@@ -21,6 +23,13 @@ export function ServiceCatalogManagementPage() {
   const [importErrors, setImportErrors] = useState<string[]>([])
   const [retryRows, setRetryRows] = useState<Array<{ sourceRow: number; values: string[] }>>([])
   const [retryHeaders, setRetryHeaders] = useState<string[]>([])
+
+  useEffect(() => {
+    let active = true
+    void api.currentUser().then(user => { if (active) setRole(user?.role ?? '') })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudo validar el acceso al catálogo') })
+    return () => { active = false }
+  }, [])
 
   function parseCsv(text: string): string[][] {
     const rows: string[][] = []; let row: string[] = []; let cell = ''; let quoted = false
@@ -47,6 +56,7 @@ export function ServiceCatalogManagementPage() {
   }
 
   async function importCsv(file?: File) {
+    if (!canManage) return
     setError(''); setMessage(''); setImportErrors([]); setRetryRows([]); setRetryHeaders([])
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { setError('El archivo supera el límite de 5 MB'); return }
@@ -104,6 +114,7 @@ export function ServiceCatalogManagementPage() {
   }
 
   async function save(event: FormEvent) {
+    if (!canManage) return
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
     try {
       const wasEditing = Boolean(editing)
@@ -115,6 +126,7 @@ export function ServiceCatalogManagementPage() {
     finally { setBusy(false) }
   }
   async function toggle(service: api.ServiceCatalogEntry) {
+    if (!canManage) return
     setBusy(true); setError('')
     try { await api.setServiceActive(service.id, !service.active); await reload() }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo cambiar el estado') }
@@ -123,8 +135,8 @@ export function ServiceCatalogManagementPage() {
 
   const filtered = services.filter(service => service.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
   return <BaseLayout title="Servicios" description="Catálogo de trabajos cotizables, reutilizable en órdenes de reparación."><div className="space-y-5 px-4 lg:px-6">
-    <Card><CardHeader><CardTitle>{editing ? 'Editar servicio' : 'Agregar servicio'}</CardTitle></CardHeader><CardContent><form className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" onSubmit={save}><Input required maxLength={200} placeholder="Nombre del servicio" value={name} onChange={event => setName(event.target.value)}/><Input required aria-label={`Precio base en ${currency}`} type="number" min="0" step="0.01" placeholder={`Precio base ${currency}`} value={basePrice} onChange={event => setBasePrice(event.target.value)}/><Input required aria-label="Duración estimada en minutos" type="number" min="1" step="1" placeholder="Duración en minutos" value={estimatedMinutes} onChange={event => setEstimatedMinutes(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !name.trim() || !Number.isFinite(Number(basePrice)) || Number(basePrice) < 0 || !Number.isSafeInteger(Number(estimatedMinutes)) || Number(estimatedMinutes) < 1}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Agregar servicio'}</Button>{editing && <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(''); setName(''); setBasePrice('0'); setEstimatedMinutes('60') }}>Cancelar</Button>}</div></form></CardContent></Card>
-    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Catálogo ({filtered.length})</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || !filtered.length} onClick={exportCsv}>Exportar filtrados</Button><Button type="button" variant="outline" disabled={importing} onClick={() => downloadCsv('fixi-servicios-plantilla.csv', [['nombre', 'precio_base', 'moneda', 'duracion_minutos', 'activo']])}>Plantilla CSV</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">{importing ? 'Importando…' : 'Importar CSV'}<Input className="sr-only" type="file" accept=".csv,text/csv" disabled={importing} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importCsv(file) }}/></label>{retryRows.length > 0 && <Button type="button" variant="outline" onClick={downloadRetryRows}>Descargar filas por corregir ({retryRows.length})</Button>}{importErrors.length > 0 && <Button type="button" variant="outline" onClick={downloadImportErrors}>Descargar errores ({importErrors.length})</Button>}</div></div><Input aria-label="Buscar servicios" placeholder="Buscar servicio" value={search} onChange={event => setSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{loading && <p role="status">Cargando servicios…</p>}{filtered.map(service => <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p>{service.name} · <span className="text-sm text-muted-foreground">{service.active ? 'Activo' : 'Inactivo'}</span></p><p className="text-sm text-muted-foreground">Base {formatPrice(service.basePrice)} · {service.estimatedMinutes} min</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setEditing(service.id); setName(service.name); setBasePrice(String(service.basePrice)); setEstimatedMinutes(String(service.estimatedMinutes)) }}>Editar</Button><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void toggle(service)}>{service.active ? 'Desactivar' : 'Activar'}</Button></div></div>)}{!loading && !error && !filtered.length && <p className="text-sm text-muted-foreground">No hay servicios que coincidan.</p>}</CardContent></Card>
+    {canManage && <Card><CardHeader><CardTitle>{editing ? 'Editar servicio' : 'Agregar servicio'}</CardTitle></CardHeader><CardContent><form className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" onSubmit={save}><Input required maxLength={200} placeholder="Nombre del servicio" value={name} onChange={event => setName(event.target.value)}/><Input required aria-label={`Precio base en ${currency}`} type="number" min="0" step="0.01" placeholder={`Precio base ${currency}`} value={basePrice} onChange={event => setBasePrice(event.target.value)}/><Input required aria-label="Duración estimada en minutos" type="number" min="1" step="1" placeholder="Duración en minutos" value={estimatedMinutes} onChange={event => setEstimatedMinutes(event.target.value)}/><div className="flex gap-2"><Button disabled={busy || !name.trim() || !Number.isFinite(Number(basePrice)) || Number(basePrice) < 0 || !Number.isSafeInteger(Number(estimatedMinutes)) || Number(estimatedMinutes) < 1}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Agregar servicio'}</Button>{editing && <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(''); setName(''); setBasePrice('0'); setEstimatedMinutes('60') }}>Cancelar</Button>}</div></form></CardContent></Card>}
+    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Catálogo ({filtered.length})</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || !filtered.length} onClick={exportCsv}>Exportar filtrados</Button>{canManage && <><Button type="button" variant="outline" disabled={importing} onClick={() => downloadCsv('fixi-servicios-plantilla.csv', [['nombre', 'precio_base', 'moneda', 'duracion_minutos', 'activo']])}>Plantilla CSV</Button><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">{importing ? 'Importando…' : 'Importar CSV'}<Input className="sr-only" type="file" accept=".csv,text/csv" disabled={importing} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void importCsv(file) }}/></label>{retryRows.length > 0 && <Button type="button" variant="outline" onClick={downloadRetryRows}>Descargar filas por corregir ({retryRows.length})</Button>}{importErrors.length > 0 && <Button type="button" variant="outline" onClick={downloadImportErrors}>Descargar errores ({importErrors.length})</Button>}</>}</div></div><Input aria-label="Buscar servicios" placeholder="Buscar servicio" value={search} onChange={event => setSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{loading && <p role="status">Cargando servicios…</p>}{filtered.map(service => <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p>{service.name} · <span className="text-sm text-muted-foreground">{service.active ? 'Activo' : 'Inactivo'}</span></p><p className="text-sm text-muted-foreground">Base {formatPrice(service.basePrice)} · {service.estimatedMinutes} min</p></div>{canManage && <div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setEditing(service.id); setName(service.name); setBasePrice(String(service.basePrice)); setEstimatedMinutes(String(service.estimatedMinutes)) }}>Editar</Button><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void toggle(service)}>{service.active ? 'Desactivar' : 'Activar'}</Button></div>}</div>)}{!loading && !error && !filtered.length && <p className="text-sm text-muted-foreground">No hay servicios que coincidan.</p>}</CardContent></Card>
     {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}{error && <div className="flex items-center justify-between"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload()}>Reintentar</Button></div>}
   </div></BaseLayout>
 }

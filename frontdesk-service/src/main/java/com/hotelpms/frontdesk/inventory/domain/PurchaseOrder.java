@@ -13,11 +13,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Type domain type. */
 @Entity
@@ -50,6 +54,19 @@ public class PurchaseOrder {
 
   @Column(nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  @Column(name = "last_received_at")
+  private LocalDateTime lastReceivedAt;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "receipt_request_digests", nullable = false, columnDefinition = "jsonb")
+  @Builder.Default
+  private Map<String, String> receiptRequestDigests = new HashMap<>();
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "receipt_events", nullable = false, columnDefinition = "jsonb")
+  @Builder.Default
+  private List<Map<String, String>> receiptEvents = new ArrayList<>();
 
   @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true,
       fetch = FetchType.LAZY)

@@ -1,16 +1,16 @@
 package com.hotelpms.frontdesk.config;
 
+import com.hotelpms.frontdesk.notifications.NotificationServiceAuthContext;
 import com.hotelpms.internalauth.feign.InternalFeignAuthInterceptor;
 import feign.RequestInterceptor;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Feign configuration that signs outgoing calls with the internal HMAC signature so that downstream
- * service {@code InternalAuthFilter} instances accept them (T-GW-07 / T-GST-05). See {@link
- * InternalFeignAuthInterceptor} for the shared signing logic.
+ * Feign configuration that signs request-context calls and scheduled outbox calls with the internal
+ * HMAC signature required by downstream {@code InternalAuthFilter} instances (T-GW-07 / T-GST-05).
+ * See {@link InternalFeignAuthInterceptor} for the shared signing logic.
  */
 @Configuration
 public class FeignHeaderConfig {
@@ -22,18 +22,23 @@ public class FeignHeaderConfig {
    *
    * @param hmacSecret the internal HMAC secret, shared with all microservices
    */
-  public FeignHeaderConfig(@Value("${internal.hmac.secret}") final String hmacSecret) {
+  public FeignHeaderConfig(
+      @Value("${internal.hmac.secret}") final String hmacSecret,
+      final NotificationServiceAuthContext notificationServiceAuthContext) {
     this.hmacSecret = hmacSecret;
+    this.notificationServiceAuthContext = notificationServiceAuthContext;
   }
 
+  private final NotificationServiceAuthContext notificationServiceAuthContext;
+
   /**
-   * Registers the shared {@link InternalFeignAuthInterceptor}. This service has no calls
-   * originating outside an HTTP request context, so the fallback always resolves to empty.
+   * Registers the shared {@link InternalFeignAuthInterceptor}, including the scoped system identity
+   * used by the scheduled operational-notification outbox.
    *
    * @return the configured interceptor
    */
   @Bean
   public RequestInterceptor authHeaderInterceptor() {
-    return new InternalFeignAuthInterceptor(hmacSecret, Optional::empty);
+    return new InternalFeignAuthInterceptor(hmacSecret, notificationServiceAuthContext::resolve);
   }
 }

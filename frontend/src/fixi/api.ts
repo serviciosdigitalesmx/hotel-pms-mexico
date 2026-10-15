@@ -1,17 +1,20 @@
 export type Json = Record<string, unknown>
 export type SessionUser = { username:string; role:string; hotelId?:string; tenantId?:string; branchId?:string; businessName?:string; tenantStatus?:string; onboardingCompleted?:boolean; mustChangePassword?:boolean }
-export type ServiceOrder = { id:string; customerId:string; customerName?:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; paidAmount?:number; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; paymentMethod?:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD'|'PENDING'; paymentStatus?:'PAID'|'PENDING'; deliveredAt?:string; createdAt?:string; updatedAt?:string }
+export type ServiceOrderPaymentEvent={amount:string;method:string;kind:'DEPOSIT'|'DELIVERY'|'BALANCE';recordedAt:string}
+export type ServiceOrder = { id:string; customerId:string; customerName?:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; paidAmount?:number; paymentEvents?:ServiceOrderPaymentEvent[]; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; paymentMethod?:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD'|'PENDING'; paymentStatus?:'PAID'|'PENDING'; deliveredAt?:string; createdAt?:string; updatedAt?:string }
 export function serviceOrderAmountReceived(order:Pick<ServiceOrder,'paidAmount'|'depositAmount'|'paymentStatus'|'quoteTotal'>){if(order.paidAmount!=null)return Number(order.paidAmount);if(order.paymentStatus==='PAID')return Math.max(Number(order.quoteTotal??0),Number(order.depositAmount??0));return Number(order.depositAmount??0)}
 export function serviceOrderBalance(order:Pick<ServiceOrder,'paidAmount'|'depositAmount'|'paymentStatus'|'quoteTotal'>){return Math.max(0,Number(order.quoteTotal??0)-serviceOrderAmountReceived(order))}
 export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; address?:string; city?:string; country?:string; dateOfBirth?:string; rfc?:string; identityNumber?:string; fiscalName?:string; fiscalPostalCode?:string; fiscalRegime?:string; cfdiUse?:string; billingEmail?:string; createdAt?:string }
 export type Device = { id:string; customerId:string; customerName?:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
+export type DeviceCatalogEntry = { category:string; manufacturer:string; model:string; registeredDevices:number }
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string; posMenuItemId?:string }
 export const isAtOrBelowReorderLevel=(quantity:number,reorderLevel?:number)=>typeof reorderLevel==='number'&&Number.isFinite(reorderLevel)&&reorderLevel>0&&quantity<=reorderLevel
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string; active:boolean }
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}
-export type PurchaseOrder={id:string;branchId:string;supplierId:string;serviceOrderId?:string;status:string;createdAt:string;lines:PurchaseOrderLine[]}
+export type PurchaseReceiptEvent={kind:'RECEIPT'|'CORRECTION'|'LEGACY_SNAPSHOT';productId:string;quantity:string;unitCost:string;receivedAt:string}
+export type PurchaseOrder={id:string;branchId:string;supplierId:string;serviceOrderId?:string;status:string;createdAt:string;lastReceivedAt?:string|null;receiptEvents?:PurchaseReceiptEvent[];lines:PurchaseOrderLine[]}
 export type Expense = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; cashSessionId?:string; expenseType?:'FIXED'|'VARIABLE'|'INVENTORY'; subcategory?:string; paid?:boolean; spentAt?:string; dueAt?:string; paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'; paidAt?:string; createdAt:string }
 export type RecurringExpenseTemplate = { id:string; hotelId:string; category:string; amount:number; description?:string; reference?:string; subcategory?:string; frequency:'WEEKLY'|'MONTHLY'|'YEARLY'; nextDueAt:string; active:boolean }
 export type CashSessionSummary={id:string;status:'OPEN'|'CLOSED';openingBalance:number;closingBalance?:number;openedAt:string;closedAt?:string}
@@ -66,7 +69,7 @@ export const listRepairTests=(id:string)=>get<Array<{id:string;testName:string;p
 export const serviceOrderTimeline=(id:string)=>get<Array<{id:string;fromStatus?:string;toStatus:string;actor:string;notes?:string;createdAt:string}>>(`/api/v1/service-orders/${id}/timeline`)
 export const addServiceOrderNote=(id:string,note:string)=>post(`/api/v1/service-orders/${id}/notes`,{note})
 export const deliverServiceOrder=(id:string,paymentMethod:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD'|'PENDING'='CASH')=>post<ServiceOrder>(`/api/v1/service-orders/${id}/deliver`,{paymentMethod})
-export const recordPendingServiceOrderPayment=(id:string,paymentMethod:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD',amount?:number)=>patch<ServiceOrder>(`/api/v1/service-orders/${id}/payment`,{paymentMethod,...(amount===undefined?{}:{amount})})
+export const recordPendingServiceOrderPayment=(id:string,paymentMethod:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD',amount?:number,requestId?:string)=>patch<ServiceOrder>(`/api/v1/service-orders/${id}/payment`,{paymentMethod,...(amount===undefined?{}:{amount}),...(requestId?{requestId}:{})})
 export type TimeEntry={id:string;serviceOrderId:string;userId:string;minutes:number;note?:string;createdAt:string}
 export const listTimeEntries=(id:string)=>get<TimeEntry[]>(`/api/v1/service-orders/${id}/time`)
 export const addTimeEntry=(id:string,body:unknown)=>post<TimeEntry>(`/api/v1/service-orders/${id}/time`,body)
@@ -91,6 +94,7 @@ export const potentialCustomerDuplicate=(body:Record<string,unknown>)=>get<Custo
 export const updateCustomer=(id:string,body:unknown)=>put<Customer>(`/api/v1/customers/${id}`,body)
 export const listDevices=(customerId:string)=>get<Device[]>(`/api/v1/customers/${customerId}/devices`)
 export const searchDevices=(query:string,page=0)=>get<{content:Device[]} | Device[]>(`/api/v1/customers/search-devices?query=${encodeURIComponent(query)}&page=${page}&size=25`)
+export const deviceCatalog=()=>get<DeviceCatalogEntry[]>('/api/v1/customers/device-catalog')
 export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v1/customers/${customerId}/devices`,body)
 export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const transferDevice=(customerId:string,id:string,toCustomerId:string,evidence?:string)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}/transfer?${new URLSearchParams({toCustomerId,...(evidence?{evidence}:{})})}`)
@@ -154,11 +158,12 @@ export const updateSupplier=(id:string,body:unknown)=>put<Supplier>(`/api/v1/pro
 export const setSupplierActive=(id:string,active:boolean)=>patch<Supplier>(`/api/v1/procurement/suppliers/${id}/active?value=${active}`)
 export const listPurchases=()=>get<PurchaseOrder[]>('/api/v1/procurement/purchases')
 export const createPurchase=(body:{branchId:string;supplierId:string;serviceOrderId?:string|null;lines:Array<{productId:string;quantity:number;unitCost:number}>})=>post<PurchaseOrder>('/api/v1/procurement/purchases/with-lines',body)
-export const receivePurchase=(id:string,body:{lines:Array<{productId:string;quantity:number}>})=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/receive`,body)
+export const receivePurchase=(id:string,body:{requestId?:string;lines:Array<{productId:string;quantity:number}>})=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/receive`,body)
 export const correctPurchaseReceipt=(id:string,body:{lines:Array<{productId:string;quantityReceived:number}>})=>patch<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/receipt`,body)
 export const cancelPurchase=(id:string)=>post<PurchaseOrder>(`/api/v1/procurement/purchases/${id}/cancel`,{})
 export const recordStockCount=(body:{branchId:string;productId:string;countedQuantity:number;reason:string;expectedCurrentQuantity:number})=>post('/api/v1/inventory/stock-counts',body)
 export const listExpenses=()=>get<Expense[]>('/api/v1/expenses')
+export const listExpensesForReport=(from:string,to:string)=>get<Expense[]>(`/api/v1/expenses/report-range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
 export const createExpense=(body:{category:string;amount:number;description?:string;reference?:string;cashSessionId?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid?:boolean;spentAt?:string;dueAt?:string;paymentMethod?:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'})=>post<Expense>('/api/v1/expenses',body)
 export const updateExpense=(id:string,body:{category:string;amount:number;description?:string;reference?:string;expenseType?:'FIXED'|'VARIABLE'|'INVENTORY';subcategory?:string;paid:false;spentAt?:string;dueAt?:string})=>put<Expense>(`/api/v1/expenses/${id}`,body)
 export const markExpensePaid=(id:string,paymentMethod:'CASH'|'BANK_TRANSFER'|'CARD'|'OTHER'='OTHER',cashSessionId?:string)=>patch<Expense>(`/api/v1/expenses/${id}/paid`,{cashSessionId,paymentMethod})
@@ -190,6 +195,9 @@ export const updateBusinessProfile=(body:Partial<BusinessProfile>)=>put<Partial<
 export type NotificationPreferences=Record<string,Record<'EMAIL'|'WEB'|'APP',boolean>>
 export const getNotificationPreferences=()=>get<NotificationPreferences>('/api/v1/notifications/preferences')
 export const updateNotificationPreferences=(body:NotificationPreferences)=>put<NotificationPreferences>('/api/v1/notifications/preferences',body)
+export type OperationalEmailRecipients=Record<string,string[]>
+export const getOperationalEmailRecipients=()=>get<OperationalEmailRecipients>('/api/v1/notifications/preferences/recipients')
+export const updateOperationalEmailRecipients=(recipients:OperationalEmailRecipients)=>put<OperationalEmailRecipients>('/api/v1/notifications/preferences/recipients',{recipients})
 export const changePassword=(currentPassword:string,newPassword:string)=>post<void>('/api/v1/auth/change-password',{currentPassword,newPassword})
 export type SessionSecurityPreference={idleTimeoutMinutes:0|15|60}
 export const getSessionSecurityPreference=()=>get<SessionSecurityPreference>('/api/v1/auth/session-security')

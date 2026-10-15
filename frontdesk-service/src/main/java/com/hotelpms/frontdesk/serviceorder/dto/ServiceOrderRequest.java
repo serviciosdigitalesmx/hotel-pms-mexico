@@ -29,10 +29,18 @@ public record ServiceOrderRequest(
     @Size(max = 200) String serviceName,
     @DecimalMin("0.00") @jakarta.validation.constraints.Digits(integer = 10, fraction = 2)
         BigDecimal depositAmount,
-    UUID assignedUserId) {
+    UUID assignedUserId,
+    @Pattern(regexp = "CASH|CHECK|BANK_DEPOSIT|PAYPAL|CARD|OTHER") String depositPaymentMethod) {
+  public ServiceOrderRequest(UUID customerId, UUID deviceId, UUID branchId, String summary,
+      String reportedFailure, String intakeChecklist, LocalDateTime promisedAt, String intakeEvidence,
+      String priority, String serviceName, BigDecimal depositAmount, UUID assignedUserId) {
+    this(customerId, deviceId, branchId, summary, reportedFailure, intakeChecklist, promisedAt,
+        intakeEvidence, priority, serviceName, depositAmount, assignedUserId, null);
+  }
+
   public ServiceOrderRequest(UUID customerId, UUID deviceId, UUID branchId, String summary,
       String reportedFailure, String intakeChecklist, LocalDateTime promisedAt, String intakeEvidence) {
     this(customerId, deviceId, branchId, summary, reportedFailure, intakeChecklist,
-        promisedAt, intakeEvidence, "NORMAL", null, BigDecimal.ZERO, null);
+        promisedAt, intakeEvidence, "NORMAL", null, BigDecimal.ZERO, null, null);
   }
 }

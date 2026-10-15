@@ -653,8 +653,29 @@ services:
 
   # ----------------------------------------------------------
   # Notification Service (C1 — transactional email via SMTP)
-  # Stateless: no DB. Uses Redis only for HMAC anti-replay nonce
-  # store (InternalAuthFilter, T-GW-08).
+  # Idempotently provisions the service database on existing as well as new
+  # PostgreSQL volumes. The initdb script covers first-time clusters; this
+  # one-shot also covers deployments whose database volume already exists.
+  notification-db-init:
+    image: postgres:15-alpine
+    restart: "no"
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - >-
+        if ! psql --host=postgres --username=postgres --dbname=postgres
+        --tuples-only --no-align --command="SELECT 1 FROM pg_database WHERE datname='hotel_notifications'" | grep -qx 1; then
+          createdb --host=postgres --username=postgres hotel_notifications;
+        fi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - db-network
+
+  # Transactional email plus tenant-scoped durable notification delivery.
+  # Redis backs the HMAC anti-replay nonce store (T-GW-08).
   # ----------------------------------------------------------
   notification-service:
     build:
@@ -671,6 +692,11 @@ services:
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
       - INTERNAL_REDIS_PASSWORD=${REDIS_PASSWORD}
       - INTERNAL_HMAC_SECRET=${INTERNAL_HMAC_SECRET}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/hotel_notifications
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_FLYWAY_ENABLED=true
+      - SPRING_FLYWAY_LOCATIONS=classpath:db/migration
       # SMTP — override in production with real relay credentials
       - SMTP_HOST=${SMTP_HOST:-fixi-mail}
       - SMTP_PORT=${SMTP_PORT:-1025}
@@ -682,6 +708,8 @@ services:
       - NOTIFICATION_FROM_NAME=${NOTIFICATION_FROM_NAME:-Hotel PMS}
       - JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError
     depends_on:
+      notification-db-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       config-server:

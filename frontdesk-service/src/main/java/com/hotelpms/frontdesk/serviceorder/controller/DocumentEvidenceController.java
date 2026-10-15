@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +26,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/documents")
 public class DocumentEvidenceController {
   private final DocumentEvidenceService service;
+  public record EvidenceView(UUID id, UUID serviceOrderId, UUID customerId, String fileName,
+      String contentType, String storageKey, String accessLevel,
+      java.time.LocalDateTime createdAt) { }
+
+  public static EvidenceView view(final DocumentEvidence evidence) {
+    final String storageKey = evidence.getStorageKey() != null && evidence.getStorageKey().startsWith("data:")
+        ? "/api/v1/documents/" + evidence.getId() + "/content" : evidence.getStorageKey();
+    return new EvidenceView(evidence.getId(), evidence.getServiceOrderId(), evidence.getCustomerId(),
+        evidence.getFileName(), evidence.getContentType(), storageKey, evidence.getAccessLevel(),
+        evidence.getCreatedAt());
+  }
 
   /**
    * Adds document evidence to a service order.
@@ -33,8 +46,8 @@ public class DocumentEvidenceController {
    */
   @PostMapping
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
-  public ResponseEntity<DocumentEvidence> add(@Valid @RequestBody final DocumentEvidenceRequest r) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(service.add(hotel(), r));
+  public ResponseEntity<EvidenceView> add(@Valid @RequestBody final DocumentEvidenceRequest r) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(view(service.add(hotel(), r)));
   }
 
   /**
@@ -45,8 +58,17 @@ public class DocumentEvidenceController {
    */
   @GetMapping("/order/{order}")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
-  public List<DocumentEvidence> list(@PathVariable final UUID order) {
-    return service.list(hotel(), order);
+  public List<EvidenceView> list(@PathVariable final UUID order) {
+    return service.list(hotel(), order).stream().map(DocumentEvidenceController::view).toList();
+  }
+
+  @GetMapping("/{id}/content")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public ResponseEntity<byte[]> content(@PathVariable final UUID id) {
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"evidence-" + id + "\"")
+        .body(service.content(hotel(), id));
   }
 
   private UUID hotel() {

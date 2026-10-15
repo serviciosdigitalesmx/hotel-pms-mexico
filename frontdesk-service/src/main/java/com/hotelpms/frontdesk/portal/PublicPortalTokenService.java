@@ -116,7 +116,18 @@ public class PublicPortalTokenService {
   /** Lists only documents belonging to the resource represented by the token. */
   public List<DocumentEvidence> documents(final String rawToken) {
     final PublicPortalToken token = resolve(rawToken);
-    return evidenceService.list(token.getHotelId(), token.getResourceId());
+    return evidenceService.list(token.getHotelId(), token.getResourceId()).stream()
+        .filter(document -> "CUSTOMER".equalsIgnoreCase(document.getAccessLevel())).toList();
+  }
+
+  /** Downloads only customer-visible evidence linked to the token's service order. */
+  public byte[] documentContent(final String rawToken, final UUID documentId) {
+    final PublicPortalToken token = resolve(rawToken);
+    final boolean visible = evidenceService.list(token.getHotelId(), token.getResourceId()).stream()
+        .anyMatch(document -> document.getId().equals(documentId)
+            && "CUSTOMER".equalsIgnoreCase(document.getAccessLevel()));
+    if (!visible) throw new com.hotelpms.frontdesk.exception.NotFoundException("DOCUMENT_NOT_FOUND");
+    return evidenceService.content(token.getHotelId(), documentId);
   }
 
   /** Local delivery result; production adapters can send the code without changing the contract. */

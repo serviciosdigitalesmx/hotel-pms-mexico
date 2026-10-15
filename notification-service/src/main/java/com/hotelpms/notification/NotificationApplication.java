@@ -2,11 +2,16 @@ package com.hotelpms.notification;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import com.hotelpms.notification.config.NotificationRuntimeHints;
+import org.springframework.context.annotation.ImportRuntimeHints;
 
 /**
  * Entry point for the Notification Service.
  */
 @SpringBootApplication
+@EnableScheduling
+@ImportRuntimeHints(NotificationRuntimeHints.class)
 public class NotificationApplication {
 
     /**

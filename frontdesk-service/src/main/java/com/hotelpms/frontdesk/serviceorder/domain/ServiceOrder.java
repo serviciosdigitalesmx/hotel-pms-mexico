@@ -12,11 +12,16 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Type domain type. */
 @Entity
@@ -111,6 +116,12 @@ public class ServiceOrder {
   @Column(name = "paid_amount", precision = 12, scale = 2)
   @Builder.Default
   private BigDecimal paidAmount = BigDecimal.ZERO;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "payment_events", nullable = false, columnDefinition = "jsonb")
+  @Builder.Default
+  private List<Map<String, String>> paymentEvents = new ArrayList<>();
+
   private LocalDateTime deliveredAt;
   private UUID deliveredBy;
 

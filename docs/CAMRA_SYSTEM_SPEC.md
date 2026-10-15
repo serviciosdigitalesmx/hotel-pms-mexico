@@ -48,7 +48,7 @@ El sistema está compuesto por los siguientes submódulos (microservicios):
 - **Edge**: `api-gateway` expuesto en puerto 8080. Frontend Nginx en puerto 80.
 - **Seguridad perimetral**: JWT verificado en el gateway.
 - **Seguridad interna**: Firma HMAC para requests entre microservicios (T-GW-08, InternalAuthFilter) + Nonce en Redis para anti-replay.
-- **Base de Datos**: PostgreSQL compartida pero separada en esquemas lógicos/bases de datos por microservicio (`hotel_auth`, `hotel_guest`, `hotel_frontdesk`, `hotel_billing`, `hotel_fb`).
+- **Base de Datos**: PostgreSQL compartida pero separada en bases de datos por microservicio (`hotel_auth`, `hotel_guest`, `hotel_frontdesk`, `hotel_billing`, `hotel_fb`, `hotel_notifications`).
 
 ## 10. Multi-tenancy y aislamiento de datos
 - Verificado mediante pruebas arquitectónicas (`TenantIsolationArchTest.java`).

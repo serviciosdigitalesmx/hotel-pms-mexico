@@ -17,6 +17,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // axe checks and async UI flows exceed Vitest's 5s default under CI load.
+    testTimeout: 15_000,
     setupFiles: ['./src/setupTests.ts'],
     css: true,
     coverage: { provider: 'v8', reporter: ['text', 'lcov'] },

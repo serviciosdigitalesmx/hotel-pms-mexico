@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/secure-coding-hardening
+      - 'codex/**'
   pull_request:
     branches:
       - main

@@ -12,6 +12,9 @@ export function DeviceManagementPage() {
   const [customers, setCustomers] = useState<api.Customer[]>([])
   const [customerId, setCustomerId] = useState('')
   const [devices, setDevices] = useState<api.Device[]>([])
+  const [catalog, setCatalog] = useState<api.DeviceCatalogEntry[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(true)
+  const [catalogQuery, setCatalogQuery] = useState('')
   const [devicesLoading, setDevicesLoading] = useState(false)
   const [form, setForm] = useState(blank)
   const [editing, setEditing] = useState('')
@@ -36,7 +39,9 @@ export function DeviceManagementPage() {
   const [message, setMessage] = useState('')
 
   async function loadDevices(id: string) { if (id) setDevices(await api.listDevices(id)); else setDevices([]) }
+  async function refreshCatalog() { setCatalogLoading(true); try { setCatalog(await api.deviceCatalog()) } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo actualizar el catálogo de equipos') } finally { setCatalogLoading(false) } }
   useEffect(() => { let active = true; api.listAllCustomers().then(rows => { if (active) setCustomers(rows) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar clientes') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
+  useEffect(() => { let active = true; api.deviceCatalog().then(rows => { if (active) setCatalog(rows) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudo cargar el catálogo de equipos') }).finally(() => { if (active) setCatalogLoading(false) }); return () => { active = false } }, [])
   useEffect(() => { let active = true; api.effectiveCapabilities().then(result => { if (active) setCapabilities(new Set(result.capabilities)) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los permisos') }).finally(() => { if (active) setCapabilitiesLoaded(true) }); return () => { active = false } }, [])
   useEffect(() => { let active = true; if (customerId) { setDevices([]); setDevicesLoading(true); api.listDevices(customerId).then(items => { if (active) setDevices(items) }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar equipos') }).finally(() => { if (active) setDevicesLoading(false) }) } else { setDevices([]); setDevicesLoading(false) } return () => { active = false } }, [customerId])
   useEffect(() => {
@@ -71,7 +76,7 @@ export function DeviceManagementPage() {
     try {
       if (editing) await api.updateDevice(customerId, editing, form)
       else await api.createDevice(customerId, form)
-      await loadDevices(customerId); setForm(blank); setEditing(''); setMessage(editing ? 'Equipo actualizado' : 'Equipo registrado')
+      await loadDevices(customerId); await refreshCatalog(); setForm(blank); setEditing(''); setMessage(editing ? 'Equipo actualizado' : 'Equipo registrado')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo guardar el equipo') }
     finally { setBusy(false) }
   }
@@ -84,7 +89,7 @@ export function DeviceManagementPage() {
     setTransferBusy(true); setError(''); setMessage('')
     try {
       await api.transferDevice(customerId, device.id, target.id, transferEvidence.trim() || undefined)
-      await loadDevices(customerId)
+      await loadDevices(customerId); await refreshCatalog()
       setTransferDeviceId(''); setTransferSearch(''); setTransferTargets([]); setTransferTargetId(''); setTransferEvidence('')
       setMessage(`Equipo transferido a ${target.firstName} ${target.lastName}; la transferencia quedó registrada.`)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo transferir el equipo') }
@@ -100,7 +105,9 @@ export function DeviceManagementPage() {
   }
 
   const visible = devices.filter(device => `${device.category} ${device.manufacturer ?? ''} ${device.model ?? ''} ${device.serialNumber ?? ''} ${device.imei ?? ''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
+  const visibleCatalog = catalog.filter(entry => `${entry.category} ${entry.manufacturer} ${entry.model}`.toLocaleLowerCase().includes(catalogQuery.trim().toLocaleLowerCase()))
   return <BaseLayout title="Dispositivos" description="Equipos asociados a clientes, con identificación e historial operativo."><div className="space-y-5 px-4 lg:px-6">
+    <Card><CardHeader><CardTitle>Catálogo observado de equipos</CardTitle><CardDescription>Modelos registrados en clientes de este negocio, agrupados sin mostrar datos personales. El conteo refleja equipos activos registrados, no órdenes históricas.</CardDescription><Input aria-label="Buscar modelo en catálogo" placeholder="Categoría, marca o modelo" value={catalogQuery} onChange={event=>setCatalogQuery(event.target.value)}/></CardHeader><CardContent className="space-y-2">{catalogLoading && <p role="status" className="text-sm text-muted-foreground">Cargando catálogo…</p>}{!catalogLoading && visibleCatalog.map(entry=><div key={`${entry.category}:${entry.manufacturer}:${entry.model}`} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3"><div><p className="font-medium">{[entry.manufacturer,entry.model].filter(Boolean).join(' ') || 'Modelo sin especificar'}</p><p className="text-sm text-muted-foreground">{entry.category}</p></div><span className="text-sm text-muted-foreground">{entry.registeredDevices} {entry.registeredDevices===1?'equipo':'equipos'}</span></div>)}{!catalogLoading && catalog.length>0 && !visibleCatalog.length && <p className="text-sm text-muted-foreground">No hay modelos que coincidan con la búsqueda.</p>}{!catalogLoading && !catalog.length && <p className="text-sm text-muted-foreground">Aún no hay modelos registrados para crear el catálogo.</p>}</CardContent></Card>
     <Card><CardHeader><CardTitle>Localizar por serie o IMEI</CardTitle><CardDescription>Busca equipos de cualquier cliente de esta cuenta.</CardDescription><Input aria-label="Búsqueda global de equipos" placeholder="IMEI, número de serie, marca o modelo" value={globalSearch} onChange={event => setGlobalSearch(event.target.value)}/></CardHeader><CardContent className="space-y-2">{globalLoading && <p role="status">Buscando equipos…</p>}{globalSearch.trim().length >= 2 && !globalLoading && globalResults.map(device => <button type="button" key={device.id} className="w-full rounded border p-3 text-left hover:bg-muted/50" onClick={() => { setCustomerId(device.customerId); setSearch(device.imei || device.serialNumber || device.model || ''); setGlobalSearch('') }}><p className="font-medium">{device.manufacturer || 'Marca no especificada'} {device.model || 'Modelo no especificado'}</p><p className="text-sm text-muted-foreground">{device.category} · Serie {device.serialNumber || '—'} · IMEI {device.imei || '—'}</p><p className="text-xs text-muted-foreground">Cliente {device.customerName || device.customerId}</p><span className="mt-2 inline-block text-xs font-medium text-primary">Ver equipo en la lista</span></button>)}{globalSearch.trim().length >= 2 && !globalLoading && !globalResults.length && <p className="text-sm text-muted-foreground">Sin equipos coincidentes.</p>}</CardContent></Card>
     <select aria-label="Cliente" className={field} value={customerId} onChange={event => { setCustomerId(event.target.value); setEditing(''); setForm(blank); setError('') }}><option value="">Selecciona cliente</option>{customers.map(customer => <option key={customer.id} value={customer.id}>{customer.firstName} {customer.lastName} · {customer.phone || customer.email || ''}</option>)}</select>
     {customerId && capabilitiesLoaded && capabilities.has('DEVICES_WRITE') && <Card><CardHeader><CardTitle>{editing ? 'Editar equipo' : 'Registrar equipo'}</CardTitle><CardDescription>El IMEI debe ser único dentro del hotel; el número de serie no puede repetirse en la ficha del cliente.</CardDescription></CardHeader><CardContent><form onSubmit={save} className="grid gap-3 md:grid-cols-3"><Input required maxLength={80} placeholder="Categoría" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}/><Input maxLength={120} placeholder="Marca" value={form.manufacturer} onChange={e => setForm({ ...form, manufacturer: e.target.value })}/><Input maxLength={120} placeholder="Modelo" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })}/><Input maxLength={120} placeholder="Número de serie" value={form.serialNumber} onChange={e => setForm({ ...form, serialNumber: e.target.value })}/><Input maxLength={120} placeholder="IMEI" value={form.imei} onChange={e => setForm({ ...form, imei: e.target.value })}/><textarea maxLength={1000} aria-label="Detalles adicionales del equipo" className={field} rows={3} placeholder="Detalles y condición del equipo (color, accesorios, daños visibles…)" value={form.customFields} onChange={e => setForm({ ...form, customFields: e.target.value })}/><div className="flex gap-2"><Button disabled={busy}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar equipo'}</Button>{editing && <Button type="button" variant="outline" disabled={busy} onClick={() => { setEditing(''); setForm(blank) }}>Cancelar</Button>}</div></form></CardContent></Card>}

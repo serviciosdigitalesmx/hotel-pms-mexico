@@ -26,5 +26,5 @@ public record DocumentEvidenceRequest(
     @NotNull UUID customerId,
     @NotBlank @Size(max = 200) String fileName,
     @NotBlank @Size(max = 100) String contentType,
-    @NotBlank @Size(max = 500) String storageKey,
+    @NotBlank @Size(max = 14000000) String storageKey,
     @NotBlank @Pattern(regexp = "(?i)(INTERNAL|CUSTOMER|ORDER)") @Size(max = 32) String accessLevel) { }

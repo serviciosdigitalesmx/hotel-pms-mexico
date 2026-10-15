@@ -9,7 +9,7 @@ import * as api from './api'
 
 const field = 'w-full rounded-md border bg-background px-3 py-2 text-sm'
 type PurchaseLine = { productId: string; quantityOrdered: number; quantityReceived: number; unitCost: number }
-type Purchase = { id: string; branchId: string; supplierId: string; serviceOrderId?: string; status: string; createdAt: string; lines: PurchaseLine[] }
+type Purchase = { id: string; branchId: string; supplierId: string; serviceOrderId?: string; status: string; createdAt: string; receiptEvents?: api.PurchaseReceiptEvent[]; lines: PurchaseLine[] }
 type DraftLine = { productId: string; quantity: number; unitCost: number }
 
 export function Purchases() {
@@ -22,6 +22,7 @@ export function Purchases() {
   const [form, setForm] = useState({ branchId: '', supplierId: '', serviceOrderId: '' })
   const [draftLines, setDraftLines] = useState<DraftLine[]>([{ productId: '', quantity: 1, unitCost: 0 }])
   const [purchaseId, setPurchaseId] = useState('')
+  const [receiptRequestId, setReceiptRequestId] = useState('')
   const [correctionId, setCorrectionId] = useState('')
   const [correctionQuantities, setCorrectionQuantities] = useState<Record<string, number>>({})
   const [receiptLines, setReceiptLines] = useState<Array<{ productId: string; quantity: number }>>([])
@@ -50,10 +51,13 @@ export function Purchases() {
     if (!branchId || !productId) return
     const quantity = Number(searchParams.get('quantity'))
     const product = products.find(item => item.id === productId)
-    setForm(current => ({ ...current, branchId, supplierId: product?.supplierId ?? '', serviceOrderId: '' }))
-    setDraftLines([{ productId, quantity: Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 1, unitCost: Number(product?.cost ?? 0) }])
-    setMessage('Compra sugerida desde el mínimo de inventario; confirma proveedor, cantidad y costo antes de crearla.')
-  }, [searchParams, products])
+    const supplierIsActive = !product?.supplierId || suppliers.some(supplier => supplier.id === product.supplierId && supplier.active)
+    setForm(current => ({ ...current, branchId, supplierId: supplierIsActive ? product?.supplierId ?? '' : '', serviceOrderId: '' }))
+    setDraftLines([{ productId: supplierIsActive ? productId : '', quantity: Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 1, unitCost: Number(product?.cost ?? 0) }])
+    setMessage(supplierIsActive
+      ? 'Compra sugerida desde el mínimo de inventario; confirma proveedor, cantidad y costo antes de crearla.'
+      : 'El proveedor asociado a este producto está archivado. Selecciona un proveedor activo y vuelve a elegir una refacción antes de crear la compra.')
+  }, [searchParams, products, suppliers])
 
   async function create(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
@@ -67,9 +71,28 @@ export function Purchases() {
 
   function selectPurchase(id: string) {
     setPurchaseId(id)
+    setReceiptRequestId(id ? crypto.randomUUID() : '')
     const order = purchases.find(item => item.id === id)
     setReceiptLines(order?.lines.filter(line => line.quantityReceived < line.quantityOrdered)
       .map(line => ({ productId: line.productId, quantity: Math.max(1, line.quantityOrdered - line.quantityReceived) })) ?? [])
+  }
+
+  async function refreshSelectedReceipt() {
+    if (!purchaseId) return
+    setBusy(true); setError(''); setMessage('')
+    try {
+      const orders = await api.listPurchases() as Purchase[]
+      setPurchases(orders)
+      const current = orders.find(order => order.id === purchaseId)
+      const pendingLines = current?.lines.filter(line => line.quantityReceived < line.quantityOrdered) ?? []
+      setReceiptLines(pendingLines.map(line => ({
+        productId: line.productId,
+        quantity: line.quantityOrdered - line.quantityReceived,
+      })))
+      setReceiptRequestId(crypto.randomUUID())
+      setMessage('Cantidades pendientes actualizadas desde la compra. Confirma lo recibido antes de continuar.')
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron actualizar las cantidades pendientes') }
+    finally { setBusy(false) }
   }
 
   function beginCorrection(order: Purchase) {
@@ -92,8 +115,8 @@ export function Purchases() {
     if (!receiptLines.some(line => line.quantity > 0)) { setError('Captura al menos una cantidad mayor que cero para recibir'); return }
     setBusy(true)
     try {
-      await api.receivePurchase(purchaseId, { lines: receiptLines })
-      setMessage('Recepción registrada y existencias actualizadas'); setPurchaseId(''); setReceiptLines([]); await load()
+      await api.receivePurchase(purchaseId, { requestId: receiptRequestId || crypto.randomUUID(), lines: receiptLines })
+      setMessage('Recepción registrada y existencias actualizadas'); setPurchaseId(''); setReceiptRequestId(''); setReceiptLines([]); await load()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo registrar la recepción') }
     finally { setBusy(false) }
   }
@@ -104,7 +127,7 @@ export function Purchases() {
     try {
       await api.cancelPurchase(order.id)
       setMessage('Orden cancelada; el historial y las existencias recibidas no se modificaron')
-      if (purchaseId === order.id) { setPurchaseId(''); setReceiptLines([]) }
+      if (purchaseId === order.id) { setPurchaseId(''); setReceiptRequestId(''); setReceiptLines([]) }
       await load()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo cancelar la compra') }
     finally { setBusy(false) }
@@ -112,6 +135,7 @@ export function Purchases() {
 
   const branchName = (id: string) => branches.find(branch => branch.id === id)?.name ?? 'Sucursal'
   const supplierName = (id: string) => suppliers.find(supplier => supplier.id === id)?.name ?? 'Proveedor'
+  const activeSuppliers = suppliers.filter(supplier => supplier.active)
   const selectedPurchase = purchases.find(order => order.id === purchaseId)
   const remaining = (productId: string) => {
     const line = selectedPurchase?.lines.find(item => item.productId === productId)
@@ -127,10 +151,14 @@ export function Purchases() {
     && `${order.id} ${supplierName(order.supplierId)} ${branchName(order.branchId)} ${order.lines.map(line => products.find(product => product.id === line.productId)?.name ?? line.productId).join(' ')}`
       .toLocaleLowerCase().includes(purchaseSearch.trim().toLocaleLowerCase()))
   function exportPurchasesCsv() {
-    const rows = [['orden', 'fecha', 'proveedor', 'sucursal', 'estado', 'producto', 'cantidad_pedida', 'cantidad_recibida', 'cantidad_pendiente', 'costo_unitario', 'importe_recibido'],
-      ...visiblePurchases.flatMap(order => order.lines.map(line => [order.id, order.createdAt, supplierName(order.supplierId), branchName(order.branchId), order.status,
-        products.find(product => product.id === line.productId)?.name ?? line.productId, line.quantityOrdered, line.quantityReceived,
-        Math.max(0, line.quantityOrdered - line.quantityReceived), line.unitCost, line.quantityReceived * line.unitCost]))]
+    const rows = [['orden', 'fecha', 'tipo_evento', 'proveedor', 'sucursal', 'estado', 'producto', 'cantidad_pedida', 'cantidad_recibida_o_ajustada', 'cantidad_pendiente', 'costo_unitario', 'importe_recibido_o_ajustado'],
+      ...visiblePurchases.flatMap(order => [
+        ...order.lines.map(line => [order.id, order.createdAt, 'RESUMEN_ACTUAL', supplierName(order.supplierId), branchName(order.branchId), order.status,
+          products.find(product => product.id === line.productId)?.name ?? line.productId, line.quantityOrdered, line.quantityReceived,
+          Math.max(0, line.quantityOrdered - line.quantityReceived), line.unitCost, line.quantityReceived * line.unitCost]),
+        ...(order.receiptEvents ?? []).map(event => [order.id, event.receivedAt, event.kind, supplierName(order.supplierId), branchName(order.branchId), order.status,
+          products.find(product => product.id === event.productId)?.name ?? event.productId, '', Number(event.quantity), '', Number(event.unitCost), Number(event.quantity) * Number(event.unitCost)]),
+      ])]
     const csv = '\uFEFF' + rows.map(row => row.map(api.csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'fixi-compras-y-recepciones.csv'; link.click(); URL.revokeObjectURL(url)
   }
@@ -149,15 +177,16 @@ export function Purchases() {
             setDraftLines(current => current.map(line => line.productId && !compatibleIds.has(line.productId)
               ? { ...line, productId: '', unitCost: 0 } : line))
           }}>
-            <option value="">Proveedor</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+            <option value="">Proveedor</option>{activeSuppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
           </select>
+          {!loading && suppliers.length > 0 && activeSuppliers.length === 0 && <p role="alert" className="text-sm text-destructive">Todos los proveedores están archivados. Reactiva o registra un proveedor antes de crear una compra.</p>}
           <select aria-label="Orden de servicio asociada" className={field} disabled={!form.branchId} value={form.serviceOrderId} onChange={event => setForm({ ...form, serviceOrderId: event.target.value })}>
             <option value="">Sin orden de servicio asociada</option>
             {serviceOrders.filter(order => order.branchId === form.branchId && !['COMPLETED', 'CANCELLED'].includes(order.status)).map(order => <option key={order.id} value={order.id}>{order.summary} · {order.status} · {order.id.slice(0, 8)}</option>)}
           </select>
           {draftLines.map((line, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_6rem_8rem_auto]">
             <select required aria-label={`Producto ordenado ${index + 1}`} className={field} value={line.productId} onChange={event => setDraftLines(current => current.map((item, i) => i === index ? { ...item, productId: event.target.value, unitCost: Number(products.find(product => product.id === event.target.value)?.cost ?? 0) } : item))}>
-              <option value="">Producto</option>{products.filter(product => (!product.supplierId || product.supplierId === form.supplierId)
+              <option value="">Producto</option>{products.filter(product => (!product.supplierId || (activeSuppliers.some(supplier => supplier.id === product.supplierId) && product.supplierId === form.supplierId))
                 && (product.id === line.productId || !draftLines.some((selected, selectedIndex) => selectedIndex !== index && selected.productId === product.id)))
                 .map(product => <option key={product.id} value={product.id}>{product.sku} · {product.name}</option>)}
             </select>
@@ -183,7 +212,7 @@ export function Purchases() {
             <Input required aria-label={`Cantidad recibida ${index + 1}`} type="number" min="1" max={remaining(line.productId)} step="1" value={line.quantity} onChange={event => setReceiptLines(current => current.map((item, i) => i === index ? { ...item, quantity: Number(event.target.value) } : item))}/>
           </div>)}
           {purchaseId && !receiptLines.length && <p className="text-sm text-muted-foreground">La orden no tiene cantidades pendientes.</p>}
-          <Button disabled={busy || loading || !purchaseId || !receiptLines.length || receiptLines.some(line => line.quantity < 1 || line.quantity > remaining(line.productId))}>{busy ? 'Procesando…' : 'Registrar recepción'}</Button>
+          <div className="flex flex-wrap gap-2"><Button disabled={busy || loading || !purchaseId || !receiptLines.length || receiptLines.some(line => line.quantity < 1 || line.quantity > remaining(line.productId))}>{busy ? 'Procesando…' : 'Registrar recepción'}</Button>{purchaseId&&<Button type="button" variant="outline" disabled={busy||loading} onClick={()=>void refreshSelectedReceipt()}>Actualizar pendientes de la compra</Button>}</div>
         </form>
       </CardContent></Card>
 
@@ -192,7 +221,7 @@ export function Purchases() {
         {visiblePurchases.map(order => <div className="flex flex-wrap items-center justify-between gap-2 rounded border p-3" key={order.id}>
           <div><p className="font-medium">{supplierName(order.supplierId)} · {branchName(order.branchId)}</p>
             <p className="text-xs text-muted-foreground">{order.id}{order.serviceOrderId ? ` · Servicio ${order.serviceOrderId}` : ''}{order.createdAt ? ` · ${new Date(order.createdAt).toLocaleDateString('es-MX')}` : ''}</p>
-            <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}{order.lines?.length ? <p className="border-t pt-1 font-medium">Recibido {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).received)} · Pendiente {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered - purchaseAmounts(order).received)} · Total {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered)}</p> : <p className="text-amber-700">Orden heredada sin partidas detalladas.</p>}</div>
+            <div className="mt-2 space-y-1 text-sm">{order.lines?.map(line => <p key={line.productId}>{products.find(product => product.id === line.productId)?.name ?? line.productId}: {line.quantityReceived}/{line.quantityOrdered} recibidas · {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(line.unitCost)} c/u</p>)}{order.lines?.length ? <p className="border-t pt-1 font-medium">Recibido {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).received)} · Pendiente {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered - purchaseAmounts(order).received)} · Total {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(purchaseAmounts(order).ordered)}</p> : <p className="text-amber-700">Orden heredada sin partidas detalladas.</p>}{(order.receiptEvents?.length ?? 0)>0&&<div className="mt-2 border-t pt-2"><p className="font-medium">Historial de recepción</p>{order.receiptEvents?.map((event,index)=><p className="text-xs text-muted-foreground" key={`${event.receivedAt}:${event.productId}:${index}`}>{new Date(event.receivedAt).toLocaleString('es-MX')} · {event.kind==='CORRECTION'?'Ajuste':'Recepción'} · {products.find(product=>product.id===event.productId)?.name??event.productId} · {event.quantity} pzas. × {formatMoney(Number(event.unitCost))}</p>)}</div>}</div>
           </div><div className="flex items-center gap-2"><Badge variant={order.status === 'RECEIVED' ? 'default' : 'outline'}>{order.status}</Badge>{order.lines?.length>0&&order.status!=='CANCELLED'&&<Button type="button" size="sm" variant="outline" disabled={busy||loading} onClick={()=>correctionId===order.id?setCorrectionId(''):beginCorrection(order)}>{correctionId===order.id?'Cerrar corrección':'Corregir recepción'}</Button>}
             {!['RECEIVED', 'CANCELLED'].includes(order.status) && <Button type="button" variant="outline" disabled={busy || loading || order.lines?.some(line => line.quantityReceived > 0)} title={order.lines?.some(line => line.quantityReceived > 0) ? 'No se puede cancelar una orden con recepción parcial' : 'Cancelar orden'} onClick={() => void cancel(order)}>Cancelar</Button>}
           </div>

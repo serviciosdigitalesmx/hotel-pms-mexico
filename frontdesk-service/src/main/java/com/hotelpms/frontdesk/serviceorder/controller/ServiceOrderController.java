@@ -62,7 +62,9 @@ public class ServiceOrderController {
   @PostMapping
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
   public ResponseEntity<ServiceOrder> create(@Valid @RequestBody final ServiceOrderRequest r) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(service.create(hotel(), r));
+    final var authentication = SecurityContextHolder.getContext().getAuthentication();
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(service.create(hotel(), r, authentication.getName()));
   }
 
   /**
@@ -171,7 +173,7 @@ public class ServiceOrderController {
   public ServiceOrder deliver(@PathVariable UUID id,@Valid @RequestBody ServiceOrderDeliveryRequest request){return service.deliver(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod());}
 
   @PatchMapping("/{id}/payment") @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
-  public ServiceOrder recordPendingPayment(@PathVariable UUID id,@Valid @RequestBody ServiceOrderPaymentUpdateRequest request){return service.recordPendingPayment(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod(),request.amount());}
+  public ServiceOrder recordPendingPayment(@PathVariable UUID id,@Valid @RequestBody ServiceOrderPaymentUpdateRequest request){return service.recordPendingPayment(hotel(),id,UUID.nameUUIDFromBytes(SecurityContextHolder.getContext().getAuthentication().getName().getBytes(StandardCharsets.UTF_8)),request.paymentMethod(),request.amount(),request.requestId());}
 
   private UUID hotel() {
     return UUID.fromString(

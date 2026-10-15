@@ -30,7 +30,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class DocumentEvidence {
   private static final int FILE_NAME_LENGTH = 200;
-  private static final int STORAGE_KEY_LENGTH = 500;
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,7 +50,7 @@ public class DocumentEvidence {
   @Column(nullable = false, length = 100)
   private String contentType;
 
-  @Column(name = "storage_key", nullable = false, length = STORAGE_KEY_LENGTH)
+  @Column(name = "storage_key", nullable = false, columnDefinition = "TEXT")
   private String storageKey;
 
   @Column(nullable = false, length = 32)

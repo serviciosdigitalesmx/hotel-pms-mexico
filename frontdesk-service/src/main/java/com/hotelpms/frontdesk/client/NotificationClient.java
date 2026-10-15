@@ -4,6 +4,8 @@ import com.hotelpms.frontdesk.client.dto.NotificationCheckinRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationCheckoutRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationQuotationRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationReservationRequest;
+import com.hotelpms.frontdesk.client.dto.NotificationEventRequest;
+import com.hotelpms.frontdesk.client.dto.NotificationEventResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,18 @@ public interface NotificationClient {
 
   /** Resilience4j circuit breaker instance name shared by all methods of this client. */
   String CB_NOTIFICATION_SERVICE = "notificationService";
+
+  /** Persists an idempotent operational email event in the notification outbox. */
+  @PostMapping("/internal/notifications/events")
+  @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "enqueueEventFallback")
+  NotificationEventResponse enqueueEvent(@RequestBody NotificationEventRequest request);
+
+  default NotificationEventResponse enqueueEventFallback(
+      final NotificationEventRequest request, final Throwable throwable) {
+    LOG.warn("notification-service unavailable — operational alert deferred [eventKey={}]: {}",
+        request.eventKey(), throwable.getMessage());
+    return null;
+  }
 
   /**
    * Sends a reservation-confirmed email to the guest.

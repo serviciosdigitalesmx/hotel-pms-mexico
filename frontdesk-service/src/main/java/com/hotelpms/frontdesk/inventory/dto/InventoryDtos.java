@@ -78,7 +78,7 @@ public final class InventoryDtos {
    */
   public record MovementRequest(
       @NotNull UUID branchId, @NotNull UUID productId, @Min(MIN_MOVEMENT_DELTA) long delta,
-      @jakarta.validation.constraints.Size(max = 500) String reason) {
+      @NotBlank @jakarta.validation.constraints.Size(max = 500) String reason) {
     public MovementRequest(final UUID branchId, final UUID productId, final long delta) {
       this(branchId, productId, delta, null);
     }
@@ -162,7 +162,14 @@ public final class InventoryDtos {
 
   public record ReceiptLine(@NotNull UUID productId, @Positive long quantity) { }
 
-  public record PurchaseReceiptRequest(@NotNull java.util.List<@NotNull ReceiptLine> lines) { }
+  public record PurchaseReceiptRequest(
+      java.util.UUID requestId,
+      @NotNull @jakarta.validation.constraints.Size(min = 1)
+          java.util.List<@NotNull @Valid ReceiptLine> lines) {
+    public PurchaseReceiptRequest(final java.util.List<ReceiptLine> lines) {
+      this(null, lines);
+    }
+  }
 
   public record ReceiptCorrectionLine(@NotNull UUID productId,
       @jakarta.validation.constraints.PositiveOrZero long quantityReceived) { }

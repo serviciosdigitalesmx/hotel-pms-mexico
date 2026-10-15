@@ -5,6 +5,8 @@ import com.hotelpms.frontdesk.assistant.RetryableAiProviderException;
 import com.hotelpms.frontdesk.client.BillingClient;
 import com.hotelpms.frontdesk.client.GuestClient;
 import com.hotelpms.frontdesk.client.NotificationClient;
+import com.hotelpms.frontdesk.client.dto.NotificationEventRequest;
+import com.hotelpms.frontdesk.client.dto.NotificationEventResponse;
 import com.hotelpms.frontdesk.reservations.validation.DateRangeValidator;
 import java.util.UUID;
 import org.apache.xmpbox.type.TextType;
@@ -40,6 +42,8 @@ public final class FrontdeskNativeRuntimeHints implements RuntimeHintsRegistrar 
     // XMPBox creates PDF/UA metadata properties by their public constructor.
     hints.reflection().registerType(TextType.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
     BINDING_HINTS.registerReflectionHints(hints.reflection(), Sort.Order.class);
+    BINDING_HINTS.registerReflectionHints(
+        hints.reflection(), NotificationEventRequest.class, NotificationEventResponse.class);
 
     registerFeignProxy(hints, BillingClient.class);
     registerFeignProxy(hints, GuestClient.class);

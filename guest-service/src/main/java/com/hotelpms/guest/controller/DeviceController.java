@@ -13,6 +13,7 @@ import org.springframework.data.web.PageableDefault;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +39,7 @@ public final class DeviceController {
    * @return created device response.
    */
   @PostMapping
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
   public ResponseEntity<DeviceResponse> create(
       @PathVariable final UUID customerId, @Valid @RequestBody final DeviceRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED).body(service.create(customerId, request));
@@ -69,6 +71,7 @@ public final class DeviceController {
 
   /** Updates device details without transferring its customer ownership. */
   @PutMapping("/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
   public DeviceResponse update(@PathVariable final UUID customerId, @PathVariable final UUID id,
       @Valid @RequestBody final DeviceRequest request) {
     return service.update(customerId, id, request);
@@ -76,6 +79,7 @@ public final class DeviceController {
 
   /** Transfers ownership while retaining an audit trail. */
   @PutMapping("/{id}/transfer")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public DeviceResponse transfer(@PathVariable final UUID customerId, @PathVariable final UUID id,
       @RequestParam final UUID toCustomerId, @RequestParam(required = false) final String evidence) {
     return service.transfer(id, customerId, toCustomerId, evidence);

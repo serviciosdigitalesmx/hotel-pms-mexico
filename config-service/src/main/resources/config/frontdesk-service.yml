@@ -6,6 +6,10 @@ internal:
     secret: ${INTERNAL_HMAC_SECRET}
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
   data:
     redis:
       # Nonce store for internal HMAC anti-replay (T-GW-08). Same Redis
