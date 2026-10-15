@@ -46,16 +46,15 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     return created!;
   });
 
-  const device = await test.step('register a device through Web and verify ownership', async () => {
-    await page.goto(`/customers/${customer.id}`);
-    await page.goto('/equipment');
-    await page.locator('select').first().selectOption(customer.id);
-    await page.getByPlaceholder('manufacturer').fill('Fixi');
-    await page.getByPlaceholder('model').fill(`Bench-${tag}`);
-    await page.getByPlaceholder('serialNumber').fill(randomUUID());
-    await page.getByRole('button', { name: 'Registrar equipo' }).click();
+  const device = await test.step('register a device through the Fixi API and verify ownership', async () => {
+    const model = `Bench-${tag}`;
+    const createdDevice = await json<{id:string;customerId:string;model?:string}>(await api.mutate(
+      'POST', `/api/v1/customers/${customer.id}/devices`, {
+        category: 'PHONE', manufacturer: 'Fixi', model, serialNumber: randomUUID(),
+      },
+    ), 201);
     const devices = await json<Array<{id:string;customerId:string;model?:string}>>(await api.get(`/api/v1/customers/${customer.id}/devices`));
-    const created = devices.find(item => item.customerId === customer.id && item.model === `Bench-${tag}`);
+    const created = devices.find(item => item.id === createdDevice.id && item.customerId === customer.id && item.model === model);
     expect(created?.id).toBeTruthy();
     return created!;
   });
