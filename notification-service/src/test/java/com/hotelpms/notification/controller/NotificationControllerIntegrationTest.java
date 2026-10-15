@@ -173,7 +173,7 @@ class NotificationControllerIntegrationTest {
         final String hotelId = UUID.randomUUID().toString();
         final String timestamp = String.valueOf(System.currentTimeMillis());
         final String nonce = UUID.randomUUID().toString();
-        final String signature = computeHmac(username, role, hotelId, timestamp, nonce);
+        final String signature = computeHmac(username, role, hotelId, "", timestamp, nonce);
 
         final org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.set("X-Auth-User", username);
@@ -186,12 +186,12 @@ class NotificationControllerIntegrationTest {
     }
 
     private static String computeHmac(final String username, final String role,
-            final String hotelId, final String timestamp, final String nonce) {
+            final String hotelId, final String branchId, final String timestamp, final String nonce) {
         try {
             final Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(HMAC_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             final byte[] digest = mac.doFinal(
-                    (username + ":" + role + ":" + hotelId + ":" + timestamp + ":" + nonce)
+                    (username + ":" + role + ":" + hotelId + ":" + branchId + ":" + timestamp + ":" + nonce)
                             .getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (final NoSuchAlgorithmException | InvalidKeyException e) {

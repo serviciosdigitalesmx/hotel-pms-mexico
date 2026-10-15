@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Getter;
@@ -16,7 +17,8 @@ import lombok.Setter;
 
 /** Idempotent, retryable tenant notification delivery record. */
 @Entity
-@Table(name = "notification_deliveries")
+@Table(name = "notification_deliveries", uniqueConstraints =
+    @UniqueConstraint(name = "uq_notification_deliveries_hotel_event", columnNames = {"hotel_id", "event_key"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,7 +26,7 @@ public class NotificationDelivery {
   public enum Status { PENDING, SENT, FAILED }
   @Id @GeneratedValue(strategy = GenerationType.UUID) private UUID id;
   @Column(name = "hotel_id", nullable = false) private UUID hotelId;
-  @Column(name = "event_key", nullable = false, unique = true, length = 180) private String eventKey;
+  @Column(name = "event_key", nullable = false, length = 180) private String eventKey;
   @Column(name = "event_type", nullable = false, length = 120) private String eventType;
   @Column(nullable = false, columnDefinition = "text") private String payload;
   @Enumerated(EnumType.STRING) @Column(nullable = false, length = 24) private Status status = Status.PENDING;

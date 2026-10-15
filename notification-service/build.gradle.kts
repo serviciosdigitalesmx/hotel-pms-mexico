@@ -58,6 +58,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
+    // Persistent, idempotent delivery outbox.
+    implementation("org.flywaydb:flyway-core")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
+    runtimeOnly("org.postgresql:postgresql")
     // Email sending — Jakarta Mail via Spring Boot Starter Mail
     implementation("org.springframework.boot:spring-boot-starter-mail")
 
@@ -92,6 +96,7 @@ dependencies {
     testImplementation("net.bytebuddy:byte-buddy-agent:1.15.11")
     testImplementation("org.mockito:mockito-core:5.15.2")
     testImplementation("org.mockito:mockito-junit-jupiter:5.15.2")
+    testRuntimeOnly("com.h2database:h2")
     // GreenMail: fake SMTP server for unit/integration tests — no external SMTP required
     testImplementation("com.icegreen:greenmail-spring:2.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -104,6 +109,7 @@ dependencyManagement {
     dependencies {
         dependency("commons-fileupload:commons-fileupload:1.6.0")
         dependency("commons-io:commons-io:2.16.1")
+        dependency("org.postgresql:postgresql:42.7.12")
         // CVE-2026-5598: fixed in BouncyCastle 1.84
         dependency("org.bouncycastle:bcprov-jdk18on:1.84")
     }
