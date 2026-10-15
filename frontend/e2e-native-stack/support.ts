@@ -207,7 +207,7 @@ export async function loginUI(page: Page): Promise<PmsApi> {
   expect(await json<UserPayload>(await meResponse)).toMatchObject({
     username: credentials.username, role: 'ADMIN', mustChangePassword: false,
   });
-  await expect(page).toHaveURL(`${baseURL}/`);
+  await expect(page).toHaveURL(/\/dashboard$/);
   return new PmsApi(page);
 }
 
