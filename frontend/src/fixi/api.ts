@@ -20,11 +20,20 @@ export type RecurringExpenseTemplate = { id:string; hotelId:string; category:str
 export type CashSessionSummary={id:string;status:'OPEN'|'CLOSED';openingBalance:number;closingBalance?:number;openedAt:string;closedAt?:string}
 
 function csrfToken(){return document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)?.[1]}
+let refreshInFlight:Promise<boolean>|null=null
+function refreshSession(){
+  if(!refreshInFlight){
+    refreshInFlight=fetch('/api/v1/auth/refresh',{method:'POST',credentials:'include'})
+      .then(response=>response.ok,()=>false)
+      .finally(()=>{refreshInFlight=null})
+  }
+  return refreshInFlight
+}
 async function raw(path:string, init:RequestInit={}, retry=true){
   const headers=new Headers(init.headers); if(init.body&&!(init.body instanceof FormData)&&!headers.has('Content-Type'))headers.set('Content-Type','application/json')
   const token=csrfToken(); if(token&&init.method&&init.method!=='GET')headers.set('X-CSRF-Token',decodeURIComponent(token))
   const response=await fetch(path,{...init,headers,credentials:'include'})
-  if(response.status===401&&retry&&!path.includes('/login')&&!path.includes('/refresh')){const refreshed=await fetch('/api/v1/auth/refresh',{method:'POST',credentials:'include'});if(refreshed.ok)return raw(path,init,false)}
+  if(response.status===401&&retry&&!path.includes('/login')&&!path.includes('/refresh')){if(await refreshSession())return raw(path,init,false)}
   return response
 }
 async function api<T>(path:string,init:RequestInit={}){const r=await raw(path,init);if(!r.ok){let message=`HTTP ${r.status}`;try{const p=await r.json() as {detail?:string;title?:string;errors?:string[]};message=p.errors?.filter(Boolean).join(' ')||p.detail||p.title||message}catch{message=`HTTP ${r.status}`}throw new Error(message)}if(r.status===204||r.headers.get('content-length')==='0'||!r.headers.get('content-type')?.includes('application/json'))return undefined as T;return r.json() as Promise<T>}
