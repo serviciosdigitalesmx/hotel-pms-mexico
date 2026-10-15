@@ -55,7 +55,7 @@ test('real PMS journey: guest/reservation UI, check-in, F&B, tenant isolation, i
 
       const guest = await test.step('create guest through UI and match the persisted search result', async () => {
         await page.goto('/guests');
-        await page.getByRole('button', { name: common.add_guest, exact: true }).click();
+        await page.getByRole('button', { name: guestLabels.add_guest, exact: true }).click();
         const dialog = page.getByRole('dialog');
         await dialog.locator('input[name="firstName"]').fill('Native');
         await dialog.locator('input[name="lastName"]').fill(tag);
