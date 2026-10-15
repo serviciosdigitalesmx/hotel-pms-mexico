@@ -1,5 +1,9 @@
 package com.hotelpms.gateway.filter;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpStatus;
@@ -42,7 +46,10 @@ class PublicBookingFilterTest {
             assertThat(
                     request.headers()
                             .getFirst("X-Internal-Signature"))
-                    .isNotBlank();
+                    .isEqualTo(expectedSignature(
+                            RESOLVER_HOTEL,
+                            request.headers().getFirst("X-Auth-Timestamp"),
+                            request.headers().getFirst("X-Auth-Nonce")));
 
             return Mono.just(
                     ClientResponse
@@ -110,6 +117,33 @@ class PublicBookingFilterTest {
                         .getHeaders()
                         .getFirst("X-Auth-User"))
                 .isEqualTo("public-booking-web");
+
+        assertThat(
+                forwarded.get()
+                        .getRequest()
+                        .getHeaders()
+                        .getFirst("X-Internal-Signature"))
+                .isEqualTo(expectedSignature(
+                        TARGET_HOTEL,
+                        forwarded.get().getRequest().getHeaders()
+                                .getFirst("X-Auth-Timestamp"),
+                        forwarded.get().getRequest().getHeaders()
+                                .getFirst("X-Auth-Nonce")));
+    }
+
+    private static String expectedSignature(
+            final String hotelId,
+            final String timestamp,
+            final String nonce) {
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            final String payload = "public-booking-web:RECEPTIONIST:" + hotelId
+                    + "::" + timestamp + ":" + nonce;
+            return HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+        } catch (final java.security.GeneralSecurityException exception) {
+            throw new IllegalStateException("HMAC_SIGNATURE_FAILED", exception);
+        }
     }
 
     @Test
