@@ -61,9 +61,13 @@ test('FIXI Web business contract: login, customer, device and reception', async 
 
   await test.step('receive the device through Web and verify the durable order', async () => {
     await page.goto('/reception');
-    const selects = page.locator('select');
-    await selects.nth(0).selectOption(customer.id);
-    await selects.nth(1).selectOption(device.id);
+    await page.getByPlaceholder('Buscar cliente por nombre, teléfono o correo').fill(email);
+    const customerSelect = page.getByLabel('Cliente encontrado');
+    await expect(customerSelect.locator(`option[value="${customer.id}"]`)).toHaveCount(1);
+    await customerSelect.selectOption(customer.id);
+    const deviceSelect = page.getByLabel('Equipo');
+    await expect(deviceSelect.locator(`option[value="${device.id}"]`)).toHaveCount(1);
+    await deviceSelect.selectOption(device.id);
     const summary = `Falla reportada ${tag}`;
     await page.getByPlaceholder('Síntomas, accesorios y condición física').fill(summary);
     await page.getByRole('button', { name: 'Crear orden' }).click();
