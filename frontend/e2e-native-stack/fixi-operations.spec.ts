@@ -26,7 +26,7 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   expect(order.status).toBe('INTAKE');
 
   await page.goto(`/service-orders/${order.id}`);
-  await expect(page.getByText('Orden de servicio')).toBeVisible();
+  await expect(page.getByText('Detalle de orden')).toBeVisible();
   const progressForm = page.locator('form').first();
   await progressForm.locator('select').first().selectOption('REVIEW');
   await progressForm.locator('textarea').nth(0).fill('Charging port requires cleaning');
@@ -34,11 +34,12 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   await progressForm.getByRole('button', { name: 'Guardar avance' }).click();
   await expect(progressForm.locator('select').first()).toHaveValue('REVIEW');
 
-  await page.getByPlaceholder('Solución propuesta').fill('Clean charging port and verify charging');
-  await page.locator('form').nth(1).locator('input[type="number"]').nth(0).fill('30');
-  await page.getByPlaceholder('Mano de obra').fill('450');
-  await page.getByPlaceholder('Refacciones').fill('0');
-  await page.getByRole('button', { name: 'Generar cotización' }).click();
+  const quoteForm = page.locator('form').filter({ has: page.getByPlaceholder('Solución propuesta') });
+  await quoteForm.getByPlaceholder('Solución propuesta').fill('Clean charging port and verify charging');
+  await quoteForm.locator('input[type="number"]').nth(0).fill('30');
+  await quoteForm.getByPlaceholder('Mano de obra').fill('450');
+  await quoteForm.getByPlaceholder('Refacciones').fill('0');
+  await quoteForm.getByRole('button', { name: 'Generar cotización' }).click();
   await expect(page.getByRole('button', { name: 'Autorizar' })).toBeVisible();
   const quoted = await json<{ status: string; quoteTotal: number }>(await api.get(`/api/v1/service-orders/${order.id}`));
   expect(quoted.status).toBe('QUOTED');
