@@ -26,7 +26,7 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   expect(order.status).toBe('INTAKE');
 
   await page.goto(`/service-orders/${order.id}`);
-  await expect(page.getByText('Orden de servicio')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Orden de servicio' })).toBeVisible();
   const progressForm = page.locator('form').first();
   await progressForm.locator('select').first().selectOption('REVIEW');
   await progressForm.locator('textarea').nth(0).fill('Charging port requires cleaning');
