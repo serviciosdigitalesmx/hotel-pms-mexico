@@ -69,7 +69,9 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     await expect(deviceSelect.locator(`option[value="${device.id}"]`)).toHaveCount(1);
     await deviceSelect.selectOption(device.id);
     const summary = `Falla reportada ${tag}`;
-    await page.getByPlaceholder('Síntomas, accesorios y condición física').fill(summary);
+    await page.getByLabel('Falla reportada').fill(summary);
+    await page.getByLabel('Notas del checklist de recepción').fill('Equipo y accesorios recibidos en buen estado');
+    await page.getByLabel('Resumen de orden').fill(summary);
     await page.getByRole('button', { name: 'Crear orden' }).click();
     await expect(page).toHaveURL(/\/service-orders\//);
     await expect(page.getByRole('heading', { name: 'Orden de servicio' })).toBeVisible();

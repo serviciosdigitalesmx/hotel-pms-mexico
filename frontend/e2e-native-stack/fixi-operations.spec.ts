@@ -57,7 +57,7 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   expect(quoted.quoteTotal).toBeGreaterThanOrEqual(450);
 
   await page.getByRole('button', { name: 'Autorizar' }).click();
-  await expect(page.getByText('Cotización autorizada')).toBeVisible();
+  await expect(page.getByText('Cotización autorizada').first()).toBeVisible();
   const authorized = await json<{ status: string; authorizationEvidence?: string }>(
     await api.get(`/api/v1/service-orders/${order.id}`));
   expect(authorized.status).toBe('AUTHORIZED');
