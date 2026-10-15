@@ -37,7 +37,7 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     await page.locator('form').getByPlaceholder('Correo').fill(email);
     await page.locator('form').getByPlaceholder('Teléfono').fill('8112345678');
     await page.getByRole('button', { name: 'Guardar cliente' }).click();
-    await expect(page.getByText(`Web Contract ${tag}`)).toBeVisible();
+    await expect(page.getByText('Cliente creado correctamente')).toBeVisible();
     const list = await json<{content?: Array<{id:string;email?:string}>} | Array<{id:string;email?:string}>>(await api.get('/api/v1/customers?page=0&size=100'));
     const rows = Array.isArray(list) ? list : list.content ?? [];
     const created = rows.find(row => row.email === email);
