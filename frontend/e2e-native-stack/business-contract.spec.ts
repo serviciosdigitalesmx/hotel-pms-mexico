@@ -63,6 +63,8 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     const branch = await json<{id:string}>(await api.mutate('POST', '/api/v1/auth/branches', {
       name: `Web Contract ${tag}`,
     }), 201);
+    const availableBranches = await json<Array<{id:string}>>(await api.get('/api/v1/auth/branches'));
+    expect(availableBranches.some(item => item.id === branch.id)).toBe(true);
     await page.goto('/reception');
     await page.getByPlaceholder('Buscar cliente por nombre, teléfono o correo').fill(email);
     const customerSelect = page.getByLabel('Cliente encontrado');

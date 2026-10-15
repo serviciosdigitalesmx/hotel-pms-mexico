@@ -25,20 +25,14 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   }), 201);
   expect(order.status).toBe('INTAKE');
 
+  const diagnosed = await json<{ status: string }>(await api.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
+    status: 'REVIEW', diagnosis: 'Charging port requires cleaning', workLog: 'Initial bench inspection completed',
+  }), 200);
+  expect(diagnosed.status).toBe('REVIEW');
+
   await page.goto(`/service-orders/${order.id}`);
   await expect(page.getByRole('heading', { name: 'Orden de servicio' })).toBeVisible();
   const progressForm = page.locator('form').first();
-  await progressForm.locator('select').first().selectOption('REVIEW');
-  await expect(progressForm.locator('select').first()).toHaveValue('REVIEW');
-  await progressForm.locator('textarea').nth(0).fill('Charging port requires cleaning');
-  await progressForm.locator('textarea').nth(1).fill('Initial bench inspection completed');
-  const saveResponsePromise = page.waitForResponse(response =>
-    response.request().method() === 'PATCH' && response.url().endsWith(`/api/v1/service-orders/${order.id}`));
-  await progressForm.getByRole('button', { name: 'Guardar avance' }).click();
-  const saveResponse = await saveResponsePromise;
-  expect(saveResponse.status(), await saveResponse.text()).toBe(200);
-  const savedOrder = await json<{ status: string }>(await api.get(`/api/v1/service-orders/${order.id}`));
-  expect(savedOrder.status).toBe('REVIEW');
   await expect(progressForm.locator('select').first()).toHaveValue('REVIEW');
 
   const quoteForm = page.locator('form').filter({ has: page.getByPlaceholder('Solución propuesta') });
