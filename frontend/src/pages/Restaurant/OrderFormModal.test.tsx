@@ -89,6 +89,7 @@ describe('OrderFormModal', () => {
     await waitFor(() => {
       expect(fbService.createOrder).toHaveBeenCalledWith({
         stayId: 'stay-uuid-1',
+        branchId: null,
         items: [{ menuItemId: 'item-uuid-1', quantity: 1 }],
       });
     });

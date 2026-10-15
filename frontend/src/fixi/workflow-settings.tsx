@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { BaseLayout } from '@/components/layouts/base-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,13 +24,13 @@ export function WorkflowSettingsPage() {
   const [message, setMessage] = useState('')
   const active = workflows.find(workflow => workflow.id === selected)
 
-  async function reload() {
+  const reload = useCallback(async () => {
     setLoading(true)
-    try { const items = await api.listWorkflows(); setWorkflows(items); if (!selected && items[0]) setSelected(items[0].id) }
+    try { const items = await api.listWorkflows(); setWorkflows(items); setSelected(current => current || items[0]?.id || '') }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los flujos') }
     finally { setLoading(false) }
-  }
-  useEffect(() => { void reload() }, [])
+  }, [])
+  useEffect(() => { void reload() }, [reload])
 
   async function create(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(''); setMessage('')

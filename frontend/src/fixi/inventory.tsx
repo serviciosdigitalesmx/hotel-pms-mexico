@@ -189,6 +189,7 @@ function CatalogCsvPanel({ onImported }: { onImported: () => void }) {
 function useQuery<T>(loader: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T>(); const [error, setError] = useState(''); const [loading, setLoading] = useState(true)
   const reload = async () => { setLoading(true); setError(''); try { setData(await loader()) } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los datos') } finally { setLoading(false) } }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- callers pass the complete dependency list as deps.
   useEffect(() => { void reload() }, deps)
   return { data, error, loading, reload }
 }

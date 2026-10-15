@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import api from './api';
 import { billingReportService } from './billingReportService';
@@ -59,7 +60,10 @@ describe('billingReportService', () => {
       download: '',
       click: clickFn,
     } as unknown as HTMLAnchorElement);
-    const blobSpy = vi.spyOn(globalThis, 'Blob');
+    const NativeBlob = globalThis.Blob;
+    const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function (...args: ConstructorParameters<typeof Blob>) {
+      return new NativeBlob(...args);
+    } as typeof Blob);
 
     billingReportService.exportToCsv(mockReport as never, translate);
 
