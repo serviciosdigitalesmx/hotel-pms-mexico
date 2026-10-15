@@ -60,6 +60,9 @@ test('FIXI Web business contract: login, customer, device and reception', async 
   });
 
   await test.step('receive the device through Web and verify the durable order', async () => {
+    const branch = await json<{id:string}>(await api.mutate('POST', '/api/v1/auth/branches', {
+      name: `Web Contract ${tag}`,
+    }), 201);
     await page.goto('/reception');
     await page.getByPlaceholder('Buscar cliente por nombre, teléfono o correo').fill(email);
     const customerSelect = page.getByLabel('Cliente encontrado');
@@ -68,6 +71,9 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     const deviceSelect = page.getByLabel('Equipo');
     await expect(deviceSelect.locator(`option[value="${device.id}"]`)).toHaveCount(1);
     await deviceSelect.selectOption(device.id);
+    const branchSelect = page.getByLabel('Sucursal');
+    await expect(branchSelect.locator(`option[value="${branch.id}"]`)).toHaveCount(1);
+    await branchSelect.selectOption(branch.id);
     const summary = `Falla reportada ${tag}`;
     await page.getByLabel('Falla reportada').fill(summary);
     await page.getByLabel('Notas del checklist de recepción').fill('Equipo y accesorios recibidos en buen estado');
