@@ -25,7 +25,14 @@ test('public portal binds authorization to an OTP-verified customer token', asyn
         reportedFailure: 'Fixture failure', intakeChecklist: 'Public portal intake',
       }), 201);
     await status(await staff.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
-      status: 'QUOTED', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E quote',
+      status: 'REVIEW', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E review',
+    }), 200);
+    await status(await staff.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
+      status: 'DIAGNOSIS', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E diagnosis complete',
+    }), 200);
+    await status(await staff.mutate('POST', `/api/v1/service-orders/${order.id}/quotation`, {
+      proposedSolution: 'Portal E2E repair', estimatedMinutes: 30,
+      laborAmount: 25, partsAmount: 10, taxAmount: 0,
     }), 200);
     const issued = await json<{ token: string; resourceId: string }>(
       await staff.mutate('POST', `/api/v1/portal/tokens/service-orders/${order.id}`), 201);

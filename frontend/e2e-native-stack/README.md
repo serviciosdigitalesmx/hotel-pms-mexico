@@ -15,7 +15,7 @@ npx tsc --project e2e-native-stack/tsconfig.json
 npx playwright test --config=playwright-native.config.ts --list
 npx playwright install chromium
 PLAYWRIGHT_NATIVE_BASE_URL=http://127.0.0.1:18080 \
-MAILPIT_BASE_URL=http://127.0.0.1:18025 \
+MAILPIT_BASE_URL=http://127.0.0.1:18026 \
 NATIVE_E2E_OUTPUT_DIR=/absolute/repo/build/native-stack-runtime/native/playwright \
 npx playwright test --config=playwright-native.config.ts
 ```
@@ -36,7 +36,7 @@ independent browser contexts, so cookie rotation and tenant isolation remain rea
 | --- | --- |
 | `PLAYWRIGHT_NATIVE_BASE_URL` | `http://127.0.0.1:18080`, frontend with same-origin `/api` gateway proxy |
 | `NATIVE_E2E_OUTPUT_DIR` | Absolute workflow artifact root recommended; otherwise `frontend/test-results/native-stack` when invoked from `frontend` |
-| `MAILPIT_BASE_URL` | `http://127.0.0.1:18025`; notifications are required, never silently skipped |
+| `MAILPIT_BASE_URL` | `http://127.0.0.1:18026`; notifications are required, never silently skipped |
 | `NATIVE_API_BASE_URL` | Same as frontend; optional **gateway** origin with the same hostname, never a direct downstream service |
 | `NATIVE_ADMIN_USERNAME` / `NATIVE_ADMIN_PASSWORD` | `e2e-live-other-hotel-admin` / `password`, hotel `99999999-9999-9999-9999-999999999999` |
 | `NATIVE_OTHER_USERNAME` / `NATIVE_OTHER_PASSWORD` | `admin` / `password`, hotel `00000000-0000-0000-0000-000000000001` |

@@ -37,9 +37,18 @@ test('creates a no-inventory service order, diagnoses it and records authorizati
     expect(order.status).toBe('INTAKE');
     const diagnosis = await json<{ status: string; diagnosis: string }>(
       await api.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
-        status: 'QUOTED', diagnosis: 'Bench diagnosis', workLog: 'No parts consumed',
+        status: 'REVIEW', diagnosis: 'Bench diagnosis', workLog: 'Initial review',
       }), 200);
-    expect(diagnosis.status).toBe('QUOTED');
+    expect(diagnosis.status).toBe('REVIEW');
+    const diagnosed = await json<{ status: string }>(await api.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
+      status: 'DIAGNOSIS', diagnosis: 'Bench diagnosis', workLog: 'No parts consumed',
+    }), 200);
+    expect(diagnosed.status).toBe('DIAGNOSIS');
+    const quotation = await json<{ status: string }>(await api.mutate('POST', `/api/v1/service-orders/${order.id}/quotation`, {
+      proposedSolution: 'Repair without parts', estimatedMinutes: 30,
+      laborAmount: 20, partsAmount: 0, taxAmount: 0,
+    }), 200);
+    expect(quotation.status).toBe('QUOTED');
     const authorized = await json<{ status: string; authorizationEvidence: string }>(
       await api.mutate('POST', `/api/v1/service-orders/${order.id}/authorize`, {
         evidence: 'Customer approved quote',

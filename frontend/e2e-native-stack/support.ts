@@ -5,7 +5,7 @@ import type { HotelSettingsResponse, StayResponse } from '../src/types/stay.type
 
 export const baseURL = localOrigin(process.env.PLAYWRIGHT_NATIVE_BASE_URL ?? 'http://127.0.0.1:18080');
 export const apiBaseURL = localOrigin(process.env.NATIVE_API_BASE_URL ?? baseURL);
-export const mailpitURL = localOrigin(process.env.MAILPIT_BASE_URL ?? 'http://127.0.0.1:18025');
+export const mailpitURL = localOrigin(process.env.MAILPIT_BASE_URL ?? 'http://127.0.0.1:18026');
 if (new URL(baseURL).hostname !== new URL(apiBaseURL).hostname) {
   throw new Error('PLAYWRIGHT_NATIVE_BASE_URL and NATIVE_API_BASE_URL must share a hostname for real browser cookies.');
 }
