@@ -63,26 +63,32 @@ export function ReceptionOrderForm() {
 
   useEffect(() => {
     let active = true
-    Promise.all([api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers().catch(() => []), api.industryProfile().catch(() => null), api.getBusinessProfile().catch(() => null)])
-      .then(([customerRows, branchRows, serviceRows, teamRows, profile, business]) => {
-        if (!active) return
-        setCustomers(customerRows)
-        setBranches(branchRows)
-        const activeBranches = branchRows.filter(branch => branch.active)
+    Promise.allSettled([
+      api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers(),
+      api.industryProfile(), api.getBusinessProfile(),
+    ]).then(([customerResult, branchResult, serviceResult, teamResult, profileResult, businessResult]) => {
+      if (!active) return
+      const failures: string[] = []
+      if (customerResult.status === 'fulfilled') setCustomers(customerResult.value)
+      else failures.push('clientes')
+      if (branchResult.status === 'fulfilled') {
+        setBranches(branchResult.value)
+        const activeBranches = branchResult.value.filter(branch => branch.active)
         if (activeBranches.length === 1) setBranchId(current => current || activeBranches[0].id)
-        setServices(serviceRows)
-        if (business?.currency) setCurrency(business.currency.toUpperCase())
-        setUsers(teamRows.filter(user => user.active && user.role === 'TECHNICIAN'))
-        if (profile) {
-          try {
-            const templates = JSON.parse(profile.catalogsTemplatesJson)
-            const items = templates?.workshop?.intakeChecklist
-            if (Array.isArray(items)) setChecklistTemplate(items.filter((item: unknown): item is string => typeof item === 'string'))
-          } catch { /* Optional malformed templates do not prevent manual intake. */ }
-        }
-      })
-      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los datos de recepción') })
-      .finally(() => { if (active) setBranchesLoading(false) })
+      } else failures.push('sucursales')
+      if (serviceResult.status === 'fulfilled') setServices(serviceResult.value)
+      else failures.push('servicios')
+      if (teamResult.status === 'fulfilled') setUsers(teamResult.value.filter(user => user.active && user.role === 'TECHNICIAN'))
+      if (businessResult.status === 'fulfilled' && businessResult.value?.currency) setCurrency(businessResult.value.currency.toUpperCase())
+      if (profileResult.status === 'fulfilled' && profileResult.value) {
+        try {
+          const templates = JSON.parse(profileResult.value.catalogsTemplatesJson)
+          const items = templates?.workshop?.intakeChecklist
+          if (Array.isArray(items)) setChecklistTemplate(items.filter((item: unknown): item is string => typeof item === 'string'))
+        } catch { /* Optional malformed templates do not prevent manual intake. */ }
+      }
+      if (failures.length) setError(`No se pudieron cargar ${failures.join(', ')} para recepción`)
+    }).finally(() => { if (active) setBranchesLoading(false) })
     return () => { active = false }
   }, [])
 
