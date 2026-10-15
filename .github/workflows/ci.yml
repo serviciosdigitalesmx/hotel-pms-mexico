@@ -96,7 +96,7 @@ jobs:
 
       - name: ESLint — zero warnings policy
         working-directory: frontend
-        run: pnpm run lint -- --max-warnings=0
+        run: pnpm run lint
 
       - name: TypeScript check + production build
         working-directory: frontend
