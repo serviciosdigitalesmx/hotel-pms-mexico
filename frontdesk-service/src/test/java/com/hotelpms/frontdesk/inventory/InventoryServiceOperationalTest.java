@@ -1,18 +1,23 @@
 package com.hotelpms.frontdesk.inventory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import com.hotelpms.frontdesk.audit.domain.AuditEvent;
 import com.hotelpms.frontdesk.audit.service.AuditEventService;
 import com.hotelpms.frontdesk.client.BranchValidationService;
+import com.hotelpms.frontdesk.exception.ConflictException;
 import com.hotelpms.frontdesk.inventory.domain.InventoryBalance;
 import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
+import com.hotelpms.frontdesk.inventory.domain.PosInventoryConsumption;
 import com.hotelpms.frontdesk.inventory.domain.StockReservation;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.MovementRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
@@ -40,6 +45,8 @@ class InventoryServiceOperationalTest {
   private static final UUID HOTEL_ID = UUID.randomUUID();
   private static final UUID BRANCH_ID = UUID.randomUUID();
   private static final UUID PRODUCT_ID = UUID.randomUUID();
+  private static final UUID ORDER_ID = UUID.randomUUID();
+  private static final long STOCK_BEFORE_POS_REPLAY = 5;
 
   @Mock private InventoryProductRepository products;
   @Mock private InventoryBalanceRepository balances;
@@ -100,6 +107,48 @@ class InventoryServiceOperationalTest {
   }
 
   @Test
+  void movementUpdatesTenantProductBalanceAndRecordsAudit() {
+    final InventoryProduct product = InventoryProduct.builder()
+        .id(PRODUCT_ID).hotelId(HOTEL_ID).build();
+    final InventoryBalance balance = InventoryBalance.builder()
+        .hotelId(HOTEL_ID).branchId(BRANCH_ID).productId(PRODUCT_ID).quantity(4).build();
+    when(products.findForUpdateByIdAndHotelId(PRODUCT_ID, HOTEL_ID))
+        .thenReturn(Optional.of(product));
+    when(balances.findByHotelIdAndBranchIdAndProductId(HOTEL_ID, BRANCH_ID, PRODUCT_ID))
+        .thenReturn(Optional.of(balance));
+    when(balances.save(any(InventoryBalance.class))).thenReturn(balance);
+
+    final InventoryBalance updated = service.move(HOTEL_ID,
+        new MovementRequest(BRANCH_ID, PRODUCT_ID, -2, "Uso de reparación"));
+
+    assertSame(balance, updated);
+    assertEquals(2, updated.getQuantity());
+    verify(branchValidation).requireActiveBranch(HOTEL_ID, BRANCH_ID);
+    verify(auditEvents).record(eq(HOTEL_ID), eq(null), eq(AuditEvent.Category.INVENTORY),
+        eq("INVENTORY_MOVEMENT_RECORDED"), eq(balance.getId()), eq(null), anyString());
+  }
+
+  @Test
+  void stockCountRejectsStaleExpectedQuantityWithoutChangingBalance() {
+    final InventoryProduct product = InventoryProduct.builder()
+        .id(PRODUCT_ID).hotelId(HOTEL_ID).build();
+    final InventoryBalance balance = InventoryBalance.builder()
+        .hotelId(HOTEL_ID).branchId(BRANCH_ID).productId(PRODUCT_ID).quantity(4).build();
+    when(products.findForUpdateByIdAndHotelId(PRODUCT_ID, HOTEL_ID))
+        .thenReturn(Optional.of(product));
+    when(balances.findByHotelIdAndBranchIdAndProductId(HOTEL_ID, BRANCH_ID, PRODUCT_ID))
+        .thenReturn(Optional.of(balance));
+
+    assertThrows(ConflictException.class, () -> service.count(HOTEL_ID,
+        new StockCountRequest(BRANCH_ID, PRODUCT_ID, 1, "Conteo físico", 3L)));
+
+    assertEquals(4, balance.getQuantity());
+    verify(balances, never()).save(any(InventoryBalance.class));
+    verify(auditEvents, never()).record(any(UUID.class), any(UUID.class),
+        any(AuditEvent.Category.class), anyString(), any(UUID.class), anyString(), anyString());
+  }
+
+  @Test
   void reservationIsIdempotentWhenSameQuantityAndBranchAreRequestedAgain() {
     final UUID orderId = UUID.randomUUID();
     final ServiceOrder order = ServiceOrder.builder().branchId(BRANCH_ID).build();
@@ -131,6 +180,7 @@ class InventoryServiceOperationalTest {
 
     verify(balances, org.mockito.Mockito.never()).save(any(InventoryBalance.class));
     verify(reservations, org.mockito.Mockito.never()).save(any(StockReservation.class));
+    verify(products, never()).findForUpdateByIdAndHotelId(any(UUID.class), any(UUID.class));
   }
 
   @Test
@@ -167,6 +217,37 @@ class InventoryServiceOperationalTest {
 
     assertEquals("RELEASED", result.getStatus());
     assertEquals(5, balance.getQuantity());
+    verify(balances).save(balance);
+  }
+
+  @Test
+  void replayingPosConsumptionDoesNotDeductStockAgain() {
+    final InventoryProduct product = InventoryProduct.builder()
+        .id(PRODUCT_ID).hotelId(HOTEL_ID).build();
+    final InventoryBalance balance = InventoryBalance.builder()
+        .hotelId(HOTEL_ID).branchId(BRANCH_ID).productId(PRODUCT_ID)
+        .quantity(STOCK_BEFORE_POS_REPLAY).build();
+    final PosInventoryConsumption prior = new PosInventoryConsumption();
+    prior.setHotelId(HOTEL_ID);
+    prior.setOrderId(ORDER_ID);
+    prior.setProductId(PRODUCT_ID);
+    prior.setBranchId(BRANCH_ID);
+    prior.setQuantity(2);
+    when(products.findByIdAndHotelId(PRODUCT_ID, HOTEL_ID)).thenReturn(Optional.of(product));
+    when(posConsumptions.findByHotelIdAndOrderIdAndProductId(HOTEL_ID, ORDER_ID, PRODUCT_ID))
+        .thenReturn(Optional.empty(), Optional.of(prior));
+    when(products.findForUpdateByIdAndHotelId(PRODUCT_ID, HOTEL_ID))
+        .thenReturn(Optional.of(product));
+    when(balances.findByHotelIdAndBranchIdAndProductId(HOTEL_ID, BRANCH_ID, PRODUCT_ID))
+        .thenReturn(Optional.of(balance));
+    when(balances.save(any(InventoryBalance.class))).thenReturn(balance);
+
+    final var lines = java.util.List.of(new InventoryService.PosConsumptionLine(PRODUCT_ID, 2));
+    service.consumePosOrder(HOTEL_ID, ORDER_ID, BRANCH_ID, lines);
+    service.consumePosOrder(HOTEL_ID, ORDER_ID, BRANCH_ID, lines);
+
+    assertEquals(3, balance.getQuantity());
+    verify(posConsumptions).saveAndFlush(any(PosInventoryConsumption.class));
     verify(balances).save(balance);
   }
 }
