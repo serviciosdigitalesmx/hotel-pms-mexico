@@ -13,6 +13,7 @@ export function SessionIdleLock() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [activityRevision, setActivityRevision] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -44,13 +45,13 @@ export function SessionIdleLock() {
     window.addEventListener('fixi:session-security-changed', configure)
     void configure()
     return () => { active = false; window.removeEventListener('fixi:session-security-changed', configure); cleanup() }
-  }, [])
+  }, [locked, activityRevision])
 
   async function unlock(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('')
     try {
       await api.login(username, password)
-      setPassword(''); setLocked(false)
+      setPassword(''); setLocked(false); setActivityRevision(revision => revision + 1)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo verificar la contraseña') }
     finally { setBusy(false) }
   }
