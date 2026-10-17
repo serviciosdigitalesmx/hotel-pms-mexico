@@ -10,6 +10,16 @@ internal:
     secret: ${INTERNAL_HMAC_SECRET}
 
 spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/hotel_notification}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:25}

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service @RequiredArgsConstructor
 public class SaasIdentityService {
   private static final String VERIFY="VERIFY_EMAIL", RESET="RESET_PASSWORD";
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
   private final HotelRegistryRepository hotels; private final UserAccountRepository users;
   private final TenantBranchRepository branches; private final UserBranchMembershipRepository memberships;
   private final TenantCapabilityRepository capabilities; private final AccountTokenRepository tokens;
@@ -61,7 +62,7 @@ public class SaasIdentityService {
   @Transactional public void resendVerification(String email){ users.findByEmailIncludingInactive(email.trim()).filter(u->!u.isEmailVerified()).ifPresent(u->mail.verification(u.getEmail(),issue(u.getId(),VERIFY,24))); }
   private String issue(UUID user,String purpose,int hours){String raw=random();tokens.save(AccountToken.builder().userId(user).purpose(purpose).tokenHash(hash(raw)).expiresAt(LocalDateTime.now().plusHours(hours)).createdAt(LocalDateTime.now()).build());return raw;}
   private AccountToken consume(String raw,String purpose){var t=tokens.findByTokenHashAndPurpose(hash(raw),purpose).filter(x->x.getConsumedAt()==null&&x.getExpiresAt().isAfter(LocalDateTime.now())).orElseThrow(()->new NotFoundException("TOKEN_INVALID"));t.setConsumedAt(LocalDateTime.now());return tokens.save(t);}
-  private static String random(){byte[] b=new byte[32];new SecureRandom().nextBytes(b);return Base64.getUrlEncoder().withoutPadding().encodeToString(b);}
+  private static String random(){byte[] b=new byte[32];SECURE_RANDOM.nextBytes(b);return Base64.getUrlEncoder().withoutPadding().encodeToString(b);}
   private static String hash(String raw){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8)));}catch(NoSuchAlgorithmException e){throw new IllegalStateException(e);}}
   private String uniqueSlug(String businessName){
     String base=Normalizer.normalize(businessName,Normalizer.Form.NFD).replaceAll("\\p{M}+","").toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+","-").replaceAll("^-+|-+$","");

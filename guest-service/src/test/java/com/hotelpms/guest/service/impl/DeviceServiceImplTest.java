@@ -44,13 +44,11 @@ class DeviceServiceImplTest {
     @Test
     void createsDeviceForCustomerAndRejectsDuplicateImei() {
         var request = new DeviceRequest("phone", "Acme", "X", null, "imei-1", null);
-        when(devices.findByHotelIdAndGuestIdAndImei(hotelId, customerId, "imei-1")).thenReturn(Optional.empty());
+        when(devices.existsByHotelIdAndImeiIgnoreCase(hotelId, "IMEI-1")).thenReturn(false, true);
         when(devices.save(any(Device.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertEquals(customerId, service.create(customerId, request).customerId());
 
-        when(devices.findByHotelIdAndGuestIdAndImei(hotelId, customerId, "imei-1"))
-                .thenReturn(Optional.of(Device.builder().id(UUID.randomUUID()).build()));
         assertThrows(IllegalArgumentException.class, () -> service.create(customerId, request));
     }
 

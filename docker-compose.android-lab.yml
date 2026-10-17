@@ -86,3 +86,5 @@ services:
       <<: *native-env
       SPRING_PROFILES_ACTIVE: notification-service
       CONFIG_SERVER_URL: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hotel_notification
+      SPRING_DATASOURCE_USERNAME: postgres
