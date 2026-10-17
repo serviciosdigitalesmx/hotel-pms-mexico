@@ -344,14 +344,23 @@ public class AuthController {
     return ResponseEntity.ok(Map.of("idleTimeoutMinutes", user.getSessionIdleTimeoutMinutes()));
   }
 
-  /** Returns the authenticated user's own profile, never a caller-selected account. */
+  /** Returns the authenticated user's own profile, never a caller-selected account.
+   *
+   * @param token optional session JWT cookie
+   * @return safe profile for the authenticated account
+   */
   @GetMapping("/account")
   public AccountProfileResponse getAccountProfile(
       @CookieValue(name = COOKIE_NAME, required = false) final String token) {
     return AccountProfileResponse.from(authenticatedUser(token));
   }
 
-  /** Updates the authenticated user's name/contact email; a changed address requires verification. */
+  /** Updates the authenticated user's name/contact email; a changed address requires verification.
+   *
+   * @param token optional session JWT cookie
+   * @param request requested display name and contact email
+   * @return updated safe profile for the authenticated account
+   */
   @PutMapping("/account")
   public AccountProfileResponse updateAccountProfile(
       @CookieValue(name = COOKIE_NAME, required = false) final String token,
