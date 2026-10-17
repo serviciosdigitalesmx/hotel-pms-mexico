@@ -140,7 +140,7 @@ jobs:
           ./gradlew :api-gateway:processAot -x :config-service:processAot --no-daemon --stacktrace --max-workers=2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build one Native Image
         id: native_image
