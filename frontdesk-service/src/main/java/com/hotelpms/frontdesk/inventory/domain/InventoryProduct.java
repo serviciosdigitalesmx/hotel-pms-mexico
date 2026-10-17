@@ -65,6 +65,10 @@ public class InventoryProduct {
   @Builder.Default
   private long reorderLevel = 0;
 
+  @Column(name = "maximum_stock_level", nullable = false)
+  @Builder.Default
+  private long maximumStockLevel = 0;
+
   @Column(name = "supplier_id")
   private UUID supplierId;
 

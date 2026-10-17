@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.inventory.dto;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -36,31 +37,44 @@ public final class InventoryDtos {
       @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal cost,
       @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal price,
       @Min(0) long reorderLevel,
+      @Min(0) long maximumStockLevel,
       UUID supplierId,
       @Min(0) long initialQuantity,
       UUID branchId,
       UUID posMenuItemId) {
+    @AssertTrue(message = "MAXIMUM_STOCK_LEVEL_BELOW_REORDER_LEVEL")
+    public boolean isStockLimitsRangeValid() {
+      return maximumStockLevel == 0 || maximumStockLevel >= reorderLevel;
+    }
+
+    public ProductRequest(final String sku, final String name, final String description,
+        final boolean optional, final String category, final BigDecimal cost,
+        final BigDecimal price, final long reorderLevel, final UUID supplierId,
+        final long initialQuantity, final UUID branchId, final UUID posMenuItemId) {
+      this(sku, name, description, optional, category, cost, price, reorderLevel, 0,
+          supplierId, initialQuantity, branchId, posMenuItemId);
+    }
     public ProductRequest(final String sku, final String name, final String description,
         final boolean optional, final String category, final BigDecimal cost,
         final BigDecimal price, final long reorderLevel, final UUID supplierId,
         final long initialQuantity, final UUID branchId) {
       this(sku, name, description, optional, category, cost, price, reorderLevel,
-          supplierId, initialQuantity, branchId, null);
+          0, supplierId, initialQuantity, branchId, null);
     }
     public ProductRequest(final String sku, final String name, final boolean optional,
         final String category, final BigDecimal cost, final BigDecimal price,
         final long reorderLevel, final UUID supplierId, final long initialQuantity,
         final UUID branchId) {
-      this(sku, name, null, optional, category, cost, price, reorderLevel, supplierId,
+      this(sku, name, null, optional, category, cost, price, reorderLevel, 0, supplierId,
           initialQuantity, branchId, null);
     }
     public ProductRequest(final String sku, final String name, final boolean optional,
         final String category, final BigDecimal cost, final BigDecimal price,
         final long reorderLevel) {
-      this(sku, name, null, optional, category, cost, price, reorderLevel, null, 0, null, null);
+      this(sku, name, null, optional, category, cost, price, reorderLevel, 0, null, 0, null, null);
     }
     public ProductRequest(final String sku, final String name, final boolean optional) {
-      this(sku, name, null, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0, null, 0, null, null);
+      this(sku, name, null, optional, "General", BigDecimal.ZERO, BigDecimal.ZERO, 0, 0, null, 0, null, null);
     }
   }
 

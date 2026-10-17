@@ -11,7 +11,7 @@ export type DeviceCatalogEntry = { category:string; manufacturer:string; model:s
 export type DeviceCatalogIdentity = Pick<DeviceCatalogEntry,'category'|'manufacturer'|'model'>
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
-export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string; posMenuItemId?:string }
+export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; maximumStockLevel?:number; supplierId?:string; posMenuItemId?:string }
 export const isAtOrBelowReorderLevel=(quantity:number,reorderLevel?:number)=>typeof reorderLevel==='number'&&Number.isFinite(reorderLevel)&&reorderLevel>0&&quantity<=reorderLevel
 export type Supplier = { id:string; name:string; taxId?:string; contact?:string; contactName?:string; email?:string; phone?:string; website?:string; description?:string; active:boolean }
 export type PurchaseOrderLine={id:string;productId:string;quantityOrdered:number;quantityReceived:number;unitCost:number}

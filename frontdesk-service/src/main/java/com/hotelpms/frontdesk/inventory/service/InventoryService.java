@@ -74,6 +74,7 @@ public class InventoryService {
     p.setCost(r.cost());
     p.setPrice(r.price());
     p.setReorderLevel(r.reorderLevel());
+    p.setMaximumStockLevel(r.maximumStockLevel());
     if (r.supplierId() != null) {
       suppliers.findByIdAndHotelId(r.supplierId(), hotel)
           .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
@@ -108,6 +109,7 @@ public class InventoryService {
     product.setCost(r.cost());
     product.setPrice(r.price());
     product.setReorderLevel(r.reorderLevel());
+    product.setMaximumStockLevel(r.maximumStockLevel());
     product.setSupplierId(r.supplierId());
     product.setPosMenuItemId(r.posMenuItemId());
     return products.save(product);
@@ -557,11 +559,15 @@ public class InventoryService {
             ? UUID.fromString(values.get("branchid")) : defaultBranchId;
         final long quantity = longValue(values.getOrDefault("quantity", values.get("stock")), 0);
         final long reorderLevel = longValue(values.get("reorderlevel"), 0);
+        final long maximumStockLevel = longValue(
+            values.getOrDefault("maximumstocklevel", values.get("maxstocklevel")), 0);
         final BigDecimal cost = decimalValue(values.get("cost"));
         final BigDecimal price = decimalValue(values.get("price"));
-        if (quantity < 0 || reorderLevel < 0 || !fitsProductAmount(cost) || !fitsProductAmount(price)) {
+        if (quantity < 0 || reorderLevel < 0 || maximumStockLevel < 0
+            || (maximumStockLevel > 0 && maximumStockLevel < reorderLevel)
+            || !fitsProductAmount(cost) || !fitsProductAmount(price)) {
           rejected++;
-          errors.add("row " + (i + 1) + ": quantity and minimum stock must be nonnegative; cost and price must fit 10 digits and 2 decimals");
+          errors.add("row " + (i + 1) + ": quantity and stock limits must be nonnegative and maximum must not be below minimum; cost and price must fit 10 digits and 2 decimals");
           continue;
         }
         if (supplierId != null && suppliers.findByIdAndHotelId(supplierId, hotel).isEmpty()) {
@@ -580,7 +586,7 @@ public class InventoryService {
         }
         productRequest = new ProductRequest(sku, name, description,
             Boolean.parseBoolean(rawOptional), category, cost, price, reorderLevel,
-            supplierId, quantity, branchId);
+            maximumStockLevel, supplierId, quantity, branchId, null);
         seenSkus.add(sku);
       } catch (final IllegalArgumentException ex) {
         rejected++;
