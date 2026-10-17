@@ -22,7 +22,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class Deposit {
+  /** Lifecycle state for an invoice deposit. */
   public enum Status { RECEIVED, APPLIED, REVERSED }
+
+  private static final int AMOUNT_PRECISION = 19;
+  private static final int AMOUNT_SCALE = 4;
+  private static final int STATUS_LENGTH = 24;
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,10 +36,10 @@ public class Deposit {
   private UUID hotelId;
   @Column(name = "invoice_id", nullable = false)
   private UUID invoiceId;
-  @Column(nullable = false, precision = 19, scale = 4)
+  @Column(nullable = false, precision = AMOUNT_PRECISION, scale = AMOUNT_SCALE)
   private BigDecimal amount;
   @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 24)
+  @Column(nullable = false, length = STATUS_LENGTH)
   private Status status = Status.RECEIVED;
   @Column(name = "reference_key", nullable = false, length = 180)
   private String referenceKey;

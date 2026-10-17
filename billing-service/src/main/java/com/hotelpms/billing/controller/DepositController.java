@@ -8,6 +8,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class DepositController {
   private final DepositService service;
 
+  /** Records a tenant-scoped idempotent deposit for an invoice.
+   *
+   * @param invoiceId invoice identifier
+   * @param request deposit amount and replay key
+   * @return persisted deposit
+   */
   @PostMapping("/{invoiceId}/deposits")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
   public ResponseEntity<Deposit> receive(@PathVariable final UUID invoiceId,
       @Valid @RequestBody final DepositRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED).body(service.receive(hotel(), invoiceId, request));

@@ -10,43 +10,40 @@ import com.hotelpms.billing.dto.CashDtos.SessionResponse;
 
 /** Cash register operations scoped to one tenant. */
 public interface CashService {
-  /** Returns the open cash session summary for a tenant, if one exists. */
+  /** Returns the open cash session summary for a tenant, if one exists.
+   *
+   * @param hotelId tenant identifier
+   * @return open session summary, if available
+   */
   Optional<SessionResponse> currentOpen(UUID hotelId);
   /**
    * Opens a cash session.
    *
-   * @param hotelId tenant identifier.
-   *
-   * @param actor actor identifier.
-   *
-   * @param request opening request.
-   * @return opened session.
+   * @param hotelId tenant identifier
+   * @param actor actor identifier
+   * @param request opening request
+   * @return opened session
    */
   CashSession open(UUID hotelId, UUID actor, OpenSessionRequest request);
 
   /**
    * Records a cash movement.
    *
-   * @param hotelId tenant identifier.
-   *
-   * @param actor actor identifier.
-   *
-   * @param sessionId session identifier.
-   *
-   * @param request movement request.
-   * @return updated session.
+   * @param hotelId tenant identifier
+   * @param actor actor identifier
+   * @param sessionId session identifier
+   * @param request movement request
+   * @return updated session
    */
   CashSession movement(UUID hotelId, UUID actor, UUID sessionId, MovementRequest request);
 
   /**
    * Closes a cash session.
    *
-   * @param hotelId tenant identifier.
-   *
-   * @param sessionId session identifier.
-   *
-   * @param request closing request.
-   * @return closed session.
+   * @param hotelId tenant identifier
+   * @param sessionId session identifier
+   * @param request closing request
+   * @return closed session
    */
   CashSession close(UUID hotelId, UUID sessionId, CloseSessionRequest request);
 }

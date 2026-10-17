@@ -20,6 +20,13 @@ public class DepositService {
   private final InvoiceRepository invoices;
   private final LedgerService ledger;
 
+  /** Records an idempotent deposit against an invoice without marking the invoice paid.
+   *
+   * @param hotelId tenant identifier
+   * @param invoiceId invoice identifier
+   * @param request validated deposit details
+   * @return existing matching deposit or newly persisted deposit
+   */
   @Transactional
   public Deposit receive(final UUID hotelId, final UUID invoiceId, final DepositRequest request) {
     final Deposit existing = deposits.findByHotelIdAndReferenceKey(hotelId, request.referenceKey()).orElse(null);

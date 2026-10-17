@@ -15,6 +15,11 @@ public class BillingValidationException extends RuntimeException {
     super(message);
   }
 
+  /** Wraps a lower-level failure while preserving its cause.
+   *
+   * @param message validation error code/message
+   * @param cause underlying failure
+   */
   public BillingValidationException(final String message, final Throwable cause) {
     super(message, cause);
   }

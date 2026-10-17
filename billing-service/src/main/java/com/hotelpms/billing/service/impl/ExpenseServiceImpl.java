@@ -187,12 +187,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     return method;
   }
 
+  /** {@inheritDoc} */
   @Override
   @Transactional(readOnly = true)
   public List<RecurringExpenseTemplate> listRecurring(final UUID hotelId) {
     return recurringTemplates.findAllByHotelIdOrderByNextDueAtAsc(hotelId);
   }
 
+  /** {@inheritDoc} */
   @Override
   @Transactional
   public RecurringExpenseTemplate createRecurring(
@@ -204,13 +206,16 @@ public class ExpenseServiceImpl implements ExpenseService {
         .nextDueAt(request.nextDueAt()).active(true).build());
   }
 
+  /** {@inheritDoc} */
   @Override
   @Transactional
   public Expense generateRecurring(
       final UUID hotelId, final UUID actor, final UUID templateId, final java.time.LocalDate expectedDueAt) {
     final RecurringExpenseTemplate template = recurringTemplates.findForUpdateByIdAndHotelId(templateId, hotelId)
         .orElseThrow(() -> new NotFoundException("RECURRING_EXPENSE_NOT_FOUND"));
-    if (!template.isActive()) throw new BillingValidationException("RECURRING_EXPENSE_INACTIVE");
+    if (!template.isActive()) {
+      throw new BillingValidationException("RECURRING_EXPENSE_INACTIVE");
+    }
     final var dueAt = template.getNextDueAt();
     if (!dueAt.equals(expectedDueAt)) {
       return expenses.findByHotelIdAndRecurringTemplateIdAndRecurringPeriodDueAt(hotelId, templateId, expectedDueAt)
@@ -232,6 +237,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     return expense;
   }
 
+  /** {@inheritDoc} */
   @Override
   @Transactional
   public RecurringExpenseTemplate setRecurringActive(

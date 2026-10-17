@@ -22,7 +22,14 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class LedgerEntry {
+  /** Supported financial fact categories. */
   public enum EntryType { CHARGE, PAYMENT, REFUND, DEPOSIT, EXPENSE, POS_SALE }
+
+  private static final int AMOUNT_PRECISION = 19;
+  private static final int AMOUNT_SCALE = 4;
+  private static final int ENTRY_TYPE_LENGTH = 32;
+  private static final int REFERENCE_KEY_LENGTH = 180;
+  private static final int CURRENCY_LENGTH = 3;
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,13 +39,13 @@ public class LedgerEntry {
   @Column(name = "aggregate_id")
   private UUID aggregateId;
   @Enumerated(EnumType.STRING)
-  @Column(name = "entry_type", nullable = false, length = 32)
+  @Column(name = "entry_type", nullable = false, length = ENTRY_TYPE_LENGTH)
   private EntryType entryType;
-  @Column(nullable = false, precision = 19, scale = 4)
+  @Column(nullable = false, precision = AMOUNT_PRECISION, scale = AMOUNT_SCALE)
   private BigDecimal amount;
-  @Column(name = "reference_key", nullable = false, length = 180)
+  @Column(name = "reference_key", nullable = false, length = REFERENCE_KEY_LENGTH)
   private String referenceKey;
-  @Column(nullable = false, length = 3)
+  @Column(nullable = false, length = CURRENCY_LENGTH)
   private String currency = "MXN";
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt = LocalDateTime.now();

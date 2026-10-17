@@ -15,6 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class LedgerService {
   private final LedgerEntryRepository repository;
 
+  /** Appends one immutable financial fact, returning a matching prior fact on replay.
+   *
+   * @param hotelId tenant identifier
+   * @param aggregateId related invoice or expense identifier
+   * @param type financial event type
+   * @param amount positive amount recorded
+   * @param referenceKey idempotency reference
+   * @return persisted or previously recorded entry
+   */
   @Transactional
   public LedgerEntry record(final UUID hotelId, final UUID aggregateId,
       final LedgerEntry.EntryType type, final BigDecimal amount, final String referenceKey) {
@@ -36,15 +45,20 @@ public class LedgerService {
 
   private static LedgerEntry createEntry(final UUID hotelId, final UUID aggregateId,
       final LedgerEntry.EntryType type, final BigDecimal amount, final String referenceKey) {
-          final LedgerEntry entry = new LedgerEntry();
-          entry.setHotelId(hotelId);
-          entry.setAggregateId(aggregateId);
-          entry.setEntryType(type);
-          entry.setAmount(amount);
-          entry.setReferenceKey(referenceKey);
-          return entry;
+    final LedgerEntry entry = new LedgerEntry();
+    entry.setHotelId(hotelId);
+    entry.setAggregateId(aggregateId);
+    entry.setEntryType(type);
+    entry.setAmount(amount);
+    entry.setReferenceKey(referenceKey);
+    return entry;
   }
 
+  /** Lists all financial facts visible to a tenant in creation order.
+   *
+   * @param hotelId tenant identifier
+   * @return tenant ledger entries
+   */
   @Transactional(readOnly = true)
   public List<LedgerEntry> list(final UUID hotelId) {
     return repository.findAllByHotelIdOrderByCreatedAtAsc(hotelId);

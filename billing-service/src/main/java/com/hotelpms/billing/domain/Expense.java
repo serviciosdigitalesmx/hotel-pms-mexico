@@ -29,6 +29,9 @@ public class Expense {
   private static final int MONEY_SCALE = 2;
   private static final int CATEGORY_LENGTH = 120;
   private static final int DESCRIPTION_LENGTH = 255;
+  private static final int REFERENCE_LENGTH = 100;
+  private static final int PAYMENT_METHOD_LENGTH = 20;
+  private static final int EXPENSE_TYPE_LENGTH = 16;
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
@@ -45,7 +48,7 @@ public class Expense {
   @Column(length = DESCRIPTION_LENGTH)
   private String description;
 
-  @Column(length = 100)
+  @Column(length = REFERENCE_LENGTH)
   private String reference;
 
   @Column(name = "cash_session_id")
@@ -58,10 +61,10 @@ public class Expense {
   private LocalDateTime createdAt;
 
   @Builder.Default
-  @Column(name = "expense_type", nullable = false, length = 16)
+  @Column(name = "expense_type", nullable = false, length = EXPENSE_TYPE_LENGTH)
   private String expenseType = "VARIABLE";
 
-  @Column(length = 120)
+  @Column(length = CATEGORY_LENGTH)
   private String subcategory;
 
   @Builder.Default
@@ -74,7 +77,7 @@ public class Expense {
   @Column(name = "due_at")
   private LocalDate dueAt;
 
-  @Column(name = "payment_method", length = 20)
+  @Column(name = "payment_method", length = PAYMENT_METHOD_LENGTH)
   private String paymentMethod;
 
   @Column(name = "paid_at")

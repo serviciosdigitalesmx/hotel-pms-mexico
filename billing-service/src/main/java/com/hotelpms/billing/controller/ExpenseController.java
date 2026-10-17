@@ -30,14 +30,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/expenses")
 public class ExpenseController {
+  private static final String EXPENSE_PAYMENT_METHOD_PATTERN = "CASH|BANK_TRANSFER|CARD|OTHER";
   private final ExpenseService service;
 
   /**
    * Creates a tenant-scoped expense.
    *
-   * @param request expense request.
-   *
-   * @return created expense response.
+   * @param request expense request
+   * @return created expense response
    */
   @PostMapping
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
@@ -57,7 +57,12 @@ public class ExpenseController {
     return service.list(hotel());
   }
 
-  /** Lists tenant expenses whose business date or pending due date falls in a report range. */
+  /** Lists tenant expenses whose business date or pending due date falls in a report range.
+   *
+   * @param from first date in report range
+   * @param to last date in report range
+   * @return matching tenant expenses
+   */
   @GetMapping("/report-range")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public List<Expense> listForReport(@RequestParam final LocalDate from,
@@ -65,17 +70,35 @@ public class ExpenseController {
     return service.listForReport(hotel(), from, to);
   }
 
+  /** Lists recurring expense templates for the current tenant.
+   *
+   * @return templates ordered by due date
+   */
   @GetMapping("/recurring")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
-  public List<RecurringExpenseTemplate> listRecurring() { return service.listRecurring(hotel()); }
+  public List<RecurringExpenseTemplate> listRecurring() {
+    return service.listRecurring(hotel());
+  }
 
+  /** Creates a recurring expense template.
+   *
+   * @param request validated template details
+   * @return created template
+   */
   @PostMapping("/recurring")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public ResponseEntity<RecurringExpenseTemplate> createRecurring(
       @Valid @RequestBody final RecurringExpenseRequest request) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(service.createRecurring(hotel(), actor(), request));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(service.createRecurring(hotel(), actor(), request));
   }
 
+  /** Generates a pending expense for a recurring template's due period.
+   *
+   * @param id recurring template identifier
+   * @param request expected due date
+   * @return generated expense
+   */
   @PostMapping("/recurring/{id}/generate")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public ResponseEntity<Expense> generateRecurring(
@@ -84,8 +107,17 @@ public class ExpenseController {
         .body(service.generateRecurring(hotel(), actor(), id, request.expectedDueAt()));
   }
 
-  public record GenerateRecurringRequest(@jakarta.validation.constraints.NotNull java.time.LocalDate expectedDueAt) {}
+  /** Request for generating a single recurring expense period.
+   *
+   * @param expectedDueAt expected scheduled date
+   */
+  public record GenerateRecurringRequest(
+      @jakarta.validation.constraints.NotNull java.time.LocalDate expectedDueAt) { }
 
+  /** Request for activating or pausing a recurring template.
+   *
+   * @param active whether the template remains active
+   */
   @PatchMapping("/recurring/{id}/active")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public RecurringExpenseTemplate setRecurringActive(
@@ -93,14 +125,27 @@ public class ExpenseController {
     return service.setRecurringActive(hotel(), id, request.active());
   }
 
-  public record RecurringActiveRequest(@jakarta.validation.constraints.NotNull Boolean active) {}
+  public record RecurringActiveRequest(
+      @jakarta.validation.constraints.NotNull Boolean active) { }
 
+  /** Updates fields of a tenant-owned unpaid expense.
+   *
+   * @param id expense identifier
+   * @param request updated expense details
+   * @return updated expense
+   */
   @PutMapping("/{id}")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public Expense update(@PathVariable final UUID id, @Valid @RequestBody final ExpenseRequest request) {
     return service.updateUnpaid(hotel(), id, request);
   }
 
+  /** Marks an unpaid expense as paid and records the selected method.
+   *
+   * @param id expense identifier
+   * @param request payment method and optional cash session
+   * @return paid expense
+   */
   @PatchMapping("/{id}/paid")
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public Expense markPaid(
@@ -109,8 +154,14 @@ public class ExpenseController {
         request == null ? null : request.paymentMethod());
   }
 
+  /** Optional cash and method details for paying an expense.
+   *
+   * @param cashSessionId optional open cash session
+   * @param paymentMethod selected payment method
+   */
   public record PayExpenseRequest(UUID cashSessionId,
-      @jakarta.validation.constraints.Pattern(regexp = "CASH|BANK_TRANSFER|CARD|OTHER") String paymentMethod) {}
+      @jakarta.validation.constraints.Pattern(regexp = EXPENSE_PAYMENT_METHOD_PATTERN)
+      String paymentMethod) { }
 
   private UUID hotel() {
     return UUID.fromString(

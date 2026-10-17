@@ -12,5 +12,5 @@ import jakarta.validation.constraints.Size;
 public record UpdateAccountProfileRequest(
     @NotBlank @Size(max = MAX_FULL_NAME_LENGTH) String fullName,
     @NotBlank @Email @Size(max = 100) String email) {
-  int MAX_FULL_NAME_LENGTH = 160;
+  static final int MAX_FULL_NAME_LENGTH = 160;
 }

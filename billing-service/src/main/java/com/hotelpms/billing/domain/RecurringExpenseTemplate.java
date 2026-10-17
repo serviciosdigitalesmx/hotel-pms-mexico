@@ -25,6 +25,12 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RecurringExpenseTemplate {
+  private static final int CATEGORY_LENGTH = 120;
+  private static final int AMOUNT_PRECISION = 12;
+  private static final int AMOUNT_SCALE = 2;
+  private static final int DESCRIPTION_LENGTH = 255;
+  private static final int REFERENCE_LENGTH = 100;
+  private static final int FREQUENCY_LENGTH = 16;
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
@@ -32,22 +38,22 @@ public class RecurringExpenseTemplate {
   @Column(name = "hotel_id", nullable = false)
   private UUID hotelId;
 
-  @Column(nullable = false, length = 120)
+  @Column(nullable = false, length = CATEGORY_LENGTH)
   private String category;
 
-  @Column(nullable = false, precision = 12, scale = 2)
+  @Column(nullable = false, precision = AMOUNT_PRECISION, scale = AMOUNT_SCALE)
   private BigDecimal amount;
 
-  @Column(length = 255)
+  @Column(length = DESCRIPTION_LENGTH)
   private String description;
 
-  @Column(length = 100)
+  @Column(length = REFERENCE_LENGTH)
   private String reference;
 
-  @Column(length = 120)
+  @Column(length = CATEGORY_LENGTH)
   private String subcategory;
 
-  @Column(nullable = false, length = 16)
+  @Column(nullable = false, length = FREQUENCY_LENGTH)
   private String frequency;
 
   @Column(name = "next_due_at", nullable = false)

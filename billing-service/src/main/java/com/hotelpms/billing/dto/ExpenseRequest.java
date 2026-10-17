@@ -17,6 +17,12 @@ import java.util.UUID;
  * @param description optional description.
  * @param reference optional reference.
  * @param cashSessionId optional cash session identifier.
+ * @param expenseType optional expense classification
+ * @param subcategory optional expense subcategory
+ * @param paid whether payment has already been made
+ * @param spentAt business date of the expense
+ * @param dueAt date an unpaid expense is due
+ * @param paymentMethod method used to pay
  */
 public record ExpenseRequest(
     @NotBlank @Size(max = CATEGORY_LENGTH) String category,
@@ -33,6 +39,14 @@ public record ExpenseRequest(
   private static final int CATEGORY_LENGTH = 120;
   private static final int DESCRIPTION_LENGTH = 255;
 
+  /** Preserves the original variable-expense request contract.
+   *
+   * @param category expense category
+   * @param amount expense amount
+   * @param description optional description
+   * @param reference optional reference
+   * @param cashSessionId optional cash session identifier
+   */
   public ExpenseRequest(
       final String category,
       final BigDecimal amount,
