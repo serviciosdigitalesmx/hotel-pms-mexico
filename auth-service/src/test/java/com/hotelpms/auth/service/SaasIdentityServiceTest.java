@@ -31,6 +31,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @ExtendWith(MockitoExtension.class)
 class SaasIdentityServiceTest {
 
+  private static final String OWNER_EMAIL = "owner@example.com";
+
   @Mock private HotelRegistryRepository hotels;
   @Mock private UserAccountRepository users;
   @Mock private TenantBranchRepository branches;
@@ -59,7 +61,7 @@ class SaasIdentityServiceTest {
             "Reparación Ñandú",
             null,
             "Sucursal Centro");
-    when(users.existsByEmailIncludingInactive("owner@example.com")).thenReturn(false);
+    when(users.existsByEmailIncludingInactive(OWNER_EMAIL)).thenReturn(false);
     when(hotels.existsBySlug("reparacion-nandu")).thenReturn(false);
     when(passwords.encode("StrongPass1")).thenReturn("encoded-password");
     when(hotels.save(any(HotelRegistry.class)))
@@ -84,12 +86,12 @@ class SaasIdentityServiceTest {
     service.signup(request);
 
     verify(users).save(ownerCaptor.capture());
-    assertThat(ownerCaptor.getValue().getEmail()).isEqualTo("owner@example.com");
+    assertThat(ownerCaptor.getValue().getEmail()).isEqualTo(OWNER_EMAIL);
     assertThat(ownerCaptor.getValue().isEmailVerified()).isFalse();
     assertThat(ownerCaptor.getValue().isActive()).isFalse();
     verify(tokens).save(tokenCaptor.capture());
     assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(ownerId);
     assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo("VERIFY_EMAIL");
-    verify(mail).verification(org.mockito.ArgumentMatchers.eq("owner@example.com"), any());
+    verify(mail).verification(org.mockito.ArgumentMatchers.eq(OWNER_EMAIL), any());
   }
 }
