@@ -23,9 +23,10 @@ springBoot {
 graalvmNative {
     binaries {
         named("main") {
-            // Keep the pilot build inside Docker Desktop's memory budget.
-            buildArgs.add("-J-Xmx4600m")
-            buildArgs.add("--parallelism=4")
+            // Match the heap and worker envelope used by the other Fixi
+            // Native Image services to avoid exhausting the hosted runner.
+            buildArgs.add("-J-Xmx12g")
+            buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
         }
     }

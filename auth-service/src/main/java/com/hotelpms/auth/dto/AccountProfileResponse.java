@@ -2,7 +2,8 @@ package com.hotelpms.auth.dto;
 
 import com.hotelpms.auth.domain.UserAccount;
 
-/** Safe account profile fields for the authenticated user.
+/**
+ * Safe account profile fields for the authenticated user.
  *
  * @param username stable login name
  * @param fullName display name
@@ -10,7 +11,8 @@ import com.hotelpms.auth.domain.UserAccount;
  * @param emailVerified whether the contact email was verified
  */
 public record AccountProfileResponse(String username, String fullName, String email, boolean emailVerified) {
-  /** Projects only fields safe for the authenticated account's profile screen.
+  /**
+   * Projects only fields safe for the authenticated account's profile screen.
    *
    * @param user authenticated account
    * @return safe profile response

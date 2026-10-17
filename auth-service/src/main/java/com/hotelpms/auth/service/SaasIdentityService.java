@@ -66,7 +66,8 @@ public class SaasIdentityService {
   private final TenantIndustryProfileRepository industryProfiles;
   private final AccountMailService mail;
 
-  /** Updates only the authenticated account's profile and verifies a changed contact email.
+  /**
+   * Updates only the authenticated account's profile and verifies a changed contact email.
    *
    * @param userId authenticated account identifier
    * @param request validated display name and contact email
