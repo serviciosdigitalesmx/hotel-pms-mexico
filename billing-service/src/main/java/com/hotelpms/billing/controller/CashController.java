@@ -27,7 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class CashController {
   private final CashService service;
 
-  /** Returns only the current tenant's open session summary.
+  /**
+   * Returns only the current tenant's open session summary.
    *
    * @return open session summary, or no content when none exists
    */

@@ -14,7 +14,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 /** Tenant-scoped expense access. */
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
-  /** Finds a generated expense for one recurring template period.
+  /**
+   * Finds a generated expense for one recurring template period.
    *
    * @param hotelId tenant identifier
    * @param recurringTemplateId recurring template identifier
@@ -32,7 +33,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
    */
   List<Expense> findAllByHotelIdOrderByCreatedAtDesc(UUID hotelId);
 
-  /** Lists expenses by business date while including unpaid obligations due in the requested period.
+  /**
+   * Lists expenses by business date while including unpaid obligations due in the requested period.
    *
    * @param hotelId tenant identifier
    * @param fromDate first report date
@@ -46,7 +48,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
   List<Expense> findForReport(@Param("hotelId") UUID hotelId,
       @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
-  /** Finds an expense only within the owning tenant.
+  /**
+   * Finds an expense only within the owning tenant.
    *
    * @param id expense identifier
    * @param hotelId tenant identifier
@@ -54,7 +57,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
    */
   Optional<Expense> findByIdAndHotelId(UUID id, UUID hotelId);
 
-  /** Locks an expense for a tenant-scoped update.
+  /**
+   * Locks an expense for a tenant-scoped update.
    *
    * @param id expense identifier
    * @param hotelId tenant identifier

@@ -10,12 +10,14 @@ import com.hotelpms.billing.dto.CashDtos.SessionResponse;
 
 /** Cash register operations scoped to one tenant. */
 public interface CashService {
-  /** Returns the open cash session summary for a tenant, if one exists.
+  /**
+   * Returns the open cash session summary for a tenant, if one exists.
    *
    * @param hotelId tenant identifier
    * @return open session summary, if available
    */
   Optional<SessionResponse> currentOpen(UUID hotelId);
+
   /**
    * Opens a cash session.
    *

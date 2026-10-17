@@ -9,7 +9,8 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Validated recurring expense template input.
+/**
+ * Validated recurring expense template input.
  *
  * @param category expense category
  * @param amount amount per period

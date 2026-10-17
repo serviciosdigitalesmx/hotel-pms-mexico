@@ -145,7 +145,9 @@ public class PaymentServiceImpl implements PaymentService {
     try {
       savedPayment = paymentRepository.saveAndFlush(payment);
     } catch (final DataIntegrityViolationException conflict) {
-      if (request.transactionReference() == null || request.transactionReference().isBlank()) throw conflict;
+      if (request.transactionReference() == null || request.transactionReference().isBlank()) {
+        throw conflict;
+      }
       final Payment replay = paymentRepository.findByInvoiceIdAndTransactionReference(
           invoiceId, request.transactionReference()).orElseThrow(() -> conflict);
       if (replay.getAmount().compareTo(paymentAmount) != 0

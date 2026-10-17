@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class DepositController {
   private final DepositService service;
 
-  /** Records a tenant-scoped idempotent deposit for an invoice.
+  /**
+   * Records a tenant-scoped idempotent deposit for an invoice.
    *
    * @param invoiceId invoice identifier
    * @param request deposit amount and replay key

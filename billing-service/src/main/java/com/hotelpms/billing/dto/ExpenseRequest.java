@@ -39,7 +39,8 @@ public record ExpenseRequest(
   private static final int CATEGORY_LENGTH = 120;
   private static final int DESCRIPTION_LENGTH = 255;
 
-  /** Preserves the original variable-expense request contract.
+  /**
+   * Preserves the original variable-expense request contract.
    *
    * @param category expense category
    * @param amount expense amount

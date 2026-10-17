@@ -7,7 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Tenant-scoped deposit persistence with reference idempotency. */
 public interface DepositRepository extends JpaRepository<Deposit, UUID> {
-  /** Lists deposits for one tenant's invoice in receipt order.
+  /**
+   * Lists deposits for one tenant's invoice in receipt order.
    *
    * @param hotelId tenant identifier
    * @param invoiceId invoice identifier
@@ -15,7 +16,8 @@ public interface DepositRepository extends JpaRepository<Deposit, UUID> {
    */
   List<Deposit> findAllByHotelIdAndInvoiceIdOrderByReceivedAtAsc(UUID hotelId, UUID invoiceId);
 
-  /** Lists deposits in selected lifecycle states for an invoice.
+  /**
+   * Lists deposits in selected lifecycle states for an invoice.
    *
    * @param hotelId tenant identifier
    * @param invoiceId invoice identifier
@@ -25,7 +27,8 @@ public interface DepositRepository extends JpaRepository<Deposit, UUID> {
   List<Deposit> findAllByHotelIdAndInvoiceIdAndStatusIn(UUID hotelId, UUID invoiceId,
       java.util.Collection<Deposit.Status> statuses);
 
-  /** Finds a deposit by its tenant-scoped idempotency key.
+  /**
+   * Finds a deposit by its tenant-scoped idempotency key.
    *
    * @param hotelId tenant identifier
    * @param referenceKey idempotency key

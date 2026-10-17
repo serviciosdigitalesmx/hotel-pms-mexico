@@ -15,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class LedgerService {
   private final LedgerEntryRepository repository;
 
-  /** Appends one immutable financial fact, returning a matching prior fact on replay.
+  /**
+   * Appends one immutable financial fact, returning a matching prior fact on replay.
    *
    * @param hotelId tenant identifier
    * @param aggregateId related invoice or expense identifier
@@ -54,7 +55,8 @@ public class LedgerService {
     return entry;
   }
 
-  /** Lists all financial facts visible to a tenant in creation order.
+  /**
+   * Lists all financial facts visible to a tenant in creation order.
    *
    * @param hotelId tenant identifier
    * @return tenant ledger entries

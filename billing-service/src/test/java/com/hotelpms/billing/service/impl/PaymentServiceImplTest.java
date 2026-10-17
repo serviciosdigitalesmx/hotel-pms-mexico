@@ -36,7 +36,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -224,7 +223,7 @@ class PaymentServiceImplTest {
         final Exception exception = assertThrows(InvoiceConflictException.class,
                 () -> paymentService.addPayment(Objects.requireNonNull(invoiceId), Objects.requireNonNull(request)));
         assertEquals("INVOICE_LOCKED_AFTER_EXPORT", exception.getMessage());
-        verify(invoiceRepository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+        verify(invoiceRepository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test

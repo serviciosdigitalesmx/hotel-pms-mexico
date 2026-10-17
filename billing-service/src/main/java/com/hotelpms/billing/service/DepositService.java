@@ -20,7 +20,8 @@ public class DepositService {
   private final InvoiceRepository invoices;
   private final LedgerService ledger;
 
-  /** Records an idempotent deposit against an invoice without marking the invoice paid.
+  /**
+   * Records an idempotent deposit against an invoice without marking the invoice paid.
    *
    * @param hotelId tenant identifier
    * @param invoiceId invoice identifier

@@ -96,6 +96,11 @@ public class ExpenseServiceImpl implements ExpenseService {
     return expenses.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @implSpec Overrides must preserve tenant scoping and the report date boundaries.
+   */
   @Override
   @Transactional(readOnly = true)
   public List<Expense> listForReport(final UUID hotelId, final java.time.LocalDate fromDate,
@@ -106,6 +111,11 @@ public class ExpenseServiceImpl implements ExpenseService {
     return expenses.findForReport(hotelId, fromDate, toDate);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @implSpec Overrides must keep tenant-owned row locking and reject payment changes here.
+   */
   @Override
   @Transactional
   public Expense updateUnpaid(final UUID hotelId, final UUID expenseId, final ExpenseRequest request) {
@@ -180,10 +190,16 @@ public class ExpenseServiceImpl implements ExpenseService {
 
   private static String resolvePaymentMethod(
       final boolean paid, final UUID cashSessionId, final String requestedPaymentMethod) {
-    if (!paid) return null;
-    if (cashSessionId != null) return "CASH";
+    if (!paid) {
+      return null;
+    }
+    if (cashSessionId != null) {
+      return "CASH";
+    }
     final String method = requestedPaymentMethod == null ? "OTHER" : requestedPaymentMethod;
-    if ("CASH".equals(method)) throw new BillingValidationException("CASH_PAYMENT_SESSION_REQUIRED");
+    if ("CASH".equals(method)) {
+      throw new BillingValidationException("CASH_PAYMENT_SESSION_REQUIRED");
+    }
     return method;
   }
 
@@ -218,11 +234,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
     final var dueAt = template.getNextDueAt();
     if (!dueAt.equals(expectedDueAt)) {
-      return expenses.findByHotelIdAndRecurringTemplateIdAndRecurringPeriodDueAt(hotelId, templateId, expectedDueAt)
+      return expenses.findByHotelIdAndRecurringTemplateIdAndRecurringPeriodDueAt(
+          hotelId, templateId, expectedDueAt)
           .orElseThrow(() -> new BillingValidationException("RECURRING_EXPENSE_PERIOD_CHANGED"));
     }
     final var existing = expenses.findByHotelIdAndRecurringTemplateIdAndRecurringPeriodDueAt(hotelId, templateId, dueAt);
-    if (existing.isPresent()) return existing.get();
+    if (existing.isPresent()) {
+      return existing.get();
+    }
     final Expense expense = expenses.save(Expense.builder().hotelId(hotelId).createdBy(actor)
         .createdAt(LocalDateTime.now()).category(template.getCategory()).amount(template.getAmount())
         .description(template.getDescription()).reference(template.getReference()).expenseType("FIXED")
@@ -240,7 +259,7 @@ public class ExpenseServiceImpl implements ExpenseService {
   /** {@inheritDoc} */
   @Override
   @Transactional
-  public RecurringExpenseTemplate setRecurringActive(
+  public RecurringExpenseTemplate changeRecurringActive(
       final UUID hotelId, final UUID templateId, final boolean active) {
     final RecurringExpenseTemplate template = recurringTemplates.findByIdAndHotelId(templateId, hotelId)
         .orElseThrow(() -> new NotFoundException("RECURRING_EXPENSE_NOT_FOUND"));
