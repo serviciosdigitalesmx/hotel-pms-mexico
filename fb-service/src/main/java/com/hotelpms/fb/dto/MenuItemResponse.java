@@ -14,6 +14,7 @@ import java.util.UUID;
  * @param category    display category (e.g. "Bar", "Cucina")
  * @param description optional free-text description
  * @param available   whether the item is visible in the order form
+ * @param inventoryProductId optional inventory product linked to this menu item
  */
 @Builder
 public record MenuItemResponse(

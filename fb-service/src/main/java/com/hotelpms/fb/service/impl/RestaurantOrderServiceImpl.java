@@ -187,7 +187,7 @@ public class RestaurantOrderServiceImpl implements RestaurantOrderService {
             final List<ConsumptionLine> linkedProducts = order.getItems().stream()
                     .filter(item -> item.getInventoryProductId() != null)
                     .collect(Collectors.groupingBy(OrderItem::getInventoryProductId,
-                            Collectors.summingLong(item -> item.getQuantity().longValue())))
+                            Collectors.summingLong(OrderItem::getQuantity)))
                     .entrySet().stream()
                     .map(entry -> new ConsumptionLine(entry.getKey(), entry.getValue()))
                     .toList();
