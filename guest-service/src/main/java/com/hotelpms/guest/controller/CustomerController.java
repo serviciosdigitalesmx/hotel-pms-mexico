@@ -6,6 +6,7 @@ import com.hotelpms.guest.exception.GuestConflictException;
 import com.hotelpms.guest.dto.response.GuestResponse;
 import com.hotelpms.guest.service.DeviceService;
 import com.hotelpms.guest.dto.response.DeviceResponse;
+import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
@@ -65,7 +66,9 @@ public class CustomerController {
     if(imported==0&&errors.isEmpty())errors.add("El CSV no contiene filas de clientes válidas.");
     return ResponseEntity.ok(new CsvImportResult(imported,errors));
   }
-  @PostMapping public ResponseEntity<GuestResponse> create(@Valid @RequestBody GuestRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(service.createGuest(request));}
+  @PostMapping
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
+  public ResponseEntity<GuestResponse> create(@Valid @RequestBody GuestRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(service.createGuest(request));}
   @GetMapping public Page<GuestResponse> list(@PageableDefault(size=50,sort="lastName",direction=Sort.Direction.ASC) Pageable pageable){return service.getAllGuests(pageable);}
   @GetMapping(value="/export", produces="text/csv")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
@@ -103,7 +106,9 @@ public class CustomerController {
     return rows;
   }
   @GetMapping("/{id}") public GuestResponse get(@PathVariable UUID id){return service.getGuestById(id);}
-  @PutMapping("/{id}") public GuestResponse update(@PathVariable UUID id,@Valid @RequestBody GuestRequest request){return service.updateGuest(id,request);}
+  @PutMapping("/{id}")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
+  public GuestResponse update(@PathVariable UUID id,@Valid @RequestBody GuestRequest request){return service.updateGuest(id,request);}
   @DeleteMapping("/{id}")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
   public ResponseEntity<Void> anonymize(@PathVariable final UUID id) {
@@ -112,4 +117,7 @@ public class CustomerController {
   }
   @GetMapping("/search") public Page<GuestResponse> search(@RequestParam(required=false) String query,@PageableDefault(size=50) Pageable pageable){return service.searchGuests(query,pageable);}
   @GetMapping("/search-devices") public Page<DeviceResponse> searchDevices(@RequestParam String query,@PageableDefault(size=25) Pageable pageable){return devices.search(query,pageable);}
+  @GetMapping("/device-catalog")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+  public List<DeviceCatalogEntry> deviceCatalog(){return devices.catalog();}
 }

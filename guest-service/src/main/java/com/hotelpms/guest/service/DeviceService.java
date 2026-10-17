@@ -3,6 +3,7 @@ package com.hotelpms.guest.service;
 import com.hotelpms.guest.dto.request.DeviceRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
 import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
+import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -32,6 +33,9 @@ public interface DeviceService {
 
   /** Searches active tenant devices by category, make, model, serial, or IMEI. */
   Page<DeviceResponse> search(String query, Pageable pageable);
+
+  /** Lists observed device models and their tenant-local registration counts. */
+  List<DeviceCatalogEntry> catalog();
 
   /**
    * Finds one active device for a customer.

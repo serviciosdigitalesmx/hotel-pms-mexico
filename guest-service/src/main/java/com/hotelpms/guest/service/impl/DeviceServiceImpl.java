@@ -3,6 +3,7 @@ package com.hotelpms.guest.service.impl;
 import com.hotelpms.guest.dto.request.DeviceRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
 import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
+import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import com.hotelpms.guest.exception.NotFoundException;
 import com.hotelpms.guest.model.Device;
 import com.hotelpms.guest.model.DeviceOwnershipTransfer;
@@ -124,6 +125,13 @@ public class DeviceServiceImpl implements DeviceService {
           .map(owner -> owner.getFirstName() + " " + owner.getLastName()).orElse("");
       return DeviceResponse.from(device, customerName);
     });
+  }
+
+  /** Returns a tenant-local, read-only catalog without exposing customer identity data. */
+  @Override
+  @Transactional(readOnly = true)
+  public List<DeviceCatalogEntry> catalog() {
+    return devices.catalogByHotelId(hotel());
   }
 
   /** Gets one tenant-scoped device for a customer. */

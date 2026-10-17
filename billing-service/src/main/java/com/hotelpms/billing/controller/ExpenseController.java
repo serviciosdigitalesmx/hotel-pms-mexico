@@ -8,6 +8,7 @@ import com.hotelpms.billing.service.ExpenseService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDate;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Tenant-scoped expense API. */
@@ -53,6 +55,14 @@ public class ExpenseController {
   @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
   public List<Expense> list() {
     return service.list(hotel());
+  }
+
+  /** Lists tenant expenses whose business date or pending due date falls in a report range. */
+  @GetMapping("/report-range")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public List<Expense> listForReport(@RequestParam final LocalDate from,
+      @RequestParam final LocalDate to) {
+    return service.listForReport(hotel(), from, to);
   }
 
   @GetMapping("/recurring")
@@ -100,7 +110,7 @@ public class ExpenseController {
   }
 
   public record PayExpenseRequest(UUID cashSessionId,
-      @jakarta.validation.constraints.Pattern(regexp = "BANK_TRANSFER|CARD|OTHER") String paymentMethod) {}
+      @jakarta.validation.constraints.Pattern(regexp = "CASH|BANK_TRANSFER|CARD|OTHER") String paymentMethod) {}
 
   private UUID hotel() {
     return UUID.fromString(

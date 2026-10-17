@@ -4,6 +4,7 @@ import com.hotelpms.notification.dto.CheckinNotificationRequest;
 import com.hotelpms.notification.dto.CheckoutNotificationRequest;
 import com.hotelpms.notification.dto.QuotationNotificationRequest;
 import com.hotelpms.notification.dto.ReservationConfirmedRequest;
+import com.hotelpms.notification.dto.OperationalEmailRequest;
 import com.hotelpms.notification.service.NotificationService;
 import com.hotelpms.notification.util.EmailMasker;
 import jakarta.mail.MessagingException;
@@ -37,6 +38,23 @@ public class NotificationServiceImpl implements NotificationService {
     private final TemplateEngine templateEngine;
     private final String fromAddress;
     private final String fromName;
+
+    /** {@inheritDoc} */
+    @Override
+    public void sendOperationalEmail(final OperationalEmailRequest request) {
+        try {
+            final MimeMessage message = mailSender.createMimeMessage();
+            final MimeMessageHelper helper = new MimeMessageHelper(message, false, CHARSET);
+            helper.setFrom(new InternetAddress(fromAddress, resolveFromName(request.hotelName()), CHARSET));
+            helper.setTo(request.recipient());
+            helper.setSubject(request.subject());
+            helper.setText(request.message(), false);
+            mailSender.send(message);
+            log.info("[NOTIFY] operational alert sent | to={}", EmailMasker.mask(request.recipient()));
+        } catch (final MessagingException | UnsupportedEncodingException e) {
+            throw new IllegalStateException("EMAIL_SEND_FAILED: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * Constructs the service with injected mail infrastructure and configuration.

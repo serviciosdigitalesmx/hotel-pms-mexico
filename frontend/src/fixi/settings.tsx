@@ -98,6 +98,14 @@ export function BusinessSettings() {
   async function saveIndustry(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError(''); setMessage('')
     try {
+      const enabledModules: unknown = JSON.parse(profile.enabledModulesJson || '[]')
+      if (!Array.isArray(enabledModules) || enabledModules.some(item => typeof item !== 'string')) {
+        throw new Error('Módulos habilitados debe ser un arreglo JSON de claves de texto')
+      }
+      for (const [label, json] of [['Campos dinámicos', profile.dynamicFieldsJson], ['Etiquetas de formularios', profile.formsLabelsJson]] as const) {
+        const parsed: unknown = JSON.parse(json || '{}')
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`${label} debe ser un objeto JSON`)
+      }
       const catalogsTemplatesJson = updateWorkshopTemplates(
         profile.catalogsTemplatesJson,
         checklistText.split('\n').map(item => item.trim()).filter(Boolean),

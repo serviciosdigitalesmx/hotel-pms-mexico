@@ -276,7 +276,7 @@ public class PublicBookingFilter
                             + PUBLIC_ROLE
                             + ":"
                             + hotelId
-                            + ":"
+                            + "::"
                             + timestamp
                             + ":"
                             + nonce;

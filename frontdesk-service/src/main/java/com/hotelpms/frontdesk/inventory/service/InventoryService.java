@@ -18,6 +18,7 @@ import com.hotelpms.frontdesk.inventory.repository.InventoryProductRepository;
 import com.hotelpms.frontdesk.inventory.repository.PosInventoryConsumptionRepository;
 import com.hotelpms.frontdesk.inventory.repository.StockReservationRepository;
 import com.hotelpms.frontdesk.client.BranchValidationService;
+import com.hotelpms.frontdesk.notifications.OperationalNotificationOutboxService;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatus;
 import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public class InventoryService {
   private final BranchValidationService branchValidation;
   private final ServiceOrderRepository serviceOrders;
   private final PosInventoryConsumptionRepository posConsumptions;
+  private final OperationalNotificationOutboxService notificationOutbox;
 
   /**
    * Creates an inventory product.
@@ -123,6 +125,11 @@ public class InventoryService {
   @Transactional
   public List<InventoryProduct> increasePrices(
       final UUID hotel, final List<UUID> productIds, final java.math.BigDecimal percentage) {
+    if (productIds == null || productIds.isEmpty() || productIds.size() > 500
+        || percentage == null || percentage.signum() < 0
+        || percentage.compareTo(new java.math.BigDecimal("1000.00")) > 0) {
+      throw new IllegalArgumentException("INVALID_BULK_PRICE_REQUEST");
+    }
     final List<InventoryProduct> selected = products.findAllById(productIds).stream()
         .filter(product -> hotel.equals(product.getHotelId())).toList();
     if (selected.size() != productIds.stream().distinct().count()) {
@@ -144,6 +151,9 @@ public class InventoryService {
    */
   @Transactional
   public InventoryBalance move(final UUID hotel, final MovementRequest r) {
+    if (r.reason() == null || r.reason().isBlank() || r.reason().trim().length() > 500) {
+      throw new IllegalArgumentException("INVENTORY_MOVEMENT_REASON_REQUIRED");
+    }
     branchValidation.requireActiveBranch(hotel, r.branchId());
     final InventoryProduct p =
         products
@@ -165,8 +175,8 @@ public class InventoryService {
     }
     b.setQuantity(next);
     final InventoryBalance saved = balances.save(b);
-    final String reason = r.reason() == null || r.reason().isBlank()
-        ? "Manual stock adjustment" : r.reason().trim();
+    publishLowStockIfCrossed(hotel, p, next - r.delta(), next, r.branchId());
+    final String reason = r.reason().trim();
     final String escapedReason = escapeJson(reason);
     auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_MOVEMENT_RECORDED",
         saved.getId(), null, "{\"branchId\":\"" + r.branchId() + "\",\"productId\":\""
@@ -237,6 +247,17 @@ public class InventoryService {
     return escaped.toString();
   }
 
+  private void publishLowStockIfCrossed(
+      final UUID hotel, final InventoryProduct product, final long previous, final long current,
+      final UUID branchId) {
+    final long threshold = product.getReorderLevel();
+    if (threshold <= 0 || previous <= threshold || current > threshold) return;
+    notificationOutbox.enqueue(hotel, "STOCK_LOW", "Existencia baja: " + product.getName(),
+        "El producto " + product.getName() + " (" + product.getSku() + ") quedó en " + current
+            + " unidades, por debajo del mínimo de " + threshold + ". Sucursal: " + branchId + ".",
+        "STOCK_LOW:" + branchId + ":" + product.getId() + ":" + UUID.randomUUID());
+  }
+
   /** Sets a physically counted stock quantity and retains the adjustment reason in audit. */
   @Transactional
   public InventoryBalance count(final UUID hotel, final StockCountRequest request) {
@@ -254,6 +275,7 @@ public class InventoryService {
     }
     balance.setQuantity(request.countedQuantity());
     final InventoryBalance saved = balances.save(balance);
+    publishLowStockIfCrossed(hotel, product, previous, request.countedQuantity(), request.branchId());
     auditEvents.record(hotel, null, AuditEvent.Category.INVENTORY, "INVENTORY_STOCK_COUNTED",
         saved.getId(), null, "{\"branchId\":\"" + request.branchId()
             + "\",\"productId\":\"" + request.productId() + "\",\"previous\":"
@@ -272,6 +294,9 @@ public class InventoryService {
    */
   @Transactional
   public StockReservation reserve(final UUID hotel, final ReservationRequest r) {
+    if (r.quantity() <= 0) {
+      throw new IllegalArgumentException("RESERVATION_QUANTITY_MUST_BE_POSITIVE");
+    }
     branchValidation.requireActiveBranch(hotel, r.branchId());
     final var order = serviceOrders.findForUpdateByIdAndHotelId(r.serviceOrderId(), hotel)
         .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
@@ -306,6 +331,8 @@ public class InventoryService {
     }
     b.setQuantity(b.getQuantity() - difference);
     balances.save(b);
+    publishLowStockIfCrossed(hotel, product, b.getQuantity() + difference,
+        b.getQuantity(), r.branchId());
     final StockReservation reservation = existing.map(item -> {
       item.setBranchId(r.branchId()); item.setQuantity(r.quantity()); item.setStatus("RESERVED"); return item;
     }).orElseGet(() -> StockReservation.builder()
@@ -460,6 +487,9 @@ public class InventoryService {
 
   @Transactional
   public ImportResult importCsv(final UUID hotel, final String csv, final UUID defaultBranchId) {
+    if (csv != null && csv.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 5 * 1024 * 1024) {
+      throw new IllegalArgumentException("CSV_FILE_EXCEEDS_5_MB");
+    }
     int imported = 0;
     int rejected = 0;
     final List<String> errors = new ArrayList<>();
@@ -474,6 +504,9 @@ public class InventoryService {
       headers = rows.get(0).stream().map(value -> value.trim().toLowerCase(Locale.ROOT)
           .replaceAll("[\\s_-]+", "")).toList();
       firstDataRow = 1;
+    }
+    if (rows.size() - firstDataRow > 5000) {
+      throw new IllegalArgumentException("CSV_EXCEEDS_5000_ROWS");
     }
     for (int i = firstDataRow; i < rows.size(); i++) {
       final List<String> cells = rows.get(i);
@@ -510,7 +543,7 @@ public class InventoryService {
       final ProductRequest productRequest;
       try {
         final String sku = suppliedSku.isBlank()
-            ? "IMP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase(Locale.ROOT)
+            ? generatedImportSku(values)
             : suppliedSku;
         if (sku.length() > 80 || products.findByHotelIdAndSku(hotel, sku).isPresent()
             || seenSkus.contains(sku)) {
@@ -562,6 +595,20 @@ public class InventoryService {
 
   private BigDecimal decimalValue(final String value) {
     return value == null || value.isBlank() ? BigDecimal.ZERO : new BigDecimal(value.trim());
+  }
+
+  private String generatedImportSku(final java.util.Map<String, String> values) {
+    final String canonical = values.entrySet().stream()
+        .sorted(java.util.Map.Entry.comparingByKey())
+        .map(entry -> entry.getKey() + "=" + entry.getValue())
+        .collect(java.util.stream.Collectors.joining("|"));
+    try {
+      final byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+          .digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      return "IMP-" + java.util.HexFormat.of().formatHex(digest, 0, 10).toUpperCase(Locale.ROOT);
+    } catch (java.security.NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("IMPORT_SKU_GENERATION_UNAVAILABLE", exception);
+    }
   }
 
   private boolean fitsProductAmount(final BigDecimal value) {

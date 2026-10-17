@@ -33,3 +33,8 @@ argos-local
 **/node_modules/
 **/node_modules/**
 **/build/
+!**/build/
+**/build/*
+!**/build/libs/
+**/build/libs/*
+!**/build/libs/*-SNAPSHOT.jar

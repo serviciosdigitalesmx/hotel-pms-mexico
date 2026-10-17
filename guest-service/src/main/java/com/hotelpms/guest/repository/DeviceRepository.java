@@ -1,6 +1,7 @@
 package com.hotelpms.guest.repository;
 
 import com.hotelpms.guest.model.Device;
+import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +13,15 @@ import org.springframework.data.repository.query.Param;
 
 /** Tenant-scoped persistence operations for devices. */
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
+    /** Groups active customer-owned devices into the tenant's observed model catalog. */
+    @Query("select new com.hotelpms.guest.dto.response.DeviceCatalogEntry("
+        + "min(d.category), min(coalesce(d.manufacturer, '')), min(coalesce(d.model, '')), count(d.id)) "
+        + "from Device d where d.hotelId = :hotelId "
+        + "group by lower(trim(d.category)), lower(coalesce(trim(d.manufacturer), '')), "
+        + "lower(coalesce(trim(d.model), '')) "
+        + "order by count(d.id) desc")
+    List<DeviceCatalogEntry> catalogByHotelId(@Param("hotelId") UUID hotelId);
+
     /**
      * Finds a device by tenant, customer and identifier.
      *

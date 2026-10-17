@@ -10,6 +10,9 @@ import com.hotelpms.notification.dto.ReservationConfirmedRequest;
  */
 public interface NotificationService {
 
+    /** Sends an operational alert to a configured business recipient. */
+    void sendOperationalEmail(com.hotelpms.notification.dto.OperationalEmailRequest request);
+
     /**
      * Sends a reservation-confirmed email to the guest.
      *

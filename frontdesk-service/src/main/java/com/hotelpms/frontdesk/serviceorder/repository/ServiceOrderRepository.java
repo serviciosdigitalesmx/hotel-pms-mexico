@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.serviceorder.repository;
 
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Collection;
 import java.util.Optional;
@@ -40,6 +41,17 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
   List<ServiceOrder> findAllByHotelIdOrderByCreatedAtDesc(UUID hotelId);
 
   Page<ServiceOrder> findAllByHotelId(UUID hotelId, Pageable pageable);
+
+  @Query(value = "select o.* from service_orders o where o.promised_at <= :now "
+      + "and o.status not in ('COMPLETED','CANCELLED') and not exists ("
+      + "select 1 from operational_notification_outbox n where n.hotel_id=o.hotel_id "
+      + "and n.event_type='DELIVERY_DUE' and n.source_key = "
+      + "('DELIVERY_DUE:' || o.id::text || ':' || o.promised_at::date::text)) "
+      + "and exists (select 1 from operational_notification_preferences p "
+      + "where p.hotel_id=o.hotel_id and coalesce((p.preferences->'DELIVERY_DUE'->>'EMAIL')::boolean,true) "
+      + "and jsonb_array_length(coalesce(p.email_recipients->'DELIVERY_DUE','[]'::jsonb)) > 0) "
+      + "order by o.promised_at asc limit 25", nativeQuery = true)
+  List<ServiceOrder> findOverdueOrders(@Param("now") LocalDateTime now);
   /**
    * Executes the operation.
    *

@@ -3,9 +3,11 @@ package com.hotelpms.frontdesk.portal;
 import java.util.Map;
 import java.util.List;
 import java.util.UUID;
-import com.hotelpms.frontdesk.serviceorder.domain.DocumentEvidence;
+import com.hotelpms.frontdesk.serviceorder.controller.DocumentEvidenceController;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -54,8 +56,21 @@ public class PublicPortalController {
    * @return visible document metadata
    */
   @GetMapping("/public/portal/operations/{token}/documents")
-  public List<DocumentEvidence> documents(@PathVariable final String token) {
-    return service.documents(token);
+  public List<DocumentEvidenceController.EvidenceView> documents(@PathVariable final String token) {
+    return service.documents(token).stream().map(document -> {
+      final var view = DocumentEvidenceController.view(document);
+      return new DocumentEvidenceController.EvidenceView(view.id(), view.serviceOrderId(), view.customerId(),
+          view.fileName(), view.contentType(), "/api/public/portal/operations/" + token
+              + "/documents/" + view.id() + "/content", view.accessLevel(), view.createdAt());
+    }).toList();
+  }
+
+  @GetMapping("/public/portal/operations/{token}/documents/{id}/content")
+  public ResponseEntity<byte[]> documentContent(@PathVariable final String token,
+      @PathVariable final UUID id) {
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"evidence-" + id + "\"")
+        .body(service.documentContent(token, id));
   }
 
   /** Starts a local OTP challenge; the returned code is for deterministic local validation only.

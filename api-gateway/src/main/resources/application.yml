@@ -11,8 +11,8 @@ spring:
       default-filters:
         - name: RequestRateLimiter
           args:
-            redis-rate-limiter.replenishRate: 10
-            redis-rate-limiter.burstCapacity: 20
+            redis-rate-limiter.replenishRate: ${GW_DEFAULT_RATE_LIMIT_REPLENISH_RATE:10}
+            redis-rate-limiter.burstCapacity: ${GW_DEFAULT_RATE_LIMIT_BURST_CAPACITY:20}
             redis-rate-limiter.requestedTokens: 1
             key-resolver: "#{@remoteAddrKeyResolver}"
 

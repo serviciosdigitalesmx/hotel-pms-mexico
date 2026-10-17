@@ -45,6 +45,7 @@ export function ReceptionOrderForm() {
   const [assignedUserId, setAssignedUserId] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL')
   const [depositAmount, setDepositAmount] = useState('0')
+  const [depositPaymentMethod, setDepositPaymentMethod] = useState<'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD'>('CASH')
   const [form, setForm] = useState({ summary: '', reportedFailure: '', intakeChecklist: '', promisedAt: '', intakeEvidence: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -62,26 +63,32 @@ export function ReceptionOrderForm() {
 
   useEffect(() => {
     let active = true
-    Promise.all([api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers().catch(() => []), api.industryProfile().catch(() => null), api.getBusinessProfile().catch(() => null)])
-      .then(([customerRows, branchRows, serviceRows, teamRows, profile, business]) => {
-        if (!active) return
-        setCustomers(customerRows)
-        setBranches(branchRows)
-        const activeBranches = branchRows.filter(branch => branch.active)
+    Promise.allSettled([
+      api.listAllCustomers(), api.listBranches(), api.listServices(), api.listUsers(),
+      api.industryProfile(), api.getBusinessProfile(),
+    ]).then(([customerResult, branchResult, serviceResult, teamResult, profileResult, businessResult]) => {
+      if (!active) return
+      const failures: string[] = []
+      if (customerResult.status === 'fulfilled') setCustomers(customerResult.value)
+      else failures.push('clientes')
+      if (branchResult.status === 'fulfilled') {
+        setBranches(branchResult.value)
+        const activeBranches = branchResult.value.filter(branch => branch.active)
         if (activeBranches.length === 1) setBranchId(current => current || activeBranches[0].id)
-        setServices(serviceRows)
-        if (business?.currency) setCurrency(business.currency.toUpperCase())
-        setUsers(teamRows.filter(user => user.active && user.role === 'TECHNICIAN'))
-        if (profile) {
-          try {
-            const templates = JSON.parse(profile.catalogsTemplatesJson)
-            const items = templates?.workshop?.intakeChecklist
-            if (Array.isArray(items)) setChecklistTemplate(items.filter((item: unknown): item is string => typeof item === 'string'))
-          } catch { /* Optional malformed templates do not prevent manual intake. */ }
-        }
-      })
-      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'No se pudieron cargar los datos de recepción') })
-      .finally(() => { if (active) setBranchesLoading(false) })
+      } else failures.push('sucursales')
+      if (serviceResult.status === 'fulfilled') setServices(serviceResult.value)
+      else failures.push('servicios')
+      if (teamResult.status === 'fulfilled') setUsers(teamResult.value.filter(user => user.active && user.role === 'TECHNICIAN'))
+      if (businessResult.status === 'fulfilled' && businessResult.value?.currency) setCurrency(businessResult.value.currency.toUpperCase())
+      if (profileResult.status === 'fulfilled' && profileResult.value) {
+        try {
+          const templates = JSON.parse(profileResult.value.catalogsTemplatesJson)
+          const items = templates?.workshop?.intakeChecklist
+          if (Array.isArray(items)) setChecklistTemplate(items.filter((item: unknown): item is string => typeof item === 'string'))
+        } catch { /* Optional malformed templates do not prevent manual intake. */ }
+      }
+      if (failures.length) setError(`No se pudieron cargar ${failures.join(', ')} para recepción`)
+    }).finally(() => { if (active) setBranchesLoading(false) })
     return () => { active = false }
   }, [])
 
@@ -205,6 +212,8 @@ export function ReceptionOrderForm() {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (capabilitiesLoading) { setError('Espera a que terminen de cargar los permisos'); return }
+    if (!capabilities.has('ORDERS_CREATE')) { setError('Tu usuario no tiene permiso para crear órdenes en esta sucursal'); return }
     if (!customerId) { setError('Busca y selecciona un cliente antes de crear la orden'); return }
     if (branchesLoading) { setError('Espera a que terminen de cargar las sucursales'); return }
     if (!branches.some(branch => branch.id === branchId && branch.active)) { setError('Selecciona una sucursal activa para registrar la orden'); return }
@@ -216,7 +225,7 @@ export function ReceptionOrderForm() {
       const order = await api.createServiceOrder({
         ...form, intakeChecklist, customerId, deviceId: deviceId || null, branchId: branchId || null,
         serviceName: serviceName || null, assignedUserId: assignedUserId || null, priority,
-        depositAmount: Number(depositAmount),
+        depositAmount: Number(depositAmount), depositPaymentMethod: Number(depositAmount) > 0 ? depositPaymentMethod : undefined,
         promisedAt: localDateTime(form.promisedAt),
       })
       setMessage('Orden creada')
@@ -269,14 +278,15 @@ export function ReceptionOrderForm() {
           <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => { let price: string; try { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(service.basePrice) } catch { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(service.basePrice) } return <option key={service.id} value={service.name}>{service.name} · {price} · {service.estimatedMinutes} min</option> })}</select>
           <label className="grid gap-1 text-sm text-muted-foreground">Responsable técnico<select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{assignableTechnicians.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>{branchTechniciansLoading&&<span role="status" className="text-xs">Consultando técnicos asignados…</span>}{branchId&&!branchTechniciansLoading&&!assignableTechnicians.length&&<span className="text-xs">No hay técnicos asignados a esta sucursal; la orden puede quedar sin asignar.</span>}</label>
           <select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select>
-          <div><Label>Anticipo recibido</Label><Input required type="number" min="0" max="9999999999.99" step="0.01" inputMode="decimal" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/>{selectedService&&Number(depositAmount)>selectedService.basePrice&&<p role="note" className="mt-1 text-xs text-amber-700">El anticipo excede el precio base de {selectedService.name}; verifica que cubra cargos o piezas adicionales.</p>}</div>
+          <div><Label>Anticipo recibido</Label><Input required type="number" min="0" max="9999999999.99" step="0.01" inputMode="decimal" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/>{Number(depositAmount)>0&&<select aria-label="Método de pago del anticipo" className={`${field} mt-2`} value={depositPaymentMethod} onChange={event=>setDepositPaymentMethod(event.target.value as typeof depositPaymentMethod)}><option value="CASH">Efectivo</option><option value="CHECK">Cheque</option><option value="BANK_DEPOSIT">Depósito bancario</option><option value="PAYPAL">PayPal</option><option value="CARD">Tarjeta</option></select>}{selectedService&&Number(depositAmount)>selectedService.basePrice&&<p role="note" className="mt-1 text-xs text-amber-700">El anticipo excede el precio base de {selectedService.name}; verifica que cubra cargos o piezas adicionales.</p>}</div>
         </div>
         <textarea required aria-label="Falla reportada" className={field} placeholder="Falla reportada por el cliente" value={form.reportedFailure} onChange={event => setForm({ ...form, reportedFailure: event.target.value })}/>
         {checklistTemplate.length > 0 && <fieldset className="space-y-2 rounded border p-3"><legend className="px-1 text-sm font-medium">Checklist configurable de recepción</legend>{checklistTemplate.map(item => <label className="flex items-start gap-2 text-sm" key={item}><input type="checkbox" checked={checkedChecklist.includes(item)} onChange={event => setCheckedChecklist(current => event.target.checked ? [...current, item] : current.filter(value => value !== item))}/>{item}</label>)}</fieldset>}
         <textarea aria-label="Notas del checklist de recepción" className={field} placeholder="Notas de recepción o checklist adicional" value={form.intakeChecklist} onChange={event => setForm({ ...form, intakeChecklist: event.target.value })}/>
         <textarea required aria-label="Resumen de orden" className={field} placeholder="Resumen de síntomas y condición" value={form.summary} onChange={event => setForm({ ...form, summary: event.target.value })}/>
         <div className="grid gap-3 md:grid-cols-2"><div><Label>Fecha compromiso (opcional)</Label><Input type="datetime-local" value={form.promisedAt} onChange={event => setForm({ ...form, promisedAt: event.target.value })}/></div><div><Label>Evidencia inicial / imágenes (URL o referencia)</Label><Input value={form.intakeEvidence} onChange={event => setForm({ ...form, intakeEvidence: event.target.value })}/></div></div>
-        <Button disabled={busy || customerLoading || branchesLoading || !branches.some(branch=>branch.active) || !customerId}>{busy ? 'Creando…' : 'Crear orden'}</Button>
+        <Button disabled={busy || capabilitiesLoading || !capabilities.has('ORDERS_CREATE') || customerLoading || branchesLoading || !branches.some(branch=>branch.id===branchId&&branch.active) || !customerId}>{busy ? 'Creando…' : 'Crear orden'}</Button>
+        {!capabilitiesLoading&&!capabilities.has('ORDERS_CREATE')&&<p role="alert" className="text-sm text-destructive">Se requiere ORDERS_CREATE para registrar una orden en la sucursal seleccionada.</p>}
         {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>

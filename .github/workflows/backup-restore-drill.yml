@@ -100,7 +100,7 @@ jobs:
       - name: Verify each database is queryable and has a non-empty migration history
         run: |
           fail=0
-          for db in hotel_auth hotel_frontdesk hotel_guest hotel_billing hotel_fb; do
+          for db in hotel_auth hotel_frontdesk hotel_guest hotel_billing hotel_fb hotel_notifications; do
             count=$(sudo -u postgres psql -h /tmp -p 5433 -d "$db" -t -A \
               -c "SELECT count(*) FROM flyway_schema_history;" 2>&1) || {
                 echo "::error::$db is not queryable after restore: $count"

@@ -1,6 +1,7 @@
 package com.hotelpms.guest.service.impl;
 
 import com.hotelpms.guest.dto.request.DeviceRequest;
+import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import com.hotelpms.guest.exception.NotFoundException;
 import com.hotelpms.guest.model.Device;
 import com.hotelpms.guest.repository.DeviceRepository;
@@ -59,5 +60,15 @@ class DeviceServiceImplTest {
         when(guests.findByIdAndHotelId(foreignCustomer, hotelId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> service.list(foreignCustomer));
         verifyNoInteractions(devices);
+    }
+
+    @Test
+    void catalogReturnsOnlyTheAuthenticatedTenantSummary() {
+        var entries = java.util.List.of(new DeviceCatalogEntry("Teléfono", "Acme", "X", 3L));
+        when(devices.catalogByHotelId(hotelId)).thenReturn(entries);
+
+        assertEquals(entries, service.catalog());
+        verify(devices).catalogByHotelId(hotelId);
+        verifyNoInteractions(guests);
     }
 }

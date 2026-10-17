@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.Getter;
@@ -27,6 +28,10 @@ public class OperationalNotificationPreferences {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "preferences", nullable = false, columnDefinition = "jsonb")
   private Map<String, Map<String, Boolean>> preferences;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "email_recipients", nullable = false, columnDefinition = "jsonb")
+  private Map<String, List<String>> emailRecipients;
 
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;

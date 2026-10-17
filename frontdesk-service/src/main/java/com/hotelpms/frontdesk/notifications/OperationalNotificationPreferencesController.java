@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.notifications;
 
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,19 @@ public class OperationalNotificationPreferencesController {
   public Map<String, Map<String, Boolean>> update(
       @RequestBody final Map<String, Map<String, Boolean>> preferences) {
     return service.update(hotelId(), preferences);
+  }
+
+  @GetMapping("/recipients")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public Map<String, List<String>> getEmailRecipients() {
+    return service.getEmailRecipients(hotelId());
+  }
+
+  @PutMapping("/recipients")
+  @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+  public Map<String, List<String>> updateEmailRecipients(
+      @jakarta.validation.Valid @RequestBody final OperationalEmailRecipientsRequest request) {
+    return service.updateEmailRecipients(hotelId(), request);
   }
 
   private UUID hotelId() {

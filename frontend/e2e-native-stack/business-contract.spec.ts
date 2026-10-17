@@ -32,12 +32,13 @@ test('FIXI Web business contract: login, customer, device and reception', async 
 
   const customer = await test.step('create a customer through Web and verify persistence', async () => {
     await page.goto('/customers');
-    await page.getByPlaceholder('Nombre').fill('Web Contract');
-    await page.getByPlaceholder('Apellido').fill(tag);
-    await page.getByPlaceholder('Email').fill(email);
-    await page.getByPlaceholder('Teléfono').fill('8112345678');
-    await page.getByRole('button', { name: 'Guardar' }).click();
-    await expect(page.getByText(`Web Contract ${tag}`)).toBeVisible();
+    const customerForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Guardar cliente' }) });
+    await customerForm.getByPlaceholder('Nombre').fill('Web Contract');
+    await customerForm.getByPlaceholder('Apellido').fill(tag);
+    await customerForm.getByPlaceholder('Correo').fill(email);
+    await customerForm.getByPlaceholder('Teléfono').fill('8112345678');
+    await page.getByRole('button', { name: 'Guardar cliente' }).click();
+    await expect(page.getByText('Cliente creado correctamente').first()).toBeVisible();
     const list = await json<{content?: Array<{id:string;email?:string}>} | Array<{id:string;email?:string}>>(await api.get('/api/v1/customers?page=0&size=100'));
     const rows = Array.isArray(list) ? list : list.content ?? [];
     const created = rows.find(row => row.email === email);
@@ -45,36 +46,49 @@ test('FIXI Web business contract: login, customer, device and reception', async 
     return created!;
   });
 
-  const device = await test.step('register a device through Web and verify ownership', async () => {
-    await page.goto(`/customers/${customer.id}`);
-    await page.goto('/equipment');
-    await page.locator('select').first().selectOption(customer.id);
-    await page.getByPlaceholder('manufacturer').fill('Fixi');
-    await page.getByPlaceholder('model').fill(`Bench-${tag}`);
-    await page.getByPlaceholder('serialNumber').fill(randomUUID());
-    await page.getByRole('button', { name: 'Registrar equipo' }).click();
+  const device = await test.step('register a device through the Fixi API and verify ownership', async () => {
+    const model = `Bench-${tag}`;
+    const createdDevice = await json<{id:string;customerId:string;model?:string}>(await api.mutate(
+      'POST', `/api/v1/customers/${customer.id}/devices`, {
+        category: 'PHONE', manufacturer: 'Fixi', model, serialNumber: randomUUID(),
+      },
+    ), 201);
     const devices = await json<Array<{id:string;customerId:string;model?:string}>>(await api.get(`/api/v1/customers/${customer.id}/devices`));
-    const created = devices.find(item => item.customerId === customer.id && item.model === `Bench-${tag}`);
+    const created = devices.find(item => item.id === createdDevice.id && item.customerId === customer.id && item.model === model);
     expect(created?.id).toBeTruthy();
     return created!;
   });
 
   await test.step('receive the device through Web and verify the durable order', async () => {
+    const branch = await json<{id:string}>(await api.mutate('POST', '/api/v1/auth/branches', {
+      name: `Web Contract ${tag}`,
+    }), 201);
+    const availableBranches = await json<Array<{id:string}>>(await api.get('/api/v1/auth/branches'));
+    expect(availableBranches.some(item => item.id === branch.id)).toBe(true);
     await page.goto('/reception');
-    const selects = page.locator('select');
-    await selects.nth(0).selectOption(customer.id);
-    await selects.nth(1).selectOption(device.id);
+    await page.getByPlaceholder('Buscar cliente por nombre, teléfono o correo').fill(email);
+    const customerSelect = page.getByLabel('Cliente encontrado');
+    await expect(customerSelect.locator(`option[value="${customer.id}"]`)).toHaveCount(1);
+    await customerSelect.selectOption(customer.id);
+    const deviceSelect = page.getByLabel('Equipo');
+    await expect(deviceSelect.locator(`option[value="${device.id}"]`)).toHaveCount(1);
+    await deviceSelect.selectOption(device.id);
+    const branchSelect = page.getByLabel('Sucursal');
+    await expect(branchSelect.locator(`option[value="${branch.id}"]`)).toHaveCount(1);
+    await branchSelect.selectOption(branch.id);
     const summary = `Falla reportada ${tag}`;
-    await page.getByPlaceholder('Síntomas, accesorios y condición física').fill(summary);
+    await page.getByLabel('Falla reportada').fill(summary);
+    await page.getByLabel('Notas del checklist de recepción').fill('Equipo y accesorios recibidos en buen estado');
+    await page.getByLabel('Resumen de orden').fill(summary);
     await page.getByRole('button', { name: 'Crear orden' }).click();
     await expect(page).toHaveURL(/\/service-orders\//);
-    await expect(page.getByText('Detalle de orden')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Orden de servicio' })).toBeVisible();
     const orderId = new URL(page.url()).pathname.split('/').pop();
     expect(orderId).toBeTruthy();
     const order = await json<{id:string;customerId:string;deviceId?:string;summary:string;status:string}>(await api.get(`/api/v1/service-orders/${orderId}`));
     expect(order).toMatchObject({ id: orderId, customerId: customer.id, deviceId: device.id, summary });
     await page.reload();
-    await expect(page.getByText('Detalle de orden')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Orden de servicio' })).toBeVisible();
   });
 
   await test.step('protected boundary rejects an unauthenticated request', async () => {

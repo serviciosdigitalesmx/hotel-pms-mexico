@@ -97,10 +97,20 @@ public class ExpenseServiceImpl implements ExpenseService {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public List<Expense> listForReport(final UUID hotelId, final java.time.LocalDate fromDate,
+      final java.time.LocalDate toDate) {
+    if (fromDate == null || toDate == null || fromDate.isAfter(toDate)) {
+      throw new BillingValidationException("INVALID_EXPENSE_REPORT_RANGE");
+    }
+    return expenses.findForReport(hotelId, fromDate, toDate);
+  }
+
+  @Override
   @Transactional
   public Expense updateUnpaid(final UUID hotelId, final UUID expenseId, final ExpenseRequest request) {
     validateDates(request);
-    final Expense expense = expenses.findByIdAndHotelId(expenseId, hotelId)
+    final Expense expense = expenses.findForUpdateByIdAndHotelId(expenseId, hotelId)
         .orElseThrow(() -> new NotFoundException("EXPENSE_NOT_FOUND"));
     if (expense.isPaid() || expense.getCashSessionId() != null) {
       throw new BillingValidationException("PAID_EXPENSE_CANNOT_BE_EDITED");
@@ -134,7 +144,7 @@ public class ExpenseServiceImpl implements ExpenseService {
   public Expense markPaid(
       final UUID hotelId, final UUID actor, final UUID expenseId, final UUID cashSessionId,
       final String requestedPaymentMethod) {
-    final Expense expense = expenses.findByIdAndHotelId(expenseId, hotelId)
+    final Expense expense = expenses.findForUpdateByIdAndHotelId(expenseId, hotelId)
         .orElseThrow(() -> new NotFoundException("EXPENSE_NOT_FOUND"));
     if (expense.isPaid()) {
       throw new BillingValidationException("EXPENSE_ALREADY_PAID");

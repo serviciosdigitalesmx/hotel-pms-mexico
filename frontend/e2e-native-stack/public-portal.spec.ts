@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { randomUUID } from 'node:crypto';
 import { baseURL, json, PmsApi, primaryCredentials, status, uniqueTag } from './support';
 
 test('public portal binds authorization to an OTP-verified customer token', async ({ browser }) => {
@@ -12,13 +11,28 @@ test('public portal binds authorization to an OTP-verified customer token', asyn
     const branch = await json<{ id: string }>(await staff.mutate('POST', '/api/v1/auth/branches', {
       name: `${uniqueTag()} portal branch`,
     }), 201);
+    const tag = uniqueTag();
+    const customer = await json<{ id: string }>(await staff.mutate('POST', '/api/v1/customers', {
+      firstName: 'Portal', lastName: tag, email: `${tag}@portal.test`, phone: null,
+    }), 201);
+    const device = await json<{ id: string }>(await staff.mutate('POST', `/api/v1/customers/${customer.id}/devices`, {
+      category: 'PHONE', manufacturer: 'Fixi', model: 'Portal E2E', serialNumber: `${tag}-serial`,
+    }), 201);
     const order = await json<{ id: string; customerId: string }>(
       await staff.mutate('POST', '/api/v1/service-orders', {
-        customerId: randomUUID(), deviceId: randomUUID(), branchId: branch.id,
+        customerId: customer.id, deviceId: device.id, branchId: branch.id,
         summary: `${uniqueTag()} public portal authorization`,
+        reportedFailure: 'Fixture failure', intakeChecklist: 'Public portal intake',
       }), 201);
     await status(await staff.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
-      status: 'QUOTED', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E quote',
+      status: 'REVIEW', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E review',
+    }), 200);
+    await status(await staff.mutate('PATCH', `/api/v1/service-orders/${order.id}`, {
+      status: 'DIAGNOSIS', diagnosis: 'Portal E2E diagnosis', workLog: 'Portal E2E diagnosis complete',
+    }), 200);
+    await status(await staff.mutate('POST', `/api/v1/service-orders/${order.id}/quotation`, {
+      proposedSolution: 'Portal E2E repair', estimatedMinutes: 30,
+      laborAmount: 25, partsAmount: 10, taxAmount: 0,
     }), 200);
     const issued = await json<{ token: string; resourceId: string }>(
       await staff.mutate('POST', `/api/v1/portal/tokens/service-orders/${order.id}`), 201);

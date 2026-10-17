@@ -4,6 +4,7 @@ import com.hotelpms.notification.dto.CheckinNotificationRequest;
 import com.hotelpms.notification.dto.CheckoutNotificationRequest;
 import com.hotelpms.notification.dto.InvoiceLineItemDto;
 import com.hotelpms.notification.dto.ReservationConfirmedRequest;
+import com.hotelpms.notification.dto.OperationalEmailRequest;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +24,13 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -63,7 +66,7 @@ class NotificationServiceImplTest {
         service = new NotificationServiceImpl(mailSender, templateEngine, FROM_ADDRESS, FROM_NAME);
         mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        when(templateEngine.process(anyString(), any(IContext.class))).thenReturn(HTML_BODY);
+        lenient().when(templateEngine.process(anyString(), any(IContext.class))).thenReturn(HTML_BODY);
     }
 
     @Test
@@ -117,6 +120,19 @@ class NotificationServiceImplTest {
 
         verify(templateEngine).process(contains("checkout-it"), any(IContext.class));
         verify(mailSender, times(1)).send(mimeMessage);
+    }
+
+    @Test
+    void sendsOperationalAlertAsPlainTextToConfiguredRecipient() throws Exception {
+        final OperationalEmailRequest request = new OperationalEmailRequest(
+                "ops@example.com", "Fixi: stock bajo", "Producto A tiene 1 unidad.", "Taller Norte");
+
+        service.sendOperationalEmail(request);
+
+        verify(mailSender).send(mimeMessage);
+        assertEquals("ops@example.com", mimeMessage.getAllRecipients()[0].toString());
+        assertEquals("Fixi: stock bajo", mimeMessage.getSubject());
+        assertEquals("Producto A tiene 1 unidad.", mimeMessage.getContent());
     }
 
     @Test

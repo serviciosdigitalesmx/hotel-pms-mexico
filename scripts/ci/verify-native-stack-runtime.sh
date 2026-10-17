@@ -140,7 +140,7 @@ config_unauthorized="$(curl -sS --connect-timeout 3 --max-time 10 -o "$result_di
 [[ "$config_unauthorized" == 401 ]]
 echo "${mode}_config_authenticated_profiles_and_denied_anonymous=PASS" >> "$metrics"
 phase 'verify PostgreSQL and Flyway histories'
-for database in hotel_auth hotel_guest hotel_frontdesk hotel_billing hotel_fb; do
+for database in hotel_auth hotel_guest hotel_frontdesk hotel_billing hotel_fb hotel_notifications; do
   timeout --signal=TERM --kill-after=5s 30s "${compose[@]}" exec -T postgres \
     psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
     -c 'SELECT coalesce(json_agg(row_to_json(m) ORDER BY m.installed_rank), '\''[]'\''::json) FROM (SELECT installed_rank, version, description, type, script, checksum, success FROM flyway_schema_history) m;' \

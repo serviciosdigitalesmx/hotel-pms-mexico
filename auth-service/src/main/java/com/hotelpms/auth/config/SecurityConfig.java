@@ -36,6 +36,7 @@ public class SecurityConfig {
   private static final String AUTH_LOGOUT = "/api/v1/auth/logout";
   private static final String AUTH_CHANGE_PW = "/api/v1/auth/change-password";
   private static final String AUTH_ME = "/api/v1/auth/me";
+  private static final String AUTH_SESSION_SECURITY = "/api/v1/auth/session-security";
   private static final String ACTUATOR = "/actuator";
 
   /**
@@ -53,6 +54,7 @@ public class SecurityConfig {
           AUTH_LOGOUT,
           AUTH_CHANGE_PW,
           AUTH_ME,
+          AUTH_SESSION_SECURITY,
           ACTUATOR);
 
   // Argon2id parameters — exercise A04:2025, T-AUTH-03 (memory-hard KDF)
@@ -116,6 +118,7 @@ public class SecurityConfig {
                         AUTH_LOGOUT,
                         AUTH_CHANGE_PW,
                         AUTH_ME,
+                        AUTH_SESSION_SECURITY,
                         "/actuator/**")
                     .permitAll()
                     .anyRequest()
