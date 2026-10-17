@@ -10,10 +10,12 @@ import com.hotelpms.auth.domain.TenantInvitation;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.domain.UserBranchMembership;
 import com.hotelpms.auth.dto.AcceptInvitationRequest;
+import com.hotelpms.auth.dto.AccountProfileResponse;
 import com.hotelpms.auth.dto.InvitationRequest;
 import com.hotelpms.auth.dto.OnboardingRequest;
 import com.hotelpms.auth.dto.PublicResetPasswordRequest;
 import com.hotelpms.auth.dto.SignupRequest;
+import com.hotelpms.auth.dto.UpdateAccountProfileRequest;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.AccountTokenRepository;
@@ -63,6 +65,29 @@ public class SaasIdentityService {
   private final PasswordEncoder passwords;
   private final TenantIndustryProfileRepository industryProfiles;
   private final AccountMailService mail;
+
+  /** Updates only the authenticated account's profile and verifies a changed contact email. */
+  @Transactional
+  public AccountProfileResponse updateAccountProfile(
+      final UUID userId, final UpdateAccountProfileRequest request) {
+    final UserAccount user = users.findById(userId)
+        .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND"));
+    final String email = request.email().trim().toLowerCase(Locale.ROOT);
+    final boolean emailChanged = !email.equalsIgnoreCase(user.getEmail());
+    if (emailChanged && users.existsByEmailIncludingInactiveAndIdNot(email, userId)) {
+      throw new DuplicateResourceException("EMAIL_ALREADY_EXISTS");
+    }
+    user.setFullName(request.fullName().trim());
+    if (emailChanged) {
+      user.setEmail(email);
+      user.setEmailVerified(false);
+    }
+    final UserAccount saved = users.save(user);
+    if (emailChanged) {
+      mail.verification(saved.getEmail(), issue(saved.getId(), VERIFY, TOKEN_EXPIRY_HOURS));
+    }
+    return AccountProfileResponse.from(saved);
+  }
 
   /**
    * Creates a tenant with its owner, initial branch, capabilities, and industry defaults.

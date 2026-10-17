@@ -1,13 +1,16 @@
 package com.hotelpms.auth.controller;
 
 import com.hotelpms.auth.dto.AuthResponse;
+import com.hotelpms.auth.dto.AccountProfileResponse;
 import com.hotelpms.auth.dto.ChangePasswordRequest;
 import com.hotelpms.auth.dto.LoginRequest;
 import com.hotelpms.auth.dto.SelectBranchRequest;
 import com.hotelpms.auth.dto.SessionSecurityPreferenceRequest;
+import com.hotelpms.auth.dto.UpdateAccountProfileRequest;
 import com.hotelpms.auth.exception.BadCredentialsException;
 import com.hotelpms.auth.service.AuthService;
 import com.hotelpms.auth.service.JwtService;
+import com.hotelpms.auth.service.SaasIdentityService;
 import io.jsonwebtoken.JwtException;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
@@ -70,6 +73,7 @@ public class AuthController {
   private final com.hotelpms.auth.repository.UserAccountRepository userRepository;
   private final com.hotelpms.auth.repository.HotelRegistryRepository hotelRepository;
   private final com.hotelpms.auth.repository.TenantIndustryProfileRepository industryProfiles;
+  private final SaasIdentityService saasIdentityService;
 
   /**
    * Endpoint for user login. Returns a body with {@code mustChangePassword} so the SPA can
@@ -338,6 +342,21 @@ public class AuthController {
       @CookieValue(name = COOKIE_NAME, required = false) final String token) {
     final com.hotelpms.auth.domain.UserAccount user = authenticatedUser(token);
     return ResponseEntity.ok(Map.of("idleTimeoutMinutes", user.getSessionIdleTimeoutMinutes()));
+  }
+
+  /** Returns the authenticated user's own profile, never a caller-selected account. */
+  @GetMapping("/account")
+  public AccountProfileResponse getAccountProfile(
+      @CookieValue(name = COOKIE_NAME, required = false) final String token) {
+    return AccountProfileResponse.from(authenticatedUser(token));
+  }
+
+  /** Updates the authenticated user's name/contact email; a changed address requires verification. */
+  @PutMapping("/account")
+  public AccountProfileResponse updateAccountProfile(
+      @CookieValue(name = COOKIE_NAME, required = false) final String token,
+      @NonNull @Valid @RequestBody final UpdateAccountProfileRequest request) {
+    return saasIdentityService.updateAccountProfile(authenticatedUser(token).getId(), request);
   }
 
   /**

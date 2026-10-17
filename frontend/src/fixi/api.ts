@@ -1,5 +1,6 @@
 export type Json = Record<string, unknown>
 export type SessionUser = { username:string; role:string; hotelId?:string; tenantId?:string; branchId?:string; businessName?:string; tenantStatus?:string; onboardingCompleted?:boolean; mustChangePassword?:boolean }
+export type AccountProfile={username:string;fullName:string;email:string;emailVerified:boolean}
 export type ServiceOrderPaymentEvent={amount:string;method:string;kind:'DEPOSIT'|'DELIVERY'|'BALANCE';recordedAt:string}
 export type ServiceOrder = { id:string; customerId:string; customerName?:string; deviceId?:string; branchId?:string; summary:string; reportedFailure?:string; intakeChecklist?:string; promisedAt?:string; intakeEvidence?:string; priority?:'LOW'|'NORMAL'|'HIGH'|'URGENT'; serviceName?:string; depositAmount?:number; paidAmount?:number; paymentEvents?:ServiceOrderPaymentEvent[]; status:string; diagnosis?:string; workLog?:string; assignedUserId?:string; proposedSolution?:string; estimatedMinutes?:number; laborAmount?:number; partsAmount?:number; taxAmount?:number; quoteTotal?:number; paymentMethod?:'CASH'|'CHECK'|'BANK_DEPOSIT'|'PAYPAL'|'CARD'|'PENDING'; paymentStatus?:'PAID'|'PENDING'; deliveredAt?:string; createdAt?:string; updatedAt?:string }
 export function serviceOrderAmountReceived(order:Pick<ServiceOrder,'paidAmount'|'depositAmount'|'paymentStatus'|'quoteTotal'>){if(order.paidAmount!=null)return Number(order.paidAmount);if(order.paymentStatus==='PAID')return Math.max(Number(order.quoteTotal??0),Number(order.depositAmount??0));return Number(order.depositAmount??0)}
@@ -48,6 +49,8 @@ export function csvCell(value:unknown){const text=String(value??'');const safe=t
 export const login=(username:string,password:string)=>post<{mustChangePassword?:boolean}>('/api/v1/auth/login',{username,password})
 export const logout=()=>post<void>('/api/v1/auth/logout')
 export const currentUser=()=>get<SessionUser>('/api/v1/auth/me').catch(()=>null)
+export const getAccountProfile=()=>get<AccountProfile>('/api/v1/auth/account')
+export const updateAccountProfile=(body:{fullName:string;email:string})=>put<AccountProfile>('/api/v1/auth/account',body)
 export const signup=(body:unknown)=>post('/api/v1/auth/register',body)
 export const verifyEmail=(token:string)=>post<void>(`/api/v1/auth/public/verify-email?token=${encodeURIComponent(token)}`)
 export const forgotPassword=(email:string)=>post<void>('/api/v1/auth/public/forgot-password',{email})

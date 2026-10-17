@@ -19,6 +19,7 @@ import { FixiFinancialReportingPage } from '@/fixi/financial-reporting'
 import { TeamUserEditor } from '@/fixi/team-user-editor'
 import { OperationalAlertsPage } from '@/fixi/operational-alerts'
 import { CustomerDetailAccessPage } from '@/fixi/customer-detail-access'
+import { AccountProfilePage } from '@/fixi/account-profile'
 export interface RouteConfig { path:string; element:ReactNode; children?:RouteConfig[] }
 const secure=(element:ReactNode,roles?:string[],capabilities?:string[])=><Protected roles={roles} capabilities={capabilities}>{element}</Protected>
 export const routes:RouteConfig[]=[
@@ -36,6 +37,7 @@ export const routes:RouteConfig[]=[
   {path:'/notifications',element:secure(<OperationalAlertsPage/>,undefined,['ORDERS_READ','INVENTORY_READ','FINANCE_READ'])},
   {path:'/settings/order-workflows',element:secure(<WorkflowSettingsPage/>,['ADMIN','OWNER'],['WORKFLOWS_MANAGE'])},
   {path:'/settings/order-preferences',element:secure(<OrderPreferencesPage/>,['ADMIN','OWNER','MANAGER'],['SETTINGS_MANAGE'])},
+  {path:'/settings/account',element:secure(<AccountProfilePage/>)},
   {path:'/settings/notifications',element:secure(<NotificationSettingsPage/>,['ADMIN','OWNER','MANAGER'],['SETTINGS_MANAGE'])},
   {path:'/reports/finance',element:secure(<FixiFinancialReportingPage/>,['ADMIN','OWNER'],['FINANCE_READ'])},
   {path:'/orders/unassigned',element:secure(<OrdersPage title="Por asignar" unassignedOnly/>,undefined,['ORDERS_READ'])},
