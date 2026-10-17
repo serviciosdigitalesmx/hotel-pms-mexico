@@ -36,7 +36,8 @@ public record OrderItemResponse(
         this(id, null, null, itemName, quantity, unitPrice);
     }
 
-    /** Constructs a response for consumers that know the menu item but not its inventory link.
+    /**
+     * Constructs a response for consumers that know the menu item but not its inventory link.
      *
      * @param id order item identifier
      * @param menuItemId menu item identifier

@@ -24,7 +24,8 @@ public record MenuItemRequest(
         String description,
         boolean available,
         UUID inventoryProductId) {
-    /** Preserves the request contract for menu items without an inventory link.
+    /**
+     * Preserves the request contract for menu items without an inventory link.
      *
      * @param name display name
      * @param price unit price
