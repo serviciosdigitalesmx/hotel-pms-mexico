@@ -7,6 +7,7 @@ export function serviceOrderBalance(order:Pick<ServiceOrder,'paidAmount'|'deposi
 export type Customer = { id:string; firstName:string; lastName:string; email?:string; phone?:string; address?:string; city?:string; country?:string; dateOfBirth?:string; rfc?:string; identityNumber?:string; fiscalName?:string; fiscalPostalCode?:string; fiscalRegime?:string; cfdiUse?:string; billingEmail?:string; createdAt?:string }
 export type Device = { id:string; customerId:string; customerName?:string; category:string; manufacturer?:string; model?:string; serialNumber?:string; imei?:string; customFields?:string }
 export type DeviceCatalogEntry = { category:string; manufacturer:string; model:string; registeredDevices:number }
+export type DeviceCatalogIdentity = Pick<DeviceCatalogEntry,'category'|'manufacturer'|'model'>
 export type Branch = { id:string; hotelId:string; name:string; active:boolean; createdAt:string; phone?:string; extraField?:string; address?:string; timeZone?:string; dateFormat?:string; country?:string; currency?:string }
 export type TeamUser = { id:string; username:string; email:string; role:string; active:boolean; mustChangePassword:boolean }
 export type Product = { id:string; sku:string; name:string; description?:string; optional:boolean; category?:string; cost?:number; price?:number; reorderLevel?:number; supplierId?:string; posMenuItemId?:string }
@@ -104,6 +105,7 @@ export const updateCustomer=(id:string,body:unknown)=>put<Customer>(`/api/v1/cus
 export const listDevices=(customerId:string)=>get<Device[]>(`/api/v1/customers/${customerId}/devices`)
 export const searchDevices=(query:string,page=0)=>get<{content:Device[]} | Device[]>(`/api/v1/customers/search-devices?query=${encodeURIComponent(query)}&page=${page}&size=25`)
 export const deviceCatalog=()=>get<DeviceCatalogEntry[]>('/api/v1/customers/device-catalog')
+export const mergeDeviceCatalog=(body:{sources:DeviceCatalogIdentity[];target:DeviceCatalogIdentity})=>post<{updatedDevices:number}>('/api/v1/customers/device-catalog/merge',body)
 export const createDevice=(customerId:string,body:unknown)=>post<Device>(`/api/v1/customers/${customerId}/devices`,body)
 export const updateDevice=(customerId:string,id:string,body:unknown)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}`,body)
 export const transferDevice=(customerId:string,id:string,toCustomerId:string,evidence?:string)=>put<Device>(`/api/v1/customers/${customerId}/devices/${id}/transfer?${new URLSearchParams({toCustomerId,...(evidence?{evidence}:{})})}`)

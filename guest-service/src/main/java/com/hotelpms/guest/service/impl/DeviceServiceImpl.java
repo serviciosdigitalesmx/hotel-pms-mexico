@@ -1,7 +1,9 @@
 package com.hotelpms.guest.service.impl;
 
 import com.hotelpms.guest.dto.request.DeviceRequest;
+import com.hotelpms.guest.dto.request.DeviceCatalogMergeRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
+import com.hotelpms.guest.dto.response.DeviceCatalogMergeResponse;
 import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
 import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import com.hotelpms.guest.exception.NotFoundException;
@@ -13,6 +15,9 @@ import com.hotelpms.guest.repository.GuestRepository;
 import com.hotelpms.guest.service.DeviceService;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -132,6 +137,46 @@ public class DeviceServiceImpl implements DeviceService {
   @Transactional(readOnly = true)
   public List<DeviceCatalogEntry> catalog() {
     return devices.catalogByHotelId(hotel());
+  }
+
+  /** Reclassifies duplicate catalog groups without moving ownership or changing order references. */
+  @Override
+  @Transactional
+  public DeviceCatalogMergeResponse mergeCatalog(final DeviceCatalogMergeRequest request) {
+    final UUID hotelId = hotel();
+    final var target = request.target();
+    final String targetCategory = target.category().trim();
+    final String targetManufacturer = normalize(target.manufacturer(), false);
+    final String targetModel = normalize(target.model(), false);
+    if (devices.countCatalogIdentity(hotelId, targetCategory, value(targetManufacturer), value(targetModel)) == 0) {
+      throw new NotFoundException("DEVICE_CATALOG_TARGET_NOT_FOUND");
+    }
+    final Set<String> identities = new HashSet<>();
+    int updated = 0;
+    for (final var source : request.sources()) {
+      final String category = source.category().trim();
+      final String manufacturer = normalize(source.manufacturer(), false);
+      final String model = normalize(source.model(), false);
+      final String identity = key(category, manufacturer, model);
+      if (identity.equals(key(targetCategory, targetManufacturer, targetModel)) || !identities.add(identity)) {
+        throw new IllegalArgumentException("DEVICE_CATALOG_MERGE_IDENTITIES_MUST_BE_DISTINCT");
+      }
+      final int changed = devices.normalizeCatalogIdentity(hotelId, category, value(manufacturer), value(model),
+          targetCategory, targetManufacturer, targetModel, LocalDateTime.now());
+      if (changed == 0) {
+        throw new NotFoundException("DEVICE_CATALOG_SOURCE_NOT_FOUND");
+      }
+      updated = Math.addExact(updated, changed);
+    }
+    return new DeviceCatalogMergeResponse(updated);
+  }
+
+  private static String value(final String text) {
+    return text == null ? "" : text;
+  }
+
+  private static String key(final String category, final String manufacturer, final String model) {
+    return (category + "\u0000" + value(manufacturer) + "\u0000" + value(model)).toLowerCase(Locale.ROOT);
   }
 
   /** Gets one tenant-scoped device for a customer. */

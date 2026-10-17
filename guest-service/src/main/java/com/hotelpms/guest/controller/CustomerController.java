@@ -7,6 +7,8 @@ import com.hotelpms.guest.dto.response.GuestResponse;
 import com.hotelpms.guest.service.DeviceService;
 import com.hotelpms.guest.dto.response.DeviceResponse;
 import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
+import com.hotelpms.guest.dto.request.DeviceCatalogMergeRequest;
+import com.hotelpms.guest.dto.response.DeviceCatalogMergeResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
@@ -120,4 +122,9 @@ public class CustomerController {
   @GetMapping("/device-catalog")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
   public List<DeviceCatalogEntry> deviceCatalog(){return devices.catalog();}
+  @PostMapping("/device-catalog/merge")
+  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+  public DeviceCatalogMergeResponse mergeDeviceCatalog(@Valid @RequestBody DeviceCatalogMergeRequest request) {
+    return devices.mergeCatalog(request);
+  }
 }

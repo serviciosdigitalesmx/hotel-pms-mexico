@@ -1,7 +1,9 @@
 package com.hotelpms.guest.service;
 
 import com.hotelpms.guest.dto.request.DeviceRequest;
+import com.hotelpms.guest.dto.request.DeviceCatalogMergeRequest;
 import com.hotelpms.guest.dto.response.DeviceResponse;
+import com.hotelpms.guest.dto.response.DeviceCatalogMergeResponse;
 import com.hotelpms.guest.dto.response.DeviceOwnershipTransferResponse;
 import com.hotelpms.guest.dto.response.DeviceCatalogEntry;
 import java.util.List;
@@ -36,6 +38,9 @@ public interface DeviceService {
 
   /** Lists observed device models and their tenant-local registration counts. */
   List<DeviceCatalogEntry> catalog();
+
+  /** Normalizes selected catalog identities within the active tenant without changing device IDs. */
+  DeviceCatalogMergeResponse mergeCatalog(DeviceCatalogMergeRequest request);
 
   /**
    * Finds one active device for a customer.

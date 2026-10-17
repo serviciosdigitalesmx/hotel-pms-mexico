@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
+import java.time.LocalDateTime;
 
 /** Tenant-scoped persistence operations for devices. */
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
@@ -21,6 +23,28 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         + "lower(coalesce(trim(d.model), '')) "
         + "order by count(d.id) desc")
     List<DeviceCatalogEntry> catalogByHotelId(@Param("hotelId") UUID hotelId);
+
+    @Query("select count(d.id) from Device d where d.hotelId = :hotelId and d.active = true and "
+        + "lower(trim(d.category)) = lower(trim(:category)) and "
+        + "lower(coalesce(trim(d.manufacturer), '')) = lower(trim(:manufacturer)) and "
+        + "lower(coalesce(trim(d.model), '')) = lower(trim(:model))")
+    long countCatalogIdentity(@Param("hotelId") UUID hotelId, @Param("category") String category,
+        @Param("manufacturer") String manufacturer, @Param("model") String model);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Device d set d.category = :targetCategory, d.manufacturer = :targetManufacturer, "
+        + "d.model = :targetModel, d.updatedAt = :updatedAt where d.hotelId = :hotelId and d.active = true and "
+        + "lower(trim(d.category)) = lower(trim(:sourceCategory)) and "
+        + "lower(coalesce(trim(d.manufacturer), '')) = lower(trim(:sourceManufacturer)) and "
+        + "lower(coalesce(trim(d.model), '')) = lower(trim(:sourceModel))")
+    int normalizeCatalogIdentity(@Param("hotelId") UUID hotelId,
+        @Param("sourceCategory") String sourceCategory,
+        @Param("sourceManufacturer") String sourceManufacturer,
+        @Param("sourceModel") String sourceModel,
+        @Param("targetCategory") String targetCategory,
+        @Param("targetManufacturer") String targetManufacturer,
+        @Param("targetModel") String targetModel,
+        @Param("updatedAt") LocalDateTime updatedAt);
 
     /**
      * Finds a device by tenant, customer and identifier.
