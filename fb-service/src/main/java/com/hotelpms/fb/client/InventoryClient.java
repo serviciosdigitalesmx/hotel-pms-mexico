@@ -37,7 +37,12 @@ public interface InventoryClient {
    * @param lines aggregated product quantities
    */
   record ConsumptionRequest(UUID branchId, List<ConsumptionLine> lines) {
-    /** Copies lines so callers cannot mutate this request after construction. */
+    /**
+     * Copies lines so callers cannot mutate this request after construction.
+     *
+     * @param branchId branch where the order consumes stock
+     * @param lines aggregated product quantities
+     */
     public ConsumptionRequest {
       lines = lines == null ? null : List.copyOf(lines);
     }
