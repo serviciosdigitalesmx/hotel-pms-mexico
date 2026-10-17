@@ -16,5 +16,11 @@ public interface HotelRegistryRepository extends JpaRepository<HotelRegistry, UU
   @TenantScopeExempt(reason = "Platform operator checks globally unique hotel slugs")
   boolean existsBySlug(String slug);
 
+  /**
+   * Finds a registered tenant by its unique public slug.
+   *
+   * @param slug tenant slug
+   * @return matching tenant, if present
+   */
   java.util.Optional<HotelRegistry> findBySlug(String slug);
 }

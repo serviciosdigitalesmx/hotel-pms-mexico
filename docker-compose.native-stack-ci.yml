@@ -139,7 +139,7 @@ services:
     environment:
       INTERNAL_REDIS_HOST: redis
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hotel_notification
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hotel_notifications
       SPRING_DATASOURCE_USERNAME: postgres
       JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SMTP_HOST: mailpit

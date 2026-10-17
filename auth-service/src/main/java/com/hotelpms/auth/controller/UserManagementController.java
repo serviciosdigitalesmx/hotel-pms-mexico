@@ -1,14 +1,14 @@
 package com.hotelpms.auth.controller;
 
+import com.hotelpms.auth.domain.Role;
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.ResetPasswordRequest;
-import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.dto.UpdateManagedUserRequest;
-import com.hotelpms.auth.service.CapabilityService;
-import com.hotelpms.auth.service.UserManagementService;
+import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.auth.repository.UserBranchMembershipRepository;
-import com.hotelpms.auth.domain.Role;
+import com.hotelpms.auth.service.CapabilityService;
+import com.hotelpms.auth.service.UserManagementService;
 import com.hotelpms.internalauth.contracts.Capability;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -21,11 +21,11 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,7 +66,14 @@ public class UserManagementController {
     return ResponseEntity.ok(userManagementService.listUsers(UUID.fromString(hotelId)));
   }
 
-  /** Validates that an assignee is an active technician in this tenant and, when supplied, branch. */
+  /**
+   * Validates that an assignee is an active technician in the tenant and optional branch.
+   *
+   * @param hotelId tenant identifier supplied by the gateway
+   * @param userId technician identifier
+   * @param branchId optional branch membership requirement
+   * @param auth authenticated caller
+   */
   @PostMapping("/{userId}/validate-technician")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void validateTechnician(
@@ -74,17 +81,24 @@ public class UserManagementController {
       @NonNull @PathVariable final UUID userId,
       @RequestParam(required = false) final UUID branchId,
       final Authentication auth) {
-    final String username = auth == null ? SecurityContextHolder.getContext().getAuthentication().getName()
-        : auth.getName();
+    final String username =
+        auth == null
+            ? SecurityContextHolder.getContext().getAuthentication().getName()
+            : auth.getName();
     if (!capabilityService.isEnabled(username, hotelId, branchId, "ORDERS_CREATE")
         && !capabilityService.isEnabled(username, hotelId, branchId, "ORDERS_UPDATE")) {
-      throw new org.springframework.security.access.AccessDeniedException("ORDER_ASSIGNMENT_NOT_ALLOWED");
+      throw new org.springframework.security.access.AccessDeniedException(
+          "ORDER_ASSIGNMENT_NOT_ALLOWED");
     }
-    final var technician = userAccounts.findByIdAndHotelId(userId, hotelId)
-        .filter(user -> user.getRole() == Role.TECHNICIAN)
-        .orElseThrow(() -> new com.hotelpms.auth.exception.NotFoundException("TECHNICIAN_NOT_FOUND"));
+    final var technician =
+        userAccounts
+            .findByIdAndHotelId(userId, hotelId)
+            .filter(user -> user.getRole() == Role.TECHNICIAN)
+            .orElseThrow(
+                () -> new com.hotelpms.auth.exception.NotFoundException("TECHNICIAN_NOT_FOUND"));
     if (branchId != null
-        && !branchMemberships.existsByUserIdAndBranchIdAndHotelId(technician.getId(), branchId, hotelId)) {
+        && !branchMemberships.existsByUserIdAndBranchIdAndHotelId(
+            technician.getId(), branchId, hotelId)) {
       throw new com.hotelpms.auth.exception.NotFoundException("TECHNICIAN_NOT_ASSIGNED_TO_BRANCH");
     }
   }
@@ -109,7 +123,15 @@ public class UserManagementController {
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
   }
 
-  /** Updates an active user's email and non-privileged role within this tenant. */
+  /**
+   * Updates an active user's email and non-privileged role within this tenant.
+   *
+   * @param hotelId tenant identifier supplied by the gateway
+   * @param userId target account identifier
+   * @param request allowed profile changes
+   * @param auth authenticated caller
+   * @return updated user summary
+   */
   @PutMapping("/{userId}")
   public ResponseEntity<UserResponse> updateUser(
       @NonNull @RequestHeader(HEADER_HOTEL) final String hotelId,
@@ -117,7 +139,8 @@ public class UserManagementController {
       @NonNull @Valid @RequestBody final UpdateManagedUserRequest request,
       final Authentication auth) {
     requireUsersManage(hotelId, auth);
-    return ResponseEntity.ok(userManagementService.updateUser(UUID.fromString(hotelId), userId, request));
+    return ResponseEntity.ok(
+        userManagementService.updateUser(UUID.fromString(hotelId), userId, request));
   }
 
   /**

@@ -1,13 +1,20 @@
 package com.hotelpms.auth.repository;
 
 import com.hotelpms.auth.domain.UserCapabilityGrant;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /** Tenant-scoped persistence for user capability grants. */
 public interface UserCapabilityGrantRepository extends JpaRepository<UserCapabilityGrant, UUID> {
+  /**
+   * Lists capability overrides for one tenant user in stable key order.
+   *
+   * @param tenantId tenant identifier
+   * @param userId user identifier
+   * @return explicit capability overrides
+   */
   List<UserCapabilityGrant> findAllByTenantIdAndUserIdOrderByCapabilityKeyAsc(
       UUID tenantId, UUID userId);
 

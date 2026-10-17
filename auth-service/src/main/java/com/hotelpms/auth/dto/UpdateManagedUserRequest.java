@@ -5,7 +5,13 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/** Editable non-privileged team profile fields. */
+/**
+ * Editable non-privileged team profile fields.
+ *
+ * @param email replacement email address, if provided
+ * @param role non-privileged role to assign
+ */
 public record UpdateManagedUserRequest(
-    @Email @Size(max = 254) String email,
-    @NotNull Role role) { }
+    @Email @Size(max = MAX_EMAIL_LENGTH) String email, @NotNull Role role) {
+  private static final int MAX_EMAIL_LENGTH = 254;
+}

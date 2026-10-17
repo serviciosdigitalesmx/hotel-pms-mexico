@@ -31,6 +31,11 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public class TenantBranch {
 
   private static final int NAME_MAX_LENGTH = 120;
+  private static final int PHONE_MAX_LENGTH = 40;
+  private static final int EXTRA_FIELD_MAX_LENGTH = 200;
+  private static final int ADDRESS_MAX_LENGTH = 500;
+  private static final int TIME_ZONE_MAX_LENGTH = 80;
+  private static final int COUNTRY_MAX_LENGTH = 80;
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -42,22 +47,22 @@ public class TenantBranch {
   @Column(nullable = false, length = NAME_MAX_LENGTH)
   private String name;
 
-  @Column(length = 40)
+  @Column(length = PHONE_MAX_LENGTH)
   private String phone;
 
-  @Column(name = "extra_field", length = 200)
+  @Column(name = "extra_field", length = EXTRA_FIELD_MAX_LENGTH)
   private String extraField;
 
-  @Column(length = 500)
+  @Column(length = ADDRESS_MAX_LENGTH)
   private String address;
 
-  @Column(name = "time_zone", length = 80)
+  @Column(name = "time_zone", length = TIME_ZONE_MAX_LENGTH)
   private String timeZone;
 
   @Column(name = "date_format", length = 16)
   private String dateFormat;
 
-  @Column(length = 80)
+  @Column(length = COUNTRY_MAX_LENGTH)
   private String country;
 
   @Column(length = 3)

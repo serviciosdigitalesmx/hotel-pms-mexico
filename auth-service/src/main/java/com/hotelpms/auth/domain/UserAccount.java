@@ -36,6 +36,7 @@ public class UserAccount {
 
   private static final int MAX_USERNAME_LENGTH = 50;
   private static final int MAX_EMAIL_LENGTH = 100;
+  private static final int MAX_FULL_NAME_LENGTH = 160;
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,7 +51,7 @@ public class UserAccount {
   @Column(nullable = false, unique = true, length = MAX_EMAIL_LENGTH)
   private String email;
 
-  @Column(length = 160)
+  @Column(length = MAX_FULL_NAME_LENGTH)
   private String fullName;
 
   @Builder.Default
@@ -77,9 +78,8 @@ public class UserAccount {
   private boolean mustChangePassword;
 
   /** User-selected idle screen lock: 0 disables it, supported values are 15 or 60 minutes. */
-  @Builder.Default
   @Column(name = "session_idle_timeout_minutes", nullable = false)
-  private int sessionIdleTimeoutMinutes = 0;
+  private int sessionIdleTimeoutMinutes;
 
   /**
    * Monotonically incrementing counter embedded in the JWT {@code tv} claim.

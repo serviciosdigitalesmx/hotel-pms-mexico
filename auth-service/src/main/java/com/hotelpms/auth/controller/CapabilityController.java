@@ -5,8 +5,8 @@ import com.hotelpms.auth.dto.UserCapabilityGrantResponse;
 import com.hotelpms.auth.service.CapabilityService;
 import com.hotelpms.internalauth.contracts.Capability;
 import jakarta.validation.Valid;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth/capabilities")
 @RequiredArgsConstructor
 public class CapabilityController {
+  private static final String AUTH_HOTEL_HEADER = "X-Auth-Hotel";
+
   private final CapabilityService service;
 
   /**
@@ -38,7 +40,7 @@ public class CapabilityController {
    */
   @GetMapping("/{capabilityKey}")
   public ResponseEntity<Map<String, Object>> evaluate(
-      @RequestHeader("X-Auth-Hotel") final UUID tenantId,
+      @RequestHeader(AUTH_HOTEL_HEADER) final UUID tenantId,
       @PathVariable final String capabilityKey,
       final Authentication authentication) {
     final boolean enabled = service.isEnabled(authentication.getName(), tenantId, capabilityKey);
@@ -46,19 +48,28 @@ public class CapabilityController {
         Map.of("tenantId", tenantId, "capability", capabilityKey, "enabled", enabled));
   }
 
-  /** Returns effective capabilities without exposing another user's grants. */
+  /**
+   * Returns effective capabilities without exposing another user's grants.
+   *
+   * @param tenantId tenant identifier from the trusted gateway
+   * @param branchId optional branch scope
+   * @param authentication authenticated principal
+   * @return effective capabilities for the current user
+   */
   @GetMapping("/me")
   public ResponseEntity<Map<String, Object>> effectiveCapabilities(
-      @RequestHeader("X-Auth-Hotel") final UUID tenantId,
+      @RequestHeader(AUTH_HOTEL_HEADER) final UUID tenantId,
       @RequestParam(required = false) final UUID branchId,
       final Authentication authentication) {
-    final var capabilities = service.effectiveCapabilities(authentication.getName(), tenantId, branchId);
+    final var capabilities =
+        service.effectiveCapabilities(authentication.getName(), tenantId, branchId);
     final var response = new java.util.HashMap<String, Object>();
     response.put("tenantId", tenantId);
     response.put("capabilities", capabilities);
-    if (branchId != null) response.put("branchId", branchId);
-    return ResponseEntity.ok(
-        response);
+    if (branchId != null) {
+      response.put("branchId", branchId);
+    }
+    return ResponseEntity.ok(response);
   }
 
   /**
@@ -72,7 +83,7 @@ public class CapabilityController {
    */
   @PutMapping("/users/{userId}")
   public ResponseEntity<UserCapabilityGrantResponse> updateUserGrant(
-      @RequestHeader("X-Auth-Hotel") final UUID tenantId,
+      @RequestHeader(AUTH_HOTEL_HEADER) final UUID tenantId,
       @PathVariable final UUID userId,
       @Valid @RequestBody final UpdateUserCapabilityGrantRequest request,
       final Authentication authentication) {
@@ -80,10 +91,17 @@ public class CapabilityController {
     return ResponseEntity.ok(service.updateUserGrant(tenantId, userId, request));
   }
 
-  /** Lists the explicit tenant/branch overrides for a user. */
+  /**
+   * Lists the explicit tenant/branch overrides for a user.
+   *
+   * @param tenantId tenant identifier
+   * @param userId user identifier
+   * @param authentication authenticated administrator
+   * @return explicit capability grants
+   */
   @GetMapping("/users/{userId}")
   public ResponseEntity<List<UserCapabilityGrantResponse>> listUserGrants(
-      @RequestHeader("X-Auth-Hotel") final UUID tenantId,
+      @RequestHeader(AUTH_HOTEL_HEADER) final UUID tenantId,
       @PathVariable final UUID userId,
       final Authentication authentication) {
     service.requireCapability(authentication.getName(), tenantId, Capability.CAPABILITIES_READ);

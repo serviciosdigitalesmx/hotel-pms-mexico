@@ -1,8 +1,8 @@
 package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.domain.TenantBranch;
-import com.hotelpms.auth.dto.TenantBranchResponse;
 import com.hotelpms.auth.dto.CreateBranchRequest;
+import com.hotelpms.auth.dto.TenantBranchResponse;
 import com.hotelpms.auth.dto.UpdateBranchRequest;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +21,13 @@ public interface BranchAccessService {
    */
   List<TenantBranchResponse> listBranches(UUID hotelId);
 
-  /** Lists tenant user IDs assigned to an active tenant branch. */
+  /**
+   * Lists tenant user IDs assigned to an active tenant branch.
+   *
+   * @param hotelId owning tenant UUID
+   * @param branchId branch UUID
+   * @return member user IDs for this tenant branch
+   */
   List<UUID> listBranchMembers(UUID hotelId, UUID branchId);
 
   /**
@@ -34,7 +40,16 @@ public interface BranchAccessService {
    */
   TenantBranchResponse createBranch(UUID hotelId, String name, String requestingUsername);
 
-  TenantBranchResponse createBranch(UUID hotelId, CreateBranchRequest request, String requestingUsername);
+  /**
+   * Creates a tenant branch from the validated request and adds the requesting user.
+   *
+   * @param hotelId tenant UUID
+   * @param request branch details
+   * @param requestingUsername authenticated actor
+   * @return created branch response
+   */
+  TenantBranchResponse createBranch(
+      UUID hotelId, CreateBranchRequest request, String requestingUsername);
 
   /**
    * Validates that a branch exists and belongs to the given tenant.
@@ -83,9 +98,32 @@ public interface BranchAccessService {
    */
   void removeUserFromBranch(UUID hotelId, UUID userId, UUID branchId);
 
+  /**
+   * Renames a branch after verifying it belongs to the tenant.
+   *
+   * @param hotelId tenant UUID
+   * @param branchId branch UUID
+   * @param name new display name
+   * @return updated branch response
+   */
   TenantBranchResponse updateBranch(UUID hotelId, UUID branchId, String name);
 
+  /**
+   * Updates editable details of a tenant-owned branch.
+   *
+   * @param hotelId tenant UUID
+   * @param branchId branch UUID
+   * @param request validated branch changes
+   * @return updated branch response
+   */
   TenantBranchResponse updateBranch(UUID hotelId, UUID branchId, UpdateBranchRequest request);
 
+  /**
+   * Enables or disables a tenant-owned branch.
+   *
+   * @param hotelId tenant UUID
+   * @param branchId branch UUID
+   * @param active requested active state
+   */
   void setBranchActive(UUID hotelId, UUID branchId, boolean active);
 }

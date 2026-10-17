@@ -19,7 +19,13 @@ public interface UserBranchMembershipRepository extends JpaRepository<UserBranch
    */
   List<UserBranchMembership> findAllByUserIdAndHotelId(UUID userId, UUID hotelId);
 
-  /** Lists member assignments for one tenant-owned branch. */
+  /**
+   * Lists member assignments for one tenant-owned branch.
+   *
+   * @param branchId branch identifier
+   * @param hotelId tenant identifier
+   * @return branch memberships
+   */
   List<UserBranchMembership> findAllByBranchIdAndHotelId(UUID branchId, UUID hotelId);
 
   /**

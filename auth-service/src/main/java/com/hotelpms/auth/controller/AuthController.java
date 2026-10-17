@@ -36,6 +36,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
+  private static final int SESSION_TIMEOUT_SHORT_MINUTES = 15;
+  private static final int SESSION_TIMEOUT_LONG_MINUTES = 60;
 
   private static final String COOKIE_NAME = "jwt";
   private static final String REFRESH_COOKIE_NAME = "refresh_token";
@@ -302,24 +304,35 @@ public class AuthController {
         meBody.put("branchId", branchId.toString());
       }
       meBody.put("mustChangePassword", mustChange);
-      hotelRepository.findById(jwtService.extractHotelId(token)).ifPresent(tenant -> {
-        meBody.put("tenantId", tenant.getId().toString());
-        meBody.put("businessName", tenant.getName());
-        meBody.put("tenantStatus", tenant.getStatus());
-        meBody.put("onboardingCompleted", tenant.isOnboardingCompleted());
-      });
-      industryProfiles.findById(jwtService.extractHotelId(token)).ifPresent(profile -> {
-        meBody.put("industryKey", profile.getIndustryKey());
-        meBody.put("enabledModulesJson", profile.getEnabledModulesJson());
-        meBody.put("formsLabelsJson", profile.getFormsLabelsJson());
-      });
+      hotelRepository
+          .findById(jwtService.extractHotelId(token))
+          .ifPresent(
+              tenant -> {
+                meBody.put("tenantId", tenant.getId().toString());
+                meBody.put("businessName", tenant.getName());
+                meBody.put("tenantStatus", tenant.getStatus());
+                meBody.put("onboardingCompleted", tenant.isOnboardingCompleted());
+              });
+      industryProfiles
+          .findById(jwtService.extractHotelId(token))
+          .ifPresent(
+              profile -> {
+                meBody.put("industryKey", profile.getIndustryKey());
+                meBody.put("enabledModulesJson", profile.getEnabledModulesJson());
+                meBody.put("formsLabelsJson", profile.getFormsLabelsJson());
+              });
       return ResponseEntity.ok(meBody);
     } catch (final JwtException | IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
 
-  /** Reads the authenticated user's idle-lock preference. */
+  /**
+   * Reads the authenticated user's idle-lock preference.
+   *
+   * @param token optional session JWT cookie
+   * @return current inactivity-lock setting
+   */
   @GetMapping("/session-security")
   public ResponseEntity<Map<String, Integer>> getSessionSecurity(
       @CookieValue(name = COOKIE_NAME, required = false) final String token) {
@@ -327,13 +340,20 @@ public class AuthController {
     return ResponseEntity.ok(Map.of("idleTimeoutMinutes", user.getSessionIdleTimeoutMinutes()));
   }
 
-  /** Saves an allowed idle-lock preference for the authenticated account. */
+  /**
+   * Saves an allowed idle-lock preference for the authenticated account.
+   *
+   * @param token optional session JWT cookie
+   * @param request requested idle-lock setting
+   * @return saved inactivity-lock setting
+   */
   @PutMapping("/session-security")
   public ResponseEntity<Map<String, Integer>> updateSessionSecurity(
       @CookieValue(name = COOKIE_NAME, required = false) final String token,
       @NonNull @Valid @RequestBody final SessionSecurityPreferenceRequest request) {
-    if (request.idleTimeoutMinutes() != 0 && request.idleTimeoutMinutes() != 15
-        && request.idleTimeoutMinutes() != 60) {
+    if (request.idleTimeoutMinutes() != 0
+        && request.idleTimeoutMinutes() != SESSION_TIMEOUT_SHORT_MINUTES
+        && request.idleTimeoutMinutes() != SESSION_TIMEOUT_LONG_MINUTES) {
       throw new IllegalArgumentException("SESSION_IDLE_TIMEOUT_NOT_SUPPORTED");
     }
     final com.hotelpms.auth.domain.UserAccount user = authenticatedUser(token);
@@ -347,8 +367,12 @@ public class AuthController {
       throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
     }
     final String username = jwtService.extractUsername(token);
-    return userRepository.findByUsername(username)
-        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED));
+    return userRepository
+        .findByUsername(username)
+        .orElseThrow(
+            () ->
+                new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED));
   }
 
   private ResponseEntity<Void> buildUnauthorizedResponse() {

@@ -1,8 +1,8 @@
 package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.dto.CreateUserRequest;
-import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.dto.UpdateManagedUserRequest;
+import com.hotelpms.auth.dto.UserResponse;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +27,14 @@ public interface UserManagementService {
    */
   UserResponse createUser(UUID hotelId, CreateUserRequest request);
 
-  /** Updates email and a non-privileged team role within the tenant. */
+  /**
+   * Updates email and a non-privileged team role within the tenant.
+   *
+   * @param hotelId tenant identifier
+   * @param userId target user identifier
+   * @param request allowed profile changes
+   * @return updated user summary
+   */
   UserResponse updateUser(UUID hotelId, UUID userId, UpdateManagedUserRequest request);
 
   /**

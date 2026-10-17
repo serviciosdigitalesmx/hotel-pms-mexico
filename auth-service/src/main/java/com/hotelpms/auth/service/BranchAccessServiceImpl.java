@@ -3,8 +3,8 @@ package com.hotelpms.auth.service;
 import com.hotelpms.auth.domain.TenantBranch;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.domain.UserBranchMembership;
-import com.hotelpms.auth.dto.TenantBranchResponse;
 import com.hotelpms.auth.dto.CreateBranchRequest;
+import com.hotelpms.auth.dto.TenantBranchResponse;
 import com.hotelpms.auth.dto.UpdateBranchRequest;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
@@ -41,6 +41,13 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         .toList();
   }
 
+  /**
+   * Lists members only after confirming the branch is active for its tenant.
+   *
+   * @param hotelId tenant identifier
+   * @param branchId branch identifier
+   * @return member user identifiers
+   */
   @Override
   @Transactional(readOnly = true)
   public List<UUID> listBranchMembers(final UUID hotelId, final UUID branchId) {
@@ -50,7 +57,14 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         .toList();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Creates a branch and records the requesting user's membership.
+   *
+   * @param hotelId tenant identifier
+   * @param name branch display name
+   * @param requestingUsername authenticated actor
+   * @return created branch response
+   */
   @Override
   @Transactional
   public TenantBranchResponse createBranch(
@@ -86,15 +100,32 @@ public class BranchAccessServiceImpl implements BranchAccessService {
     return toResponse(savedBranch);
   }
 
+  /**
+   * Applies the validated branch details after creating its tenant membership.
+   *
+   * @param hotelId tenant identifier
+   * @param request validated branch details
+   * @param requestingUsername authenticated actor
+   * @return updated branch response
+   */
   @Override
   @Transactional
   public TenantBranchResponse createBranch(
       final UUID hotelId, final CreateBranchRequest request, final String requestingUsername) {
     final TenantBranchResponse created = createBranch(hotelId, request.name(), requestingUsername);
-    final TenantBranch branch = branchRepository.findByIdAndHotelId(created.id(), hotelId)
-        .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
-    applyBranchDetails(branch, request.phone(), request.extraField(), request.address(),
-        request.timeZone(), request.dateFormat(), request.country(), request.currency());
+    final TenantBranch branch =
+        branchRepository
+            .findByIdAndHotelId(created.id(), hotelId)
+            .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
+    applyBranchDetails(
+        branch,
+        request.phone(),
+        request.extraField(),
+        request.address(),
+        request.timeZone(),
+        request.dateFormat(),
+        request.country(),
+        request.currency());
     return toResponse(branchRepository.save(branch));
   }
 
@@ -141,7 +172,13 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         .toList();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Removes branch membership while preserving tenant-owned account history.
+   *
+   * @param hotelId tenant identifier
+   * @param userId user identifier
+   * @param branchId branch identifier
+   */
   @Override
   @Transactional
   public void assignUserToBranch(final UUID hotelId, final UUID userId, final UUID branchId) {
@@ -162,7 +199,13 @@ public class BranchAccessServiceImpl implements BranchAccessService {
     }
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Removes a user's branch membership without deleting the account or its history.
+   *
+   * @param hotelId tenant identifier
+   * @param userId user identifier
+   * @param branchId branch identifier
+   */
   @Override
   @Transactional
   public void removeUserFromBranch(final UUID hotelId, final UUID userId, final UUID branchId) {
@@ -174,38 +217,93 @@ public class BranchAccessServiceImpl implements BranchAccessService {
     membershipRepository.deleteByUserIdAndBranchIdAndHotelId(userId, branchId, hotelId);
   }
 
-  @Override @Transactional
-  public TenantBranchResponse updateBranch(UUID hotelId, UUID branchId, String name) {
-    var branch=branchRepository.findByIdAndHotelId(branchId,hotelId).orElseThrow(()->new NotFoundException(BRANCH_NOT_FOUND));
-    String trimmed=name.trim();
-    if(!branch.getName().equalsIgnoreCase(trimmed)&&branchRepository.existsByHotelIdAndNameIgnoreCase(hotelId,trimmed)) throw new DuplicateResourceException("BRANCH_NAME_EXISTS");
-    branch.setName(trimmed);return toResponse(branchRepository.save(branch));
+  /**
+   * Renames a branch after checking tenant ownership and duplicate names.
+   *
+   * @param hotelId tenant identifier
+   * @param branchId branch identifier
+   * @param name requested branch name
+   * @return updated branch response
+   */
+  @Override
+  @Transactional
+  public TenantBranchResponse updateBranch(
+      final UUID hotelId, final UUID branchId, final String name) {
+    final var branch =
+        branchRepository
+            .findByIdAndHotelId(branchId, hotelId)
+            .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
+    final String trimmed = name.trim();
+    if (!branch.getName().equalsIgnoreCase(trimmed)
+        && branchRepository.existsByHotelIdAndNameIgnoreCase(hotelId, trimmed)) {
+      throw new DuplicateResourceException("BRANCH_NAME_EXISTS");
+    }
+    branch.setName(trimmed);
+    return toResponse(branchRepository.save(branch));
   }
 
+  /**
+   * Updates editable branch details within the tenant.
+   *
+   * @param hotelId tenant identifier
+   * @param branchId branch identifier
+   * @param request validated detail changes
+   * @return updated branch response
+   */
   @Override
   @Transactional
   public TenantBranchResponse updateBranch(
       final UUID hotelId, final UUID branchId, final UpdateBranchRequest request) {
     updateBranch(hotelId, branchId, request.name());
-    final TenantBranch branch = branchRepository.findByIdAndHotelId(branchId, hotelId)
-        .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
-    applyBranchDetails(branch, request.phone(), request.extraField(), request.address(),
-        request.timeZone(), request.dateFormat(), request.country(), request.currency());
+    final TenantBranch branch =
+        branchRepository
+            .findByIdAndHotelId(branchId, hotelId)
+            .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
+    applyBranchDetails(
+        branch,
+        request.phone(),
+        request.extraField(),
+        request.address(),
+        request.timeZone(),
+        request.dateFormat(),
+        request.country(),
+        request.currency());
     return toResponse(branchRepository.save(branch));
   }
 
-  private void applyBranchDetails(final TenantBranch branch, final String phone,
-      final String extraField, final String address, final String timeZone,
-      final String dateFormat, final String country, final String currency) {
-    if (phone != null) branch.setPhone(trimToNull(phone));
-    if (extraField != null) branch.setExtraField(trimToNull(extraField));
-    if (address != null) branch.setAddress(trimToNull(address));
-    if (timeZone != null) branch.setTimeZone(trimToNull(timeZone));
-    if (dateFormat != null) branch.setDateFormat(trimToNull(dateFormat));
-    if (country != null) branch.setCountry(trimToNull(country));
+  private void applyBranchDetails(
+      final TenantBranch branch,
+      final String phone,
+      final String extraField,
+      final String address,
+      final String timeZone,
+      final String dateFormat,
+      final String country,
+      final String currency) {
+    if (phone != null) {
+      branch.setPhone(trimToNull(phone));
+    }
+    if (extraField != null) {
+      branch.setExtraField(trimToNull(extraField));
+    }
+    if (address != null) {
+      branch.setAddress(trimToNull(address));
+    }
+    if (timeZone != null) {
+      branch.setTimeZone(trimToNull(timeZone));
+    }
+    if (dateFormat != null) {
+      branch.setDateFormat(trimToNull(dateFormat));
+    }
+    if (country != null) {
+      branch.setCountry(trimToNull(country));
+    }
     if (currency != null) {
       final String normalizedCurrency = trimToNull(currency);
-      branch.setCurrency(normalizedCurrency == null ? null : normalizedCurrency.toUpperCase(java.util.Locale.ROOT));
+      branch.setCurrency(
+          normalizedCurrency == null
+              ? null
+              : normalizedCurrency.toUpperCase(java.util.Locale.ROOT));
     }
   }
 
@@ -214,9 +312,22 @@ public class BranchAccessServiceImpl implements BranchAccessService {
     return trimmed.isEmpty() ? null : trimmed;
   }
 
-  @Override @Transactional
-  public void setBranchActive(UUID hotelId, UUID branchId, boolean active) {
-    var branch=branchRepository.findByIdAndHotelIdIncludingInactive(branchId,hotelId).orElseThrow(()->new NotFoundException(BRANCH_NOT_FOUND));branch.setActive(active);branchRepository.save(branch);
+  /**
+   * Changes a branch's active state without removing historical memberships.
+   *
+   * @param hotelId tenant identifier
+   * @param branchId branch identifier
+   * @param active requested active state
+   */
+  @Override
+  @Transactional
+  public void setBranchActive(final UUID hotelId, final UUID branchId, final boolean active) {
+    final var branch =
+        branchRepository
+            .findByIdAndHotelIdIncludingInactive(branchId, hotelId)
+            .orElseThrow(() -> new NotFoundException(BRANCH_NOT_FOUND));
+    branch.setActive(active);
+    branchRepository.save(branch);
   }
 
   private TenantBranchResponse toResponse(final TenantBranch branch) {

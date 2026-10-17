@@ -11,8 +11,8 @@ import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.auth.repository.UserCapabilityGrantRepository;
 import com.hotelpms.internalauth.contracts.Capability;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -63,9 +63,13 @@ public class CapabilityService {
       throw new AccessDeniedException("Tenant access denied");
     }
     if (branchId != null) {
-      final var branch = branches.findByIdAndHotelId(branchId, actualTenant)
-          .orElseThrow(() -> new AccessDeniedException("Branch access denied"));
-      if (!branch.isActive()) throw new AccessDeniedException("Branch access denied");
+      final var branch =
+          branches
+              .findByIdAndHotelId(branchId, actualTenant)
+              .orElseThrow(() -> new AccessDeniedException("Branch access denied"));
+      if (!branch.isActive()) {
+        throw new AccessDeniedException("Branch access denied");
+      }
     }
     final UUID userId = users.findByUsername(username).orElseThrow().getId();
     final var grant =
@@ -119,12 +123,12 @@ public class CapabilityService {
   }
 
   /**
-   * Creates or updates a user grant after validating all tenant boundaries.
+   * Updates an explicit capability override for a user within the tenant.
    *
    * @param tenantId tenant identifier
-   * @param userId target user identifier
-   * @param request grant payload
-   * @return persisted grant response
+   * @param userId user identifier
+   * @param request requested capability and grant scope
+   * @return saved capability grant
    */
   @Transactional
   public UserCapabilityGrantResponse updateUserGrant(
@@ -160,23 +164,43 @@ public class CapabilityService {
     return UserCapabilityGrantResponse.from(userGrants.save(grant));
   }
 
-  /** Lists explicit grants and revocations for one tenant user. */
+  /**
+   * Lists explicit grants and revocations for one tenant user.
+   *
+   * @param tenantId tenant identifier
+   * @param userId user identifier
+   * @return saved tenant and branch overrides
+   */
   @Transactional(readOnly = true)
-  public List<UserCapabilityGrantResponse> listUserGrants(
-      final UUID tenantId, final UUID userId) {
-    users.findByIdAndHotelId(userId, tenantId)
+  public List<UserCapabilityGrantResponse> listUserGrants(final UUID tenantId, final UUID userId) {
+    users
+        .findByIdAndHotelId(userId, tenantId)
         .orElseThrow(() -> new AccessDeniedException("USER_TENANT_MISMATCH"));
-    return userGrants.findAllByTenantIdAndUserIdOrderByCapabilityKeyAsc(tenantId, userId)
-        .stream().map(UserCapabilityGrantResponse::from).toList();
+    return userGrants.findAllByTenantIdAndUserIdOrderByCapabilityKeyAsc(tenantId, userId).stream()
+        .map(UserCapabilityGrantResponse::from)
+        .toList();
   }
 
-  /** Returns the effective tenant capabilities for the authenticated user. */
+  /**
+   * Returns the effective tenant capabilities for the authenticated user.
+   *
+   * @param username authenticated username
+   * @param tenantId tenant identifier
+   * @return enabled capability keys
+   */
   @Transactional(readOnly = true)
   public List<String> effectiveCapabilities(final String username, final UUID tenantId) {
     return effectiveCapabilities(username, tenantId, null);
   }
 
-  /** Returns effective capabilities for a tenant or a validated branch scope. */
+  /**
+   * Returns effective capabilities for a tenant or a validated branch scope.
+   *
+   * @param username authenticated username
+   * @param tenantId tenant identifier
+   * @param branchId optional branch scope
+   * @return enabled capability keys
+   */
   @Transactional(readOnly = true)
   public List<String> effectiveCapabilities(
       final String username, final UUID tenantId, final UUID branchId) {

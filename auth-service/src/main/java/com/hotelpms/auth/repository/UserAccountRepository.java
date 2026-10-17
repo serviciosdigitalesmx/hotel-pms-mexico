@@ -31,6 +31,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
               + "per person, not per hotel).")
   Optional<UserAccount> findByUsername(String username);
 
+  /**
+   * Looks up an account by normalized email before authentication.
+   *
+   * @param email email address to find
+   * @return matching active account, if present
+   */
   @TenantScopeExempt(reason = "Password recovery lookup occurs before authentication")
   Optional<UserAccount> findByEmailIgnoreCase(String email);
 
@@ -121,11 +127,21 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
       nativeQuery = true)
   boolean existsByEmailIncludingInactive(@Param("email") String email);
 
-  /** Checks global email uniqueness while excluding the account being edited. */
+  /**
+   * Checks global email uniqueness while excluding the account being edited.
+   *
+   * @param email candidate email address
+   * @param userId account excluded from the comparison
+   * @return whether another account already uses the email
+   */
   @TenantScopeExempt(reason = "Email uniqueness is global across login identities.")
-  @Query(value = "SELECT EXISTS(SELECT 1 FROM user_account WHERE lower(email) = lower(:email) AND id <> :userId)", nativeQuery = true)
-  boolean existsByEmailIncludingInactiveAndIdNot(@Param("email") String email,
-      @Param("userId") UUID userId);
+  @Query(
+      value =
+          "SELECT EXISTS(SELECT 1 FROM user_account WHERE lower(email) = lower(:email) AND id <>"
+              + " :userId)",
+      nativeQuery = true)
+  boolean existsByEmailIncludingInactiveAndIdNot(
+      @Param("email") String email, @Param("userId") UUID userId);
 
   /**
    * Finds an active user by id scoped to a hotel (prevents cross-tenant access).
@@ -156,12 +172,27 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
   Optional<UserAccount> findByIdAndHotelIdIncludingInactive(
       @Param("id") UUID id, @Param("hotelId") UUID hotelId);
 
-  @TenantScopeExempt(reason = "Single-use account tokens resolve an inactive account by opaque user id")
+  /**
+   * Resolves an account by ID even when inactive for a one-time token flow.
+   *
+   * @param id account identifier
+   * @return matching account, active or inactive
+   */
+  @TenantScopeExempt(
+      reason = "Single-use account tokens resolve an inactive account by opaque user id")
   @Query(value = "SELECT * FROM user_account WHERE id = :id", nativeQuery = true)
   Optional<UserAccount> findByIdIncludingInactive(@Param("id") UUID id);
 
+  /**
+   * Resolves an unverified account even when it is inactive.
+   *
+   * @param email account email address
+   * @return matching account, active or inactive
+   */
   @TenantScopeExempt(reason = "Verification resend must resolve an inactive unverified account")
-  @Query(value = "SELECT * FROM user_account WHERE lower(email) = lower(:email)", nativeQuery = true)
+  @Query(
+      value = "SELECT * FROM user_account WHERE lower(email) = lower(:email)",
+      nativeQuery = true)
   Optional<UserAccount> findByEmailIncludingInactive(@Param("email") String email);
 
   /**

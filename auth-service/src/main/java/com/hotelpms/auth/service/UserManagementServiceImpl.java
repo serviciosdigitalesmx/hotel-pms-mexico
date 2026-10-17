@@ -2,8 +2,8 @@ package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.CreateUserRequest;
-import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.dto.UpdateManagedUserRequest;
+import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.UserAccountRepository;
@@ -45,7 +45,8 @@ public class UserManagementServiceImpl implements UserManagementService {
   public UserResponse createUser(final UUID hotelId, final CreateUserRequest request) {
     if (request.role() == com.hotelpms.auth.domain.Role.ADMIN
         || request.role() == com.hotelpms.auth.domain.Role.OWNER) {
-      throw new org.springframework.security.access.AccessDeniedException("PRIVILEGED_ROLE_NOT_ASSIGNABLE");
+      throw new org.springframework.security.access.AccessDeniedException(
+          "PRIVILEGED_ROLE_NOT_ASSIGNABLE");
     }
     if (userRepository.existsByUsernameIncludingInactive(request.username())) {
       throw new DuplicateResourceException("USERNAME_ALREADY_EXISTS");
@@ -74,21 +75,35 @@ public class UserManagementServiceImpl implements UserManagementService {
     return toResponse(user);
   }
 
+  /**
+   * Updates a same-tenant user's email and non-privileged role.
+   *
+   * @param hotelId tenant identifier
+   * @param userId target user identifier
+   * @param request permitted account changes
+   * @return updated user summary
+   */
   @Override
   @Transactional
-  public UserResponse updateUser(final UUID hotelId, final UUID userId,
-      final UpdateManagedUserRequest request) {
+  public UserResponse updateUser(
+      final UUID hotelId, final UUID userId, final UpdateManagedUserRequest request) {
     if (request.role() == com.hotelpms.auth.domain.Role.ADMIN
         || request.role() == com.hotelpms.auth.domain.Role.OWNER) {
-      throw new org.springframework.security.access.AccessDeniedException("PRIVILEGED_ROLE_NOT_ASSIGNABLE");
+      throw new org.springframework.security.access.AccessDeniedException(
+          "PRIVILEGED_ROLE_NOT_ASSIGNABLE");
     }
-    final UserAccount user = userRepository.findByIdAndHotelId(userId, hotelId)
-        .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
-    if (request.email() != null && !request.email().equalsIgnoreCase(user.getEmail())
+    final UserAccount user =
+        userRepository
+            .findByIdAndHotelId(userId, hotelId)
+            .orElseThrow(() -> new NotFoundException(MSG_USER_NOT_FOUND));
+    if (request.email() != null
+        && !request.email().equalsIgnoreCase(user.getEmail())
         && userRepository.existsByEmailIncludingInactiveAndIdNot(request.email(), userId)) {
       throw new DuplicateResourceException("EMAIL_ALREADY_EXISTS");
     }
-    if (request.email() != null) user.setEmail(request.email().trim());
+    if (request.email() != null) {
+      user.setEmail(request.email().trim());
+    }
     user.setRole(request.role());
     return toResponse(userRepository.save(user));
   }

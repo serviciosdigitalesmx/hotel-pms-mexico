@@ -17,6 +17,8 @@ import lombok.Setter;
 public class HotelRegistry {
   private static final int NAME_MAX_LENGTH = 160;
   private static final int SLUG_MAX_LENGTH = 80;
+  private static final int CONTACT_PHONE_MAX_LENGTH = 40;
+  private static final int BUSINESS_HOURS_MAX_LENGTH = 500;
 
   @Id private UUID id;
 
@@ -35,9 +37,9 @@ public class HotelRegistry {
   @Column(nullable = false)
   private boolean onboardingCompleted;
 
-  @Column(length = 40)
+  @Column(length = CONTACT_PHONE_MAX_LENGTH)
   private String contactPhone;
 
-  @Column(length = 500)
+  @Column(length = BUSINESS_HOURS_MAX_LENGTH)
   private String businessHours;
 }

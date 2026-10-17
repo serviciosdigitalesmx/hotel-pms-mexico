@@ -16,9 +16,9 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,7 +56,14 @@ public class BranchController {
     return ResponseEntity.ok(branchAccessService.listBranches(hotelId));
   }
 
-  /** Lists member identifiers for an active branch within the authenticated tenant. */
+  /**
+   * Lists member identifiers for an active branch within the authenticated tenant.
+   *
+   * @param hotelId tenant identifier from the gateway
+   * @param branchId branch identifier
+   * @param auth authenticated caller
+   * @return member user identifiers
+   */
   @GetMapping("/{branchId}/members")
   public ResponseEntity<List<UUID>> listBranchMembers(
       @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
@@ -72,6 +79,7 @@ public class BranchController {
    * @param hotelId tenant identifier
    * @param branchId branch identifier
    * @param userId user identifier
+   * @param auth authenticated caller
    */
   @PostMapping("/{branchId}/members/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -90,6 +98,7 @@ public class BranchController {
    * @param hotelId tenant identifier
    * @param branchId branch identifier
    * @param userId user identifier
+   * @param auth authenticated caller
    */
   @DeleteMapping("/{branchId}/members/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -137,11 +146,43 @@ public class BranchController {
     return ResponseEntity.ok(toResponse(branchAccessService.getBranchForTenant(hotelId, branchId)));
   }
 
+  /**
+   * Updates a branch after checking the caller's tenant capability.
+   *
+   * @param hotelId tenant UUID supplied by the trusted gateway
+   * @param branchId branch UUID
+   * @param request validated branch changes
+   * @param auth authenticated caller
+   * @return the updated branch
+   */
   @PatchMapping("/{branchId}")
-  public ResponseEntity<TenantBranchResponse> updateBranch(@RequestHeader(HEADER_HOTEL) UUID hotelId,@PathVariable UUID branchId,@Valid @RequestBody com.hotelpms.auth.dto.UpdateBranchRequest request,Authentication auth){capabilityService.requireCapability(auth.getName(),hotelId,Capability.BRANCHES_MANAGE);return ResponseEntity.ok(branchAccessService.updateBranch(hotelId,branchId,request));}
+  public ResponseEntity<TenantBranchResponse> updateBranch(
+      @RequestHeader(HEADER_HOTEL) final UUID hotelId,
+      @PathVariable final UUID branchId,
+      @Valid @RequestBody final com.hotelpms.auth.dto.UpdateBranchRequest request,
+      final Authentication auth) {
+    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    return ResponseEntity.ok(branchAccessService.updateBranch(hotelId, branchId, request));
+  }
 
-  @PatchMapping("/{branchId}/active") @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void active(@RequestHeader(HEADER_HOTEL) UUID hotelId,@PathVariable UUID branchId,@RequestParam boolean value,Authentication auth){capabilityService.requireCapability(auth.getName(),hotelId,Capability.BRANCHES_MANAGE);branchAccessService.setBranchActive(hotelId,branchId,value);}
+  /**
+   * Enables or disables a tenant branch without changing its ownership.
+   *
+   * @param hotelId tenant UUID supplied by the trusted gateway
+   * @param branchId branch UUID
+   * @param value desired active state
+   * @param auth authenticated caller
+   */
+  @PatchMapping("/{branchId}/active")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void active(
+      @RequestHeader(HEADER_HOTEL) final UUID hotelId,
+      @PathVariable final UUID branchId,
+      @RequestParam final boolean value,
+      final Authentication auth) {
+    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    branchAccessService.setBranchActive(hotelId, branchId, value);
+  }
 
   /**
    * Server-to-server validation endpoint: verifies the tenant+branch binding without trusting any
