@@ -7,12 +7,14 @@ import * as api from './api'
 
 const field = 'w-full rounded-md border bg-background px-3 py-2 text-sm'
 type Profile = Awaited<ReturnType<typeof api.industryProfile>>
-type Templates = { workshop?: { warrantyPolicy?: string; intakeChecklist?: string[] }; [key: string]: unknown }
+type PrintPreferences = { copies?: number; includeWarranty?: boolean; includeSignatures?: boolean; includeCustomerContact?: boolean }
+type Templates = { workshop?: { warrantyPolicy?: string; intakeChecklist?: string[]; printing?: PrintPreferences }; [key: string]: unknown }
 
 export function OrderPreferencesPage() {
   const [profile, setProfile] = useState<Profile>()
   const [warrantyPolicy, setWarrantyPolicy] = useState('')
   const [checklist, setChecklist] = useState<string[]>([])
+  const [printing, setPrinting] = useState<Required<PrintPreferences>>({ copies: 1, includeWarranty: true, includeSignatures: true, includeCustomerContact: true })
   const [newItem, setNewItem] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,6 +29,13 @@ export function OrderPreferencesPage() {
       setProfile(current)
       setWarrantyPolicy(typeof templates.workshop?.warrantyPolicy === 'string' ? templates.workshop.warrantyPolicy : '')
       setChecklist(Array.isArray(templates.workshop?.intakeChecklist) ? templates.workshop.intakeChecklist.filter((item): item is string => typeof item === 'string') : [])
+      const savedPrinting = templates.workshop?.printing
+      setPrinting({
+        copies: Number.isInteger(savedPrinting?.copies) ? Math.min(5, Math.max(1, savedPrinting!.copies!)) : 1,
+        includeWarranty: savedPrinting?.includeWarranty !== false,
+        includeSignatures: savedPrinting?.includeSignatures !== false,
+        includeCustomerContact: savedPrinting?.includeCustomerContact !== false,
+      })
     } catch (reason) {
       setError(reason instanceof Error ? `No se pudieron cargar las preferencias: ${reason.message}` : 'No se pudieron cargar las preferencias')
     } finally { setLoading(false) }
@@ -39,7 +48,7 @@ export function OrderPreferencesPage() {
     setSaving(true); setError(''); setMessage('')
     try {
       const current = JSON.parse(profile.catalogsTemplatesJson || '{}') as Templates
-      const templates: Templates = { ...current, workshop: { ...current.workshop, warrantyPolicy: warrantyPolicy.trim(), intakeChecklist: checklist.map(item => item.trim()).filter(Boolean) } }
+      const templates: Templates = { ...current, workshop: { ...current.workshop, warrantyPolicy: warrantyPolicy.trim(), intakeChecklist: checklist.map(item => item.trim()).filter(Boolean), printing } }
       const updated = await api.updateIndustryProfile({ ...profile, catalogsTemplatesJson: JSON.stringify(templates) }) as Profile
       setProfile(updated); setMessage('Preferencias de órdenes guardadas')
     } catch (reason) {
@@ -62,6 +71,12 @@ export function OrderPreferencesPage() {
         <Card><CardHeader><CardTitle>Checklist de recepción ({checklist.length})</CardTitle><CardDescription>Los elementos se ofrecen como casillas en la captura de una nueva orden. Las notas específicas se guardan junto al checklist.</CardDescription></CardHeader><CardContent className="space-y-3">
           <div className="flex gap-2"><Input aria-label="Nuevo elemento de checklist" maxLength={160} placeholder="Estado físico, accesorios, encendido…" value={newItem} onChange={event => setNewItem(event.target.value)}/><Button type="button" variant="outline" disabled={!newItem.trim() || checklist.length >= 50} onClick={addItem}>Agregar</Button></div>
           <div className="space-y-2">{checklist.map((item, index) => <div className="flex items-center gap-2" key={`${index}-${item}`}><span className="flex-1 rounded border p-2 text-sm">{item}</span><Button type="button" size="sm" variant="outline" aria-label={`Subir ${item}`} disabled={index === 0} onClick={() => setChecklist(items => items.map((value, position) => position === index - 1 ? items[index] : position === index ? items[index - 1] : value))}>Subir</Button><Button type="button" size="sm" variant="outline" aria-label={`Bajar ${item}`} disabled={index === checklist.length - 1} onClick={() => setChecklist(items => items.map((value, position) => position === index + 1 ? items[index] : position === index ? items[index + 1] : value))}>Bajar</Button><Button type="button" size="sm" variant="outline" aria-label={`Quitar ${item}`} onClick={() => setChecklist(items => items.filter((_, position) => position !== index))}>Quitar</Button></div>)}{!checklist.length && <p className="text-sm text-muted-foreground">Sin plantilla: recepción seguirá aceptando notas manuales.</p>}</div>
+        </CardContent></Card>
+        <Card><CardHeader><CardTitle>Facturas e impresiones</CardTitle><CardDescription>Controla qué información aparece en el ticket de la orden y cuántos ejemplares se preparan al imprimir.</CardDescription></CardHeader><CardContent className="space-y-4">
+          <label className="flex items-center justify-between gap-4 text-sm">Incluir teléfono y correo del cliente<input type="checkbox" checked={printing.includeCustomerContact} onChange={event => setPrinting(value => ({ ...value, includeCustomerContact: event.target.checked }))}/></label>
+          <label className="flex items-center justify-between gap-4 text-sm">Incluir política de garantía<input type="checkbox" checked={printing.includeWarranty} onChange={event => setPrinting(value => ({ ...value, includeWarranty: event.target.checked }))}/></label>
+          <label className="flex items-center justify-between gap-4 text-sm">Incluir espacios para firmas<input type="checkbox" checked={printing.includeSignatures} onChange={event => setPrinting(value => ({ ...value, includeSignatures: event.target.checked }))}/></label>
+          <div className="flex items-center justify-between gap-4"><label htmlFor="print-copies" className="text-sm">Ejemplares por impresión</label><Input id="print-copies" className="w-24" type="number" min={1} max={5} step={1} value={printing.copies} onChange={event => setPrinting(value => ({ ...value, copies: Math.min(5, Math.max(1, Math.round(Number(event.target.value) || 1))) }))}/></div>
         </CardContent></Card>
         <div className="flex flex-wrap items-center gap-3"><Button disabled={saving || loading}>{saving ? 'Guardando…' : 'Guardar preferencias'}</Button>{message && <p role="status" className="text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</div>
       </form>}
