@@ -18,4 +18,5 @@ public record OperationalEmailRequest(
         String recipient,
     @NotBlank @Size(max = NotificationValidationLimits.MAX_SUBJECT_LENGTH) String subject,
     @NotBlank @Size(max = NotificationValidationLimits.MAX_MESSAGE_LENGTH) String message,
-    @Size(max = NotificationValidationLimits.MAX_HOTEL_NAME_LENGTH) String hotelName) {}
+    @Size(max = NotificationValidationLimits.MAX_HOTEL_NAME_LENGTH) String hotelName) {
+}

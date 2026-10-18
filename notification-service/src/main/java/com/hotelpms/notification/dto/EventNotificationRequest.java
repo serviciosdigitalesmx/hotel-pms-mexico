@@ -21,4 +21,5 @@ public record EventNotificationRequest(
     @NotBlank @Size(max = NotificationValidationLimits.MAX_EVENT_KEY_LENGTH) String eventKey,
     @NotBlank @Pattern(regexp = "RESERVATION_CONFIRMED|CHECKIN|CHECKOUT|QUOTATION|OPERATIONAL_EMAIL")
         @Size(max = NotificationValidationLimits.MAX_EVENT_TYPE_LENGTH) String eventType,
-    @NotBlank @Size(max = NotificationValidationLimits.MAX_EVENT_PAYLOAD_LENGTH) String payload) {}
+    @NotBlank @Size(max = NotificationValidationLimits.MAX_EVENT_PAYLOAD_LENGTH) String payload) {
+}
