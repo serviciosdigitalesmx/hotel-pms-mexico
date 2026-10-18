@@ -1,13 +1,14 @@
 package com.hotelpms.notification.service;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hotelpms.notification.domain.NotificationDelivery;
 import com.hotelpms.notification.dto.EventNotificationRequest;
 import com.hotelpms.notification.repository.NotificationDeliveryRepository;
+import jakarta.validation.Validator;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NotificationDeliveryServiceTest {
   @Mock
   private NotificationDeliveryRepository repository;
+  @Mock
+  private NotificationService notificationService;
+  @Mock
+  private ObjectMapper objectMapper;
+  @Mock
+  private Validator validator;
 
   @Test
   void repeatedEventForSameTenantReturnsExistingDelivery() {
@@ -29,9 +36,11 @@ class NotificationDeliveryServiceTest {
     when(repository.findByHotelIdAndEventKey(hotelId, request.eventKey()))
         .thenReturn(Optional.of(existing));
 
-    final NotificationDelivery result = new NotificationDeliveryService(repository).enqueue(request);
+    final NotificationDelivery result = new NotificationDeliveryService(
+        repository, notificationService, objectMapper, validator).enqueue(request, hotelId);
 
     assertSame(existing, result);
-    verify(repository, never()).save(org.mockito.ArgumentMatchers.any());
+    verify(repository).enqueueIfAbsent(
+        hotelId, request.eventKey(), request.eventType(), request.payload());
   }
 }
