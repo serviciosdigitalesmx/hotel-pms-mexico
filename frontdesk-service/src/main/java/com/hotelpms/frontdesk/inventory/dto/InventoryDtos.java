@@ -306,6 +306,15 @@ public final class InventoryDtos {
         public BulkPriceRequest {
             productIds = immutableList(productIds);
         }
+
+        /**
+         * Returns a defensive immutable copy of the selected product identifiers.
+         *
+         * @return immutable product identifier snapshot, or null when absent
+         */
+        public List<UUID> productIds() {
+            return immutableList(productIds);
+        }
     }
 
     /**
@@ -441,6 +450,15 @@ public final class InventoryDtos {
         }
 
         /**
+         * Returns a defensive immutable copy of the requested purchase lines.
+         *
+         * @return immutable purchase-line snapshot, or null when absent
+         */
+        public List<PurchaseLineRequest> lines() {
+            return immutableList(lines);
+        }
+
+        /**
          * Creates a purchase request with no lines for legacy service callers.
          *
          * @param branchId receiving branch
@@ -476,6 +494,15 @@ public final class InventoryDtos {
          */
         public PurchaseRequestWithLines {
             lines = immutableList(lines);
+        }
+
+        /**
+         * Returns a defensive immutable copy of the requested purchase lines.
+         *
+         * @return immutable purchase-line snapshot, or null when absent
+         */
+        public List<PurchaseLineRequest> lines() {
+            return immutableList(lines);
         }
     }
 
@@ -518,6 +545,15 @@ public final class InventoryDtos {
         }
 
         /**
+         * Returns a defensive immutable copy of the received quantities.
+         *
+         * @return immutable receipt-line snapshot, or null when absent
+         */
+        public List<ReceiptLine> lines() {
+            return immutableList(lines);
+        }
+
+        /**
          * Creates a receipt request without an explicit idempotency identifier.
          *
          * @param lines quantities received per product
@@ -552,6 +588,15 @@ public final class InventoryDtos {
         public PurchaseReceiptCorrectionRequest {
             lines = immutableList(lines);
         }
+
+        /**
+         * Returns a defensive immutable copy of corrected receipt quantities.
+         *
+         * @return immutable correction-line snapshot, or null when absent
+         */
+        public List<ReceiptCorrectionLine> lines() {
+            return immutableList(lines);
+        }
     }
 
     /**
@@ -581,6 +626,15 @@ public final class InventoryDtos {
          */
         public ImportResult {
             errors = immutableList(errors);
+        }
+
+        /**
+         * Returns a defensive immutable copy of row-level import errors.
+         *
+         * @return immutable error snapshot, or null when absent
+         */
+        public List<String> errors() {
+            return immutableList(errors);
         }
     }
 }

@@ -1096,5 +1096,14 @@ public class ServiceOrderService {
         public ConfiguredWorkflowView {
             transitions = ImmutableCopies.list(transitions);
         }
+
+        /**
+         * Returns a defensive immutable copy of the active transitions.
+         *
+         * @return immutable transition snapshot, or null when absent
+         */
+        public List<ConfiguredWorkflowTransition> transitions() {
+            return ImmutableCopies.list(transitions);
+        }
     }
 }

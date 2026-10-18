@@ -145,5 +145,23 @@ public final class WorkflowDtos {
             states = immutableList(states);
             transitions = immutableList(transitions);
         }
+
+        /**
+         * Returns a defensive immutable copy of configured workflow states.
+         *
+         * @return immutable workflow-state snapshot, or null when absent
+         */
+        public List<StateResponse> states() {
+            return immutableList(states);
+        }
+
+        /**
+         * Returns a defensive immutable copy of configured workflow transitions.
+         *
+         * @return immutable transition snapshot, or null when absent
+         */
+        public List<TransitionResponse> transitions() {
+            return immutableList(transitions);
+        }
     }
 }

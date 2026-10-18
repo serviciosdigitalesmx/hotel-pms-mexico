@@ -203,5 +203,14 @@ public class InventoryController {
         public PosConsumptionRequest {
             lines = ImmutableCopies.list(lines);
         }
+
+        /**
+         * Returns a defensive immutable copy of the requested stock deductions.
+         *
+         * @return immutable stock-deduction snapshot, or null when absent
+         */
+        public List<PosConsumptionLine> lines() {
+            return ImmutableCopies.list(lines);
+        }
     }
 }

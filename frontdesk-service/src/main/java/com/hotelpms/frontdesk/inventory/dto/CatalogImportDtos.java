@@ -39,6 +39,15 @@ public interface CatalogImportDtos {
         public ImportJobResponse {
             proposals = ImmutableCopies.list(proposals);
         }
+
+        /**
+         * Returns a defensive immutable copy of the parsed proposals.
+         *
+         * @return immutable proposal snapshot, or null when absent
+         */
+        public List<Proposal> proposals() {
+            return ImmutableCopies.list(proposals);
+        }
     }
 
     /**
@@ -68,6 +77,15 @@ public interface CatalogImportDtos {
          */
         public ReviewRequest {
             proposals = ImmutableCopies.list(proposals);
+        }
+
+        /**
+         * Returns a defensive immutable copy of the reviewed proposals.
+         *
+         * @return immutable proposal snapshot, or null when absent
+         */
+        public List<Proposal> proposals() {
+            return ImmutableCopies.list(proposals);
         }
     }
 

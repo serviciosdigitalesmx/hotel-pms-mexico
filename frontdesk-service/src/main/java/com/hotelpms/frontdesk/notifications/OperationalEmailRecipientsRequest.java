@@ -39,4 +39,13 @@ public record OperationalEmailRecipientsRequest(
     public OperationalEmailRecipientsRequest {
         recipients = ImmutableCopies.mapOfLists(recipients);
     }
+
+    /**
+     * Returns a defensive deep copy of the configured event recipient lists.
+     *
+     * @return immutable recipient map and lists, or null when absent
+     */
+    public Map<String, List<String>> recipients() {
+        return ImmutableCopies.mapOfLists(recipients);
+    }
 }
