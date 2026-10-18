@@ -22,6 +22,7 @@ import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -44,9 +45,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.sql.DataSource;
 
@@ -87,7 +90,8 @@ class WorkflowConcurrencyTest {
     }
 
     @Test
-    void concurrentTransitionsApplyExactlyOnceAndPersistOneAudit() throws Exception {
+    void concurrentTransitionsApplyExactlyOnceAndPersistOneAudit()
+            throws InterruptedException, ExecutionException, TimeoutException {
         final WorkflowService service = context.getBean(WorkflowService.class);
         final UUID tenant = UUID.randomUUID();
         final UUID id = service.create(tenant, new CreateWorkflowRequest("repair", "Repair")).getId();

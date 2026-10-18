@@ -8,69 +8,72 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
-/** WorkflowDtos domain type. */
+/**
+ * Validated request and response records for tenant-configured repair workflows.
+ */
 @SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
 public final class WorkflowDtos {
-    private WorkflowDtos() {}
+    private WorkflowDtos() { }
 
     /**
-     * DTO record.
+     * Creates a workflow for a supported business vertical.
      *
-     * @param verticalKey value.
-     * @param name value.
+     * @param verticalKey business vertical key
+     * @param name workflow display name
      */
-    public record CreateWorkflowRequest(@NotBlank String verticalKey, @NotBlank String name) {}
+    public record CreateWorkflowRequest(@NotBlank String verticalKey, @NotBlank String name) { }
 
     /**
-     * DTO record.
+     * Adds a named state to a workflow.
      *
-     * @param key value.
-     * @param label value.
-     * @param semanticPhase value.
-     * @param initialState value.
-     * @param terminalState value.
+     * @param key stable state key
+     * @param label display label
+     * @param semanticPhase operational meaning shared with repair orders
+     * @param initialState whether this is the initial state
+     * @param terminalState whether transitions may leave this state
      */
     public record AddStateRequest(
             @NotBlank String key,
             @NotBlank String label,
             @NotNull SemanticPhase semanticPhase,
             boolean initialState,
-            boolean terminalState) {}
+            boolean terminalState) { }
 
     /**
-     * DTO record.
+     * Adds a directed transition between workflow states.
      *
-     * @param fromStateKey value.
-     * @param toStateKey value.
-     * @param transitionKey value.
-     * @param requiredPermission value.
+     * @param fromStateKey source state key
+     * @param toStateKey destination state key
+     * @param transitionKey stable transition identifier
+     * @param requiredPermission server-enforced capability required to execute it
      */
     public record AddTransitionRequest(
             @NotBlank String fromStateKey,
             @NotBlank String toStateKey,
             @NotBlank String transitionKey,
-            @NotBlank String requiredPermission) {}
+            @NotBlank String requiredPermission) { }
 
     /**
-     * DTO record.
+     * Requests a workflow transition for one aggregate.
      *
-     * @param aggregateId value.
-     * @param fromStateKey value.
-     * @param transitionKey value.
+     * @param aggregateId tenant-owned aggregate identifier
+     * @param fromStateKey expected current state
+     * @param transitionKey requested transition
      */
     public record TransitionRequest(
             @NotNull UUID aggregateId,
             @NotBlank String fromStateKey,
-            @NotBlank String transitionKey) {}
+            @NotBlank String transitionKey) { }
 
     /**
-     * DTO record.
+     * Workflow state details returned to clients.
      *
-     * @param key value.
-     * @param label value.
-     * @param semanticPhase value.
-     * @param initialState value.
-     * @param terminalState value.
+     * @param key stable state key
+     * @param label display label
+     * @param semanticPhase operational meaning
+     * @param initialState whether this is the initial state
+     * @param terminalState whether this is a terminal state
+     * @param active whether the state is currently available
      */
     public record StateResponse(
             String key,
@@ -78,30 +81,33 @@ public final class WorkflowDtos {
             SemanticPhase semanticPhase,
             boolean initialState,
             boolean terminalState,
-            boolean active) {}
-
-    public record UpdateStateLabelRequest(@NotBlank String label) {}
+            boolean active) { }
 
     /**
-     * DTO record.
+     * Updates the display label of a workflow state.
+     */
+    public record UpdateStateLabelRequest(@NotBlank String label) { }
+
+    /**
+     * Transition details returned to clients.
      *
-     * @param key value.
-     * @param fromStateKey value.
-     * @param toStateKey value.
-     * @param requiredPermission value.
+     * @param key stable transition key
+     * @param fromStateKey source state key
+     * @param toStateKey destination state key
+     * @param requiredPermission required backend capability
      */
     public record TransitionResponse(
-            String key, String fromStateKey, String toStateKey, String requiredPermission) {}
+            String key, String fromStateKey, String toStateKey, String requiredPermission) { }
 
     /**
-     * DTO record.
+     * Active workflow definition with its configured states and transitions.
      *
-     * @param id value.
-     * @param verticalKey value.
-     * @param name value.
-     * @param version value.
-     * @param states value.
-     * @param transitions value.
+     * @param id workflow identifier
+     * @param verticalKey business vertical key
+     * @param name workflow display name
+     * @param version optimistic-lock version
+     * @param states configured workflow states
+     * @param transitions configured workflow transitions
      */
     public record WorkflowResponse(
             UUID id,
@@ -109,5 +115,5 @@ public final class WorkflowDtos {
             String name,
             int version,
             List<StateResponse> states,
-            List<TransitionResponse> transitions) {}
+            List<TransitionResponse> transitions) { }
 }

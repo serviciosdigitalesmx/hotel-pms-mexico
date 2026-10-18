@@ -12,12 +12,21 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Domain type.
+ * Validated request for creating a tenant-scoped Fixi repair order.
  *
- * @param branchId value.
- * @param customerId value.
- * @param deviceId value.
- * @param summary value.
+ * @param customerId tenant-owned customer identifier
+ * @param deviceId customer device identifier
+ * @param branchId branch receiving the repair order
+ * @param summary brief repair summary
+ * @param reportedFailure customer-reported symptom
+ * @param intakeChecklist recorded device intake condition
+ * @param promisedAt expected completion date
+ * @param intakeEvidence optional intake evidence reference
+ * @param priority operational priority
+ * @param serviceName optional service catalog label
+ * @param depositAmount initial payment amount
+ * @param assignedUserId optional technician identifier
+ * @param depositPaymentMethod payment method for the initial deposit
  */
 public record ServiceOrderRequest(
         @NotNull UUID customerId,
@@ -35,19 +44,22 @@ public record ServiceOrderRequest(
         UUID assignedUserId,
         @Pattern(regexp = "CASH|CHECK|BANK_DEPOSIT|PAYPAL|CARD|OTHER")
                 String depositPaymentMethod) {
+    /**
+     * Creates a request with no explicit deposit payment method.
+     */
     public ServiceOrderRequest(
-            UUID customerId,
-            UUID deviceId,
-            UUID branchId,
-            String summary,
-            String reportedFailure,
-            String intakeChecklist,
-            LocalDateTime promisedAt,
-            String intakeEvidence,
-            String priority,
-            String serviceName,
-            BigDecimal depositAmount,
-            UUID assignedUserId) {
+            final UUID customerId,
+            final UUID deviceId,
+            final UUID branchId,
+            final String summary,
+            final String reportedFailure,
+            final String intakeChecklist,
+            final LocalDateTime promisedAt,
+            final String intakeEvidence,
+            final String priority,
+            final String serviceName,
+            final BigDecimal depositAmount,
+            final UUID assignedUserId) {
         this(
                 customerId,
                 deviceId,
@@ -64,15 +76,18 @@ public record ServiceOrderRequest(
                 null);
     }
 
+    /**
+     * Creates a basic intake request with normal priority and no deposit.
+     */
     public ServiceOrderRequest(
-            UUID customerId,
-            UUID deviceId,
-            UUID branchId,
-            String summary,
-            String reportedFailure,
-            String intakeChecklist,
-            LocalDateTime promisedAt,
-            String intakeEvidence) {
+            final UUID customerId,
+            final UUID deviceId,
+            final UUID branchId,
+            final String summary,
+            final String reportedFailure,
+            final String intakeChecklist,
+            final LocalDateTime promisedAt,
+            final String intakeEvidence) {
         this(
                 customerId,
                 deviceId,
