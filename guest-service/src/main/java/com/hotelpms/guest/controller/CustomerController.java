@@ -398,5 +398,21 @@ public class CustomerController {
    * @param errors row-level validation or conflict messages
    */
   public record CsvImportResult(int imported, List<String> errors) {
+    /** Prevents external mutation of the reported CSV error list. */
+    public CsvImportResult {
+      if (errors != null) {
+        errors = List.copyOf(errors);
+      }
+    }
+
+    /**
+     * Returns an immutable copy of the import errors.
+     *
+     * @return immutable import errors, or {@code null} when absent
+     */
+    @Override
+    public List<String> errors() {
+      return errors == null ? null : List.copyOf(errors);
+    }
   }
 }
