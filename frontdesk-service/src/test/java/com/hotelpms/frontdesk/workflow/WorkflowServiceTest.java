@@ -37,6 +37,7 @@ class WorkflowServiceTest {
     private static final String DIAGNOSING_STATE = "diagnosing";
     private static final String DIAGNOSE_TRANSITION = "diagnose";
     private static final String TRANSITION_PERMISSION = "workflow.transition";
+    private static final String TECHNICIAN_ACTOR = "technician";
     private final WorkflowDefinitionRepository definitions =
             mock(WorkflowDefinitionRepository.class);
     private final WorkflowStateRepository states = mock(WorkflowStateRepository.class);
@@ -79,7 +80,7 @@ class WorkflowServiceTest {
     @Test
     void firstTransitionPersistsStateAndAudit() {
         allowTransition(true, false);
-        service.transition(tenant, workflowId, request, "technician");
+        service.transition(tenant, workflowId, request, TECHNICIAN_ACTOR);
         verify(instances).save(argThat(i -> i.getStateKey().equals(DIAGNOSING_STATE)));
         verify(audits).save(any(WorkflowTransitionAudit.class));
     }
@@ -143,7 +144,7 @@ class WorkflowServiceTest {
                                         tenant, workflowId, aggregate, DIAGNOSING_STATE)));
         assertThrows(
                 ConflictException.class,
-                () -> service.transition(tenant, workflowId, request, "technician"));
+                () -> service.transition(tenant, workflowId, request, TECHNICIAN_ACTOR));
         verify(instances, never()).save(any());
         verifyNoInteractions(audits);
     }
@@ -172,7 +173,7 @@ class WorkflowServiceTest {
         allowTransition(false, false);
         assertThrows(
                 ConflictException.class,
-                () -> service.transition(tenant, workflowId, request, "technician"));
+                () -> service.transition(tenant, workflowId, request, TECHNICIAN_ACTOR));
         verify(instances, never()).save(any());
         verifyNoInteractions(audits);
     }
@@ -182,7 +183,7 @@ class WorkflowServiceTest {
         allowTransition(true, true);
         assertThrows(
                 ConflictException.class,
-                () -> service.transition(tenant, workflowId, request, "technician"));
+                () -> service.transition(tenant, workflowId, request, TECHNICIAN_ACTOR));
         verify(instances, never()).save(any());
         verifyNoInteractions(audits);
     }

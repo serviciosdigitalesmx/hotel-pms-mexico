@@ -68,9 +68,9 @@ public class ServiceCatalogController {
      */
     @PatchMapping("/{id}/active")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
-    public ServiceCatalogEntry setActive(
+    public ServiceCatalogEntry updateActive(
             @PathVariable final UUID id, @RequestParam final boolean value) {
-        return service.setActive(tenantId(), id, value);
+        return service.updateActive(tenantId(), id, value);
     }
 
     /**

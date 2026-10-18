@@ -17,7 +17,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Type domain type. */
+/** A tenant-owned product in the repair inventory catalog. */
 @Entity
 @Table(
         name = "inventory_products",
@@ -34,6 +34,9 @@ public class InventoryProduct {
     private static final int SKU_LENGTH = 80;
     private static final int NAME_LENGTH = 200;
     private static final int CATEGORY_LENGTH = 120;
+    private static final int DESCRIPTION_LENGTH = 2000;
+    private static final int MONEY_PRECISION = 12;
+    private static final int MONEY_SCALE = 2;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -48,28 +51,26 @@ public class InventoryProduct {
     @Column(nullable = false, length = NAME_LENGTH)
     private String name;
 
-    @Column(length = 2000)
+    @Column(length = DESCRIPTION_LENGTH)
     private String description;
 
     @Column(nullable = false, length = CATEGORY_LENGTH)
     @Builder.Default
     private String category = "General";
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable = false, precision = MONEY_PRECISION, scale = MONEY_SCALE)
     @Builder.Default
     private BigDecimal cost = BigDecimal.ZERO;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable = false, precision = MONEY_PRECISION, scale = MONEY_SCALE)
     @Builder.Default
     private BigDecimal price = BigDecimal.ZERO;
 
     @Column(name = "reorder_level", nullable = false)
-    @Builder.Default
-    private long reorderLevel = 0;
+    private long reorderLevel;
 
     @Column(name = "maximum_stock_level", nullable = false)
-    @Builder.Default
-    private long maximumStockLevel = 0;
+    private long maximumStockLevel;
 
     @Column(name = "supplier_id")
     private UUID supplierId;

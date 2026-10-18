@@ -8,20 +8,24 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 /**
- * Domain type.
+ * Validated metadata and content reference for evidence attached to a repair order.
  *
- * @param accessLevel value.
- * @param contentType value.
- * @param customerId value.
- * @param fileName value.
- * @param serviceOrderId value.
- * @param storageKey value.
+ * @param accessLevel visibility scope for the evidence
+ * @param contentType uploaded media type
+ * @param customerId tenant-owned customer identifier
+ * @param fileName original file name
+ * @param serviceOrderId tenant-owned repair-order identifier
+ * @param storageKey protected storage reference or bounded inline payload
  */
 public record DocumentEvidenceRequest(
         @NotNull UUID serviceOrderId,
         @NotNull UUID customerId,
-        @NotBlank @Size(max = 200) String fileName,
-        @NotBlank @Size(max = 100) String contentType,
-        @NotBlank @Size(max = 14000000) String storageKey,
+        @NotBlank @Size(max = MAX_FILE_NAME_LENGTH) String fileName,
+        @NotBlank @Size(max = MAX_CONTENT_TYPE_LENGTH) String contentType,
+        @NotBlank @Size(max = MAX_STORAGE_KEY_LENGTH) String storageKey,
         @NotBlank @Pattern(regexp = "(?i)(INTERNAL|CUSTOMER|ORDER)") @Size(max = 32)
-                String accessLevel) {}
+                String accessLevel) {
+    private static final int MAX_FILE_NAME_LENGTH = 200;
+    private static final int MAX_CONTENT_TYPE_LENGTH = 100;
+    private static final int MAX_STORAGE_KEY_LENGTH = 14_000_000;
+}

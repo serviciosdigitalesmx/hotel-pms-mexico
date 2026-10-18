@@ -34,6 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 @SuppressWarnings("null")
@@ -42,6 +43,9 @@ class ServiceOrderOperationalTest {
     private static final UUID HOTEL_ID = UUID.randomUUID();
     private static final UUID CUSTOMER_ID = UUID.randomUUID();
     private static final UUID ORDER_ID = UUID.randomUUID();
+    private static final BigDecimal QUOTE_TOTAL = new BigDecimal("100.00");
+    private static final BigDecimal DEPOSIT_AMOUNT = new BigDecimal("30.00");
+    private static final String PAYMENT_PENDING = "PENDING";
 
     @Mock private ServiceOrderRepository repository;
     @Mock private RepairTestRepository repairTests;
@@ -120,19 +124,19 @@ class ServiceOrderOperationalTest {
                         .id(ORDER_ID)
                         .hotelId(HOTEL_ID)
                         .status(ServiceOrderStatus.QA)
-                        .quoteTotal(new BigDecimal("100.00"))
-                        .depositAmount(new BigDecimal("30.00"))
-                        .paidAmount(new BigDecimal("30.00"))
+                        .quoteTotal(QUOTE_TOTAL)
+                        .depositAmount(DEPOSIT_AMOUNT)
+                        .paidAmount(DEPOSIT_AMOUNT)
                         .build();
         when(repository.findForUpdateByIdAndHotelId(ORDER_ID, HOTEL_ID))
-                .thenReturn(java.util.Optional.of(order));
+                .thenReturn(Optional.of(order));
 
         final ServiceOrder delivered =
-                service.deliver(HOTEL_ID, ORDER_ID, UUID.randomUUID(), "PENDING");
+                service.deliver(HOTEL_ID, ORDER_ID, UUID.randomUUID(), PAYMENT_PENDING);
 
         assertEquals(ServiceOrderStatus.COMPLETED, delivered.getStatus());
-        assertEquals("PENDING", delivered.getPaymentStatus());
-        assertEquals(new BigDecimal("30.00"), delivered.getPaidAmount());
+        assertEquals(PAYMENT_PENDING, delivered.getPaymentStatus());
+        assertEquals(DEPOSIT_AMOUNT, delivered.getPaidAmount());
         assertNotNull(delivered.getDeliveredAt());
         verify(inventoryService).consumeReservations(HOTEL_ID, ORDER_ID);
         verify(notificationOutbox)
@@ -146,17 +150,17 @@ class ServiceOrderOperationalTest {
                         .id(ORDER_ID)
                         .hotelId(HOTEL_ID)
                         .status(ServiceOrderStatus.COMPLETED)
-                        .paymentStatus("PENDING")
-                        .paymentMethod("PENDING")
-                        .quoteTotal(new BigDecimal("100.00"))
-                        .paidAmount(new BigDecimal("30.00"))
+                        .paymentStatus(PAYMENT_PENDING)
+                        .paymentMethod(PAYMENT_PENDING)
+                        .quoteTotal(QUOTE_TOTAL)
+                        .paidAmount(DEPOSIT_AMOUNT)
                         .deliveredAt(java.time.LocalDateTime.now())
                         .build();
         when(repository.findForUpdateByIdAndHotelId(ORDER_ID, HOTEL_ID))
-                .thenReturn(java.util.Optional.of(order));
+                .thenReturn(Optional.of(order));
 
         final ServiceOrder retry =
-                service.deliver(HOTEL_ID, ORDER_ID, UUID.randomUUID(), "PENDING");
+                service.deliver(HOTEL_ID, ORDER_ID, UUID.randomUUID(), PAYMENT_PENDING);
 
         assertEquals(order, retry);
         verify(inventoryService, never()).consumeReservations(HOTEL_ID, ORDER_ID);
@@ -172,12 +176,12 @@ class ServiceOrderOperationalTest {
                         .id(ORDER_ID)
                         .hotelId(HOTEL_ID)
                         .status(ServiceOrderStatus.COMPLETED)
-                        .paymentStatus("PENDING")
-                        .paymentMethod("PENDING")
+                        .paymentStatus(PAYMENT_PENDING)
+                        .paymentMethod(PAYMENT_PENDING)
                         .deliveredAt(java.time.LocalDateTime.now())
                         .build();
         when(repository.findForUpdateByIdAndHotelId(ORDER_ID, HOTEL_ID))
-                .thenReturn(java.util.Optional.of(order));
+                .thenReturn(Optional.of(order));
 
         assertThrows(
                 IllegalStateException.class,
@@ -196,19 +200,19 @@ class ServiceOrderOperationalTest {
                         .id(ORDER_ID)
                         .hotelId(HOTEL_ID)
                         .status(ServiceOrderStatus.COMPLETED)
-                        .paymentStatus("PENDING")
-                        .quoteTotal(new BigDecimal("100.00"))
-                        .paidAmount(new BigDecimal("30.00"))
+                        .paymentStatus(PAYMENT_PENDING)
+                        .quoteTotal(QUOTE_TOTAL)
+                        .paidAmount(DEPOSIT_AMOUNT)
                         .build();
         when(repository.findForUpdateByIdAndHotelId(ORDER_ID, HOTEL_ID))
-                .thenReturn(java.util.Optional.of(order));
+                .thenReturn(Optional.of(order));
 
         final ServiceOrder updated =
                 service.recordPendingPayment(
                         HOTEL_ID, ORDER_ID, UUID.randomUUID(), "CASH", new BigDecimal("70.00"));
 
         assertEquals("PAID", updated.getPaymentStatus());
-        assertEquals(new BigDecimal("100.00"), updated.getPaidAmount());
+        assertEquals(QUOTE_TOTAL, updated.getPaidAmount());
         verify(history).save(any());
     }
 }

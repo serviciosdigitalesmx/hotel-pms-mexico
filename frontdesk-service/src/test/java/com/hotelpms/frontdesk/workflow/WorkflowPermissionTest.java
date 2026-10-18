@@ -38,6 +38,11 @@ import java.util.UUID;
 
 @SpringJUnitConfig(WorkflowPermissionTest.SecurityConfig.class)
 class WorkflowPermissionTest {
+    private static final String REPAIR_VERTICAL = "repair";
+    private static final String REPAIR_NAME = "Repair";
+    private static final String START_TRANSITION = "start";
+    private static final int HTTP_CREATED = 201;
+
     @Autowired private WorkflowController controller;
     @Autowired private WorkflowService service;
     private final UUID tenant = UUID.randomUUID();
@@ -63,27 +68,27 @@ class WorkflowPermissionTest {
     @Test
     void ownerLabelCanCreateWithoutExplicitPermission() {
         authenticate("ROLE_OWNER");
-        final var request = new CreateWorkflowRequest("repair", "Repair");
+        final var request = new CreateWorkflowRequest(REPAIR_VERTICAL, REPAIR_NAME);
         when(service.create(tenant, request))
-                .thenReturn(new WorkflowDefinition(tenant, "repair", "Repair"));
-        assertEquals(201, controller.create(request).getStatusCode().value());
+                .thenReturn(new WorkflowDefinition(tenant, REPAIR_VERTICAL, REPAIR_NAME));
+        assertEquals(HTTP_CREATED, controller.create(request).getStatusCode().value());
         verify(service).create(tenant, request);
     }
 
     @Test
     void adminLabelCanCreateWithoutExplicitPermission() {
         authenticate("ROLE_ADMIN");
-        final var request = new CreateWorkflowRequest("repair", "Repair");
+        final var request = new CreateWorkflowRequest(REPAIR_VERTICAL, REPAIR_NAME);
         when(service.create(tenant, request))
-                .thenReturn(new WorkflowDefinition(tenant, "repair", "Repair"));
-        assertEquals(201, controller.create(request).getStatusCode().value());
+                .thenReturn(new WorkflowDefinition(tenant, REPAIR_VERTICAL, REPAIR_NAME));
+        assertEquals(HTTP_CREATED, controller.create(request).getStatusCode().value());
         verify(service).create(tenant, request);
     }
 
     @Test
     void receptionistCannotCreateWorkflow() {
         authenticate("ROLE_RECEPTIONIST");
-        final var request = new CreateWorkflowRequest("repair", "Repair");
+        final var request = new CreateWorkflowRequest(REPAIR_VERTICAL, REPAIR_NAME);
         assertThrows(AccessDeniedException.class, () -> controller.create(request));
         verifyNoInteractions(service);
     }
@@ -92,7 +97,7 @@ class WorkflowPermissionTest {
     void ownerCanTransitionWhenTransitionSpecificPermissionIsAbsent() {
         authenticate("ROLE_OWNER", "workflow.transition");
         final UUID id = UUID.randomUUID();
-        final var workflow = new WorkflowDefinition(tenant, "repair", "Repair");
+        final var workflow = new WorkflowDefinition(tenant, REPAIR_VERTICAL, REPAIR_NAME);
         final var from =
                 new WorkflowState(
                         workflow, "received", "Received", SemanticPhase.INTAKE, true, false);
@@ -102,9 +107,10 @@ class WorkflowPermissionTest {
                 .thenReturn(
                         List.of(
                                 new WorkflowTransition(
-                                        workflow, from, to, "start", "orders.execute")));
-        final var request = new TransitionRequest(UUID.randomUUID(), "received", "start");
-        final var candidate = new WorkflowTransition(workflow, from, to, "start", "orders.execute");
+                                        workflow, from, to, START_TRANSITION, "orders.execute")));
+        final var request = new TransitionRequest(UUID.randomUUID(), "received", START_TRANSITION);
+        final var candidate =
+                new WorkflowTransition(workflow, from, to, START_TRANSITION, "orders.execute");
         when(service.transition(eq(tenant), eq(id), eq(request), anyString()))
                 .thenReturn(candidate);
         assertDoesNotThrow(() -> controller.transition(id, request));

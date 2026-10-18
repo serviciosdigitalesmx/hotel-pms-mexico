@@ -25,9 +25,7 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-@SuppressWarnings("checkstyle:JavadocMethod")
 public class PublicPortalController {
-    // CHECKSTYLE: JavadocMethod|JavadocContentLocation|RequireEmptyLineBeforeBlockTagGroup OFF
     private final PublicPortalTokenService service;
 
     /**
@@ -101,6 +99,14 @@ public class PublicPortalController {
                 .toList();
     }
 
+    /**
+     * Downloads evidence only when it is customer-visible on the token-scoped order.
+     *
+     * @param token opaque portal token
+     * @param id evidence identifier
+     * @return evidence bytes as an attachment
+     * @implSpec Overrides must retain token scope and customer visibility checks.
+     */
     @GetMapping("/public/portal/operations/{token}/documents/{id}/content")
     public ResponseEntity<byte[]> documentContent(
             @PathVariable final String token, @PathVariable final UUID id) {
@@ -175,5 +181,4 @@ public class PublicPortalController {
                 String.valueOf(
                         SecurityContextHolder.getContext().getAuthentication().getDetails()));
     }
-    // CHECKSTYLE: JavadocMethod|JavadocContentLocation|RequireEmptyLineBeforeBlockTagGroup ON
 }

@@ -14,7 +14,7 @@ import jakarta.persistence.Table;
 
 import java.util.UUID;
 
-/** Type domain type. */
+/** A tenant workflow state's identity, display label, and operational semantics. */
 @Entity
 @Table(name = "workflow_states")
 public class WorkflowState {
@@ -138,14 +138,32 @@ public class WorkflowState {
         return terminalState;
     }
 
+    /**
+     * Indicates whether this state can participate in new transitions.
+     *
+     * @return {@code true} when active
+     * @implSpec Overrides must preserve the persisted active-state value.
+     */
     public boolean isActive() {
         return active;
     }
 
+    /**
+     * Sets whether this state is available for transitions.
+     *
+     * @param active requested active state
+     * @implSpec Callers must retain safeguards for initial and in-use states.
+     */
     public void setActive(final boolean active) {
         this.active = active;
     }
 
+    /**
+     * Changes the state's display label without changing its stable key.
+     *
+     * @param label new display label
+     * @implSpec Callers must retain the workflow state identity.
+     */
     public void setLabel(final String label) {
         this.label = label;
     }

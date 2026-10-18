@@ -23,7 +23,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Type domain type. */
+/** Tenant-authorized stock reservation and consumption reporting endpoints. */
 @RestController("inventoryReservationController")
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/inventory/reservations")
@@ -42,12 +42,28 @@ public class ReservationController {
         return service.reserve(hotel(), r);
     }
 
+    /**
+     * Lists reservations for a tenant-owned service order.
+     *
+     * @param order service order identifier
+     * @return reservations for the order
+     * @implSpec Overrides must preserve tenant scoping and role authorization.
+     */
     @GetMapping("/order/{order}")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
     public List<StockReservation> listForOrder(@PathVariable final UUID order) {
         return service.reservationsForOrder(hotel(), order);
     }
 
+    /**
+     * Reports the most-consumed products for the selected tenant and date range.
+     *
+     * @param branchId optional branch filter
+     * @param from first date in the range
+     * @param to last date in the range
+     * @return product consumption totals
+     * @implSpec Overrides must preserve tenant scoping and branch authorization.
+     */
     @GetMapping("/consumption/top")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
     public List<ProductConsumption> topConsumedProducts(

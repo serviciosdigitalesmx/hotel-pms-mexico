@@ -38,12 +38,14 @@ public record ServiceOrderRequest(
         @FutureOrPresent LocalDateTime promisedAt,
         String intakeEvidence,
         @Pattern(regexp = "LOW|NORMAL|HIGH|URGENT") String priority,
-        @Size(max = 200) String serviceName,
+        @Size(max = SERVICE_NAME_LENGTH) String serviceName,
         @DecimalMin("0.00") @jakarta.validation.constraints.Digits(integer = 10, fraction = 2)
                 BigDecimal depositAmount,
         UUID assignedUserId,
         @Pattern(regexp = "CASH|CHECK|BANK_DEPOSIT|PAYPAL|CARD|OTHER")
                 String depositPaymentMethod) {
+    private static final int SERVICE_NAME_LENGTH = 200;
+
     /**
      * Creates a request with no explicit deposit payment method.
      */

@@ -17,6 +17,13 @@ import java.util.UUID;
 public class AutomationRuleService {
     private final AutomationRuleRepository repository;
 
+    /**
+     * Lists enabled automation rules owned by one tenant.
+     *
+     * @param hotelId tenant identifier
+     * @return enabled tenant-owned rules
+     * @implSpec Overrides must preserve tenant scoping and must not execute rules during lookup.
+     */
     @Transactional(readOnly = true)
     public List<AutomationRule> enabled(final UUID hotelId) {
         return repository.findAllByHotelIdAndEnabledTrue(hotelId);

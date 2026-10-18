@@ -27,6 +27,14 @@ public class CatalogImportService {
     private final CatalogImportJobRepository jobs;
     private final InventoryProductRepository products;
 
+    /**
+     * Stores an uploaded catalog for human review without applying its proposed products.
+     *
+     * @param hotelId tenant identifier
+     * @param file uploaded catalog
+     * @return import job and extracted proposals
+     * @implSpec Overrides must keep uploaded data tenant-scoped and review-gated.
+     */
     @Transactional
     public ImportJobResponse ingest(final UUID hotelId, final MultipartFile file) {
         try {
@@ -48,6 +56,14 @@ public class CatalogImportService {
         }
     }
 
+    /**
+     * Reads one import job and its proposals for the owning tenant.
+     *
+     * @param hotelId tenant identifier
+     * @param id import-job identifier
+     * @return import job with review proposals
+     * @implSpec Overrides must reject jobs owned by another tenant.
+     */
     @Transactional(readOnly = true)
     public ImportJobResponse get(final UUID hotelId, final UUID id) {
         return response(
@@ -57,6 +73,15 @@ public class CatalogImportService {
                 hotelId);
     }
 
+    /**
+     * Applies approved proposals or records their rejection for the owning tenant.
+     *
+     * @param hotelId tenant identifier
+     * @param id import-job identifier
+     * @param request review decision and selected proposals
+     * @return updated import job
+     * @implSpec Overrides must preserve tenant ownership and explicit human approval.
+     */
     @Transactional
     public ImportJobResponse reviewAndApply(
             final UUID hotelId, final UUID id, final ReviewRequest request) {

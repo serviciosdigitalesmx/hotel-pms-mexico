@@ -55,19 +55,24 @@ import javax.sql.DataSource;
 
 @Testcontainers(disabledWithoutDocker = true)
 class WorkflowConcurrencyTest {
+    private static final String RECEIVED_STATE = "received";
+    private static final String DIAGNOSING_STATE = "diagnosing";
+    private static final int WAIT_SECONDS = 10;
+    private static final int RESULT_TIMEOUT_SECONDS = 30;
+
     @Container
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     private static AnnotationConfigApplicationContext context;
 
     @BeforeAll
     static void database() throws IOException, SQLException {
-        try (final var connection =
+        try (var connection =
                         DriverManager.getConnection(
-                                postgres.getJdbcUrl(),
-                                postgres.getUsername(),
-                                postgres.getPassword());
-                final var statement = connection.createStatement()) {
+                                POSTGRES.getJdbcUrl(),
+                                POSTGRES.getUsername(),
+                                POSTGRES.getPassword());
+                var statement = connection.createStatement()) {
             statement.execute(
                     Files.readString(
                             Path.of(
@@ -86,7 +91,9 @@ class WorkflowConcurrencyTest {
 
     @AfterAll
     static void close() {
-        if (context != null) context.close();
+        if (context != null) {
+            context.close();
+        }
     }
 
     @Test
@@ -98,43 +105,46 @@ class WorkflowConcurrencyTest {
         service.addState(
                 tenant,
                 id,
-                new AddStateRequest("received", "Received", SemanticPhase.INTAKE, true, false));
+                new AddStateRequest(RECEIVED_STATE, "Received", SemanticPhase.INTAKE, true, false));
         service.addState(
                 tenant,
                 id,
                 new AddStateRequest(
-                        "diagnosing", "Diagnosing", SemanticPhase.DIAGNOSIS, false, false));
+                        DIAGNOSING_STATE, "Diagnosing", SemanticPhase.DIAGNOSIS, false, false));
         service.addTransition(
                 tenant,
                 id,
                 new AddTransitionRequest(
-                        "received", "diagnosing", "diagnose", "workflow.transition"));
+                        RECEIVED_STATE, DIAGNOSING_STATE, "diagnose", "workflow.transition"));
         final UUID aggregate = UUID.randomUUID();
-        final TransitionRequest request = new TransitionRequest(aggregate, "received", "diagnose");
+        final TransitionRequest request =
+                new TransitionRequest(aggregate, RECEIVED_STATE, "diagnose");
         final CountDownLatch ready = new CountDownLatch(2);
         final CountDownLatch start = new CountDownLatch(1);
         final Callable<Boolean> action =
                 () -> {
                     ready.countDown();
-                    if (!start.await(10, TimeUnit.SECONDS)) {
+                    if (!start.await(WAIT_SECONDS, TimeUnit.SECONDS)) {
                         throw new IllegalStateException("Start timed out");
                     }
                     try {
                         service.transition(tenant, id, request, "technician");
                         return true;
-                    } catch (ConflictException expected) {
+                    } catch (final ConflictException expected) {
                         return false;
                     }
                 };
         try (var pool = Executors.newFixedThreadPool(2)) {
             final Future<Boolean> first = pool.submit(action);
             final Future<Boolean> second = pool.submit(action);
-            assertTrue(ready.await(10, TimeUnit.SECONDS));
+            assertTrue(ready.await(WAIT_SECONDS, TimeUnit.SECONDS));
             start.countDown();
-            assertNotEquals(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+            assertNotEquals(
+                    first.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                    second.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS));
         }
         assertEquals(
-                "diagnosing",
+                DIAGNOSING_STATE,
                 context.getBean(WorkflowInstanceRepository.class)
                         .findByHotelIdAndWorkflowIdAndAggregateId(tenant, id, aggregate)
                         .orElseThrow()
@@ -157,7 +167,7 @@ class WorkflowConcurrencyTest {
         @Bean
         DataSource dataSource() {
             return new DriverManagerDataSource(
-                    postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                    POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         }
 
         @Bean

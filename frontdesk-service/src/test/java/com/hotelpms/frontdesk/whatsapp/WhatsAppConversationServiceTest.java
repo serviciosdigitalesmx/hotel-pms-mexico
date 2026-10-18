@@ -18,6 +18,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 class WhatsAppConversationServiceTest {
+    private static final String PROVIDER_EVENT_ID = "event-1";
+
     private ConversationRepository conversations;
     private WhatsAppMessageRepository messages;
     private WhatsAppConversationService service;
@@ -40,7 +42,7 @@ class WhatsAppConversationServiceTest {
                         .hotelId(hotel)
                         .channelKey("5215550101@s.whatsapp.net")
                         .build();
-        when(messages.existsByHotelIdAndProviderMessageId(hotel, "event-1"))
+        when(messages.existsByHotelIdAndProviderMessageId(hotel, PROVIDER_EVENT_ID))
                 .thenReturn(false, true);
         when(conversations.findByHotelIdAndChannelKey(hotel, conversation.getChannelKey()))
                 .thenReturn(Optional.of(conversation));
@@ -48,14 +50,15 @@ class WhatsAppConversationServiceTest {
         assertTrue(
                 service.ingest(
                         hotel,
-                        "event-1",
+                        PROVIDER_EVENT_ID,
                         "{\"remoteJid\":\"5215550101@s.whatsapp.net\",\"text\":\"Necesito"
                             + " ayuda\"}"));
-        assertFalse(service.ingest(hotel, "event-1", "{}"));
+        assertFalse(service.ingest(hotel, PROVIDER_EVENT_ID, "{}"));
 
         verify(messages).save(any(WhatsAppMessage.class));
         verify(conversations).findByHotelIdAndChannelKey(hotel, conversation.getChannelKey());
-        verify(messages, never()).existsByHotelIdAndProviderMessageId(otherHotel, "event-1");
+        verify(messages, never())
+                .existsByHotelIdAndProviderMessageId(otherHotel, PROVIDER_EVENT_ID);
         assertEquals(hotel, conversation.getHotelId());
     }
 }

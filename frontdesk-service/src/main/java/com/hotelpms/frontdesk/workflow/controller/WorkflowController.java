@@ -1,5 +1,6 @@
 package com.hotelpms.frontdesk.workflow.controller;
 
+import com.hotelpms.frontdesk.exception.ConflictException;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowDefinition;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowState;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowTransition;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,18 +32,29 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
-/** Type domain type. */
+/**
+ * Authenticated API for tenant-owned workflow definitions and transitions.
+ */
 @RestController
 @RequestMapping("/api/v1/workflows")
 @RequiredArgsConstructor
 public class WorkflowController {
+    private static final String ADMIN_OWNER_ROLES = "hasAnyRole('ADMIN', 'OWNER')";
     private final WorkflowService service;
 
+    /**
+     * Lists workflows configured for the authenticated tenant.
+     *
+     * @return tenant-owned workflow definitions
+     * @implSpec Overrides must preserve tenant scoping and role authorization.
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
-    public java.util.List<WorkflowResponse> list() {
+    public List<WorkflowResponse> list() {
         return service.list(hotel()).stream().map(this::view).toList();
     }
 
@@ -50,9 +63,10 @@ public class WorkflowController {
      *
      * @param r workflow request
      * @return created workflow
+     * @implSpec Overrides must preserve authenticated tenant ownership and role authorization.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize(ADMIN_OWNER_ROLES)
     public ResponseEntity<WorkflowResponse> create(
             @Valid @RequestBody final CreateWorkflowRequest r) {
         final WorkflowDefinition w = service.create(hotel(), r);
@@ -65,16 +79,26 @@ public class WorkflowController {
      * @param id workflow identifier
      * @param r state request
      * @return created state
+     * @implSpec Overrides must preserve tenant ownership and role authorization.
      */
     @PostMapping("/{id}/states")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize(ADMIN_OWNER_ROLES)
     public StateResponse state(
             @PathVariable final UUID id, @Valid @RequestBody final AddStateRequest r) {
         return stateView(service.addState(hotel(), id, r));
     }
 
+    /**
+     * Updates the display label of a tenant-owned workflow state.
+     *
+     * @param id workflow identifier
+     * @param key state identifier
+     * @param request validated label update
+     * @return updated workflow state
+     * @implSpec Overrides must preserve tenant ownership and role authorization.
+     */
     @PatchMapping("/{id}/states/{key}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize(ADMIN_OWNER_ROLES)
     public StateResponse updateStateLabel(
             @PathVariable final UUID id,
             @PathVariable final String key,
@@ -82,13 +106,22 @@ public class WorkflowController {
         return stateView(service.updateStateLabel(hotel(), id, key, request));
     }
 
+    /**
+     * Enables or disables a tenant-owned workflow state.
+     *
+     * @param id workflow identifier
+     * @param key state identifier
+     * @param active requested availability
+     * @return updated workflow state
+     * @implSpec Overrides must preserve tenant ownership and role authorization.
+     */
     @PatchMapping("/{id}/states/{key}/active")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
-    public StateResponse setStateActive(
+    @PreAuthorize(ADMIN_OWNER_ROLES)
+    public StateResponse updateStateActive(
             @PathVariable final UUID id,
             @PathVariable final String key,
             @RequestParam final boolean active) {
-        return stateView(service.setStateActive(hotel(), id, key, active));
+        return stateView(service.updateStateActive(hotel(), id, key, active));
     }
 
     /**
@@ -97,9 +130,10 @@ public class WorkflowController {
      * @param id workflow identifier
      * @param r transition definition request
      * @return created transition
+     * @implSpec Overrides must preserve tenant ownership and role authorization.
      */
     @PostMapping("/{id}/transitions")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    @PreAuthorize(ADMIN_OWNER_ROLES)
     public TransitionResponse transitionDef(
             @PathVariable final UUID id, @Valid @RequestBody final AddTransitionRequest r) {
         return transitionView(service.addTransition(hotel(), id, r));
@@ -111,6 +145,7 @@ public class WorkflowController {
      * @param id workflow identifier
      * @param r transition request
      * @return transition result
+     * @implSpec Overrides must preserve backend capability checks and tenant-scoped logic.
      */
     @PostMapping("/{id}/transition")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST', 'TECHNICIAN')")
@@ -121,35 +156,44 @@ public class WorkflowController {
                 service.transitions(hotel(), id).stream()
                         .filter(
                                 t ->
-                                        t.getKey().equals(r.transitionKey())
-                                                && t.getFromState()
-                                                        .getKey()
-                                                        .equals(r.fromStateKey()))
+                                        r.transitionKey().equals(t.getKey())
+                                                && r.fromStateKey()
+                                                        .equals(t.getFromState().getKey()))
                         .findFirst()
                         .orElseThrow(
                                 () ->
-                                        new com.hotelpms.frontdesk.exception.ConflictException(
+                                        new ConflictException(
                                                 "Transition is not allowed from current state"));
         if (!authentication.getAuthorities().stream()
                 .anyMatch(
                         a ->
-                                a.getAuthority().equals("ROLE_ADMIN")
-                                        || a.getAuthority().equals("ROLE_OWNER")
-                                        || a.getAuthority()
-                                                .equals(candidate.getRequiredPermission()))) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Missing workflow permission");
+                                "ROLE_ADMIN".equals(a.getAuthority())
+                                        || "ROLE_OWNER".equals(a.getAuthority())
+                                        || Objects.equals(
+                                                candidate.getRequiredPermission(),
+                                                a.getAuthority()))) {
+            throw new AccessDeniedException("Missing workflow permission");
         }
         return transitionView(
                 service.transition(hotel(), id, r, String.valueOf(authentication.getPrincipal())));
     }
 
+    /**
+     * Reads a workflow state for one aggregate in the authenticated tenant.
+     *
+     * @param id workflow identifier
+     * @param aggregateId aggregate identifier
+     * @return current state, or {@code null} when no instance has started
+     * @implSpec Overrides must not expose workflow instances across tenants.
+     */
     @GetMapping("/{id}/instances/{aggregateId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST', 'TECHNICIAN')")
     public StateResponse instanceState(
             @PathVariable final UUID id, @PathVariable final UUID aggregateId) {
         final var state = service.stateForAggregate(hotel(), id, aggregateId);
-        if (state == null) return null;
+        if (state == null) {
+            return null;
+        }
         return stateView(state);
     }
 
@@ -158,6 +202,7 @@ public class WorkflowController {
      *
      * @param id workflow identifier
      * @return workflow response
+     * @implSpec Overrides must preserve tenant ownership and role authorization.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'RECEPTIONIST')")

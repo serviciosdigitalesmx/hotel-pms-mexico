@@ -7,15 +7,26 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.UUID;
 
-/** Validates operational branch identifiers against the authenticated tenant in auth-service. */
+/**
+ * Validates operational branch identifiers against the authenticated tenant in auth-service.
+ */
 @Service
 @RequiredArgsConstructor
 public class BranchValidationService {
     private final BranchClient branches;
     private final UserAssignmentClient userAssignments;
 
+    /**
+     * Requires an active branch that belongs to the supplied tenant.
+     *
+     * @param hotelId tenant identifier
+     * @param branchId branch identifier
+     * @implSpec Overrides must verify the branch and tenant with auth-service.
+     */
     public void requireActiveBranch(final UUID hotelId, final UUID branchId) {
-        if (branchId == null) throw new IllegalArgumentException("BRANCH_REQUIRED");
+        if (branchId == null) {
+            throw new IllegalArgumentException("BRANCH_REQUIRED");
+        }
         final Map<String, Object> branch = branches.validateBranch(branchId);
         if (!branchId.toString().equals(String.valueOf(branch.get("id")))
                 || !hotelId.toString().equals(String.valueOf(branch.get("hotelId")))
@@ -24,7 +35,16 @@ public class BranchValidationService {
         }
     }
 
+    /**
+     * Validates technician assignment when a user identifier is supplied.
+     *
+     * @param userId assigned user identifier, or {@code null} when unassigned
+     * @param branchId branch receiving the work
+     * @implSpec Overrides must preserve the auth-service assignment check.
+     */
     public void requireTechnician(final UUID userId, final UUID branchId) {
-        if (userId != null) userAssignments.validateTechnician(userId, branchId);
+        if (userId != null) {
+            userAssignments.validateTechnician(userId, branchId);
+        }
     }
 }

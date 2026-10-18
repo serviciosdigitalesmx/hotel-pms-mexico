@@ -17,19 +17,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Type domain type. */
+/** Stores and retrieves tenant-scoped evidence attached to Fixi repair orders. */
 @Service
 @RequiredArgsConstructor
 public class DocumentEvidenceService {
+    private static final int MAX_STORAGE_REFERENCE_LENGTH = 14_000_000;
+    private static final int DATA_URL_PREFIX_LENGTH = 5;
+    private static final String INVALID_DATA_URL = "DOCUMENT_DATA_URL_INVALID";
+
     private final DocumentEvidenceRepository repository;
     private final ServiceOrderRepository serviceOrders;
 
     /**
-     * Executes the operation.
+     * Adds evidence after validating order ownership and the storage reference format.
      *
-     * @param hotel parameter.
-     * @param r parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param r validated evidence metadata
+     * @return persisted evidence record
+     * @implSpec Overrides must preserve tenant ownership and customer-to-order matching.
      */
     @Transactional
     public DocumentEvidence add(final UUID hotel, final DocumentEvidenceRequest r) {
@@ -56,34 +61,46 @@ public class DocumentEvidenceService {
 
     private static void validateStorageReference(
             final String storageKey, final String contentType) {
-        if (storageKey.length() > 14_000_000) {
+        if (storageKey.length() > MAX_STORAGE_REFERENCE_LENGTH) {
             throw new IllegalArgumentException("DOCUMENT_REFERENCE_TOO_LARGE");
         }
-        if (!storageKey.startsWith("data:")) return;
+        if (!storageKey.startsWith("data:")) {
+            return;
+        }
         final int comma = storageKey.indexOf(',');
         final int semicolon = storageKey.indexOf(';');
         if (comma < 0
                 || semicolon < 0
                 || semicolon > comma
-                || !storageKey.substring(5, semicolon).equalsIgnoreCase(contentType)
+                || !storageKey.substring(DATA_URL_PREFIX_LENGTH, semicolon)
+                        .equalsIgnoreCase(contentType)
                 || !storageKey.substring(semicolon, comma).equalsIgnoreCase(";base64")
                 || !contentType.matches("image/(jpeg|png|webp)|application/pdf")) {
-            throw new IllegalArgumentException("DOCUMENT_DATA_URL_INVALID");
+            throw new IllegalArgumentException(INVALID_DATA_URL);
         }
     }
 
     /**
-     * Executes the operation.
+     * Lists evidence records attached to a tenant-owned order.
      *
-     * @param hotel parameter.
-     * @param order parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param order order identifier
+     * @return evidence records for that order
+     * @implSpec Overrides must scope the lookup by both tenant and order.
      */
     @Transactional(readOnly = true)
     public List<DocumentEvidence> list(final UUID hotel, final UUID order) {
         return repository.findAllByHotelIdAndServiceOrderId(hotel, order);
     }
 
+    /**
+     * Reads binary content from a tenant-owned data-URL evidence record.
+     *
+     * @param hotel tenant identifier
+     * @param id evidence identifier
+     * @return decoded evidence bytes
+     * @implSpec Overrides must verify tenant ownership before returning content.
+     */
     @Transactional(readOnly = true)
     public byte[] content(final UUID hotel, final UUID id) {
         final DocumentEvidence evidence =
@@ -96,12 +113,12 @@ public class DocumentEvidenceService {
         }
         final int comma = storageKey.indexOf(',');
         if (comma < 0 || !storageKey.substring(0, comma).endsWith(";base64")) {
-            throw new IllegalArgumentException("DOCUMENT_DATA_URL_INVALID");
+            throw new IllegalArgumentException(INVALID_DATA_URL);
         }
         try {
             return Base64.getDecoder().decode(storageKey.substring(comma + 1));
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("DOCUMENT_DATA_URL_INVALID", exception);
+        } catch (final IllegalArgumentException exception) {
+            throw new IllegalArgumentException(INVALID_DATA_URL, exception);
         }
     }
 }

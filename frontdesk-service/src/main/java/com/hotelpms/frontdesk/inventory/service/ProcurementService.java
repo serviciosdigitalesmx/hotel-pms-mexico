@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.inventory.service;
 
 import com.hotelpms.frontdesk.client.BranchValidationService;
+import com.hotelpms.frontdesk.inventory.domain.InventoryBalance;
 import com.hotelpms.frontdesk.inventory.domain.InventoryProduct;
 import com.hotelpms.frontdesk.inventory.domain.PurchaseOrder;
 import com.hotelpms.frontdesk.inventory.domain.PurchaseOrderLine;
@@ -24,16 +25,34 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-/** Type domain type. */
+/**
+ * Enforces tenant-scoped supplier procurement, receipt accounting, and inventory reconciliation.
+ */
 @Service
 @RequiredArgsConstructor
 public class ProcurementService {
+    private static final String SUPPLIER_NOT_FOUND = "SUPPLIER_NOT_FOUND";
+    private static final String PRODUCT_NOT_FOUND = "PRODUCT_NOT_FOUND";
+    private static final String PURCHASE_NOT_FOUND = "PURCHASE_NOT_FOUND";
+    private static final String PURCHASE_CANCELLED = "CANCELLED";
+    private static final String PURCHASE_RECEIVED = "RECEIVED";
+    private static final String PURCHASE_PENDING = "PENDING";
+    private static final String PURCHASE_PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED";
     private final SupplierRepository suppliers;
     private final PurchaseOrderRepository purchases;
     private final InventoryService inventory;
@@ -43,11 +62,12 @@ public class ProcurementService {
     private final BranchValidationService branchValidation;
 
     /**
-     * Executes the operation.
+     * Creates a supplier scoped to the tenant and normalizes its contact details.
      *
-     * @param hotel parameter.
-     * @param r parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param r validated supplier details
+     * @return persisted supplier
+     * @implSpec Overrides must preserve tenant-scoped tax-ID uniqueness.
      */
     @Transactional
     public Supplier supplier(final UUID hotel, final SupplierRequest r) {
@@ -68,13 +88,22 @@ public class ProcurementService {
         return suppliers.save(s);
     }
 
+    /**
+     * Updates supplier metadata after verifying tenant ownership and tax-ID uniqueness.
+     *
+     * @param hotel tenant identifier
+     * @param supplierId tenant-owned supplier identifier
+     * @param r updated supplier fields
+     * @return persisted supplier
+     * @implSpec Overrides must preserve tenant-scoped lookups and tax-ID uniqueness.
+     */
     @Transactional
     public Supplier updateSupplier(
             final UUID hotel, final UUID supplierId, final SupplierRequest r) {
         final Supplier supplier =
                 suppliers
                         .findByIdAndHotelId(supplierId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(SUPPLIER_NOT_FOUND));
         final String taxId = normalizeTaxId(r.taxId());
         if (taxId != null
                 && suppliers.existsByHotelIdAndTaxIdIgnoreCaseAndIdNot(hotel, taxId, supplierId)) {
@@ -91,23 +120,33 @@ public class ProcurementService {
         return suppliers.save(supplier);
     }
 
+    /**
+     * Changes supplier availability while retaining the supplier record for purchase history.
+     *
+     * @param hotel tenant identifier
+     * @param supplierId tenant-owned supplier identifier
+     * @param active new availability state
+     * @return persisted supplier
+     * @implSpec Overrides must preserve tenant ownership and purchase history.
+     */
     @Transactional
-    public Supplier setSupplierActive(
+    public Supplier updateSupplierActive(
             final UUID hotel, final UUID supplierId, final boolean active) {
         final Supplier supplier =
                 suppliers
                         .findByIdAndHotelId(supplierId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(SUPPLIER_NOT_FOUND));
         supplier.setActive(active);
         return suppliers.save(supplier);
     }
 
     /**
-     * Executes the operation.
+     * Creates a tenant-owned purchase order after validating its supplier, branch, and products.
      *
-     * @param hotel parameter.
-     * @param r parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param r purchase header and requested lines
+     * @return persisted purchase order
+     * @implSpec Overrides must preserve tenant and branch validation before persistence.
      */
     @Transactional
     public PurchaseOrder purchase(final UUID hotel, final PurchaseRequest r) {
@@ -115,8 +154,10 @@ public class ProcurementService {
         final Supplier supplier =
                 suppliers
                         .findByIdAndHotelId(r.supplierId(), hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("SUPPLIER_NOT_FOUND"));
-        if (!supplier.isActive()) throw new IllegalArgumentException("SUPPLIER_INACTIVE");
+                        .orElseThrow(() -> new IllegalArgumentException(SUPPLIER_NOT_FOUND));
+        if (!supplier.isActive()) {
+            throw new IllegalArgumentException("SUPPLIER_INACTIVE");
+        }
         final PurchaseOrder order =
                 PurchaseOrder.builder()
                         .hotelId(hotel)
@@ -133,7 +174,7 @@ public class ProcurementService {
             final InventoryProduct product =
                     products.findById(requestedLine.productId())
                             .filter(item -> hotel.equals(item.getHotelId()))
-                            .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                            .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
             if (product.getSupplierId() != null
                     && !r.supplierId().equals(product.getSupplierId())) {
                 throw new IllegalArgumentException("PURCHASE_PRODUCT_SUPPLIER_MISMATCH");
@@ -153,10 +194,11 @@ public class ProcurementService {
     }
 
     /**
-     * Executes the operation.
+     * Lists the suppliers belonging to a tenant.
      *
-     * @param hotel parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @return tenant-owned suppliers
+     * @implSpec Overrides must not return suppliers from another tenant.
      */
     @Transactional(readOnly = true)
     public List<Supplier> suppliers(final UUID hotel) {
@@ -164,22 +206,34 @@ public class ProcurementService {
     }
 
     /**
-     * Executes the operation.
+     * Lists purchase orders for a tenant in reverse creation order.
      *
-     * @param hotel parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @return tenant-owned purchase orders
+     * @implSpec Overrides must not return purchase orders from another tenant.
      */
     @Transactional(readOnly = true)
     public List<PurchaseOrder> purchases(final UUID hotel) {
         return purchases.findAllByHotelIdOrderByCreatedAtDesc(hotel);
     }
 
+    /**
+     * Receives ordered stock exactly once and records weighted cost and receipt history.
+     *
+     * @param hotel tenant identifier
+     * @param purchaseId tenant-owned purchase-order identifier
+     * @param request idempotent receipt quantities
+     * @return updated purchase order
+     * @implSpec Overrides must preserve tenant isolation, row locking, idempotency, and stock
+     *     accounting.
+     */
     @Transactional
-    public PurchaseOrder receive(UUID hotel, UUID purchaseId, PurchaseReceiptRequest request) {
-        var purchase =
+    public PurchaseOrder receive(
+            final UUID hotel, final UUID purchaseId, final PurchaseReceiptRequest request) {
+        final PurchaseOrder purchase =
                 purchases
                         .findForUpdateByIdAndHotelId(purchaseId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PURCHASE_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(PURCHASE_NOT_FOUND));
         final String receiptDigest = request.requestId() == null ? null : receiptDigest(request);
         if (receiptDigest != null) {
             final String previousDigest =
@@ -188,31 +242,37 @@ public class ProcurementService {
                             : purchase.getReceiptRequestDigests()
                                     .get(request.requestId().toString());
             if (previousDigest != null) {
-                if (previousDigest.equals(receiptDigest)) return purchase;
+                if (previousDigest.equals(receiptDigest)) {
+                    return purchase;
+                }
                 throw new IllegalArgumentException("PURCHASE_RECEIPT_REQUEST_ID_REUSED");
             }
         }
-        if ("CANCELLED".equals(purchase.getStatus()))
+        if (PURCHASE_CANCELLED.equals(purchase.getStatus())) {
             throw new IllegalStateException("PURCHASE_CANCELLED");
-        if ("RECEIVED".equals(purchase.getStatus()))
+        }
+        if (PURCHASE_RECEIVED.equals(purchase.getStatus())) {
             throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
+        }
         if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
             throw new IllegalStateException("LEGACY_PURCHASE_HAS_NO_ORDER_LINES");
         }
-        if (request.lines().isEmpty()) throw new IllegalArgumentException("RECEIPT_LINES_REQUIRED");
+        if (request.lines().isEmpty()) {
+            throw new IllegalArgumentException("RECEIPT_LINES_REQUIRED");
+        }
         if (request.lines().stream().noneMatch(line -> line.quantity() > 0)) {
             throw new IllegalArgumentException("RECEIPT_QUANTITY_REQUIRED");
         }
-        var receivedProducts = new java.util.HashSet<UUID>();
-        var receiptLines = new java.util.ArrayList<java.util.Map.Entry<PurchaseOrderLine, Long>>();
-        for (var received : request.lines()) {
+        final var receivedProducts = new HashSet<UUID>();
+        final List<Map.Entry<PurchaseOrderLine, Long>> receiptLines = new ArrayList<>();
+        for (final var received : request.lines()) {
             if (received.quantity() <= 0) {
                 throw new IllegalArgumentException("RECEIPT_QUANTITY_MUST_BE_POSITIVE");
             }
             if (!receivedProducts.add(received.productId())) {
                 throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_RECEIPT");
             }
-            var line =
+            final PurchaseOrderLine line =
                     purchase.getLines().stream()
                             .filter(item -> item.getProductId().equals(received.productId()))
                             .findFirst()
@@ -221,15 +281,15 @@ public class ProcurementService {
             if (received.quantity() > line.getQuantityOrdered() - line.getQuantityReceived()) {
                 throw new IllegalArgumentException("RECEIPT_EXCEEDS_ORDERED_QUANTITY");
             }
-            receiptLines.add(java.util.Map.entry(line, received.quantity()));
+            receiptLines.add(Map.entry(line, received.quantity()));
         }
         receiptLines.sort(Comparator.comparing(entry -> entry.getKey().getProductId()));
         final LocalDateTime receivedAt = LocalDateTime.now();
-        for (var receipt : receiptLines) {
-            var line = receipt.getKey();
-            var product =
+        for (final var receipt : receiptLines) {
+            final PurchaseOrderLine line = receipt.getKey();
+            final InventoryProduct product =
                     products.findForUpdateByIdAndHotelId(line.getProductId(), hotel)
-                            .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                            .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
             final long availableQuantity =
                     balances.sumQuantityByHotelAndProduct(hotel, product.getId())
                             + reservations.sumReservedQuantityByHotelAndProduct(
@@ -257,18 +317,21 @@ public class ProcurementService {
             line.setQuantityReceived(line.getQuantityReceived() + receipt.getValue());
             appendReceiptEvent(purchase, line, receipt.getValue(), "RECEIPT", receivedAt);
         }
-        boolean complete =
+        final boolean complete =
                 purchase.getLines().stream()
                         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
-        boolean anyReceived =
+        final boolean anyReceived =
                 purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
         purchase.setLastReceivedAt(receivedAt);
-        purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
+        purchase.setStatus(
+                complete
+                        ? PURCHASE_RECEIVED
+                        : anyReceived ? PURCHASE_PARTIALLY_RECEIVED : PURCHASE_PENDING);
         if (receiptDigest != null) {
             final var requestDigests =
                     purchase.getReceiptRequestDigests() == null
-                            ? new java.util.HashMap<String, String>()
-                            : new java.util.HashMap<>(purchase.getReceiptRequestDigests());
+                            ? new HashMap<String, String>()
+                            : new HashMap<>(purchase.getReceiptRequestDigests());
             requestDigests.put(request.requestId().toString(), receiptDigest);
             purchase.setReceiptRequestDigests(requestDigests);
         }
@@ -280,17 +343,26 @@ public class ProcurementService {
                 request.lines().stream()
                         .sorted(Comparator.comparing(line -> line.productId().toString()))
                         .map(line -> line.productId() + ":" + line.quantity())
-                        .collect(java.util.stream.Collectors.joining("|"));
+                        .collect(Collectors.joining("|"));
         try {
             final byte[] digest =
-                    java.security.MessageDigest.getInstance("SHA-256")
-                            .digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (java.security.NoSuchAlgorithmException exception) {
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (final NoSuchAlgorithmException exception) {
             throw new IllegalStateException("RECEIPT_DIGEST_UNAVAILABLE", exception);
         }
     }
 
+    /**
+     * Corrects a prior receipt without consuming stock already reserved by service orders.
+     *
+     * @param hotel tenant identifier
+     * @param purchaseId tenant-owned purchase-order identifier
+     * @param request corrected cumulative quantities
+     * @return updated purchase order
+     * @implSpec Overrides must preserve tenant checks and prevent negative or reserved stock.
+     */
     @Transactional
     public PurchaseOrder correctReceipt(
             final UUID hotel,
@@ -299,13 +371,14 @@ public class ProcurementService {
         final var purchase =
                 purchases
                         .findForUpdateByIdAndHotelId(purchaseId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PURCHASE_NOT_FOUND"));
-        if ("CANCELLED".equals(purchase.getStatus()))
+                        .orElseThrow(() -> new IllegalArgumentException(PURCHASE_NOT_FOUND));
+        if (PURCHASE_CANCELLED.equals(purchase.getStatus())) {
             throw new IllegalStateException("PURCHASE_CANCELLED");
+        }
         if (purchase.getLines() == null || purchase.getLines().isEmpty()) {
             throw new IllegalStateException("LEGACY_PURCHASE_HAS_NO_ORDER_LINES");
         }
-        final var correctedProducts = new java.util.HashSet<UUID>();
+        final var correctedProducts = new HashSet<UUID>();
         for (final var correction : request.lines()) {
             if (!correctedProducts.add(correction.productId())) {
                 throw new IllegalArgumentException("DUPLICATE_PRODUCT_ON_RECEIPT_CORRECTION");
@@ -320,15 +393,17 @@ public class ProcurementService {
                 throw new IllegalArgumentException("CORRECTED_RECEIPT_EXCEEDS_ORDERED_QUANTITY");
             }
             final long delta = correction.quantityReceived() - line.getQuantityReceived();
-            if (delta == 0) continue;
+            if (delta == 0) {
+                continue;
+            }
             final var product =
                     products.findForUpdateByIdAndHotelId(line.getProductId(), hotel)
-                            .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                            .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
             if (delta < 0) {
                 final long branchQuantity =
                         balances.findByHotelIdAndBranchIdAndProductId(
                                         hotel, purchase.getBranchId(), product.getId())
-                                .map(balance -> balance.getQuantity())
+                                .map(InventoryBalance::getQuantity)
                                 .orElse(0L);
                 final long branchReserved =
                         reservations.sumReservedQuantityByHotelAndBranchAndProduct(
@@ -342,8 +417,9 @@ public class ProcurementService {
                             + reservations.sumReservedQuantityByHotelAndProduct(
                                     hotel, product.getId());
             final long nextQuantity = currentQuantity + delta;
-            if (nextQuantity < 0)
+            if (nextQuantity < 0) {
                 throw new IllegalStateException("RECEIVED_STOCK_ALREADY_CONSUMED_OR_RESERVED");
+            }
             inventory.move(
                     hotel,
                     new MovementRequest(
@@ -373,8 +449,11 @@ public class ProcurementService {
                         .allMatch(line -> line.getQuantityReceived() >= line.getQuantityOrdered());
         final boolean anyReceived =
                 purchase.getLines().stream().anyMatch(line -> line.getQuantityReceived() > 0);
-        purchase.setLastReceivedAt(anyReceived ? java.time.LocalDateTime.now() : null);
-        purchase.setStatus(complete ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : "PENDING");
+        purchase.setLastReceivedAt(anyReceived ? LocalDateTime.now() : null);
+        purchase.setStatus(
+                complete
+                        ? PURCHASE_RECEIVED
+                        : anyReceived ? PURCHASE_PARTIALLY_RECEIVED : PURCHASE_PENDING);
         return purchases.save(purchase);
     }
 
@@ -386,10 +465,10 @@ public class ProcurementService {
             final LocalDateTime occurredAt) {
         final var events =
                 purchase.getReceiptEvents() == null
-                        ? new java.util.ArrayList<java.util.Map<String, String>>()
-                        : new java.util.ArrayList<>(purchase.getReceiptEvents());
+                        ? new ArrayList<Map<String, String>>()
+                        : new ArrayList<>(purchase.getReceiptEvents());
         events.add(
-                java.util.Map.of(
+                Map.of(
                         "kind",
                         kind,
                         "productId",
@@ -403,14 +482,24 @@ public class ProcurementService {
         purchase.setReceiptEvents(events);
     }
 
+    /**
+     * Cancels an unreceived purchase order after tenant-scoped row locking.
+     *
+     * @param hotel tenant identifier
+     * @param purchaseId tenant-owned purchase-order identifier
+     * @return cancelled purchase order
+     * @implSpec Overrides must prevent cancellation of received stock.
+     */
     @Transactional
-    public PurchaseOrder cancel(UUID hotel, UUID purchaseId) {
-        var purchase =
+    public PurchaseOrder cancel(final UUID hotel, final UUID purchaseId) {
+        final PurchaseOrder purchase =
                 purchases
                         .findForUpdateByIdAndHotelId(purchaseId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PURCHASE_NOT_FOUND"));
-        if ("CANCELLED".equals(purchase.getStatus())) return purchase;
-        if ("RECEIVED".equals(purchase.getStatus())) {
+                        .orElseThrow(() -> new IllegalArgumentException(PURCHASE_NOT_FOUND));
+        if (PURCHASE_CANCELLED.equals(purchase.getStatus())) {
+            return purchase;
+        }
+        if (PURCHASE_RECEIVED.equals(purchase.getStatus())) {
             throw new IllegalStateException("PURCHASE_ALREADY_RECEIVED");
         }
         if (purchase.getLines() != null
@@ -423,11 +512,13 @@ public class ProcurementService {
 
     private static String normalizeTaxId(final String taxId) {
         final String normalized = normalize(taxId);
-        return normalized == null ? null : normalized.toUpperCase(java.util.Locale.ROOT);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 
     private static String normalize(final String value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         final String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
     }

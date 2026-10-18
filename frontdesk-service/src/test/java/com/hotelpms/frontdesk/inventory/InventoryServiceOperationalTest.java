@@ -49,7 +49,7 @@ class InventoryServiceOperationalTest {
     private static final UUID BRANCH_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final UUID ORDER_ID = UUID.randomUUID();
-    private static final long STOCK_BEFORE_POS_REPLAY = 5;
+    private static final long INITIAL_STOCK_QUANTITY = 5;
 
     @Mock private InventoryProductRepository products;
     @Mock private InventoryBalanceRepository balances;
@@ -257,8 +257,8 @@ class InventoryServiceOperationalTest {
                         HOTEL_ID, new ReservationRequest(BRANCH_ID, PRODUCT_ID, orderId, 2));
 
         assertEquals(existing, result);
-        verify(balances, org.mockito.Mockito.never()).save(any(InventoryBalance.class));
-        verify(reservations, org.mockito.Mockito.never()).save(any(StockReservation.class));
+        verify(balances, never()).save(any(InventoryBalance.class));
+        verify(reservations, never()).save(any(StockReservation.class));
     }
 
     @Test
@@ -268,15 +268,15 @@ class InventoryServiceOperationalTest {
                 .thenReturn(
                         Optional.of(ServiceOrder.builder().branchId(UUID.randomUUID()).build()));
 
-        org.junit.jupiter.api.Assertions.assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         service.reserve(
                                 HOTEL_ID,
                                 new ReservationRequest(BRANCH_ID, PRODUCT_ID, orderId, 1)));
 
-        verify(balances, org.mockito.Mockito.never()).save(any(InventoryBalance.class));
-        verify(reservations, org.mockito.Mockito.never()).save(any(StockReservation.class));
+        verify(balances, never()).save(any(InventoryBalance.class));
+        verify(reservations, never()).save(any(StockReservation.class));
         verify(products, never()).findForUpdateByIdAndHotelId(any(UUID.class), any(UUID.class));
     }
 
@@ -284,16 +284,16 @@ class InventoryServiceOperationalTest {
     void reservationRejectsNonPositiveQuantityAtServiceBoundary() {
         final UUID orderId = UUID.randomUUID();
 
-        org.junit.jupiter.api.Assertions.assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         service.reserve(
                                 HOTEL_ID,
                                 new ReservationRequest(BRANCH_ID, PRODUCT_ID, orderId, 0)));
 
-        verify(branchValidation, org.mockito.Mockito.never())
+        verify(branchValidation, never())
                 .requireActiveBranch(HOTEL_ID, BRANCH_ID);
-        verify(serviceOrders, org.mockito.Mockito.never())
+        verify(serviceOrders, never())
                 .findForUpdateByIdAndHotelId(orderId, HOTEL_ID);
     }
 
@@ -336,7 +336,7 @@ class InventoryServiceOperationalTest {
         final StockReservation result = service.release(HOTEL_ID, orderId, PRODUCT_ID);
 
         assertEquals("RELEASED", result.getStatus());
-        assertEquals(5, balance.getQuantity());
+        assertEquals(INITIAL_STOCK_QUANTITY, balance.getQuantity());
         verify(balances).save(balance);
     }
 
@@ -349,7 +349,7 @@ class InventoryServiceOperationalTest {
                         .hotelId(HOTEL_ID)
                         .branchId(BRANCH_ID)
                         .productId(PRODUCT_ID)
-                        .quantity(STOCK_BEFORE_POS_REPLAY)
+                        .quantity(INITIAL_STOCK_QUANTITY)
                         .build();
         final PosInventoryConsumption prior = new PosInventoryConsumption();
         prior.setHotelId(HOTEL_ID);

@@ -23,6 +23,10 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class CatalogImportJob {
+    private static final int FILE_NAME_LENGTH = 255;
+    private static final int CONTENT_TYPE_LENGTH = 120;
+
+    /** Review lifecycle for an imported product catalog. */
     public enum Status {
         INGESTED,
         EXTRACTED,
@@ -38,10 +42,10 @@ public class CatalogImportJob {
     @Column(name = "hotel_id", nullable = false)
     private UUID hotelId;
 
-    @Column(name = "file_name", nullable = false, length = 255)
+    @Column(name = "file_name", nullable = false, length = FILE_NAME_LENGTH)
     private String fileName;
 
-    @Column(name = "content_type", nullable = false, length = 120)
+    @Column(name = "content_type", nullable = false, length = CONTENT_TYPE_LENGTH)
     private String contentType;
 
     @Column(name = "raw_text", nullable = false, columnDefinition = "text")

@@ -23,6 +23,11 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class AutomationRule {
+    private static final int DOMAIN_LENGTH = 24;
+    private static final int EVENT_TYPE_LENGTH = 120;
+    private static final int ACTION_TYPE_LENGTH = 120;
+
+    /** Business area whose events can trigger an automation rule. */
     public enum Domain {
         ORDER,
         QUOTE,
@@ -39,13 +44,13 @@ public class AutomationRule {
     private UUID hotelId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 24)
+    @Column(nullable = false, length = DOMAIN_LENGTH)
     private Domain domain;
 
-    @Column(name = "event_type", nullable = false, length = 120)
+    @Column(name = "event_type", nullable = false, length = EVENT_TYPE_LENGTH)
     private String eventType;
 
-    @Column(name = "action_type", nullable = false, length = 120)
+    @Column(name = "action_type", nullable = false, length = ACTION_TYPE_LENGTH)
     private String actionType;
 
     @Column(nullable = false)

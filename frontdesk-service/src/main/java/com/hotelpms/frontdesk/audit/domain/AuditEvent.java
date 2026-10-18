@@ -21,6 +21,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class AuditEvent {
+  private static final int EVENT_TYPE_LENGTH = 120;
+  private static final int CORRELATION_ID_LENGTH = 120;
+
+  /** Groups audited changes by their security or operational purpose. */
   public enum Category { SECURITY, OPERATIONAL, FINANCIAL, INVENTORY }
 
   @Id
@@ -33,11 +37,11 @@ public class AuditEvent {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private Category category;
-  @Column(name = "event_type", nullable = false, length = 120)
+  @Column(name = "event_type", nullable = false, length = EVENT_TYPE_LENGTH)
   private String eventType;
   @Column(name = "aggregate_id")
   private UUID aggregateId;
-  @Column(name = "correlation_id", length = 120)
+  @Column(name = "correlation_id", length = CORRELATION_ID_LENGTH)
   private String correlationId;
   @Column(nullable = false, columnDefinition = "text")
   private String details;

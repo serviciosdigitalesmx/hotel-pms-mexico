@@ -49,6 +49,9 @@ public class ServiceOrder {
     private static final int MONEY_PRECISION = 12;
     private static final int MONEY_SCALE = 2;
     private static final int PAYMENT_METHOD_LENGTH = 24;
+    private static final int SERVICE_NAME_LENGTH = 200;
+    private static final int INTAKE_CHECKLIST_LENGTH = 4000;
+    private static final int INTAKE_EVIDENCE_LENGTH = 4000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -73,20 +76,20 @@ public class ServiceOrder {
     @Builder.Default
     private String priority = "NORMAL";
 
-    @Column(name = "service_name", length = 200)
+    @Column(name = "service_name", length = SERVICE_NAME_LENGTH)
     private String serviceName;
 
     @Column(name = "deposit_amount", precision = MONEY_PRECISION, scale = MONEY_SCALE)
     @Builder.Default
     private BigDecimal depositAmount = BigDecimal.ZERO;
 
-    @Column(name = "intake_checklist", length = 4000)
+    @Column(name = "intake_checklist", length = INTAKE_CHECKLIST_LENGTH)
     private String intakeChecklist;
 
     @Column(name = "promised_at")
     private LocalDateTime promisedAt;
 
-    @Column(name = "intake_evidence", length = 4000)
+    @Column(name = "intake_evidence", length = INTAKE_EVIDENCE_LENGTH)
     private String intakeEvidence;
 
     @Enumerated(EnumType.STRING)

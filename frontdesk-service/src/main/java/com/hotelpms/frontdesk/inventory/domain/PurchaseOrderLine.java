@@ -24,6 +24,9 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class PurchaseOrderLine {
+    private static final int MONEY_PRECISION = 12;
+    private static final int MONEY_SCALE = 2;
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -41,6 +44,10 @@ public class PurchaseOrderLine {
     @Column(name = "quantity_received", nullable = false)
     private long quantityReceived;
 
-    @Column(name = "unit_cost", nullable = false, precision = 12, scale = 2)
+    @Column(
+            name = "unit_cost",
+            nullable = false,
+            precision = MONEY_PRECISION,
+            scale = MONEY_SCALE)
     private BigDecimal unitCost;
 }

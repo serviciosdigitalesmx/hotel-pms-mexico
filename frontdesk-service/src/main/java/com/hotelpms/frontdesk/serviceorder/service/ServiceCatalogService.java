@@ -14,18 +14,38 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Manages tenant-scoped repair services used on Fixi service orders.
+ */
 @Service
 @RequiredArgsConstructor
 public class ServiceCatalogService {
+    private static final int DEFAULT_ESTIMATED_MINUTES = 60;
     private final ServiceCatalogRepository repository;
 
+    /**
+     * Lists the catalog entries owned by one tenant.
+     *
+     * @param tenantId tenant identifier
+     * @return active and inactive services ordered by name
+     * @implSpec Overrides must preserve tenant scoping.
+     */
     @Transactional(readOnly = true)
-    public List<ServiceCatalogEntry> list(UUID tenantId) {
+    public List<ServiceCatalogEntry> list(final UUID tenantId) {
         return repository.findAllByTenantIdOrderByNameAsc(tenantId);
     }
 
+    /**
+     * Creates a service after checking its tenant-local name uniqueness.
+     *
+     * @param tenantId tenant identifier
+     * @param request validated service details
+     * @return persisted catalog entry
+     * @implSpec Overrides must preserve tenant-scoped uniqueness and default values.
+     */
     @Transactional
-    public ServiceCatalogEntry create(UUID tenantId, ServiceCatalogRequest request) {
+    public ServiceCatalogEntry create(
+            final UUID tenantId, final ServiceCatalogRequest request) {
         final String name = request.name().trim();
         if (repository.existsByTenantIdAndNameIgnoreCase(tenantId, name)) {
             throw new IllegalArgumentException("SERVICE_ALREADY_EXISTS");
@@ -38,15 +58,25 @@ public class ServiceCatalogService {
                                 request.basePrice() == null ? BigDecimal.ZERO : request.basePrice())
                         .estimatedMinutes(
                                 request.estimatedMinutes() == null
-                                        ? 60
+                                        ? DEFAULT_ESTIMATED_MINUTES
                                         : request.estimatedMinutes())
                         .active(true)
                         .createdAt(LocalDateTime.now())
                         .build());
     }
 
+    /**
+     * Changes whether a tenant's service can be selected for new orders.
+     *
+     * @param tenantId tenant identifier
+     * @param id service identifier
+     * @param active requested availability
+     * @return persisted catalog entry
+     * @implSpec Overrides must preserve tenant ownership.
+     */
     @Transactional
-    public ServiceCatalogEntry setActive(UUID tenantId, UUID id, boolean active) {
+    public ServiceCatalogEntry updateActive(
+            final UUID tenantId, final UUID id, final boolean active) {
         final ServiceCatalogEntry service =
                 repository
                         .findByIdAndTenantId(id, tenantId)
@@ -55,8 +85,18 @@ public class ServiceCatalogService {
         return repository.save(service);
     }
 
+    /**
+     * Updates the name, price, and duration of a tenant-owned service.
+     *
+     * @param tenantId tenant identifier
+     * @param id service identifier
+     * @param request validated service details
+     * @return persisted catalog entry
+     * @implSpec Overrides must preserve tenant ownership and name uniqueness.
+     */
     @Transactional
-    public ServiceCatalogEntry update(UUID tenantId, UUID id, ServiceCatalogRequest request) {
+    public ServiceCatalogEntry update(
+            final UUID tenantId, final UUID id, final ServiceCatalogRequest request) {
         final ServiceCatalogEntry service =
                 repository
                         .findByIdAndTenantId(id, tenantId)
@@ -66,9 +106,12 @@ public class ServiceCatalogService {
             throw new IllegalArgumentException("SERVICE_ALREADY_EXISTS");
         }
         service.setName(name);
-        if (request.basePrice() != null) service.setBasePrice(request.basePrice());
-        if (request.estimatedMinutes() != null)
+        if (request.basePrice() != null) {
+            service.setBasePrice(request.basePrice());
+        }
+        if (request.estimatedMinutes() != null) {
             service.setEstimatedMinutes(request.estimatedMinutes());
+        }
         return repository.save(service);
     }
 }

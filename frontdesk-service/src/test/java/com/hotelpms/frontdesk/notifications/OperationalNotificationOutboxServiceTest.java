@@ -33,6 +33,9 @@ import java.util.UUID;
 @ExtendWith(MockitoExtension.class)
 class OperationalNotificationOutboxServiceTest {
     private static final UUID HOTEL_ID = UUID.randomUUID();
+    private static final String ORDER_ASSIGNED_EVENT = "ORDER_ASSIGNED";
+    private static final String OPERATIONS_EMAIL = "ops@example.com";
+    private static final String EVENT_ID = "event-1";
 
     @Mock private OperationalNotificationPreferencesService preferences;
     @Mock private OperationalNotificationOutboxRepository repository;
@@ -55,11 +58,13 @@ class OperationalNotificationOutboxServiceTest {
 
     @Test
     void persistsRecipientScopedMessageWhenEmailIsEnabled() throws Exception {
-        when(preferences.get(HOTEL_ID)).thenReturn(Map.of("ORDER_ASSIGNED", Map.of("EMAIL", true)));
+        when(preferences.get(HOTEL_ID))
+                .thenReturn(Map.of(ORDER_ASSIGNED_EVENT, Map.of("EMAIL", true)));
         when(preferences.getEmailRecipients(HOTEL_ID))
-                .thenReturn(Map.of("ORDER_ASSIGNED", List.of("ops@example.com")));
+                .thenReturn(Map.of(ORDER_ASSIGNED_EVENT, List.of(OPERATIONS_EMAIL)));
 
-        service.enqueue(HOTEL_ID, "ORDER_ASSIGNED", "Orden asignada", "Orden 123", "event-123");
+        service.enqueue(
+                HOTEL_ID, ORDER_ASSIGNED_EVENT, "Orden asignada", "Orden 123", "event-123");
 
         final ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(repository)
@@ -68,14 +73,14 @@ class OperationalNotificationOutboxServiceTest {
                         eq(HOTEL_ID),
                         anyString(),
                         eq("event-123"),
-                        eq("ORDER_ASSIGNED"),
+                        eq(ORDER_ASSIGNED_EVENT),
                         payload.capture());
         final NotificationEventRequest event =
                 new ObjectMapper().readValue(payload.getValue(), NotificationEventRequest.class);
         assertEquals(HOTEL_ID, event.hotelId());
         assertEquals("OPERATIONAL_EMAIL", event.eventType());
         assertEquals(
-                "ops@example.com",
+                OPERATIONS_EMAIL,
                 new ObjectMapper().readTree(event.payload()).path("recipient").asText());
     }
 
@@ -102,7 +107,7 @@ class OperationalNotificationOutboxServiceTest {
                 mapper.writeValueAsString(
                         Map.of(
                                 "recipient",
-                                "ops@example.com",
+                                OPERATIONS_EMAIL,
                                 "subject",
                                 "Fixi",
                                 "message",
@@ -110,12 +115,12 @@ class OperationalNotificationOutboxServiceTest {
         final String serialized =
                 mapper.writeValueAsString(
                         new NotificationEventRequest(
-                                HOTEL_ID, "event-1", "OPERATIONAL_EMAIL", emailPayload));
+                                HOTEL_ID, EVENT_ID, "OPERATIONAL_EMAIL", emailPayload));
         final OperationalNotificationOutbox row = new OperationalNotificationOutbox();
         row.setId(UUID.randomUUID());
         row.setHotelId(HOTEL_ID);
-        row.setEventKey("event-1");
-        row.setEventType("ORDER_ASSIGNED");
+        row.setEventKey(EVENT_ID);
+        row.setEventType(ORDER_ASSIGNED_EVENT);
         row.setSourceKey("order-1");
         row.setPayload(serialized);
         row.setStatus(OperationalNotificationOutbox.Status.PENDING);
@@ -123,7 +128,7 @@ class OperationalNotificationOutboxServiceTest {
         when(repository.lockDue(anyInt(), any(Pageable.class))).thenReturn(List.of(row));
         when(notificationClient.enqueueEvent(any(NotificationEventRequest.class)))
                 .thenReturn(
-                        new NotificationEventResponse(UUID.randomUUID(), "event-1", "PENDING", 0));
+                        new NotificationEventResponse(UUID.randomUUID(), EVENT_ID, "PENDING", 0));
 
         assertEquals(1, service.forwardDue());
 

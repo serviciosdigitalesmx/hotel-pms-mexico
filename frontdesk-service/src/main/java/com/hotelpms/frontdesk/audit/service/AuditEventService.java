@@ -14,6 +14,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuditEventService {
   private final AuditEventRepository repository;
 
+  /**
+   * Persists an immutable audit fact for the supplied tenant.
+   *
+   * @param hotelId tenant identifier
+   * @param actorId authenticated actor, if available
+   * @param category audit category
+   * @param eventType stable event name
+   * @param aggregateId affected aggregate, if available
+   * @param correlationId request correlation identifier, if available
+   * @param details serialized event details
+   * @return saved audit event
+   * @implSpec Overrides must preserve tenant attribution and append-only audit semantics.
+   */
   @Transactional
   public AuditEvent record(final UUID hotelId, final UUID actorId, final AuditEvent.Category category,
       final String eventType, final UUID aggregateId, final String correlationId, final String details) {
@@ -28,6 +41,13 @@ public class AuditEventService {
     return repository.save(event);
   }
 
+  /**
+   * Reads the newest audit events for one tenant.
+   *
+   * @param hotelId tenant identifier
+   * @return at most the latest 100 tenant-owned events
+   * @implSpec Overrides must not expose audit events across tenants.
+   */
   @Transactional(readOnly = true)
   public List<AuditEvent> recent(final UUID hotelId) {
     return repository.findTop100ByHotelIdOrderByCreatedAtDesc(hotelId);

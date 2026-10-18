@@ -30,7 +30,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
-/** Tenant-scoped inventory catalog and stock endpoints. */
+/**
+ * Tenant-scoped inventory catalog and stock endpoints.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/inventory")
@@ -49,6 +51,14 @@ public class InventoryController {
         return service.product(hotel(), request);
     }
 
+    /**
+     * Updates catalog fields for one tenant-owned inventory product.
+     *
+     * @param id product identifier
+     * @param request updated product data
+     * @return persisted product
+     * @implSpec Overrides must preserve tenant ownership and branch stock.
+     */
     @PutMapping("/products/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public InventoryProduct updateProduct(
@@ -56,6 +66,13 @@ public class InventoryController {
         return service.updateProduct(hotel(), id, request);
     }
 
+    /**
+     * Applies a bounded sale-price increase to selected tenant-owned products.
+     *
+     * @param request selected products and percentage
+     * @return updated products
+     * @implSpec Overrides must preserve tenant scoping and request limits.
+     */
     @PostMapping("/products/bulk-price")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public List<InventoryProduct> increasePrices(
@@ -67,6 +84,7 @@ public class InventoryController {
      * Imports CSV catalog rows.
      *
      * @param csv CSV payload
+     * @param branchId optional branch for initial quantities
      * @return import result
      */
     @PostMapping(value = "/products/import", consumes = "text/csv")
@@ -76,14 +94,24 @@ public class InventoryController {
         return service.importCsv(hotel(), csv, branchId);
     }
 
-    /** Imports an XLSX supplier catalog. */
+    /**
+     * Imports an XLSX supplier catalog.
+     *
+     * @param file uploaded workbook
+     * @return import result
+     */
     @PostMapping(value = "/products/import/xlsx", consumes = "multipart/form-data")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public ImportResult importXlsx(@RequestPart("file") final MultipartFile file) {
         return service.importXlsx(hotel(), file);
     }
 
-    /** Imports a PDF supplier catalog using extracted text. */
+    /**
+     * Imports a PDF supplier catalog using extracted text.
+     *
+     * @param file uploaded PDF
+     * @return import result
+     */
     @PostMapping(value = "/products/import/pdf", consumes = "multipart/form-data")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public ImportResult importPdf(@RequestPart("file") final MultipartFile file) {
@@ -113,7 +141,13 @@ public class InventoryController {
         return service.move(hotel(), request);
     }
 
-    /** Idempotently deducts linked products for a confirmed POS order. */
+    /**
+     * Idempotently deducts linked products for a confirmed POS order.
+     *
+     * @param orderId POS order identifier
+     * @param request stock branch and product quantities
+     * @implSpec Overrides must preserve tenant/branch checks and replay idempotency.
+     */
     @PostMapping("/pos/orders/{orderId}/consume")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
     public void consumePosOrder(
@@ -121,9 +155,12 @@ public class InventoryController {
         service.consumePosOrder(hotel(), orderId, request.branchId(), request.lines());
     }
 
-    public record PosConsumptionRequest(UUID branchId, List<PosConsumptionLine> lines) {}
-
-    /** Reconciles a branch balance with a physical stock count. */
+    /**
+     * Reconciles a branch balance with a physical stock count.
+     *
+     * @param request branch, product, and counted quantity
+     * @return persisted branch balance
+     */
     @PostMapping("/stock-counts")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public InventoryBalance count(@Valid @RequestBody final StockCountRequest request) {
@@ -147,4 +184,12 @@ public class InventoryController {
                 String.valueOf(
                         SecurityContextHolder.getContext().getAuthentication().getDetails()));
     }
+
+    /**
+     * Product quantities and stock branch for a confirmed POS order.
+     *
+     * @param branchId branch that owns the stock
+     * @param lines tenant-owned product quantities to deduct
+     */
+    public record PosConsumptionRequest(UUID branchId, List<PosConsumptionLine> lines) { }
 }

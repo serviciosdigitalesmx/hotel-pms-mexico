@@ -36,6 +36,8 @@ import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
 class ProcurementServiceTest {
+    private static final int ORDERED_QUANTITY = 5;
+
     @Mock private SupplierRepository suppliers;
     @Mock private PurchaseOrderRepository purchases;
     @Mock private InventoryService inventory;
@@ -56,7 +58,7 @@ class ProcurementServiceTest {
         when(suppliers.findByIdAndHotelId(supplierId, hotelId)).thenReturn(Optional.of(supplier));
         when(suppliers.save(supplier)).thenReturn(supplier);
 
-        final Supplier archived = service.setSupplierActive(hotelId, supplierId, false);
+        final Supplier archived = service.updateSupplierActive(hotelId, supplierId, false);
 
         assertThat(archived.isActive()).isFalse();
         assertThat(archived.getName()).isEqualTo("Proveedor histórico");
@@ -79,7 +81,7 @@ class ProcurementServiceTest {
                         .build();
         final PurchaseOrderLine line = new PurchaseOrderLine();
         line.setProductId(productId);
-        line.setQuantityOrdered(5);
+        line.setQuantityOrdered(ORDERED_QUANTITY);
         line.setQuantityReceived(0);
         line.setUnitCost(new BigDecimal("12.00"));
         final PurchaseOrder purchase =
@@ -118,7 +120,7 @@ class ProcurementServiceTest {
         final UUID productId = UUID.randomUUID();
         final PurchaseOrderLine line = new PurchaseOrderLine();
         line.setProductId(productId);
-        line.setQuantityOrdered(5);
+        line.setQuantityOrdered(ORDERED_QUANTITY);
         line.setQuantityReceived(0);
         final PurchaseOrder purchase =
                 PurchaseOrder.builder()

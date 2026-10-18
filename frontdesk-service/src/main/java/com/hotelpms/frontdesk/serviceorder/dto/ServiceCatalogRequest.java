@@ -7,10 +7,18 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
+/** Validated name, price, and estimated duration for a tenant service catalog entry. */
 public record ServiceCatalogRequest(
-        @NotBlank @Size(max = 200) String name,
+        @NotBlank @Size(max = SERVICE_NAME_LENGTH) String name,
         @DecimalMin("0.00") BigDecimal basePrice,
         @Positive Integer estimatedMinutes) {
+    private static final int SERVICE_NAME_LENGTH = 200;
+
+    /**
+     * Creates a catalog entry request with optional price and duration.
+     *
+     * @param name service name
+     */
     public ServiceCatalogRequest(final String name) {
         this(name, null, null);
     }

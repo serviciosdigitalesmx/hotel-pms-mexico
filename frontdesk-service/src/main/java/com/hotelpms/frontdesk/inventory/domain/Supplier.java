@@ -15,7 +15,7 @@ import lombok.Setter;
 
 import java.util.UUID;
 
-/** Type domain type. */
+/** A supplier and contact record owned by a single Fixi tenant. */
 @Entity
 @Table(
         name = "inventory_suppliers",
@@ -30,6 +30,9 @@ import java.util.UUID;
 public class Supplier {
     private static final int NAME_LENGTH = 200;
     private static final int TAX_ID_LENGTH = 20;
+    private static final int EMAIL_LENGTH = 254;
+    private static final int PHONE_LENGTH = 40;
+    private static final int WEBSITE_LENGTH = 500;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,13 +53,13 @@ public class Supplier {
     @Column(name = "contact_name", length = NAME_LENGTH)
     private String contactName;
 
-    @Column(length = 254)
+    @Column(length = EMAIL_LENGTH)
     private String email;
 
-    @Column(length = 40)
+    @Column(length = PHONE_LENGTH)
     private String phone;
 
-    @Column(name = "website", length = 500)
+    @Column(name = "website", length = WEBSITE_LENGTH)
     private String website;
 
     @Column(length = 1000)

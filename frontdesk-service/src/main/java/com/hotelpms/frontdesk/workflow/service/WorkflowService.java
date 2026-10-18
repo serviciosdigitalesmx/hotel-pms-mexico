@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Type domain type. */
+/** Tenant-scoped workflow definitions, transitions, execution state, and audit history. */
 @Service
 @RequiredArgsConstructor
 public class WorkflowService {
@@ -39,11 +39,19 @@ public class WorkflowService {
     private final WorkflowInstanceRepository instances;
 
     /**
-     * Executes the operation.
+     * Creates a workflow definition for the tenant.
      *
-     * @param hotel parameter.
-     * @param r parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param r workflow definition details
+     * @return persisted workflow definition
+     * @implSpec Overrides must preserve tenant ownership and request validation.
+     */
+    /**
+     * Lists active workflow definitions owned by a tenant.
+     *
+     * @param hotel tenant identifier
+     * @return active tenant-owned workflows
+     * @implSpec Overrides must preserve tenant scoping.
      */
     @Transactional
     public WorkflowDefinition create(final UUID hotel, final CreateWorkflowRequest r) {
@@ -56,12 +64,13 @@ public class WorkflowService {
     }
 
     /**
-     * Executes the operation.
+     * Adds a state to a tenant-owned workflow.
      *
-     * @param hotel parameter.
-     * @param workflowId parameter.
-     * @param r parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param workflowId workflow identifier
+     * @param r validated state details
+     * @return persisted workflow state
+     * @implSpec Overrides must preserve tenant ownership and state semantics.
      */
     @Transactional
     public WorkflowState addState(
@@ -78,12 +87,13 @@ public class WorkflowService {
     }
 
     /**
-     * Executes the operation.
+     * Adds a permission-protected transition between active states.
      *
-     * @param hotel parameter.
-     * @param workflowId parameter.
-     * @param r parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param workflowId workflow identifier
+     * @param r validated transition details
+     * @return persisted transition
+     * @implSpec Overrides must reject role labels and retain explicit permission checks.
      */
     @Transactional
     public WorkflowTransition addTransition(
@@ -109,13 +119,14 @@ public class WorkflowService {
     }
 
     /**
-     * Executes the operation.
+     * Applies a transition atomically and writes its tenant-owned audit record.
      *
-     * @param hotel parameter.
-     * @param workflowId parameter.
-     * @param r parameter.
-     * @param actor parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param workflowId workflow identifier
+     * @param r requested aggregate transition
+     * @param actor authenticated actor label
+     * @return applied transition
+     * @implSpec Overrides must preserve row locking, transition validation, and audit persistence.
      */
     @Transactional
     public WorkflowTransition transition(
@@ -169,6 +180,14 @@ public class WorkflowService {
         return t;
     }
 
+    /**
+     * Finds an active workflow for a tenant and vertical.
+     *
+     * @param hotel tenant identifier
+     * @param verticalKey configured vertical key
+     * @return matching workflow, or {@code null} when none exists
+     * @implSpec Overrides must scope the lookup to the tenant.
+     */
     @Transactional(readOnly = true)
     public WorkflowDefinition activeForVertical(final UUID hotel, final String verticalKey) {
         return definitions
@@ -176,6 +195,15 @@ public class WorkflowService {
                 .orElse(null);
     }
 
+    /**
+     * Reads the current state of an aggregate's tenant-owned workflow instance.
+     *
+     * @param hotel tenant identifier
+     * @param workflowId workflow identifier
+     * @param aggregateId aggregate identifier
+     * @return current state, or {@code null} when no instance exists
+     * @implSpec Overrides must preserve tenant isolation for workflow instances.
+     */
     @Transactional(readOnly = true)
     public WorkflowState stateForAggregate(
             final UUID hotel, final UUID workflowId, final UUID aggregateId) {
@@ -188,11 +216,12 @@ public class WorkflowService {
     }
 
     /**
-     * Executes the operation.
+     * Reads an active workflow definition owned by a tenant.
      *
-     * @param hotel parameter.
-     * @param id parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param id workflow identifier
+     * @return active tenant-owned workflow
+     * @implSpec Overrides must not return definitions across tenants.
      */
     @Transactional
     public WorkflowDefinition definition(final UUID hotel, final UUID id) {
@@ -209,17 +238,28 @@ public class WorkflowService {
     }
 
     /**
-     * Executes the operation.
+     * Lists states for a tenant-owned workflow.
      *
-     * @param hotel parameter.
-     * @param id parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param id workflow identifier
+     * @return workflow states
+     * @implSpec Overrides must verify the workflow belongs to the tenant.
      */
     public List<WorkflowState> states(final UUID hotel, final UUID id) {
         definition(hotel, id);
         return states.findAllByWorkflowId(id);
     }
 
+    /**
+     * Updates a state label after verifying tenant ownership.
+     *
+     * @param hotel tenant identifier
+     * @param workflowId workflow identifier
+     * @param key state key
+     * @param request validated replacement label
+     * @return persisted workflow state
+     * @implSpec Overrides must preserve tenant ownership and state identity.
+     */
     @Transactional
     public WorkflowState updateStateLabel(
             final UUID hotel,
@@ -234,8 +274,18 @@ public class WorkflowService {
         return states.save(state);
     }
 
+    /**
+     * Enables or disables a state without invalidating initial or active-order states.
+     *
+     * @param hotel tenant identifier
+     * @param workflowId workflow identifier
+     * @param key state key
+     * @param active requested availability
+     * @return persisted workflow state
+     * @implSpec Overrides must retain tenant ownership and active-order safeguards.
+     */
     @Transactional
-    public WorkflowState setStateActive(
+    public WorkflowState updateStateActive(
             final UUID hotel, final UUID workflowId, final String key, final boolean active) {
         definition(hotel, workflowId);
         final WorkflowState state =
@@ -254,11 +304,12 @@ public class WorkflowService {
     }
 
     /**
-     * Executes the operation.
+     * Lists transitions for a tenant-owned workflow.
      *
-     * @param hotel parameter.
-     * @param id parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param id workflow identifier
+     * @return configured workflow transitions
+     * @implSpec Overrides must verify the workflow belongs to the tenant.
      */
     public List<WorkflowTransition> transitions(final UUID hotel, final UUID id) {
         definition(hotel, id);

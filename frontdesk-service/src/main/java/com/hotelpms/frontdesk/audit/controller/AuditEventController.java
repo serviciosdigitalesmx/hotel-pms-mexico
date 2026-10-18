@@ -18,6 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuditEventController {
   private final AuditEventService service;
 
+  /**
+   * Returns the recent audit history for the authenticated tenant.
+   *
+   * @return tenant-owned audit events
+   * @implSpec Overrides must retain role authorization and authenticated tenant scoping.
+   */
   @GetMapping
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public List<AuditEvent> recent() {
