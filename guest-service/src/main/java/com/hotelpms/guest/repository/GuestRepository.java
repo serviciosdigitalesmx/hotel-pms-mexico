@@ -130,7 +130,7 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      * @return a page of matching guests scoped to the hotel
      */
     default Page<Guest> searchByKeywordAndHotelId(
-            String keyword, UUID hotelId, Pageable pageable) {
+            final String keyword, final UUID hotelId, final Pageable pageable) {
         return findAll(GuestSearchSpecifications.matchingAllTokens(keyword, hotelId), pageable);
     }
 

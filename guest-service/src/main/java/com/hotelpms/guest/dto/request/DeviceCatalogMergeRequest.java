@@ -18,6 +18,23 @@ public record DeviceCatalogMergeRequest(
     @NotEmpty List<@Valid Identity> sources,
     @NotNull @Valid Identity target) {
 
+  /** Copies the source collection to prevent callers from mutating a validated merge request. */
+  public DeviceCatalogMergeRequest {
+    if (sources != null) {
+      sources = List.copyOf(sources);
+    }
+  }
+
+  /**
+   * Returns an immutable copy of the selected source identities.
+   *
+   * @return immutable source identities, or {@code null} when not supplied
+   */
+  @Override
+  public List<Identity> sources() {
+    return sources == null ? null : List.copyOf(sources);
+  }
+
   /**
    * A catalog identity; blank manufacturer/model values are valid.
    *
