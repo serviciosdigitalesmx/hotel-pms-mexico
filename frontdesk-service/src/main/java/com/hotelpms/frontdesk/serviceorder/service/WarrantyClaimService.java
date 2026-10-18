@@ -103,17 +103,26 @@ public class WarrantyClaimService {
     }
 
     /**
-     * Executes the operation.
+     * Lists warranty claims belonging to a tenant and customer.
      *
-     * @param hotel parameter.
-     * @param customer parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param customer customer identifier
+     * @return matching tenant-owned warranty claims
+     * @implSpec Overrides must retain tenant ownership checks.
      */
     @Transactional(readOnly = true)
     public List<WarrantyClaim> list(final UUID hotel, final UUID customer) {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotel, customer);
     }
 
+    /**
+     * Lists warranty claims after confirming the repair order belongs to the tenant.
+     *
+     * @param hotel tenant identifier
+     * @param serviceOrderId repair order identifier
+     * @return matching tenant-owned warranty claims
+     * @implSpec Overrides must validate repair-order tenant ownership before reading claims.
+     */
     @Transactional(readOnly = true)
     public List<WarrantyClaim> listByServiceOrder(final UUID hotel, final UUID serviceOrderId) {
         serviceOrders

@@ -1,5 +1,7 @@
 package com.hotelpms.frontdesk.workflow.domain;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -52,6 +54,10 @@ public class WorkflowTransition {
      * @param key parameter.
      * @param permission parameter.
      */
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification =
+                    "JPA many-to-one associations must retain managed WorkflowState identity in the persistence context.")
     public WorkflowTransition(
             final WorkflowDefinition w,
             final WorkflowState from,
@@ -70,6 +76,10 @@ public class WorkflowTransition {
      *
      * @return operation result.
      */
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification =
+                    "Business transition logic reads the managed JPA association; copying it would lose persistence identity.")
     public WorkflowState getFromState() {
         return fromState;
     }
@@ -79,6 +89,10 @@ public class WorkflowTransition {
      *
      * @return operation result.
      */
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification =
+                    "Business transition logic reads the managed JPA association; copying it would lose persistence identity.")
     public WorkflowState getToState() {
         return toState;
     }

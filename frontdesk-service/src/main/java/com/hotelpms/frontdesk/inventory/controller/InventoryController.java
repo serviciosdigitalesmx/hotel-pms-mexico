@@ -9,6 +9,7 @@ import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.StockCountRequest;
 import com.hotelpms.frontdesk.inventory.service.InventoryService;
 import com.hotelpms.frontdesk.inventory.service.InventoryService.PosConsumptionLine;
+import com.hotelpms.frontdesk.util.ImmutableCopies;
 
 import jakarta.validation.Valid;
 
@@ -192,5 +193,9 @@ public class InventoryController {
      * @param branchId branch that owns the stock
      * @param lines tenant-owned product quantities to deduct
      */
-    public record PosConsumptionRequest(UUID branchId, List<PosConsumptionLine> lines) { }
+    public record PosConsumptionRequest(UUID branchId, List<PosConsumptionLine> lines) {
+        public PosConsumptionRequest {
+            lines = ImmutableCopies.list(lines);
+        }
+    }
 }

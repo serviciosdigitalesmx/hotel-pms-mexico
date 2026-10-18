@@ -1,5 +1,7 @@
 package com.hotelpms.frontdesk.notifications;
 
+import com.hotelpms.frontdesk.util.ImmutableCopies;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,4 +30,8 @@ public record OperationalEmailRecipientsRequest(
     private static final int MAX_EVENTS = 6;
     private static final int MAX_RECIPIENTS_PER_EVENT = 20;
     private static final int MAX_EMAIL_LENGTH = 254;
+
+    public OperationalEmailRecipientsRequest {
+        recipients = ImmutableCopies.mapOfLists(recipients);
+    }
 }

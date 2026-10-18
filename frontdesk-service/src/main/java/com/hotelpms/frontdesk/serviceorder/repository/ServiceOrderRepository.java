@@ -63,13 +63,6 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      * @param now current timestamp used for the overdue cutoff
      * @return a bounded list of overdue tenant orders eligible for notification
      */
-    /**
-     * Counts repair orders for each requested customer within a tenant.
-     *
-     * @param hotelId tenant identifier
-     * @param customerIds customer identifiers
-     * @return rows containing customer identifiers and order counts
-     */
     @Query(
             value =
                     "select o.* from service_orders o where o.promised_at <= :now and o.status not"
@@ -94,6 +87,13 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ServiceOrder> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId);
 
+    /**
+     * Counts tenant-owned orders grouped by each requested customer.
+     *
+     * @param hotelId tenant identifier
+     * @param customerIds customer identifiers to count
+     * @return rows containing customer identifiers and order counts
+     */
     @Query(
             "select serviceOrder.customerId, count(serviceOrder.id) from ServiceOrder serviceOrder"
                 + " where serviceOrder.hotelId = :hotelId and serviceOrder.customerId in"

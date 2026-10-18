@@ -180,12 +180,11 @@ public class ProcurementService {
                 throw new IllegalArgumentException("PURCHASE_PRODUCT_SUPPLIER_MISMATCH");
             }
             final PurchaseOrderLine line = new PurchaseOrderLine();
-            line.setPurchaseOrder(order);
             line.setProductId(product.getId());
             line.setQuantityOrdered(requestedLine.quantity());
             line.setQuantityReceived(0);
             line.setUnitCost(requestedLine.unitCost());
-            order.getLines().add(line);
+            order.addLine(line);
         }
         if (order.getLines().isEmpty()) {
             throw new IllegalArgumentException("PURCHASE_LINES_REQUIRED");

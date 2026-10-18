@@ -1,5 +1,7 @@
 package com.hotelpms.frontdesk.inventory.dto;
 
+import com.hotelpms.frontdesk.util.ImmutableCopies;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
@@ -21,7 +23,6 @@ import java.util.UUID;
 /**
  * Validated request and response records for Fixi inventory and procurement APIs.
  */
-@SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
 public final class InventoryDtos {
     private static final int MIN_MOVEMENT_DELTA = -1_000_000;
     private static final int MAX_PRODUCT_SKU_LENGTH = 80;
@@ -39,6 +40,17 @@ public final class InventoryDtos {
     private static final String ZERO_MONEY = "0.00";
 
     private InventoryDtos() { }
+
+    /**
+     * Returns an immutable defensive copy for record collection components.
+     *
+     * @param <T> list element type
+     * @param source source list
+     * @return immutable copy, preserving null input
+     */
+    private static <T> List<T> immutableList(final List<T> source) {
+        return ImmutableCopies.list(source);
+    }
 
     /**
      * Inventory product fields including commercial price and optional initial stock.
@@ -282,7 +294,11 @@ public final class InventoryDtos {
                     @DecimalMin(ZERO_MONEY)
                     @DecimalMax("1000.00")
                     @Digits(integer = 4, fraction = 2)
-                    BigDecimal percentage) { }
+                    BigDecimal percentage) {
+        public BulkPriceRequest {
+            productIds = immutableList(productIds);
+        }
+    }
 
     /**
      * Audited inventory adjustment for a product at one branch.
@@ -404,6 +420,10 @@ public final class InventoryDtos {
             @NotNull UUID supplierId,
             UUID serviceOrderId,
             @NotNull @Size(min = 1, max = MAX_PURCHASE_LINES) List<@NotNull PurchaseLineRequest> lines) {
+        public PurchaseRequest {
+            lines = immutableList(lines);
+        }
+
         /**
          * Creates a purchase request with no lines for legacy service callers.
          *
@@ -429,7 +449,11 @@ public final class InventoryDtos {
             @NotNull UUID branchId,
             @NotNull UUID supplierId,
             UUID serviceOrderId,
-            @NotNull @Size(min = 1, max = MAX_PURCHASE_LINES) List<@NotNull PurchaseLineRequest> lines) { }
+            @NotNull @Size(min = 1, max = MAX_PURCHASE_LINES) List<@NotNull PurchaseLineRequest> lines) {
+        public PurchaseRequestWithLines {
+            lines = immutableList(lines);
+        }
+    }
 
     /**
      * One product and quantity requested from a supplier.
@@ -459,6 +483,10 @@ public final class InventoryDtos {
      */
     public record PurchaseReceiptRequest(
             UUID requestId, @NotNull @Size(min = 1) List<@NotNull @Valid ReceiptLine> lines) {
+        public PurchaseReceiptRequest {
+            lines = immutableList(lines);
+        }
+
         /**
          * Creates a receipt request without an explicit idempotency identifier.
          *
@@ -485,7 +513,11 @@ public final class InventoryDtos {
      * @param lines corrected cumulative quantities per product
      */
     public record PurchaseReceiptCorrectionRequest(
-            @NotNull @Size(min = 1) List<@NotNull @Valid ReceiptCorrectionLine> lines) { }
+            @NotNull @Size(min = 1) List<@NotNull @Valid ReceiptCorrectionLine> lines) {
+        public PurchaseReceiptCorrectionRequest {
+            lines = immutableList(lines);
+        }
+    }
 
     /**
      * Product summary ranked by quantity consumed over a reporting period.
@@ -504,5 +536,9 @@ public final class InventoryDtos {
      * @param rejected number of rejected rows
      * @param errors row-level validation messages
      */
-    public record ImportResult(int imported, int rejected, List<String> errors) { }
+    public record ImportResult(int imported, int rejected, List<String> errors) {
+        public ImportResult {
+            errors = immutableList(errors);
+        }
+    }
 }

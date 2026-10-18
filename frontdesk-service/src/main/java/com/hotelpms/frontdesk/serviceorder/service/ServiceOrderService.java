@@ -23,6 +23,7 @@ import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderStatusHistoryRepository;
 import com.hotelpms.frontdesk.stays.domain.HotelSettings;
 import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
+import com.hotelpms.frontdesk.util.ImmutableCopies;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowDefinition;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowState;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowTransition;
@@ -1082,5 +1083,9 @@ public class ServiceOrderService {
             String name,
             String currentState,
             String initialState,
-            List<ConfiguredWorkflowTransition> transitions) { }
+            List<ConfiguredWorkflowTransition> transitions) {
+        public ConfiguredWorkflowView {
+            transitions = ImmutableCopies.list(transitions);
+        }
+    }
 }

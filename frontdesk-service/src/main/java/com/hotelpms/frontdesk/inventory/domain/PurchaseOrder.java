@@ -21,6 +21,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,10 +78,25 @@ public class PurchaseOrder {
             orphanRemoval = true,
             fetch = FetchType.LAZY)
     @Builder.Default
+    @Setter(lombok.AccessLevel.NONE)
     private List<PurchaseOrderLine> lines = new ArrayList<>();
 
-    /** Keeps old purchase rows and pre-migration API consumers readable. */
+    /**
+     * Keeps old purchase rows and pre-migration API consumers readable without exposing mutation.
+     *
+     * @return unmodifiable view of the purchase-order lines
+     */
     public List<PurchaseOrderLine> getLines() {
-        return lines;
+        return lines == null ? null : Collections.unmodifiableList(lines);
+    }
+
+    /**
+     * Adds one bidirectionally linked purchase line to this order.
+     *
+     * @param line purchase line to attach
+     */
+    public void addLine(final PurchaseOrderLine line) {
+        line.setPurchaseOrder(this);
+        lines.add(line);
     }
 }

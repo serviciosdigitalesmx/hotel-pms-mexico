@@ -3,7 +3,8 @@ package com.hotelpms.frontdesk.serviceorder.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-/** Validated payment method supplied when delivering a completed repair order.
+/**
+ * Validated payment method supplied when delivering a completed repair order.
  *
  * @param paymentMethod recorded payment method or pending-payment marker
  */

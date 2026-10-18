@@ -1,5 +1,7 @@
 package com.hotelpms.frontdesk.inventory.dto;
 
+import com.hotelpms.frontdesk.util.ImmutableCopies;
+
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -19,12 +21,16 @@ public interface CatalogImportDtos {
      * @param status current review/application status
      * @param proposals parsed product proposals
      */
-    public record ImportJobResponse(
+    record ImportJobResponse(
             UUID id,
             String fileName,
             String contentType,
             String status,
-            List<Proposal> proposals) { }
+            List<Proposal> proposals) {
+        public ImportJobResponse {
+            proposals = ImmutableCopies.list(proposals);
+        }
+    }
 
     /**
      * Parsed row and optional tenant-local product match.
@@ -35,7 +41,7 @@ public interface CatalogImportDtos {
      * @param unitCost proposed supplier cost
      * @param matchedProductId existing tenant product match, if any
      */
-    public record Proposal(
+    record Proposal(
             String sku, String name, long quantity, String unitCost, UUID matchedProductId) { }
 
     /**
@@ -44,7 +50,11 @@ public interface CatalogImportDtos {
      * @param approve whether to apply the reviewed import
      * @param proposals reviewed product proposals
      */
-    public record ReviewRequest(boolean approve, List<Proposal> proposals) { }
+    record ReviewRequest(boolean approve, List<Proposal> proposals) {
+        public ReviewRequest {
+            proposals = ImmutableCopies.list(proposals);
+        }
+    }
 
     /**
      * Metadata required to begin a catalog upload.
@@ -52,5 +62,5 @@ public interface CatalogImportDtos {
      * @param fileName original file name
      * @param contentType uploaded media type
      */
-    public record UploadMetadata(@NotBlank String fileName, @NotBlank String contentType) { }
+    record UploadMetadata(@NotBlank String fileName, @NotBlank String contentType) { }
 }

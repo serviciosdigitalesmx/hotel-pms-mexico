@@ -1,5 +1,6 @@
 package com.hotelpms.frontdesk.workflow.dto;
 
+import com.hotelpms.frontdesk.util.ImmutableCopies;
 import com.hotelpms.frontdesk.workflow.domain.SemanticPhase;
 
 import jakarta.validation.constraints.NotBlank;
@@ -11,9 +12,19 @@ import java.util.UUID;
 /**
  * Validated request and response records for tenant-configured repair workflows.
  */
-@SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
 public final class WorkflowDtos {
     private WorkflowDtos() { }
+
+    /**
+     * Returns an immutable defensive copy for response collection components.
+     *
+     * @param <T> list element type
+     * @param source source list
+     * @return immutable copy, preserving null input
+     */
+    private static <T> List<T> immutableList(final List<T> source) {
+        return ImmutableCopies.list(source);
+    }
 
     /**
      * Creates a workflow for a supported business vertical.
@@ -115,5 +126,10 @@ public final class WorkflowDtos {
             String name,
             int version,
             List<StateResponse> states,
-            List<TransitionResponse> transitions) { }
+            List<TransitionResponse> transitions) {
+        public WorkflowResponse {
+            states = immutableList(states);
+            transitions = immutableList(transitions);
+        }
+    }
 }

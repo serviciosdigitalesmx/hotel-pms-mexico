@@ -55,6 +55,13 @@ public class WarrantyClaimController {
         return service.list(hotel(), customer);
     }
 
+    /**
+     * Lists claims attached to one tenant-owned repair order.
+     *
+     * @param serviceOrderId repair order identifier
+     * @return warranty claims associated with the order
+     * @implSpec Overrides must preserve the active tenant scope.
+     */
     @GetMapping("/service-order/{serviceOrderId}")
     @PreAuthorize(SERVICE_TEAM_ROLES)
     public List<WarrantyClaim> listByServiceOrder(@PathVariable final UUID serviceOrderId) {
