@@ -71,7 +71,7 @@ public class ServiceOrderController {
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
     public ServiceOrderService.ConfiguredWorkflowView advanceConfiguredWorkflow(
             @PathVariable final UUID id, @PathVariable final String transitionKey) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        final var authentication = SecurityContextHolder.getContext().getAuthentication();
         return service.advanceConfiguredWorkflow(
                 hotel(),
                 id,
@@ -361,5 +361,5 @@ public class ServiceOrderController {
     public record InternalNoteRequest(
             @jakarta.validation.constraints.NotBlank
                     @jakarta.validation.constraints.Size(max = INTERNAL_NOTE_MAX_LENGTH)
-                    String note) {}
+                    String note) { }
 }

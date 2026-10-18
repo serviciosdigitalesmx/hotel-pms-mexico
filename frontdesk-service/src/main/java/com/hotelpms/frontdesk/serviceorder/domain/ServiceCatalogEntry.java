@@ -17,6 +17,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Tenant-owned catalog entry for a repair service offered by Fixi.
+ */
 @Entity
 @Table(name = "service_catalog")
 @Getter
@@ -25,6 +28,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ServiceCatalogEntry {
+    private static final int SERVICE_NAME_LENGTH = 200;
+    private static final int MONEY_PRECISION = 12;
+    private static final int MONEY_SCALE = 2;
+    private static final int DEFAULT_ESTIMATED_MINUTES = 60;
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -32,16 +39,20 @@ public class ServiceCatalogEntry {
     @Column(name = "hotel_id", nullable = false)
     private UUID tenantId;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = SERVICE_NAME_LENGTH)
     private String name;
 
-    @Column(name = "base_price", nullable = false, precision = 12, scale = 2)
+    @Column(
+            name = "base_price",
+            nullable = false,
+            precision = MONEY_PRECISION,
+            scale = MONEY_SCALE)
     @Builder.Default
     private BigDecimal basePrice = BigDecimal.ZERO;
 
     @Column(name = "estimated_minutes", nullable = false)
     @Builder.Default
-    private Integer estimatedMinutes = 60;
+    private Integer estimatedMinutes = DEFAULT_ESTIMATED_MINUTES;
 
     @Column(nullable = false)
     @Builder.Default

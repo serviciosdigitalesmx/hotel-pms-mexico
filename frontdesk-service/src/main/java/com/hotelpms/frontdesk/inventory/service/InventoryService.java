@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,18 +36,54 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-/** Type domain type. */
+/**
+ * Enforces tenant- and branch-scoped stock operations, reservations, and catalog imports for Fixi.
+ */
 @Service
 @RequiredArgsConstructor
 public class InventoryService {
     private static final String INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK";
+    private static final String PRODUCT_NOT_FOUND = "PRODUCT_NOT_FOUND";
+    private static final String SERVICE_ORDER_NOT_FOUND = "SERVICE_ORDER_NOT_FOUND";
+    private static final String RESERVATION_RESERVED = "RESERVED";
+    private static final String RESERVATION_CONSUMED = "CONSUMED";
+    private static final String SKU_HEADER = "sku";
+    private static final String NAME_HEADER = "name";
+    private static final String PRODUCT_ID_JSON = "\",\"productId\":\"";
+    private static final String SERVICE_ORDER_JSON = "{\"serviceOrderId\":\"";
+    private static final String QUANTITY_JSON = "\",\"quantity\":";
+    private static final String CSV_ROW_PREFIX = "row ";
+    private static final String PRODUCT_CATEGORY_HEADER = "category";
+    private static final int MAX_BULK_PRICE_PRODUCTS = 500;
+    private static final int MAX_REASON_LENGTH = 500;
+    private static final int PRICE_PERCENTAGE_SCALE = 6;
+    private static final int PERCENTAGE_BASE = 100;
+    private static final int MONEY_SCALE = 2;
+    private static final int MAX_CONSUMED_PRODUCTS = 5;
+    private static final int MAX_CSV_BYTES = 5 * 1024 * 1024;
+    private static final int MAX_CSV_ROWS = 5000;
+    private static final int PRODUCT_NAME_MAX_LENGTH = 200;
+    private static final int PRODUCT_DESCRIPTION_MAX_LENGTH = 2000;
+    private static final int PRODUCT_CATEGORY_MAX_LENGTH = 120;
+    private static final int PRODUCT_SKU_MAX_LENGTH = 80;
     private final InventoryProductRepository products;
     private final InventoryBalanceRepository balances;
     private final AuditEventService auditEvents;
@@ -63,6 +100,7 @@ public class InventoryService {
      * @param hotel tenant identifier
      * @param r product request
      * @return persisted product
+     * @implSpec Overrides must preserve tenant ownership and initial stock accounting.
      */
     @Transactional
     public InventoryProduct product(final UUID hotel, final ProductRequest r) {
@@ -101,14 +139,22 @@ public class InventoryService {
         return saved;
     }
 
-    /** Updates commercial catalog fields without changing branch stock. */
+    /**
+     * Updates commercial catalog fields without changing branch stock.
+     *
+     * @param hotel tenant identifier
+     * @param productId product identifier
+     * @param r updated product fields
+     * @return updated product
+     * @implSpec Overrides must preserve tenant ownership and branch-stock invariants.
+     */
     @Transactional
     public InventoryProduct updateProduct(
             final UUID hotel, final UUID productId, final ProductRequest r) {
         validatePosMenuItemLink(hotel, r.posMenuItemId(), productId);
         final InventoryProduct product =
                 products.findByIdAndHotelId(productId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
         if (r.supplierId() != null) {
             suppliers
                     .findByIdAndHotelId(r.supplierId(), hotel)
@@ -130,25 +176,37 @@ public class InventoryService {
 
     private void validatePosMenuItemLink(
             final UUID hotel, final UUID menuItemId, final UUID productId) {
-        if (menuItemId == null) return;
+        if (menuItemId == null) {
+            return;
+        }
         final boolean linkedElsewhere =
                 productId == null
                         ? products.existsByHotelIdAndPosMenuItemId(hotel, menuItemId)
                         : products.existsByHotelIdAndPosMenuItemIdAndIdNot(
                                 hotel, menuItemId, productId);
-        if (linkedElsewhere) throw new IllegalArgumentException("POS_MENU_ITEM_ALREADY_LINKED");
+        if (linkedElsewhere) {
+            throw new IllegalArgumentException("POS_MENU_ITEM_ALREADY_LINKED");
+        }
     }
 
-    /** Applies a validated percentage increase to the selected tenant-owned sale prices. */
+    /**
+     * Applies a validated percentage increase to selected tenant-owned sale prices.
+     *
+     * @param hotel tenant identifier
+     * @param productIds selected product identifiers
+     * @param percentage percentage increase in the range supported by the API
+     * @return updated products
+     * @implSpec Overrides must preserve tenant ownership and the bounded batch size.
+     */
     @Transactional
     public List<InventoryProduct> increasePrices(
-            final UUID hotel, final List<UUID> productIds, final java.math.BigDecimal percentage) {
+            final UUID hotel, final List<UUID> productIds, final BigDecimal percentage) {
         if (productIds == null
                 || productIds.isEmpty()
-                || productIds.size() > 500
+                || productIds.size() > MAX_BULK_PRICE_PRODUCTS
                 || percentage == null
                 || percentage.signum() < 0
-                || percentage.compareTo(new java.math.BigDecimal("1000.00")) > 0) {
+                || percentage.compareTo(new BigDecimal("1000.00")) > 0) {
             throw new IllegalArgumentException("INVALID_BULK_PRICE_REQUEST");
         }
         final List<InventoryProduct> selected =
@@ -156,18 +214,20 @@ public class InventoryService {
                         .filter(product -> hotel.equals(product.getHotelId()))
                         .toList();
         if (selected.size() != productIds.stream().distinct().count()) {
-            throw new IllegalArgumentException("PRODUCT_NOT_FOUND");
+            throw new IllegalArgumentException(PRODUCT_NOT_FOUND);
         }
-        final java.math.BigDecimal multiplier =
-                java.math.BigDecimal.ONE.add(
+        final BigDecimal multiplier =
+                BigDecimal.ONE.add(
                         percentage.divide(
-                                java.math.BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+                                BigDecimal.valueOf(PERCENTAGE_BASE),
+                                PRICE_PERCENTAGE_SCALE,
+                                RoundingMode.HALF_UP));
         selected.forEach(
                 product ->
                         product.setPrice(
                                 product.getPrice()
                                         .multiply(multiplier)
-                                        .setScale(2, RoundingMode.HALF_UP)));
+                                        .setScale(MONEY_SCALE, RoundingMode.HALF_UP)));
         return products.saveAll(selected);
     }
 
@@ -177,16 +237,19 @@ public class InventoryService {
      * @param hotel tenant identifier
      * @param r movement request
      * @return updated balance
+     * @implSpec Overrides must preserve tenant/branch isolation and audit recording.
      */
     @Transactional
     public InventoryBalance move(final UUID hotel, final MovementRequest r) {
-        if (r.reason() == null || r.reason().isBlank() || r.reason().trim().length() > 500) {
+        if (r.reason() == null
+                || r.reason().isBlank()
+                || r.reason().trim().length() > MAX_REASON_LENGTH) {
             throw new IllegalArgumentException("INVENTORY_MOVEMENT_REASON_REQUIRED");
         }
         branchValidation.requireActiveBranch(hotel, r.branchId());
         final InventoryProduct p =
                 products.findForUpdateByIdAndHotelId(r.productId(), hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
         final InventoryBalance b =
                 balances.findByHotelIdAndBranchIdAndProductId(hotel, r.branchId(), p.getId())
                         .orElseGet(
@@ -214,7 +277,7 @@ public class InventoryService {
                 null,
                 "{\"branchId\":\""
                         + r.branchId()
-                        + "\",\"productId\":\""
+                        + PRODUCT_ID_JSON
                         + r.productId()
                         + "\",\"delta\":"
                         + r.delta()
@@ -228,7 +291,15 @@ public class InventoryService {
         return saved;
     }
 
-    /** Consumes linked POS products once per order, even when confirmation is retried. */
+    /**
+     * Consumes linked POS products once per order, even when confirmation is retried.
+     *
+     * @param hotel tenant identifier
+     * @param orderId POS order identifier
+     * @param branchId stock branch identifier
+     * @param lines requested product quantities
+     * @implSpec Overrides must retain tenant/branch checks and replay idempotency.
+     */
     @Transactional
     public void consumePosOrder(
             final UUID hotel,
@@ -239,16 +310,18 @@ public class InventoryService {
             throw new IllegalArgumentException("POS_ORDER_BRANCH_AND_LINES_REQUIRED");
         }
         branchValidation.requireActiveBranch(hotel, branchId);
-        final var consolidated = new java.util.TreeMap<UUID, Long>();
+        final var consolidated = new TreeMap<UUID, Long>();
         for (final PosConsumptionLine line : lines) {
-            if (line.quantity() < 1) throw new IllegalArgumentException("INVALID_POS_QUANTITY");
+            if (line.quantity() < 1) {
+                throw new IllegalArgumentException("INVALID_POS_QUANTITY");
+            }
             consolidated.merge(line.productId(), line.quantity(), Math::addExact);
         }
         for (final var entry : consolidated.entrySet()) {
             final PosConsumptionLine line =
                     new PosConsumptionLine(entry.getKey(), entry.getValue());
             products.findByIdAndHotelId(line.productId(), hotel)
-                    .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                    .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
             final var existing =
                     posConsumptions
                             .findByHotelIdAndOrderIdAndProductId(hotel, orderId, line.productId())
@@ -275,9 +348,6 @@ public class InventoryService {
         }
     }
 
-    /** Product and quantity to deduct for a confirmed POS order. */
-    public record PosConsumptionLine(UUID productId, long quantity) {}
-
     private static String escapeJson(final String value) {
         final StringBuilder escaped = new StringBuilder(value.length());
         for (int index = 0; index < value.length(); index++) {
@@ -291,8 +361,11 @@ public class InventoryService {
                 case '\r' -> escaped.append("\\r");
                 case '\t' -> escaped.append("\\t");
                 default -> {
-                    if (character < 0x20) escaped.append(String.format("\\u%04x", (int) character));
-                    else escaped.append(character);
+                    if (character < 0x20) {
+                        escaped.append(String.format("\\u%04x", character));
+                    } else {
+                        escaped.append(character);
+                    }
                 }
             }
         }
@@ -306,7 +379,9 @@ public class InventoryService {
             final long current,
             final UUID branchId) {
         final long threshold = product.getReorderLevel();
-        if (threshold <= 0 || previous <= threshold || current > threshold) return;
+        if (threshold <= 0 || previous <= threshold || current > threshold) {
+            return;
+        }
         notificationOutbox.enqueue(
                 hotel,
                 "STOCK_LOW",
@@ -325,13 +400,20 @@ public class InventoryService {
                 "STOCK_LOW:" + branchId + ":" + product.getId() + ":" + UUID.randomUUID());
     }
 
-    /** Sets a physically counted stock quantity and retains the adjustment reason in audit. */
+    /**
+     * Sets a physically counted stock quantity and retains the adjustment reason in audit.
+     *
+     * @param hotel tenant identifier
+     * @param request branch, product, and counted quantity
+     * @return persisted branch balance
+     * @implSpec Overrides must preserve tenant and branch isolation and audit recording.
+     */
     @Transactional
     public InventoryBalance count(final UUID hotel, final StockCountRequest request) {
         branchValidation.requireActiveBranch(hotel, request.branchId());
         final InventoryProduct product =
                 products.findForUpdateByIdAndHotelId(request.productId(), hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
         final InventoryBalance balance =
                 balances.findByHotelIdAndBranchIdAndProductId(
                                 hotel, request.branchId(), product.getId())
@@ -364,7 +446,7 @@ public class InventoryService {
                 null,
                 "{\"branchId\":\""
                         + request.branchId()
-                        + "\",\"productId\":\""
+                        + PRODUCT_ID_JSON
                         + request.productId()
                         + "\",\"previous\":"
                         + previous
@@ -382,6 +464,7 @@ public class InventoryService {
      * @param hotel tenant identifier
      * @param r reservation request
      * @return reservation
+     * @implSpec Overrides must preserve tenant/branch ownership and available-stock accounting.
      */
     @Transactional
     public StockReservation reserve(final UUID hotel, final ReservationRequest r) {
@@ -392,7 +475,7 @@ public class InventoryService {
         final var order =
                 serviceOrders
                         .findForUpdateByIdAndHotelId(r.serviceOrderId(), hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(SERVICE_ORDER_NOT_FOUND));
         if (order.getStatus() == ServiceOrderStatus.COMPLETED
                 || order.getStatus() == ServiceOrderStatus.CANCELLED) {
             throw new IllegalStateException("SERVICE_ORDER_NOT_OPEN_FOR_STOCK_RESERVATION");
@@ -402,15 +485,15 @@ public class InventoryService {
         }
         final InventoryProduct product =
                 products.findForUpdateByIdAndHotelId(r.productId(), hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
         final Optional<StockReservation> existing =
                 reservations.findForUpdateByHotelIdAndServiceOrderIdAndProductId(
                         hotel, r.serviceOrderId(), product.getId());
-        if (existing.isPresent() && "CONSUMED".equals(existing.get().getStatus())) {
+        if (existing.isPresent() && RESERVATION_CONSUMED.equals(existing.get().getStatus())) {
             throw new IllegalStateException("RESERVATION_ALREADY_CONSUMED");
         }
         if (existing.isPresent()
-                && "RESERVED".equals(existing.get().getStatus())
+                && RESERVATION_RESERVED.equals(existing.get().getStatus())
                 && existing.get().getQuantity() == r.quantity()
                 && existing.get().getBranchId().equals(r.branchId())) {
             return existing.get();
@@ -425,7 +508,7 @@ public class InventoryService {
                                                 .productId(product.getId())
                                                 .build());
         final long previousReservation =
-                existing.filter(item -> "RESERVED".equals(item.getStatus()))
+                existing.filter(item -> RESERVATION_RESERVED.equals(item.getStatus()))
                         .map(StockReservation::getQuantity)
                         .orElse(0L);
         final long difference = r.quantity() - previousReservation;
@@ -441,7 +524,7 @@ public class InventoryService {
                                 item -> {
                                     item.setBranchId(r.branchId());
                                     item.setQuantity(r.quantity());
-                                    item.setStatus("RESERVED");
+                                    item.setStatus(RESERVATION_RESERVED);
                                     return item;
                                 })
                         .orElseGet(
@@ -452,7 +535,7 @@ public class InventoryService {
                                                 .productId(product.getId())
                                                 .serviceOrderId(r.serviceOrderId())
                                                 .quantity(r.quantity())
-                                                .createdAt(java.time.LocalDateTime.now())
+                                                .createdAt(LocalDateTime.now())
                                                 .build());
         final StockReservation saved = reservations.save(reservation);
         auditEvents.record(
@@ -462,13 +545,13 @@ public class InventoryService {
                 "SERVICE_ORDER_STOCK_RESERVED",
                 saved.getId(),
                 null,
-                "{\"serviceOrderId\":\""
+                SERVICE_ORDER_JSON
                         + r.serviceOrderId()
                         + "\",\"branchId\":\""
                         + r.branchId()
-                        + "\",\"productId\":\""
+                        + PRODUCT_ID_JSON
                         + product.getId()
-                        + "\",\"quantity\":"
+                        + QUANTITY_JSON
                         + r.quantity()
                         + "}");
         return saved;
@@ -481,13 +564,14 @@ public class InventoryService {
      * @param order service order identifier
      * @param product product identifier
      * @return released reservation
+     * @implSpec Overrides must preserve tenant ownership and reservation state transitions.
      */
     @Transactional
     public StockReservation release(final UUID hotel, final UUID order, final UUID product) {
         final var serviceOrder =
                 serviceOrders
                         .findForUpdateByIdAndHotelId(order, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(SERVICE_ORDER_NOT_FOUND));
         if (serviceOrder.getStatus() == ServiceOrderStatus.COMPLETED) {
             throw new IllegalStateException("DELIVERED_SERVICE_ORDER_STOCK_CANNOT_BE_RELEASED");
         }
@@ -498,11 +582,11 @@ public class InventoryService {
         if ("RELEASED".equals(r.getStatus())) {
             return r;
         }
-        if ("CONSUMED".equals(r.getStatus())) {
+        if (RESERVATION_CONSUMED.equals(r.getStatus())) {
             throw new IllegalStateException("RESERVATION_ALREADY_CONSUMED");
         }
         products.findForUpdateByIdAndHotelId(r.getProductId(), hotel)
-                .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+                .orElseThrow(() -> new IllegalArgumentException(PRODUCT_NOT_FOUND));
         final InventoryBalance b =
                 balances.findByHotelIdAndBranchIdAndProductId(
                                 hotel, r.getBranchId(), r.getProductId())
@@ -518,45 +602,62 @@ public class InventoryService {
                 "SERVICE_ORDER_STOCK_RELEASED",
                 released.getId(),
                 null,
-                "{\"serviceOrderId\":\""
+                SERVICE_ORDER_JSON
                         + order
-                        + "\",\"productId\":\""
+                        + PRODUCT_ID_JSON
                         + product
-                        + "\",\"quantity\":"
+                        + QUANTITY_JSON
                         + released.getQuantity()
                         + "}");
         return released;
     }
 
-    /** Releases every still-reserved product when a service order is cancelled. */
+    /**
+     * Releases every still-reserved product when a service order is cancelled.
+     *
+     * @param hotel tenant identifier
+     * @param orderId service-order identifier
+     * @return current reservation rows for the order
+     * @implSpec Overrides must preserve tenant scoping and reservation state transitions.
+     */
     @Transactional
     public List<StockReservation> releaseReservationsForOrder(
             final UUID hotel, final UUID orderId) {
         final var serviceOrder =
                 serviceOrders
                         .findForUpdateByIdAndHotelId(orderId, hotel)
-                        .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+                        .orElseThrow(() -> new IllegalArgumentException(SERVICE_ORDER_NOT_FOUND));
         if (serviceOrder.getStatus() == ServiceOrderStatus.COMPLETED) {
             throw new IllegalStateException("DELIVERED_SERVICE_ORDER_STOCK_CANNOT_BE_RELEASED");
         }
         final List<StockReservation> orderReservations =
                 reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
         for (final StockReservation reservation : orderReservations) {
-            if ("RESERVED".equals(reservation.getStatus())) {
+            if (RESERVATION_RESERVED.equals(reservation.getStatus())) {
                 release(hotel, orderId, reservation.getProductId());
             }
         }
         return reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
     }
 
+    /**
+     * Marks reserved stock as consumed after a service order is delivered.
+     *
+     * @param hotel tenant identifier
+     * @param orderId service-order identifier
+     * @return reservation rows after consumption
+     * @implSpec Overrides must preserve tenant scoping and inventory audit events.
+     */
     @Transactional
     public List<StockReservation> consumeReservations(final UUID hotel, final UUID orderId) {
         final List<StockReservation> orderReservations =
                 reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
         for (final StockReservation reservation : orderReservations) {
-            if (!"RESERVED".equals(reservation.getStatus())) continue;
-            reservation.setStatus("CONSUMED");
-            reservation.setConsumedAt(java.time.LocalDateTime.now());
+            if (!RESERVATION_RESERVED.equals(reservation.getStatus())) {
+                continue;
+            }
+            reservation.setStatus(RESERVATION_CONSUMED);
+            reservation.setConsumedAt(LocalDateTime.now());
             final StockReservation consumed = reservations.save(reservation);
             auditEvents.record(
                     hotel,
@@ -565,35 +666,57 @@ public class InventoryService {
                     "SERVICE_ORDER_STOCK_CONSUMED",
                     consumed.getId(),
                     null,
-                    "{\"serviceOrderId\":\""
+                    SERVICE_ORDER_JSON
                             + orderId
-                            + "\",\"productId\":\""
+                            + PRODUCT_ID_JSON
                             + consumed.getProductId()
-                            + "\",\"quantity\":"
+                            + QUANTITY_JSON
                             + consumed.getQuantity()
                             + "}");
         }
         return orderReservations;
     }
 
+    /**
+     * Lists reservations after confirming the service order belongs to the tenant.
+     *
+     * @param hotel tenant identifier
+     * @param orderId service-order identifier
+     * @return order reservations in creation order
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
     @Transactional(readOnly = true)
     public List<StockReservation> reservationsForOrder(final UUID hotel, final UUID orderId) {
         serviceOrders
                 .findByIdAndHotelId(orderId, hotel)
-                .orElseThrow(() -> new IllegalArgumentException("SERVICE_ORDER_NOT_FOUND"));
+                .orElseThrow(() -> new IllegalArgumentException(SERVICE_ORDER_NOT_FOUND));
         return reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
     }
 
+    /**
+     * Returns the most-consumed products for a tenant and optional branch/date range.
+     *
+     * @param hotel tenant identifier
+     * @param branchId optional branch filter
+     * @param from inclusive start date
+     * @param to inclusive end date
+     * @return up to five products ordered by consumed quantity
+     * @implSpec Overrides must preserve tenant and branch scoping.
+     */
     @Transactional(readOnly = true)
     public List<ProductConsumption> topConsumedProducts(
             final UUID hotel, final UUID branchId, final LocalDate from, final LocalDate to) {
-        if (from.isAfter(to)) throw new IllegalArgumentException("INVALID_REPORT_DATE_RANGE");
-        if (branchId != null) branchValidation.requireActiveBranch(hotel, branchId);
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("INVALID_REPORT_DATE_RANGE");
+        }
+        if (branchId != null) {
+            branchValidation.requireActiveBranch(hotel, branchId);
+        }
         return reservations
                 .findTopConsumedProducts(
                         hotel, branchId, from.atStartOfDay(), to.plusDays(1).atStartOfDay())
                 .stream()
-                .limit(5)
+                .limit(MAX_CONSUMED_PRODUCTS)
                 .map(
                         row -> {
                             final UUID productId = (UUID) row[0];
@@ -614,6 +737,7 @@ public class InventoryService {
      *
      * @param hotel tenant identifier
      * @return products
+     * @implSpec Overrides must preserve tenant scoping.
      */
     @Transactional(readOnly = true)
     public List<InventoryProduct> products(final UUID hotel) {
@@ -626,6 +750,7 @@ public class InventoryService {
      * @param hotel tenant identifier
      * @param branch branch identifier
      * @return balances
+     * @implSpec Overrides must preserve tenant and branch scoping.
      */
     @Transactional(readOnly = true)
     public List<InventoryBalance> stock(final UUID hotel, final UUID branch) {
@@ -639,25 +764,33 @@ public class InventoryService {
      * @param hotel tenant identifier
      * @param csv CSV content
      * @return import summary
+     * @implSpec Overrides must preserve tenant scope and import validation limits.
      */
     @Transactional
     public ImportResult importCsv(final UUID hotel, final String csv) {
         return importCsv(hotel, csv, null);
     }
 
+    /**
+     * Imports CSV catalog rows and optionally records initial stock at a default branch.
+     *
+     * @param hotel tenant identifier
+     * @param csv CSV content
+     * @param defaultBranchId branch for imported initial quantities when a row omits it
+     * @return import summary, including row-level rejections
+     * @implSpec Overrides must preserve tenant validation and row-level error reporting.
+     */
     @Transactional
     public ImportResult importCsv(final UUID hotel, final String csv, final UUID defaultBranchId) {
         if (csv != null
-                && csv.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 5 * 1024 * 1024) {
+                && csv.getBytes(StandardCharsets.UTF_8).length > MAX_CSV_BYTES) {
             throw new IllegalArgumentException("CSV_FILE_EXCEEDS_5_MB");
         }
-        int imported = 0;
-        int rejected = 0;
         final List<String> errors = new ArrayList<>();
-        final java.util.Set<String> seenSkus = new java.util.HashSet<>();
+        final Set<String> seenSkus = new HashSet<>();
         final List<List<String>> rows =
                 parseCsv(csv == null ? "" : csv.replaceFirst("^\\uFEFF", ""));
-        List<String> headers = List.of("sku", "name", "optional");
+        List<String> headers = List.of(SKU_HEADER, NAME_HEADER, "optional");
         int firstDataRow = 0;
         if (!rows.isEmpty()
                 && rows.get(0).stream()
@@ -669,11 +802,11 @@ public class InventoryService {
                         .anyMatch(
                                 value ->
                                         List.of(
-                                                        "sku",
-                                                        "name",
+                                                        SKU_HEADER,
+                                                        NAME_HEADER,
                                                         "product",
                                                         "productname",
-                                                        "category",
+                                                        PRODUCT_CATEGORY_HEADER,
                                                         "description",
                                                         "quantity",
                                                         "stock")
@@ -688,57 +821,61 @@ public class InventoryService {
                             .toList();
             firstDataRow = 1;
         }
-        if (rows.size() - firstDataRow > 5000) {
+        if (rows.size() - firstDataRow > MAX_CSV_ROWS) {
             throw new IllegalArgumentException("CSV_EXCEEDS_5000_ROWS");
         }
+        int imported = 0;
+        int rejected = 0;
         for (int i = firstDataRow; i < rows.size(); i++) {
             final List<String> cells = rows.get(i);
             if (cells.size() > headers.size()) {
                 rejected++;
-                errors.add("row " + (i + 1) + ": more columns than the CSV header");
+                errors.add(CSV_ROW_PREFIX + (i + 1) + ": more columns than the CSV header");
                 continue;
             }
-            final java.util.Map<String, String> values = new java.util.HashMap<>();
+            final Map<String, String> values = new HashMap<>();
             for (int column = 0; column < headers.size() && column < cells.size(); column++) {
                 values.put(headers.get(column), cells.get(column).trim());
             }
-            final String suppliedSku = values.getOrDefault("sku", "");
+            final String suppliedSku = values.getOrDefault(SKU_HEADER, "");
             final String name =
                     values.getOrDefault(
-                            "name",
+                            NAME_HEADER,
                             values.getOrDefault("product", values.getOrDefault("productname", "")));
             if (name.isBlank()) {
                 rejected++;
-                errors.add("row " + (i + 1) + ": product name is required");
+                errors.add(CSV_ROW_PREFIX + (i + 1) + ": product name is required");
                 continue;
             }
             final String category =
-                    values.getOrDefault("category", "General").isBlank()
+                    values.getOrDefault(PRODUCT_CATEGORY_HEADER, "General").isBlank()
                             ? "General"
-                            : values.get("category");
+                            : values.get(PRODUCT_CATEGORY_HEADER);
             final String description = values.getOrDefault("description", "");
             final String rawOptional = values.getOrDefault("optional", "false");
-            if (name.length() > 200 || description.length() > 2000 || category.length() > 120) {
+            if (name.length() > PRODUCT_NAME_MAX_LENGTH
+                    || description.length() > PRODUCT_DESCRIPTION_MAX_LENGTH
+                    || category.length() > PRODUCT_CATEGORY_MAX_LENGTH) {
                 rejected++;
                 errors.add(
-                        "row "
+                        CSV_ROW_PREFIX
                                 + (i + 1)
                                 + ": name, description, or category exceeds its maximum length");
                 continue;
             }
             if (!"true".equalsIgnoreCase(rawOptional) && !"false".equalsIgnoreCase(rawOptional)) {
                 rejected++;
-                errors.add("row " + (i + 1) + ": optional must be true or false");
+                errors.add(CSV_ROW_PREFIX + (i + 1) + ": optional must be true or false");
                 continue;
             }
             final ProductRequest productRequest;
             try {
                 final String sku = suppliedSku.isBlank() ? generatedImportSku(values) : suppliedSku;
-                if (sku.length() > 80
+                if (sku.length() > PRODUCT_SKU_MAX_LENGTH
                         || products.findByHotelIdAndSku(hotel, sku).isPresent()
                         || seenSkus.contains(sku)) {
                     rejected++;
-                    errors.add("row " + (i + 1) + ": SKU is too long or already exists");
+                    errors.add(CSV_ROW_PREFIX + (i + 1) + ": SKU is too long or already exists");
                     continue;
                 }
                 final UUID supplierId =
@@ -767,7 +904,7 @@ public class InventoryService {
                         || !fitsProductAmount(price)) {
                     rejected++;
                     errors.add(
-                            "row "
+                            CSV_ROW_PREFIX
                                     + (i + 1)
                                     + ": quantity and stock limits must be nonnegative and maximum"
                                     + " must not be below minimum; cost and price must fit 10"
@@ -777,16 +914,19 @@ public class InventoryService {
                 if (supplierId != null
                         && suppliers.findByIdAndHotelId(supplierId, hotel).isEmpty()) {
                     rejected++;
-                    errors.add("row " + (i + 1) + ": supplier does not belong to this business");
+                    errors.add(
+                            CSV_ROW_PREFIX
+                                    + (i + 1)
+                                    + ": supplier does not belong to this business");
                     continue;
                 }
                 if (quantity > 0) {
                     try {
                         branchValidation.requireActiveBranch(hotel, branchId);
-                    } catch (IllegalArgumentException invalidBranch) {
+                    } catch (final IllegalArgumentException invalidBranch) {
                         rejected++;
                         errors.add(
-                                "row "
+                                CSV_ROW_PREFIX
                                         + (i + 1)
                                         + ": choose an active branch for the initial stock");
                         continue;
@@ -810,7 +950,7 @@ public class InventoryService {
                 seenSkus.add(sku);
             } catch (final IllegalArgumentException ex) {
                 rejected++;
-                errors.add("row " + (i + 1) + ": invalid UUID or numeric value");
+                errors.add(CSV_ROW_PREFIX + (i + 1) + ": invalid UUID or numeric value");
                 continue;
             }
             product(hotel, productRequest);
@@ -823,19 +963,19 @@ public class InventoryService {
         return value == null || value.isBlank() ? BigDecimal.ZERO : new BigDecimal(value.trim());
     }
 
-    private String generatedImportSku(final java.util.Map<String, String> values) {
+    private String generatedImportSku(final Map<String, String> values) {
         final String canonical =
                 values.entrySet().stream()
-                        .sorted(java.util.Map.Entry.comparingByKey())
+                        .sorted(Map.Entry.comparingByKey())
                         .map(entry -> entry.getKey() + "=" + entry.getValue())
-                        .collect(java.util.stream.Collectors.joining("|"));
+                        .collect(Collectors.joining("|"));
         try {
             final byte[] digest =
-                    java.security.MessageDigest.getInstance("SHA-256")
-                            .digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(canonical.getBytes(StandardCharsets.UTF_8));
             return "IMP-"
-                    + java.util.HexFormat.of().formatHex(digest, 0, 10).toUpperCase(Locale.ROOT);
-        } catch (java.security.NoSuchAlgorithmException exception) {
+                    + HexFormat.of().formatHex(digest, 0, 10).toUpperCase(Locale.ROOT);
+        } catch (final NoSuchAlgorithmException exception) {
             throw new IllegalStateException("IMPORT_SKU_GENERATION_UNAVAILABLE", exception);
         }
     }
@@ -867,22 +1007,37 @@ public class InventoryService {
                 row.add(cell.toString());
                 cell.setLength(0);
             } else if ((current == '\n' || current == '\r') && !quoted) {
-                if (current == '\r' && i + 1 < csv.length() && csv.charAt(i + 1) == '\n') i++;
+                if (current == '\r' && i + 1 < csv.length() && csv.charAt(i + 1) == '\n') {
+                    i++;
+                }
                 row.add(cell.toString());
                 cell.setLength(0);
-                if (row.stream().anyMatch(value -> !value.isBlank())) rows.add(row);
+                if (row.stream().anyMatch(value -> !value.isBlank())) {
+                    rows.add(row);
+                }
                 row = new ArrayList<>();
             } else {
                 cell.append(current);
             }
         }
         row.add(cell.toString());
-        if (row.stream().anyMatch(value -> !value.isBlank())) rows.add(row);
-        if (quoted) throw new IllegalArgumentException("CSV_UNCLOSED_QUOTE");
+        if (row.stream().anyMatch(value -> !value.isBlank())) {
+            rows.add(row);
+        }
+        if (quoted) {
+            throw new IllegalArgumentException("CSV_UNCLOSED_QUOTE");
+        }
         return rows;
     }
 
-    /** Imports the first two columns of an XLSX catalog as SKU and product name. */
+    /**
+     * Imports the first two columns of an XLSX catalog as SKU and product name.
+     *
+     * @param hotel tenant identifier
+     * @param file uploaded workbook
+     * @return import summary, including rejected rows
+     * @implSpec Overrides must preserve tenant scope and workbook validation.
+     */
     @Transactional
     public ImportResult importXlsx(final UUID hotel, final MultipartFile file) {
         int imported = 0;
@@ -898,24 +1053,42 @@ public class InventoryService {
                 }
                 final String sku = row.getCell(0) == null ? "" : row.getCell(0).toString().trim();
                 final String name = row.getCell(1) == null ? "" : row.getCell(1).toString().trim();
-                if (rowIndex == 0 && "sku".equalsIgnoreCase(sku)) {
+                if (rowIndex == 0 && SKU_HEADER.equalsIgnoreCase(sku)) {
                     continue;
                 }
                 if (sku.isBlank() || name.isBlank()) {
                     rejected++;
-                    errors.add("row " + (rowIndex + 1) + ": sku and name are required");
+                    errors.add(
+                            CSV_ROW_PREFIX
+                                    + (rowIndex + 1)
+                                    + ": "
+                                    + SKU_HEADER
+                                    + " and "
+                                    + NAME_HEADER
+                                    + " are required");
                     continue;
                 }
                 product(hotel, new ProductRequest(sku, name, false));
                 imported++;
             }
-        } catch (final IOException | RuntimeException ex) {
+        } catch (
+                final IOException
+                        | EncryptedDocumentException
+                        | IllegalArgumentException
+                        | IllegalStateException ex) {
             throw new IllegalArgumentException("XLSX_IMPORT_FAILED", ex);
         }
         return new ImportResult(imported, rejected, errors);
     }
 
-    /** Extracts supplier text from a PDF and imports simple SKU/name lines. */
+    /**
+     * Extracts supplier text from a PDF and imports simple SKU/name lines.
+     *
+     * @param hotel tenant identifier
+     * @param file uploaded PDF
+     * @return import summary
+     * @implSpec Overrides must preserve tenant scope and PDF parsing behavior.
+     */
     @Transactional
     public ImportResult importPdf(final UUID hotel, final MultipartFile file) {
         try {
@@ -924,8 +1097,16 @@ public class InventoryService {
                 final String text = new PDFTextStripper().getText(document);
                 return importCsv(hotel, text.replace('|', ',').replace(';', ','));
             }
-        } catch (final IOException | RuntimeException ex) {
+        } catch (final IOException | IllegalArgumentException ex) {
             throw new IllegalArgumentException("PDF_IMPORT_FAILED", ex);
         }
     }
+
+    /**
+     * Product and quantity to deduct for a confirmed POS order.
+     *
+     * @param productId tenant-owned inventory product identifier
+     * @param quantity positive quantity to consume
+     */
+    public record PosConsumptionLine(UUID productId, long quantity) { }
 }

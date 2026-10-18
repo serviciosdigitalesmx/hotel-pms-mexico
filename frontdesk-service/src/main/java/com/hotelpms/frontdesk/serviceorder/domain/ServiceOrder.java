@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Type domain type. */
+/**
+ * Tenant- and branch-scoped repair order aggregate, including its payment and delivery state.
+ */
 @Entity
 @Table(
         name = "service_orders",
@@ -44,6 +46,9 @@ public class ServiceOrder {
     private static final int DIAGNOSIS_LENGTH = 4000;
     private static final int WORK_LOG_LENGTH = 8000;
     private static final int AUTHORIZATION_EVIDENCE_LENGTH = 2000;
+    private static final int MONEY_PRECISION = 12;
+    private static final int MONEY_SCALE = 2;
+    private static final int PAYMENT_METHOD_LENGTH = 24;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -71,7 +76,7 @@ public class ServiceOrder {
     @Column(name = "service_name", length = 200)
     private String serviceName;
 
-    @Column(name = "deposit_amount", precision = 12, scale = 2)
+    @Column(name = "deposit_amount", precision = MONEY_PRECISION, scale = MONEY_SCALE)
     @Builder.Default
     private BigDecimal depositAmount = BigDecimal.ZERO;
 
@@ -115,25 +120,25 @@ public class ServiceOrder {
 
     private Integer estimatedMinutes;
 
-    @Column(precision = 12, scale = 2)
+    @Column(precision = MONEY_PRECISION, scale = MONEY_SCALE)
     private BigDecimal laborAmount;
 
-    @Column(precision = 12, scale = 2)
+    @Column(precision = MONEY_PRECISION, scale = MONEY_SCALE)
     private BigDecimal partsAmount;
 
-    @Column(precision = 12, scale = 2)
+    @Column(precision = MONEY_PRECISION, scale = MONEY_SCALE)
     private BigDecimal taxAmount;
 
-    @Column(precision = 12, scale = 2)
+    @Column(precision = MONEY_PRECISION, scale = MONEY_SCALE)
     private BigDecimal quoteTotal;
 
-    @Column(name = "payment_method", length = 24)
+    @Column(name = "payment_method", length = PAYMENT_METHOD_LENGTH)
     private String paymentMethod;
 
     @Column(name = "payment_status", length = 16)
     private String paymentStatus;
 
-    @Column(name = "paid_amount", precision = 12, scale = 2)
+    @Column(name = "paid_amount", precision = MONEY_PRECISION, scale = MONEY_SCALE)
     @Builder.Default
     private BigDecimal paidAmount = BigDecimal.ZERO;
 

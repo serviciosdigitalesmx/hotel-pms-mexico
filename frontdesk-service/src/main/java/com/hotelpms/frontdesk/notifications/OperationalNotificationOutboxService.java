@@ -8,6 +8,8 @@ import com.hotelpms.frontdesk.client.dto.NotificationEventResponse;
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
 import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 
+import feign.FeignException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -148,7 +150,8 @@ public class OperationalNotificationOutboxService {
                 outbox.setLastError(null);
                 outbox.setPayload("{}");
                 forwarded++;
-            } catch (final JsonProcessingException | RuntimeException exception) {
+            } catch (
+                    final JsonProcessingException | FeignException | IllegalStateException exception) {
                 outbox.setStatus(OperationalNotificationOutbox.Status.FAILED);
                 outbox.setLastError(summarizeError(exception));
                 outbox.setNextAttemptAt(

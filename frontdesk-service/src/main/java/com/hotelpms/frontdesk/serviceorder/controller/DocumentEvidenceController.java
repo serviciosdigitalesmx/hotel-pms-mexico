@@ -21,26 +21,25 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/** Type domain type. */
+/**
+ * Exposes tenant-authorized evidence metadata and content for Fixi repair orders.
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/documents")
 public class DocumentEvidenceController {
     private final DocumentEvidenceService service;
 
-    public record EvidenceView(
-            UUID id,
-            UUID serviceOrderId,
-            UUID customerId,
-            String fileName,
-            String contentType,
-            String storageKey,
-            String accessLevel,
-            java.time.LocalDateTime createdAt) {}
-
+    /**
+     * Converts stored evidence into a response without exposing inline data URLs.
+     *
+     * @param evidence stored evidence record
+     * @return safe response view
+     */
     public static EvidenceView view(final DocumentEvidence evidence) {
         final String storageKey =
                 evidence.getStorageKey() != null && evidence.getStorageKey().startsWith("data:")
@@ -81,6 +80,13 @@ public class DocumentEvidenceController {
         return service.list(hotel(), order).stream().map(DocumentEvidenceController::view).toList();
     }
 
+    /**
+     * Returns the stored bytes for evidence after service-level tenant and access checks.
+     *
+     * @implSpec Overrides must preserve service-level authorization and tenant checks.
+     * @param id evidence identifier
+     * @return stored evidence bytes
+     */
     @GetMapping("/{id}/content")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
     public ResponseEntity<byte[]> content(@PathVariable final UUID id) {
@@ -97,4 +103,26 @@ public class DocumentEvidenceController {
                 String.valueOf(
                         SecurityContextHolder.getContext().getAuthentication().getDetails()));
     }
+
+    /**
+     * Safe response view for evidence attached to a repair order.
+     *
+     * @param id evidence identifier
+     * @param serviceOrderId repair-order identifier
+     * @param customerId customer identifier
+     * @param fileName original file name
+     * @param contentType media type
+     * @param storageKey protected storage reference
+     * @param accessLevel evidence access level
+     * @param createdAt creation timestamp
+     */
+    public record EvidenceView(
+            UUID id,
+            UUID serviceOrderId,
+            UUID customerId,
+            String fileName,
+            String contentType,
+            String storageKey,
+            String accessLevel,
+            LocalDateTime createdAt) { }
 }

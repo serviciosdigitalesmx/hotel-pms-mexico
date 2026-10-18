@@ -24,17 +24,11 @@ public interface OperationalNotificationOutboxRepository
      * @return affected row count, zero when the event already exists
      */
     @Modifying
-    /**
-     * Locks due outbox events for concurrent-safe forwarding.
-     *
-     * @param maxAttempts maximum delivery attempts
-     * @param pageable bounded batch page
-     * @return locked due events
-     */
     @Query(
             value =
                     "insert into operational_notification_outbox"
-                        + " (id,hotel_id,event_key,source_key,event_type,payload,status,attempts,next_attempt_at,created_at)"
+                        + " (id,hotel_id,event_key,source_key,event_type,payload,status,attempts,"
+                        + "next_attempt_at,created_at)"
                         + " values"
                         + " (:id,:hotelId,:eventKey,:sourceKey,:eventType,:payload,'PENDING',0,current_timestamp,current_timestamp)"
                         + " on conflict (hotel_id,event_key) do nothing",
@@ -47,6 +41,13 @@ public interface OperationalNotificationOutboxRepository
             @Param("eventType") String eventType,
             @Param("payload") String payload);
 
+    /**
+     * Locks due outbox events for concurrent-safe forwarding.
+     *
+     * @param maxAttempts maximum delivery attempts
+     * @param pageable bounded batch page
+     * @return locked due events
+     */
     @Query(
             value =
                     "select * from operational_notification_outbox where status in"

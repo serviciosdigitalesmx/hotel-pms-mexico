@@ -21,6 +21,7 @@ import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.repository.RepairTestRepository;
 import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderRepository;
 import com.hotelpms.frontdesk.serviceorder.repository.ServiceOrderStatusHistoryRepository;
+import com.hotelpms.frontdesk.stays.domain.HotelSettings;
 import com.hotelpms.frontdesk.stays.repository.HotelSettingsRepository;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowDefinition;
 import com.hotelpms.frontdesk.workflow.domain.WorkflowState;
@@ -33,19 +34,34 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
-/** Coordinates tenant-scoped repair orders and their workflow, inventory, and payment effects. */
+/**
+ * Coordinates tenant-scoped repair orders and their workflow, inventory, and payment effects.
+ */
 @Service
 @RequiredArgsConstructor
 public class ServiceOrderService {
+    private static final String SERVICE_ORDER_NOT_FOUND = "SERVICE_ORDER_NOT_FOUND";
+    private static final String OPERATOR_ACTOR = "operator";
+    private static final String PAYMENT_PENDING = "PENDING";
+    private static final String PAYMENT_PAID = "PAID";
     private final ServiceOrderRepository repository;
     private final RepairTestRepository repairTests;
     private final ServiceOrderStatusHistoryRepository history;
@@ -59,47 +75,8 @@ public class ServiceOrderService {
     private final InventoryService inventoryService;
     private final OperationalNotificationOutboxService notificationOutbox;
 
-    /** A configured workflow state exposed to repair-order clients.
-     *
-     * @param workflowId workflow identifier
-     * @param stateKey stable state key
-     * @param label human-readable state label
-     */
-    public record ConfiguredWorkflowStatus(
-            String workflowId, String stateKey, String label) {}
-
-    /** A permitted transition between two configured workflow states.
-     *
-     * @param key stable transition key
-     * @param fromStateKey source state key
-     * @param toStateKey destination state key
-     */
-    public record ConfiguredWorkflowTransition(
-            String key, String fromStateKey, String toStateKey) {}
-
-    /** Number of repair orders currently associated with a customer.
-     *
-     * @param customerId customer identifier
-     * @param count number of orders
-     */
-    public record CustomerOrderCount(UUID customerId, long count) {}
-
-    /** Active configured workflow and its currently available transitions.
-     *
-     * @param id workflow identifier
-     * @param name workflow display name
-     * @param currentState current aggregate state key
-     * @param initialState configured initial state key
-     * @param transitions active transitions
-     */
-    public record ConfiguredWorkflowView(
-            String id,
-            String name,
-            String currentState,
-            String initialState,
-            java.util.List<ConfiguredWorkflowTransition> transitions) {}
-
-    /** Returns the active repair workflow for an order in the requested tenant.
+    /**
+     * Returns the active repair workflow for an order in the requested tenant.
      *
      * @param hotelId tenant identifier
      * @param orderId repair-order identifier
@@ -109,10 +86,12 @@ public class ServiceOrderService {
     @Transactional(readOnly = true)
     public ConfiguredWorkflowView configuredWorkflow(final UUID hotelId, final UUID orderId) {
         get(hotelId, orderId);
-        WorkflowDefinition workflow = workflows.activeForVertical(hotelId, "REPAIR");
-        if (workflow == null) return null;
-        WorkflowState current = workflows.stateForAggregate(hotelId, workflow.getId(), orderId);
-        String initialState =
+        final WorkflowDefinition workflow = workflows.activeForVertical(hotelId, "REPAIR");
+        if (workflow == null) {
+            return null;
+        }
+        final WorkflowState current = workflows.stateForAggregate(hotelId, workflow.getId(), orderId);
+        final String initialState =
                 workflows.states(hotelId, workflow.getId()).stream()
                         .filter(WorkflowState::isInitialState)
                         .map(WorkflowState::getKey)
@@ -134,7 +113,8 @@ public class ServiceOrderService {
                         .toList());
     }
 
-    /** Applies an authorized configured transition and synchronizes the order's operational state.
+    /**
+     * Applies an authorized configured transition and synchronizes the order's operational state.
      *
      * @param hotelId tenant identifier
      * @param orderId repair-order identifier
@@ -150,12 +130,14 @@ public class ServiceOrderService {
             final UUID orderId,
             final String transitionKey,
             final String actor,
-            final java.util.Collection<String> authorities) {
-        ServiceOrder order = get(hotelId, orderId);
-        WorkflowDefinition workflow = workflows.activeForVertical(hotelId, "REPAIR");
-        if (workflow == null) throw new NotFoundException("No active REPAIR workflow configured");
-        WorkflowState current = workflows.stateForAggregate(hotelId, workflow.getId(), orderId);
-        String fromKey =
+            final Collection<String> authorities) {
+        final ServiceOrder order = get(hotelId, orderId);
+        final WorkflowDefinition workflow = workflows.activeForVertical(hotelId, "REPAIR");
+        if (workflow == null) {
+            throw new NotFoundException("No active REPAIR workflow configured");
+        }
+        final WorkflowState current = workflows.stateForAggregate(hotelId, workflow.getId(), orderId);
+        final String fromKey =
                 current == null
                         ? workflows.states(hotelId, workflow.getId()).stream()
                                 .filter(WorkflowState::isInitialState)
@@ -166,7 +148,7 @@ public class ServiceOrderService {
                                                 new IllegalStateException(
                                                         "REPAIR workflow has no initial state"))
                         : current.getKey();
-        WorkflowTransition transition =
+        final WorkflowTransition transition =
                 workflows.transitions(hotelId, workflow.getId()).stream()
                         .filter(
                                 t ->
@@ -179,25 +161,24 @@ public class ServiceOrderService {
                                 () ->
                                         new IllegalStateException(
                                                 "Transition is not allowed from current state"));
-        boolean privileged =
+        final boolean privileged =
                 authorities.contains("ROLE_ADMIN") || authorities.contains("ROLE_OWNER");
-        boolean granted =
+        final boolean granted =
                 privileged
                         || Boolean.TRUE.equals(
                                 capabilityClient
                                         .evaluate(transition.getRequiredPermission())
                                         .get("enabled"));
         if (!granted) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Missing workflow permission");
+            throw new AccessDeniedException("Missing workflow permission");
         }
         workflows.transition(
                 hotelId,
                 workflow.getId(),
                 new TransitionRequest(orderId, fromKey, transitionKey),
                 actor);
-        WorkflowState destination = transition.getToState();
-        ServiceOrderStatus nextStatus =
+        final WorkflowState destination = transition.getToState();
+        final ServiceOrderStatus nextStatus =
                 switch (destination.getSemanticPhase()) {
                     case INTAKE -> ServiceOrderStatus.INTAKE;
                     case DIAGNOSIS -> ServiceOrderStatus.DIAGNOSIS;
@@ -218,7 +199,7 @@ public class ServiceOrderService {
                 && hasFailedLatestRepairTest(hotelId, orderId)) {
             throw new IllegalStateException("REPAIR_TESTS_FAILED");
         }
-        ServiceOrderStatus previous = order.getStatus();
+        final ServiceOrderStatus previous = order.getStatus();
         order.setStatus(nextStatus);
         if (nextStatus == ServiceOrderStatus.COMPLETED
                 && previous != ServiceOrderStatus.COMPLETED) {
@@ -233,12 +214,14 @@ public class ServiceOrderService {
                 && previous != ServiceOrderStatus.COMPLETED) {
             inventoryService.consumeReservations(hotelId, orderId);
         }
-        if (previous != nextStatus)
+        if (previous != nextStatus) {
             record(order, previous, nextStatus, actor, "Flujo configurable: " + transitionKey);
+        }
         return configuredWorkflow(hotelId, orderId);
     }
 
-    /** Creates a tenant-scoped order using the system actor for its initial history entry.
+    /**
+     * Creates a tenant-scoped order using the system actor for its initial history entry.
      *
      * @param hotelId tenant identifier
      * @param request order creation data
@@ -250,7 +233,8 @@ public class ServiceOrderService {
         return create(hotelId, request, "system");
     }
 
-    /** Creates an order and records its deposit, assignment, audit, and history effects.
+    /**
+     * Creates an order and records its deposit, assignment, audit, and history effects.
      *
      * @param hotelId tenant identifier
      * @param request order creation data
@@ -268,12 +252,13 @@ public class ServiceOrderService {
                         ? "OTHER"
                         : request.depositPaymentMethod();
         if (deposit.compareTo(BigDecimal.ZERO) > 0
-                && !java.util.Set.of("CASH", "CHECK", "BANK_DEPOSIT", "PAYPAL", "CARD", "OTHER")
+                && !Set.of("CASH", "CHECK", "BANK_DEPOSIT", "PAYPAL", "CARD", "OTHER")
                         .contains(depositMethod)) {
             throw new IllegalArgumentException("DEPOSIT_PAYMENT_METHOD_REQUIRED");
         }
-        if (request.branchId() != null)
+        if (request.branchId() != null) {
             branchValidation.requireActiveBranch(hotelId, request.branchId());
+        }
         branchValidation.requireTechnician(request.assignedUserId(), request.branchId());
         validateCustomerDevice(request.customerId(), request.deviceId());
         final LocalDateTime now = LocalDateTime.now();
@@ -343,7 +328,8 @@ public class ServiceOrderService {
         return saved;
     }
 
-    /** Updates an open order without bypassing dedicated workflow transitions.
+    /**
+     * Updates an open order without bypassing dedicated workflow transitions.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -357,7 +343,7 @@ public class ServiceOrderService {
         final ServiceOrder order =
                 repository
                         .findByIdAndHotelId(id, hotelId)
-                        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+                        .orElseThrow(() -> new NotFoundException(SERVICE_ORDER_NOT_FOUND));
         if (order.getStatus() == ServiceOrderStatus.COMPLETED
                 || order.getStatus() == ServiceOrderStatus.CANCELLED) {
             throw new IllegalStateException("SERVICE_ORDER_CLOSED");
@@ -380,12 +366,17 @@ public class ServiceOrderService {
         order.setDiagnosis(request.diagnosis());
         order.setWorkLog(request.workLog());
         order.setAssignedUserId(request.assignedUserId());
-        if (request.priority() != null) order.setPriority(request.priority());
-        if (request.promisedAt() != null) order.setPromisedAt(request.promisedAt());
-        else if (Boolean.TRUE.equals(request.clearPromisedAt())) order.setPromisedAt(null);
+        if (request.priority() != null) {
+            order.setPriority(request.priority());
+        }
+        if (request.promisedAt() != null) {
+            order.setPromisedAt(request.promisedAt());
+        } else if (Boolean.TRUE.equals(request.clearPromisedAt())) {
+            order.setPromisedAt(null);
+        }
         order.setUpdatedAt(LocalDateTime.now());
         final ServiceOrder saved = repository.save(order);
-        if (!java.util.Objects.equals(previousAssignedUserId, request.assignedUserId())
+        if (!Objects.equals(previousAssignedUserId, request.assignedUserId())
                 && request.assignedUserId() != null) {
             notificationOutbox.enqueue(
                     hotelId,
@@ -397,16 +388,17 @@ public class ServiceOrderService {
                             + " asignación actual.",
                     "ORDER_ASSIGNED:" + saved.getId() + ":" + UUID.randomUUID());
         }
-        if (previous != request.status())
-            record(saved, previous, request.status(), "operator", request.workLog());
-        else if (!java.util.Objects.equals(previousWorkLog, request.workLog())
-                && ((previousWorkLog != null && !previousWorkLog.isBlank())
-                        || (request.workLog() != null && !request.workLog().isBlank()))) {
+        if (previous != request.status()) {
+            record(saved, previous, request.status(), OPERATOR_ACTOR, request.workLog());
+        }
+        else if (!Objects.equals(previousWorkLog, request.workLog())
+                && (previousWorkLog != null && !previousWorkLog.isBlank()
+                        || request.workLog() != null && !request.workLog().isBlank())) {
             final String note =
                     request.workLog() == null || request.workLog().isBlank()
                             ? "Bitácora de reparación eliminada"
                             : request.workLog();
-            record(saved, previous, previous, "operator", note);
+            record(saved, previous, previous, OPERATOR_ACTOR, note);
         }
         if (previous != request.status()) {
             auditEvents.record(
@@ -422,7 +414,9 @@ public class ServiceOrderService {
     }
 
     private void validateCustomerDevice(final UUID customerId, final UUID deviceId) {
-        if (deviceId == null) return;
+        if (deviceId == null) {
+            return;
+        }
         final CustomerDeviceResponse device = guestClient.getCustomerDevice(customerId, deviceId);
         if (!customerId.equals(device.customerId())) {
             throw new IllegalArgumentException("DEVICE_CUSTOMER_MISMATCH");
@@ -439,7 +433,8 @@ public class ServiceOrderService {
         };
     }
 
-    /** Loads an order by identifier while enforcing tenant ownership in the repository query.
+    /**
+     * Loads an order by identifier while enforcing tenant ownership in the repository query.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -450,10 +445,11 @@ public class ServiceOrderService {
     public ServiceOrder get(final UUID hotelId, final UUID id) {
         return repository
                 .findByIdAndHotelId(id, hotelId)
-                .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+                .orElseThrow(() -> new NotFoundException(SERVICE_ORDER_NOT_FOUND));
     }
 
-    /** Lists a customer's orders within the requested tenant, newest first.
+    /**
+     * Lists a customer's orders within the requested tenant, newest first.
      *
      * @param hotelId tenant identifier
      * @param customerId customer identifier
@@ -465,7 +461,8 @@ public class ServiceOrderService {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotelId, customerId);
     }
 
-    /** Lists all tenant orders, newest first.
+    /**
+     * Lists all tenant orders, newest first.
      *
      * @param hotelId tenant identifier
      * @return tenant orders
@@ -476,7 +473,8 @@ public class ServiceOrderService {
         return repository.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
     }
 
-    /** Counts tenant-scoped orders for each distinct customer identifier supplied.
+    /**
+     * Counts tenant-scoped orders for each distinct customer identifier supplied.
      *
      * @param hotelId tenant identifier
      * @param customerIds customer identifiers to count
@@ -486,7 +484,9 @@ public class ServiceOrderService {
     @Transactional(readOnly = true)
     public List<CustomerOrderCount> customerOrderCounts(
             final UUID hotelId, final List<UUID> customerIds) {
-        if (customerIds == null || customerIds.isEmpty()) return List.of();
+        if (customerIds == null || customerIds.isEmpty()) {
+            return List.of();
+        }
         return repository
                 .countOrdersForCustomers(hotelId, customerIds.stream().distinct().toList())
                 .stream()
@@ -494,7 +494,8 @@ public class ServiceOrderService {
                 .toList();
     }
 
-    /** Returns a tenant-scoped page of repair orders.
+    /**
+     * Returns a tenant-scoped page of repair orders.
      *
      * @param hotelId tenant identifier
      * @param pageable page request
@@ -506,7 +507,8 @@ public class ServiceOrderService {
         return repository.findAllByHotelId(hotelId, pageable);
     }
 
-    /** Records customer authorization of a quote and appends the corresponding status history.
+    /**
+     * Records customer authorization of a quote and appends the corresponding status history.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -540,7 +542,8 @@ public class ServiceOrderService {
         return saved;
     }
 
-    /** Records a customer's rejection of a quote without changing its financial details.
+    /**
+     * Records a customer's rejection of a quote without changing its financial details.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -555,15 +558,16 @@ public class ServiceOrderService {
             final UUID id,
             final UUID actor,
             final AuthorizationRequest request) {
-        var order = get(hotelId, id);
-        if (order.getStatus() != ServiceOrderStatus.QUOTED)
+        final var order = get(hotelId, id);
+        if (order.getStatus() != ServiceOrderStatus.QUOTED) {
             throw new IllegalStateException("SERVICE_ORDER_NOT_QUOTED");
+        }
         order.setStatus(ServiceOrderStatus.QUOTE_REJECTED);
         order.setAuthorizationEvidence(request.evidence().trim());
         order.setAuthorizedBy(actor);
         order.setAuthorizedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        var saved = repository.save(order);
+        final var saved = repository.save(order);
         record(
                 saved,
                 ServiceOrderStatus.QUOTED,
@@ -573,7 +577,8 @@ public class ServiceOrderService {
         return saved;
     }
 
-    /** Calculates and persists an order quote, applying the tenant's configured tax rate.
+    /**
+     * Calculates and persists an order quote, applying the tenant's configured tax rate.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -596,7 +601,7 @@ public class ServiceOrderService {
         final var rate =
                 hotelSettingsRepository
                         .findById(hotelId)
-                        .map(settings -> settings.getDefaultTaxRate())
+                        .map(HotelSettings::getDefaultTaxRate)
                         .orElse(null);
         final var tax =
                 rate == null
@@ -605,25 +610,27 @@ public class ServiceOrderService {
                                 .add(request.partsAmount())
                                 .multiply(rate)
                                 .divide(
-                                        new java.math.BigDecimal("100"),
+                                        new BigDecimal("100"),
                                         2,
-                                        java.math.RoundingMode.HALF_UP);
+                                        RoundingMode.HALF_UP);
         order.setTaxAmount(tax);
         order.setQuoteTotal(request.laborAmount().add(request.partsAmount()).add(tax));
         final BigDecimal received =
                 order.getPaidAmount() == null
                         ? zero(order.getDepositAmount())
                         : order.getPaidAmount();
-        order.setPaymentStatus(received.compareTo(order.getQuoteTotal()) >= 0 ? "PAID" : "PENDING");
+        order.setPaymentStatus(
+                received.compareTo(order.getQuoteTotal()) >= 0 ? PAYMENT_PAID : PAYMENT_PENDING);
         final var previous = order.getStatus();
         order.setStatus(ServiceOrderStatus.QUOTED);
         order.setUpdatedAt(LocalDateTime.now());
         final ServiceOrder saved = repository.save(order);
-        record(saved, previous, ServiceOrderStatus.QUOTED, "operator", "Cotización generada");
+        record(saved, previous, ServiceOrderStatus.QUOTED, OPERATOR_ACTOR, "Cotización generada");
         return saved;
     }
 
-    /** Adds a repair test and moves an in-progress order into quality assurance on first test.
+    /**
+     * Adds a repair test and moves an in-progress order into quality assurance on first test.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -646,7 +653,7 @@ public class ServiceOrderService {
                     order,
                     ServiceOrderStatus.IN_PROGRESS,
                     ServiceOrderStatus.QA,
-                    "operator",
+                OPERATOR_ACTOR,
                     "Pruebas iniciadas");
             notificationOutbox.enqueue(
                     hotelId,
@@ -667,7 +674,8 @@ public class ServiceOrderService {
                         .build());
     }
 
-    /** Lists repair tests after verifying that the order belongs to the tenant.
+    /**
+     * Lists repair tests after verifying that the order belongs to the tenant.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -680,7 +688,8 @@ public class ServiceOrderService {
         return repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, id);
     }
 
-    /** Lists the chronological status and activity history for a tenant-owned order.
+    /**
+     * Lists the chronological status and activity history for a tenant-owned order.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -693,7 +702,8 @@ public class ServiceOrderService {
         return history.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, id);
     }
 
-    /** Appends an internal note without changing the order's current status.
+    /**
+     * Appends an internal note without changing the order's current status.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -707,7 +717,9 @@ public class ServiceOrderService {
             final UUID hotelId, final UUID id, final String actor, final String note) {
         final ServiceOrder order = get(hotelId, id);
         final String normalized = note == null ? "" : note.trim();
-        if (normalized.isEmpty()) throw new IllegalArgumentException("SERVICE_ORDER_NOTE_REQUIRED");
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("SERVICE_ORDER_NOTE_REQUIRED");
+        }
         return history.save(
                 ServiceOrderStatusHistory.builder()
                         .hotelId(hotelId)
@@ -720,7 +732,8 @@ public class ServiceOrderService {
                         .build());
     }
 
-    /** Delivers an order after quality checks, recording payment or a valid outstanding balance.
+    /**
+     * Delivers an order after quality checks, recording payment or a valid outstanding balance.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -735,17 +748,19 @@ public class ServiceOrderService {
         final ServiceOrder order =
                 repository
                         .findForUpdateByIdAndHotelId(id, hotelId)
-                        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+                        .orElseThrow(() -> new NotFoundException(SERVICE_ORDER_NOT_FOUND));
         if (order.getStatus() == ServiceOrderStatus.COMPLETED && order.getDeliveredAt() != null) {
-            if (paymentMethod != null && paymentMethod.equals(order.getPaymentMethod()))
+            if (paymentMethod != null && paymentMethod.equals(order.getPaymentMethod())) {
                 return order;
+            }
             throw new IllegalStateException("SERVICE_ORDER_ALREADY_DELIVERED");
         }
         if (order.getStatus() != ServiceOrderStatus.QA) {
             throw new IllegalStateException("SERVICE_ORDER_NOT_READY_FOR_DELIVERY");
         }
-        if (hasFailedLatestRepairTest(hotelId, id))
+        if (hasFailedLatestRepairTest(hotelId, id)) {
             throw new IllegalStateException("REPAIR_TESTS_FAILED");
+        }
         if (paymentMethod == null || paymentMethod.isBlank()) {
             throw new IllegalArgumentException("PAYMENT_METHOD_REQUIRED");
         }
@@ -757,17 +772,19 @@ public class ServiceOrderService {
                 order.getQuoteTotal() == null
                         ? BigDecimal.ZERO
                         : order.getQuoteTotal().subtract(received);
-        if ("PENDING".equals(paymentMethod) && outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+        if (PAYMENT_PENDING.equals(paymentMethod)
+                && outstanding.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalStateException("SERVICE_ORDER_HAS_NO_OUTSTANDING_BALANCE");
         }
         inventoryService.consumeReservations(hotelId, id);
         order.setPaymentMethod(paymentMethod);
-        order.setPaymentStatus("PENDING".equals(paymentMethod) ? "PENDING" : "PAID");
+        order.setPaymentStatus(
+                PAYMENT_PENDING.equals(paymentMethod) ? PAYMENT_PENDING : PAYMENT_PAID);
         final BigDecimal receivedOnDelivery =
-                !"PENDING".equals(paymentMethod)
+                !PAYMENT_PENDING.equals(paymentMethod)
                         ? outstanding.max(BigDecimal.ZERO)
                         : BigDecimal.ZERO;
-        if (!"PENDING".equals(paymentMethod) && order.getQuoteTotal() != null) {
+        if (!PAYMENT_PENDING.equals(paymentMethod) && order.getQuoteTotal() != null) {
             order.setPaidAmount(received.max(order.getQuoteTotal()));
         } else {
             order.setPaidAmount(received);
@@ -792,7 +809,8 @@ public class ServiceOrderService {
                         + receivedOnDelivery.toPlainString()
                         + " · método "
                         + paymentMethod);
-        if ("PENDING".equals(paymentMethod) && outstanding.compareTo(BigDecimal.ZERO) > 0) {
+        if (PAYMENT_PENDING.equals(paymentMethod)
+                && outstanding.compareTo(BigDecimal.ZERO) > 0) {
             notificationOutbox.enqueue(
                     hotelId,
                     "PAYMENT_DUE",
@@ -808,7 +826,7 @@ public class ServiceOrderService {
     }
 
     private boolean hasFailedLatestRepairTest(final UUID hotelId, final UUID orderId) {
-        var latestByTest = new java.util.LinkedHashMap<String, RepairTest>();
+        final var latestByTest = new LinkedHashMap<String, RepairTest>();
         repairTests
                 .findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, orderId)
                 .forEach(
@@ -818,7 +836,8 @@ public class ServiceOrderService {
         return latestByTest.values().stream().anyMatch(test -> !test.isPassed());
     }
 
-    /** Records the remaining balance using the full outstanding amount.
+    /**
+     * Records the remaining balance using the full outstanding amount.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -833,7 +852,8 @@ public class ServiceOrderService {
         return recordPendingPayment(hotelId, id, actor, paymentMethod, null);
     }
 
-    /** Records a requested amount against the outstanding balance.
+    /**
+     * Records a requested amount against the outstanding balance.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -853,7 +873,8 @@ public class ServiceOrderService {
         return recordPendingPayment(hotelId, id, actor, paymentMethod, requestedAmount, null);
     }
 
-    /** Records an idempotent balance payment and updates the order's cumulative paid amount.
+    /**
+     * Records an idempotent balance payment and updates the order's cumulative paid amount.
      *
      * @param hotelId tenant identifier
      * @param id repair-order identifier
@@ -875,7 +896,7 @@ public class ServiceOrderService {
         final ServiceOrder order =
                 repository
                         .findForUpdateByIdAndHotelId(id, hotelId)
-                        .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
+                        .orElseThrow(() -> new NotFoundException(SERVICE_ORDER_NOT_FOUND));
         final String requestFingerprint =
                 paymentMethod
                         + "|"
@@ -888,18 +909,21 @@ public class ServiceOrderService {
                             .filter(event -> requestId.toString().equals(event.get("requestId")))
                             .findFirst();
             if (previous.isPresent()) {
-                if (requestFingerprint.equals(previous.get().get("requestFingerprint")))
+                if (requestFingerprint.equals(previous.get().get("requestFingerprint"))) {
                     return order;
+                }
                 throw new IllegalArgumentException("SERVICE_ORDER_PAYMENT_REQUEST_ID_REUSED");
             }
         }
         if (order.getStatus() != ServiceOrderStatus.COMPLETED) {
             throw new IllegalStateException("SERVICE_ORDER_NOT_DELIVERED");
         }
-        if (!"PENDING".equals(order.getPaymentStatus())) {
+        if (!PAYMENT_PENDING.equals(order.getPaymentStatus())) {
             throw new IllegalStateException("SERVICE_ORDER_PAYMENT_NOT_PENDING");
         }
-        if (paymentMethod == null || paymentMethod.isBlank() || "PENDING".equals(paymentMethod)) {
+        if (paymentMethod == null
+                || paymentMethod.isBlank()
+                || PAYMENT_PENDING.equals(paymentMethod)) {
             throw new IllegalArgumentException("VALID_PAYMENT_METHOD_REQUIRED");
         }
         if (order.getQuoteTotal() == null
@@ -932,7 +956,9 @@ public class ServiceOrderService {
                 requestFingerprint);
         order.setPaymentMethod(paymentMethod);
         order.setPaymentStatus(
-                cumulativePaid.compareTo(order.getQuoteTotal()) >= 0 ? "PAID" : "PENDING");
+                cumulativePaid.compareTo(order.getQuoteTotal()) >= 0
+                        ? PAYMENT_PAID
+                        : PAYMENT_PENDING);
         order.setUpdatedAt(LocalDateTime.now());
         final ServiceOrder saved = repository.save(order);
         record(
@@ -974,9 +1000,9 @@ public class ServiceOrderService {
             final String requestFingerprint) {
         final var events =
                 order.getPaymentEvents() == null
-                        ? new java.util.ArrayList<java.util.Map<String, String>>()
-                        : new java.util.ArrayList<>(order.getPaymentEvents());
-        final var event = new java.util.HashMap<String, String>();
+                        ? new ArrayList<Map<String, String>>()
+                        : new ArrayList<>(order.getPaymentEvents());
+        final var event = new HashMap<String, String>();
         event.put("amount", amount.toPlainString());
         event.put("method", paymentMethod);
         event.put("kind", kind);
@@ -990,11 +1016,11 @@ public class ServiceOrderService {
     }
 
     private void record(
-            ServiceOrder o,
-            ServiceOrderStatus from,
-            ServiceOrderStatus to,
-            String actor,
-            String notes) {
+            final ServiceOrder o,
+            final ServiceOrderStatus from,
+            final ServiceOrderStatus to,
+            final String actor,
+            final String notes) {
         history.save(
                 ServiceOrderStatusHistory.builder()
                         .hotelId(o.getHotelId())
@@ -1007,7 +1033,50 @@ public class ServiceOrderService {
                         .build());
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
+    private boolean isBlank(final String value) {
+        return value == null || value.isBlank();
     }
+
+    /**
+     * A configured workflow state exposed to repair-order clients.
+     *
+     * @param workflowId workflow identifier
+     * @param stateKey stable state key
+     * @param label human-readable state label
+     */
+    public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) { }
+
+    /**
+     * A permitted transition between two configured workflow states.
+     *
+     * @param key stable transition key
+     * @param fromStateKey source state key
+     * @param toStateKey destination state key
+     */
+    public record ConfiguredWorkflowTransition(
+            String key, String fromStateKey, String toStateKey) { }
+
+    /**
+     * Number of repair orders currently associated with a customer.
+     *
+     * @param customerId customer identifier
+     * @param count number of orders
+     */
+    public record CustomerOrderCount(UUID customerId, long count) { }
+
+    /**
+     * Active configured workflow and its currently available transitions.
+     *
+     * @param id workflow identifier
+     * @param name workflow display name
+     * @param currentState current aggregate state key
+     * @param initialState configured initial state key
+     * @param transitions active transitions
+     */
+    public record ConfiguredWorkflowView(
+            String id,
+            String name,
+            String currentState,
+            String initialState,
+            List<ConfiguredWorkflowTransition> transitions) { }
 }
