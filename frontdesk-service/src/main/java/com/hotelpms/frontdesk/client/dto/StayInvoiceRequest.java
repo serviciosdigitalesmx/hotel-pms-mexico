@@ -9,4 +9,4 @@ import java.util.UUID;
  * @param guestId the primary guest UUID
  * @param reservationId the reservation UUID
  */
-public record StayInvoiceRequest(UUID stayId, UUID guestId, UUID reservationId) {}
+public record StayInvoiceRequest(UUID stayId, UUID guestId, UUID reservationId) { }

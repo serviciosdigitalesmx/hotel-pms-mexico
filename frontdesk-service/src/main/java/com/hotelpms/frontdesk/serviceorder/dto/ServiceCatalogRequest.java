@@ -7,7 +7,11 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/** Validated name, price, and estimated duration for a tenant service catalog entry. */
+/** Validated name, price, and estimated duration for a tenant service catalog entry.
+ * @param name service display name
+ * @param basePrice optional standard service price
+ * @param estimatedMinutes optional estimated duration
+ */
 public record ServiceCatalogRequest(
         @NotBlank @Size(max = SERVICE_NAME_LENGTH) String name,
         @DecimalMin("0.00") BigDecimal basePrice,

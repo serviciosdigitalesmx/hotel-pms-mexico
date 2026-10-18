@@ -7,11 +7,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import java.util.Map;
 
 /** Server-side capability evaluation using the signed tenant/user context. */
+@FunctionalInterface
 @FeignClient(
         contextId = "capabilityClient",
         name = "auth-service",
         url = "${APPLICATION_CONFIG_AUTH_SERVICE_URL:http://auth-service:8087}")
 public interface CapabilityClient {
+    /**
+     * Evaluates one capability against the authenticated server-side user and tenant.
+     *
+     * @param capabilityKey capability identifier
+     * @return capability decision returned by auth-service
+     */
     @GetMapping("/api/v1/auth/capabilities/{capabilityKey}")
     Map<String, Object> evaluate(@PathVariable("capabilityKey") String capabilityKey);
 }

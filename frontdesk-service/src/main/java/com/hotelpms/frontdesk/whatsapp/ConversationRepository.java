@@ -6,10 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Tenant/channel scoped conversation lookup. */
-@SuppressWarnings("checkstyle:MissingJavadocMethod")
+/** Tenant- and channel-scoped WhatsApp conversation access. */
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
-    // CHECKSTYLE: JavadocContentLocation|RequireEmptyLineBeforeBlockTagGroup OFF
     /**
      * Finds a conversation by tenant and provider channel.
      *
@@ -19,6 +17,11 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      */
     Optional<Conversation> findByHotelIdAndChannelKey(UUID hotelId, String channelKey);
 
+    /**
+     * Lists conversations for a tenant from most recently updated to oldest.
+     *
+     * @param hotelId tenant identifier
+     * @return tenant-owned conversations
+     */
     List<Conversation> findAllByHotelIdOrderByUpdatedAtDesc(UUID hotelId);
-    // CHECKSTYLE: JavadocContentLocation|RequireEmptyLineBeforeBlockTagGroup ON
 }

@@ -12,4 +12,4 @@ import java.util.UUID;
  * @param totalAmount the total amount billed
  */
 public record InvoiceStatusResponse(
-        UUID id, UUID reservationId, String status, BigDecimal totalAmount) {}
+        UUID id, UUID reservationId, String status, BigDecimal totalAmount) { }

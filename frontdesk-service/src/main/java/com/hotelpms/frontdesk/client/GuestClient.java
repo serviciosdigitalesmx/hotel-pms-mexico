@@ -62,7 +62,13 @@ public interface GuestClient {
     @GetMapping("/api/v1/guests/{id}")
     GuestResponse getGuestById(@PathVariable("id") UUID id);
 
-    /** Resolves a device only when it belongs to the requested customer in the active tenant. */
+    /**
+     * Resolves a device only when it belongs to the requested customer in the active tenant.
+     *
+     * @param customerId customer identifier
+     * @param deviceId device identifier
+     * @return tenant-validated customer-device details
+     */
     @GetMapping("/api/v1/customers/{customerId}/devices/{deviceId}")
     CustomerDeviceResponse getCustomerDevice(
             @PathVariable("customerId") UUID customerId, @PathVariable("deviceId") UUID deviceId);

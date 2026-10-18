@@ -12,8 +12,16 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 import java.util.UUID;
 
-/** WorkflowInstanceRepository domain type. */
+/** Tenant-scoped workflow instance reads and concurrency locks. */
 public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstance, UUID> {
+    /**
+     * Checks whether a workflow state is used by any tenant-owned instance.
+     *
+     * @param hotelId tenant identifier
+     * @param workflowId workflow identifier
+     * @param stateKey state key
+     * @return whether a matching instance exists
+     */
     boolean existsByHotelIdAndWorkflowIdAndStateKey(UUID hotelId, UUID workflowId, String stateKey);
 
     /**

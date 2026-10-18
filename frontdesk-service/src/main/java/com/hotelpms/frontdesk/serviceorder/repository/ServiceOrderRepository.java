@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** ServiceOrderRepository domain type. */
+/** Tenant-scoped repair order persistence, locks, and operational reporting. */
 public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID> {
     /**
      * Executes the operation.
@@ -28,6 +28,13 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      */
     Optional<ServiceOrder> findByIdAndHotelId(UUID id, UUID hotelId);
 
+    /**
+     * Locks a service order after verifying tenant ownership.
+     *
+     * @param id service order identifier
+     * @param hotelId tenant identifier
+     * @return locked order, if present
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from ServiceOrder o where o.id = :id and o.hotelId = :hotelId")
     Optional<ServiceOrder> findForUpdateByIdAndHotelId(
@@ -41,8 +48,28 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      */
     List<ServiceOrder> findAllByHotelIdOrderByCreatedAtDesc(UUID hotelId);
 
+    /**
+     * Lists a tenant's repair orders in a requested page.
+     *
+     * @param hotelId tenant identifier
+     * @param pageable pagination and sorting
+     * @return page of tenant-owned orders
+     */
     Page<ServiceOrder> findAllByHotelId(UUID hotelId, Pageable pageable);
 
+    /**
+     * Finds orders due for notification that have not been completed or cancelled.
+     *
+     * @param now current timestamp used for the overdue cutoff
+     * @return a bounded list of overdue tenant orders eligible for notification
+     */
+    /**
+     * Counts repair orders for each requested customer within a tenant.
+     *
+     * @param hotelId tenant identifier
+     * @param customerIds customer identifiers
+     * @return rows containing customer identifiers and order counts
+     */
     @Query(
             value =
                     "select o.* from service_orders o where o.promised_at <= :now and o.status not"

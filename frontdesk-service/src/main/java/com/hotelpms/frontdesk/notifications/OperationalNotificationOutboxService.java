@@ -142,7 +142,8 @@ public class OperationalNotificationOutboxService {
                         authContext.asHotel(
                                 outbox.getHotelId(), () -> notificationClient.enqueueEvent(event));
                 if (response == null) {
-                    throw new IllegalStateException("NOTIFICATION_EVENT_NOT_ACCEPTED");
+                    recordFailure(outbox, "NOTIFICATION_EVENT_NOT_ACCEPTED");
+                    continue;
                 }
                 outbox.setStatus(OperationalNotificationOutbox.Status.SENT);
                 outbox.setSentAt(LocalDateTime.now());
@@ -152,26 +153,31 @@ public class OperationalNotificationOutboxService {
                 forwarded++;
             } catch (
                     final JsonProcessingException | FeignException | IllegalStateException exception) {
-                outbox.setStatus(OperationalNotificationOutbox.Status.FAILED);
-                outbox.setLastError(summarizeError(exception));
-                outbox.setNextAttemptAt(
-                        LocalDateTime.now()
-                                .plusSeconds(
-                                        Math.min(
-                                                MAX_RETRY_DELAY_SECONDS,
-                                                INITIAL_RETRY_DELAY_SECONDS
-                                                        << Math.min(
-                                                                MAX_BACKOFF_SHIFT,
-                                                                outbox.getAttempts() - 1))));
-                log.warn(
-                        "Operational notification forwarding failed [eventKey={}, attempt={}]: {}",
-                        outbox.getEventKey(),
-                        outbox.getAttempts(),
-                        outbox.getLastError());
+                recordFailure(outbox, summarizeError(exception));
             }
         }
         repository.saveAll(batch);
         return forwarded;
+    }
+
+    private void recordFailure(
+            final OperationalNotificationOutbox outbox, final String errorMessage) {
+        outbox.setStatus(OperationalNotificationOutbox.Status.FAILED);
+        outbox.setLastError(errorMessage);
+        outbox.setNextAttemptAt(
+                LocalDateTime.now()
+                        .plusSeconds(
+                                Math.min(
+                                        MAX_RETRY_DELAY_SECONDS,
+                                        INITIAL_RETRY_DELAY_SECONDS
+                                                << Math.min(
+                                                        MAX_BACKOFF_SHIFT,
+                                                        outbox.getAttempts() - 1))));
+        log.warn(
+                "Operational notification forwarding failed [eventKey={}, attempt={}]: {}",
+                outbox.getEventKey(),
+                outbox.getAttempts(),
+                outbox.getLastError());
     }
 
     private String serialize(final Object value) {

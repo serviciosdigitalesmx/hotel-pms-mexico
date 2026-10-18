@@ -31,7 +31,7 @@ public class WhatsAppMessage {
     // CHECKSTYLE: AnnotationLocation|MagicNumber OFF
     private static final int PROVIDER_MESSAGE_ID_LENGTH = 180;
     private static final int DIRECTION_LENGTH = 10;
-    private static final int BODY_LENGTH = 10000;
+    private static final int BODY_LENGTH = 10_000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

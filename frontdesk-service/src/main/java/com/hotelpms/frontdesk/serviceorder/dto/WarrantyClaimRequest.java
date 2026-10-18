@@ -8,15 +8,15 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Domain type.
+ * Customer's request to evaluate a repair order under warranty.
  *
- * @param customerId value.
- * @param description value.
- * @param expiresAt value.
- * @param serviceOrderId value.
+ * @param serviceOrderId repair order identifier
+ * @param customerId owning customer identifier
+ * @param expiresAt warranty expiration date
+ * @param description reported warranty issue
  */
 public record WarrantyClaimRequest(
         @NotNull UUID serviceOrderId,
         @NotNull UUID customerId,
         @NotNull @FutureOrPresent LocalDate expiresAt,
-        @NotBlank String description) {}
+        @NotBlank String description) { }

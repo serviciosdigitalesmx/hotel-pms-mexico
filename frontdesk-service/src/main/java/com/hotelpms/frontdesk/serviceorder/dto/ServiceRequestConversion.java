@@ -5,10 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 /**
- * Domain type.
+ * Tenant-owned service request fields used to create a repair order.
  *
- * @param branchId value.
- * @param customerId value.
- * @param deviceId value.
+ * @param customerId owning customer identifier
+ * @param deviceId optional customer device identifier
+ * @param branchId receiving branch identifier
  */
-public record ServiceRequestConversion(@NotNull UUID customerId, UUID deviceId, UUID branchId) {}
+public record ServiceRequestConversion(@NotNull UUID customerId, UUID deviceId, UUID branchId) { }

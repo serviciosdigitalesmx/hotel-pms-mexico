@@ -9,12 +9,15 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Domain type.
+ * Validated updates to a tenant-owned Fixi repair order.
  *
- * @param assignedUserId value.
- * @param diagnosis value.
- * @param status value.
- * @param workLog value.
+ * @param status requested order status
+ * @param diagnosis updated diagnostic summary
+ * @param workLog updated technician work notes
+ * @param assignedUserId assigned technician identifier
+ * @param priority updated operational priority
+ * @param promisedAt updated promised completion time
+ * @param clearPromisedAt whether to clear the existing promise date
  */
 public record ServiceOrderUpdateRequest(
         @NotNull ServiceOrderStatus status,
@@ -23,4 +26,4 @@ public record ServiceOrderUpdateRequest(
         UUID assignedUserId,
         @Pattern(regexp = "LOW|NORMAL|HIGH|URGENT") String priority,
         LocalDateTime promisedAt,
-        Boolean clearPromisedAt) {}
+        Boolean clearPromisedAt) { }

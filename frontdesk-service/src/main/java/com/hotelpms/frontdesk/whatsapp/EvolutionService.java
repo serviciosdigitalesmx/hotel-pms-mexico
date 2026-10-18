@@ -182,6 +182,6 @@ public class EvolutionService implements WhatsAppProvider {
      * @param state normalized connection state
      * @param qrCode optional PNG data URL
      */
-    public record Connection(String state, String qrCode) {}
+    public record Connection(String state, String qrCode) { }
     // CHECKSTYLE: JavadocMethod ON
 }

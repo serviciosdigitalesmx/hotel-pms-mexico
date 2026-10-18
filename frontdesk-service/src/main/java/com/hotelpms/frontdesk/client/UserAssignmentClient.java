@@ -8,11 +8,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.UUID;
 
 /** Tenant-scoped technician assignment validation through auth-service. */
+@FunctionalInterface
 @FeignClient(
         contextId = "userAssignmentClient",
         name = "auth-service",
         url = "${APPLICATION_CONFIG_AUTH_SERVICE_URL:http://auth-service:8087}")
 public interface UserAssignmentClient {
+    /**
+     * Requires the user to be an active technician assigned to the optional branch.
+     *
+     * @param userId user identifier
+     * @param branchId optional branch identifier
+     */
     @PostMapping("/api/v1/auth/users/{userId}/validate-technician")
     void validateTechnician(
             @PathVariable("userId") UUID userId,

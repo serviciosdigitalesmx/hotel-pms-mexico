@@ -27,6 +27,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/warranty-claims")
 public class WarrantyClaimController {
+    private static final String SERVICE_TEAM_ROLES =
+            "hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')";
     private final WarrantyClaimService service;
 
     /**
@@ -36,7 +38,7 @@ public class WarrantyClaimController {
      * @return created warranty claim
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public ResponseEntity<WarrantyClaim> open(@Valid @RequestBody final WarrantyClaimRequest r) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.open(hotel(), r));
     }
@@ -48,13 +50,13 @@ public class WarrantyClaimController {
      * @return matching warranty claims
      */
     @GetMapping("/customer/{customer}")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public List<WarrantyClaim> list(@PathVariable final UUID customer) {
         return service.list(hotel(), customer);
     }
 
     @GetMapping("/service-order/{serviceOrderId}")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public List<WarrantyClaim> listByServiceOrder(@PathVariable final UUID serviceOrderId) {
         return service.listByServiceOrder(hotel(), serviceOrderId);
     }
@@ -66,7 +68,7 @@ public class WarrantyClaimController {
      * @return closed warranty claim
      */
     @PostMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public WarrantyClaim close(@PathVariable final UUID id) {
         return service.close(hotel(), id);
     }

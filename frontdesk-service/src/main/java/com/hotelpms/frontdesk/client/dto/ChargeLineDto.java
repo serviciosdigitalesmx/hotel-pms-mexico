@@ -8,4 +8,4 @@ import java.math.BigDecimal;
  * @param description human-readable charge description
  * @param amount charge amount (excl. VAT)
  */
-public record ChargeLineDto(String description, BigDecimal amount) {}
+public record ChargeLineDto(String description, BigDecimal amount) { }

@@ -1,5 +1,6 @@
 package com.hotelpms.frontdesk.whatsapp;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -64,14 +65,14 @@ public class WhatsAppConversationService {
     private JsonNode read(final String body) {
         try {
             return mapper.readTree(body);
-        } catch (final Exception ignored) {
+        } catch (final JsonProcessingException ignored) {
             return mapper.createObjectNode();
         }
     }
 
     private static String text(final JsonNode node, final String field, final String fallback) {
         final String value = node.path(field).asText("");
-        return value.isBlank() ? fallback : value.substring(0, Math.min(value.length(), 10000));
+        return value.isBlank() ? fallback : value.substring(0, Math.min(value.length(), 10_000));
     }
     // CHECKSTYLE: JavadocMethod|LeftCurly|IllegalCatch|OneStatementPerLine|MagicNumber ON
 }

@@ -2,5 +2,10 @@ package com.hotelpms.frontdesk.client.dto;
 
 import java.util.UUID;
 
-/** Minimal guest-service response used to enforce device ownership on repair orders. */
-public record CustomerDeviceResponse(UUID id, UUID customerId) {}
+/**
+ * Minimal customer-device response used to enforce ownership on repair orders.
+ *
+ * @param id device identifier
+ * @param customerId owning customer identifier
+ */
+public record CustomerDeviceResponse(UUID id, UUID customerId) { }

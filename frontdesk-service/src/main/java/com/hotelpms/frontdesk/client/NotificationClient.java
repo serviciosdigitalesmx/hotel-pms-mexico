@@ -34,11 +34,23 @@ public interface NotificationClient {
     /** Resilience4j circuit breaker instance name shared by all methods of this client. */
     String CB_NOTIFICATION_SERVICE = "notificationService";
 
-    /** Persists an idempotent operational email event in the notification outbox. */
+    /**
+     * Persists an idempotent operational email event in the notification outbox.
+     *
+     * @param request tenant-scoped event and idempotency key
+     * @return acceptance metadata, or {@code null} when the circuit-breaker fallback runs
+     */
     @PostMapping("/internal/notifications/events")
     @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "enqueueEventFallback")
     NotificationEventResponse enqueueEvent(@RequestBody NotificationEventRequest request);
 
+    /**
+     * Records deferred delivery when the notification service is unavailable.
+     *
+     * @param request attempted notification event
+     * @param throwable failure that triggered the fallback
+     * @return {@code null} to signal that delivery was not accepted
+     */
     default NotificationEventResponse enqueueEventFallback(
             final NotificationEventRequest request, final Throwable throwable) {
         LOG.warn(

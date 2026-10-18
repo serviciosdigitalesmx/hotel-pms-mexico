@@ -10,4 +10,4 @@ import java.util.UUID;
  * @param lastName the guest's last name
  * @param email the guest's email address
  */
-public record GuestResponse(UUID id, String firstName, String lastName, String email) {}
+public record GuestResponse(UUID id, String firstName, String lastName, String email) { }

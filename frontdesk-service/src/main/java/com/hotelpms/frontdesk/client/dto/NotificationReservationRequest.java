@@ -30,4 +30,4 @@ public record NotificationReservationRequest(
         String locale,
         String customSubject,
         String greetingText,
-        String logoUrl) {}
+        String logoUrl) { }

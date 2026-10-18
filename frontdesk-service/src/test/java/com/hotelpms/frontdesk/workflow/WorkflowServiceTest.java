@@ -81,7 +81,7 @@ class WorkflowServiceTest {
     void firstTransitionPersistsStateAndAudit() {
         allowTransition(true, false);
         service.transition(tenant, workflowId, request, TECHNICIAN_ACTOR);
-        verify(instances).save(argThat(i -> i.getStateKey().equals(DIAGNOSING_STATE)));
+        verify(instances).save(argThat(i -> DIAGNOSING_STATE.equals(i.getStateKey())));
         verify(audits).save(any(WorkflowTransitionAudit.class));
     }
 

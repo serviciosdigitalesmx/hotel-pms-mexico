@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** PurchaseOrderRepository domain type. */
+/** Tenant-scoped purchase-order persistence with locking for receipt operations. */
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UUID> {
     /**
      * Executes the operation.
@@ -24,6 +24,13 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
      */
     Optional<PurchaseOrder> findByIdAndHotelId(UUID id, UUID hotel);
 
+    /**
+     * Locks a tenant-owned purchase order for update.
+     *
+     * @param id purchase-order identifier
+     * @param hotelId tenant identifier
+     * @return locked purchase order, if present
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
             "select purchase from PurchaseOrder purchase where purchase.id = :id and"

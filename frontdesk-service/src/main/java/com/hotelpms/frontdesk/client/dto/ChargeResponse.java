@@ -7,4 +7,4 @@ import java.util.UUID;
  *
  * @param id the charge UUID assigned by billing-service
  */
-public record ChargeResponse(UUID id) {}
+public record ChargeResponse(UUID id) { }

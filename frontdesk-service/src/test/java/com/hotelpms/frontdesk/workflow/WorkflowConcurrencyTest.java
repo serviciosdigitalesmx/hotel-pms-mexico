@@ -55,13 +55,13 @@ import javax.sql.DataSource;
 
 @Testcontainers(disabledWithoutDocker = true)
 class WorkflowConcurrencyTest {
+    @Container
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
     private static final String RECEIVED_STATE = "received";
     private static final String DIAGNOSING_STATE = "diagnosing";
     private static final int WAIT_SECONDS = 10;
     private static final int RESULT_TIMEOUT_SECONDS = 30;
-
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     private static AnnotationConfigApplicationContext context;
 

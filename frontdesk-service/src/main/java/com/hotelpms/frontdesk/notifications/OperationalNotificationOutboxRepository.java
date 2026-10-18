@@ -30,7 +30,8 @@ public interface OperationalNotificationOutboxRepository
                         + " (id,hotel_id,event_key,source_key,event_type,payload,status,attempts,"
                         + "next_attempt_at,created_at)"
                         + " values"
-                        + " (:id,:hotelId,:eventKey,:sourceKey,:eventType,:payload,'PENDING',0,current_timestamp,current_timestamp)"
+                        + " (:id,:hotelId,:eventKey,:sourceKey,:eventType,:payload,'PENDING',0,"
+                        + "current_timestamp,current_timestamp)"
                         + " on conflict (hotel_id,event_key) do nothing",
             nativeQuery = true)
     int insertIfAbsent(

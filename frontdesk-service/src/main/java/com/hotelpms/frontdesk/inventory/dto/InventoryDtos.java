@@ -36,6 +36,7 @@ public final class InventoryDtos {
     private static final int MAX_WEBSITE_LENGTH = 500;
     private static final int MAX_SUPPLIER_DESCRIPTION_LENGTH = 1000;
     private static final int MAX_PURCHASE_LINES = 200;
+    private static final String ZERO_MONEY = "0.00";
 
     private InventoryDtos() { }
 
@@ -62,22 +63,14 @@ public final class InventoryDtos {
             @Size(max = MAX_PRODUCT_DESCRIPTION_LENGTH) String description,
             boolean optional,
             @NotBlank @Size(max = MAX_CATEGORY_LENGTH) String category,
-            @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal cost,
-            @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal price,
+            @NotNull @DecimalMin(ZERO_MONEY) @Digits(integer = 10, fraction = 2) BigDecimal cost,
+            @NotNull @DecimalMin(ZERO_MONEY) @Digits(integer = 10, fraction = 2) BigDecimal price,
             @Min(0) long reorderLevel,
             @Min(0) long maximumStockLevel,
             UUID supplierId,
             @Min(0) long initialQuantity,
             UUID branchId,
             UUID posMenuItemId) {
-        /**
-         * Validates that a configured maximum is not below the reorder threshold.
-         */
-        @AssertTrue(message = "MAXIMUM_STOCK_LEVEL_BELOW_REORDER_LEVEL")
-        public boolean isStockLimitsRangeValid() {
-            return maximumStockLevel == 0 || maximumStockLevel >= reorderLevel;
-        }
-
         /**
          * Creates a product request without a maximum stock limit.
          *
@@ -265,6 +258,16 @@ public final class InventoryDtos {
                     null,
                     null);
         }
+
+        /**
+         * Validates that a configured maximum is not below the reorder threshold.
+         *
+         * @return whether the maximum is unset or at least the reorder threshold
+         */
+        @AssertTrue(message = "MAXIMUM_STOCK_LEVEL_BELOW_REORDER_LEVEL")
+        public boolean isStockLimitsRangeValid() {
+            return maximumStockLevel == 0 || maximumStockLevel >= reorderLevel;
+        }
     }
 
     /**
@@ -276,7 +279,7 @@ public final class InventoryDtos {
     public record BulkPriceRequest(
             @NotNull @Size(min = 1, max = MAX_BULK_PRODUCTS) List<@NotNull UUID> productIds,
             @NotNull
-                    @DecimalMin("0.00")
+                    @DecimalMin(ZERO_MONEY)
                     @DecimalMax("1000.00")
                     @Digits(integer = 4, fraction = 2)
                     BigDecimal percentage) { }
@@ -438,7 +441,7 @@ public final class InventoryDtos {
     public record PurchaseLineRequest(
             @NotNull UUID productId,
             @Positive long quantity,
-            @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal unitCost) { }
+            @NotNull @DecimalMin(ZERO_MONEY) @Digits(integer = 10, fraction = 2) BigDecimal unitCost) { }
 
     /**
      * Quantity received for one purchase-order product.

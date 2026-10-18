@@ -18,4 +18,4 @@ public record NotificationCheckinRequest(
         String hotelName,
         String roomNumber,
         LocalDate expectedCheckOutDate,
-        String locale) {}
+        String locale) { }

@@ -9,9 +9,9 @@ import java.util.UUID;
 /**
  * Domain type.
  *
- * @param minutes value.
- * @param note value.
- * @param userId value.
+ * @param minutes duration worked
+ * @param note optional work detail
+ * @param userId technician identifier
  */
 public record TimeEntryRequest(
-        @NotNull UUID userId, @Positive int minutes, @Size(max = 1000) String note) {}
+        @NotNull UUID userId, @Positive int minutes, @Size(max = 1000) String note) { }

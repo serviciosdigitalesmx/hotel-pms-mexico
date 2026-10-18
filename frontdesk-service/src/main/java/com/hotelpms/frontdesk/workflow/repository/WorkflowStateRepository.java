@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** WorkflowStateRepository domain type. */
+/** Tenant-owned workflow state lookups and row locks. */
 public interface WorkflowStateRepository extends JpaRepository<WorkflowState, UUID> {
     /**
      * Executes the operation.
@@ -32,6 +32,13 @@ public interface WorkflowStateRepository extends JpaRepository<WorkflowState, UU
      */
     Optional<WorkflowState> findByWorkflowIdAndKey(UUID workflowId, String key);
 
+    /**
+     * Checks whether a workflow has an active state with the supplied key.
+     *
+     * @param workflowId workflow identifier
+     * @param key state key
+     * @return whether an active matching state exists
+     */
     boolean existsByWorkflowIdAndKeyAndActiveTrue(UUID workflowId, String key);
 
     /**

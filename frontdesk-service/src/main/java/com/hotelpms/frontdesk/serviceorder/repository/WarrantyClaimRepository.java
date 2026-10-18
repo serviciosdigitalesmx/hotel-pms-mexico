@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** WarrantyClaimRepository domain type. */
+/** Tenant-scoped warranty claim lookups for Fixi repair orders. */
 public interface WarrantyClaimRepository extends JpaRepository<WarrantyClaim, UUID> {
     /**
      * Executes the operation.
@@ -29,6 +29,13 @@ public interface WarrantyClaimRepository extends JpaRepository<WarrantyClaim, UU
     List<WarrantyClaim> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId);
 
+    /**
+     * Lists warranty claims attached to a tenant-owned service order.
+     *
+     * @param hotelId tenant identifier
+     * @param serviceOrderId repair order identifier
+     * @return matching claims in reverse creation order
+     */
     List<WarrantyClaim> findAllByHotelIdAndServiceOrderIdOrderByCreatedAtDesc(
             UUID hotelId, UUID serviceOrderId);
 }

@@ -24,4 +24,4 @@ public record ChargeRequest(
         BigDecimal amount,
         UUID referenceId,
         BigDecimal unitPrice,
-        Integer nights) {}
+        Integer nights) { }

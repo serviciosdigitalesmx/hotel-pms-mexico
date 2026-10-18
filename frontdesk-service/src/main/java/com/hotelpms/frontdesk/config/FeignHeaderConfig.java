@@ -16,11 +16,13 @@ import org.springframework.context.annotation.Configuration;
 public class FeignHeaderConfig {
 
   private final String hmacSecret;
+  private final NotificationServiceAuthContext notificationServiceAuthContext;
 
   /**
    * Constructs the Feign configuration with the shared HMAC secret.
    *
    * @param hmacSecret the internal HMAC secret, shared with all microservices
+   * @param notificationServiceAuthContext scoped identity for scheduled notification delivery
    */
   public FeignHeaderConfig(
       @Value("${internal.hmac.secret}") final String hmacSecret,
@@ -28,8 +30,6 @@ public class FeignHeaderConfig {
     this.hmacSecret = hmacSecret;
     this.notificationServiceAuthContext = notificationServiceAuthContext;
   }
-
-  private final NotificationServiceAuthContext notificationServiceAuthContext;
 
   /**
    * Registers the shared {@link InternalFeignAuthInterceptor}, including the scoped system identity

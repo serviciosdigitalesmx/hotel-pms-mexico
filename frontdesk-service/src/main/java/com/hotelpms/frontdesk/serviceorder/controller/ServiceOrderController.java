@@ -1,6 +1,8 @@
 package com.hotelpms.frontdesk.serviceorder.controller;
 
 import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrder;
+import com.hotelpms.frontdesk.serviceorder.domain.RepairTest;
+import com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory;
 import com.hotelpms.frontdesk.serviceorder.dto.AuthorizationRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.QuotationUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.RepairTestRequest;
@@ -39,6 +41,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/service-orders")
 public class ServiceOrderController {
+    private static final String SERVICE_TEAM_ROLES =
+            "hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')";
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 200;
     private static final int INTERNAL_NOTE_MAX_LENGTH = 2000;
@@ -53,7 +57,7 @@ public class ServiceOrderController {
      * @return configured workflow state and transitions
      */
     @GetMapping("/{id}/configured-workflow")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public ServiceOrderService.ConfiguredWorkflowView configuredWorkflow(
             @PathVariable final UUID id) {
         return service.configuredWorkflow(hotel(), id);
@@ -68,7 +72,7 @@ public class ServiceOrderController {
      * @return updated workflow state
      */
     @PostMapping("/{id}/configured-workflow/transitions/{transitionKey}")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public ServiceOrderService.ConfiguredWorkflowView advanceConfiguredWorkflow(
             @PathVariable final UUID id, @PathVariable final String transitionKey) {
         final var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -151,7 +155,7 @@ public class ServiceOrderController {
      * @return order counts corresponding to the supplied customers
      */
     @GetMapping("/customer-counts")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
+    @PreAuthorize(SERVICE_TEAM_ROLES)
     public List<ServiceOrderService.CustomerOrderCount> customerOrderCounts(
             @RequestParam final List<UUID> customerIds) {
         return service.customerOrderCounts(hotel(), customerIds);
@@ -241,7 +245,7 @@ public class ServiceOrderController {
      */
     @PostMapping("/{id}/tests")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
-    public com.hotelpms.frontdesk.serviceorder.domain.RepairTest addTest(
+    public RepairTest addTest(
             @PathVariable final UUID id, @Valid @RequestBody final RepairTestRequest r) {
         return service.addTest(hotel(), id, r);
     }
@@ -254,8 +258,8 @@ public class ServiceOrderController {
      * @return verification results in the order's history
      */
     @GetMapping("/{id}/tests")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
-    public java.util.List<com.hotelpms.frontdesk.serviceorder.domain.RepairTest> tests(
+    @PreAuthorize(SERVICE_TEAM_ROLES)
+    public List<RepairTest> tests(
             @PathVariable final UUID id) {
         return service.tests(hotel(), id);
     }
@@ -268,8 +272,8 @@ public class ServiceOrderController {
      * @return chronological order history
      */
     @GetMapping("/{id}/timeline")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
-    public java.util.List<com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory>
+    @PreAuthorize(SERVICE_TEAM_ROLES)
+    public List<ServiceOrderStatusHistory>
             timeline(@PathVariable final UUID id) {
         return service.history(hotel(), id);
     }
@@ -283,8 +287,8 @@ public class ServiceOrderController {
      * @return created history entry
      */
     @PostMapping("/{id}/notes")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
-    public ResponseEntity<com.hotelpms.frontdesk.serviceorder.domain.ServiceOrderStatusHistory>
+    @PreAuthorize(SERVICE_TEAM_ROLES)
+    public ResponseEntity<ServiceOrderStatusHistory>
             addInternalNote(
                     @PathVariable final UUID id,
                     @Valid @RequestBody final InternalNoteRequest request) {

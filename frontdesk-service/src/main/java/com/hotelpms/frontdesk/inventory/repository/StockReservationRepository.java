@@ -14,27 +14,51 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** StockReservationRepository domain type. */
+/** Tenant- and branch-scoped stock reservation queries for service orders. */
 public interface StockReservationRepository extends JpaRepository<StockReservation, UUID> {
     /**
-     * Executes the operation.
+     * Finds a reservation for one tenant-owned order and product.
      *
-     * @param hotel parameter.
-     * @param order parameter.
-     * @param product parameter.
-     * @return operation result.
+     * @param hotel tenant identifier
+     * @param order service order identifier
+     * @param product inventory product identifier
+     * @return matching reservation, if present
      */
     Optional<StockReservation> findByHotelIdAndServiceOrderIdAndProductId(
             UUID hotel, UUID order, UUID product);
 
+    /**
+     * Locks a reservation for an order and product.
+     *
+     * @param hotel tenant identifier
+     * @param order service order identifier
+     * @param product inventory product identifier
+     * @return locked reservation, if present
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<StockReservation> findForUpdateByHotelIdAndServiceOrderIdAndProductId(
             UUID hotel, UUID order, UUID product);
 
+    /**
+     * Locks all reservations for one tenant-owned order in creation order.
+     *
+     * @param hotel tenant identifier
+     * @param order service order identifier
+     * @return locked reservations
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<StockReservation> findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
             UUID hotel, UUID order);
 
+    /**
+     * Aggregates product consumption over a tenant date range and optional branch.
+     *
+     * @param hotelId tenant identifier
+     * @param branchId optional branch filter
+     * @param from inclusive start timestamp
+     * @param to exclusive end timestamp
+     * @return rows containing product identifiers and consumed totals
+     */
     @Query(
             "select reservation.productId, sum(reservation.quantity) from StockReservation"
                 + " reservation where reservation.hotelId = :hotelId and reservation.status ="
@@ -47,6 +71,13 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
+    /**
+     * Totals reserved quantity for a product across a tenant's branches.
+     *
+     * @param hotelId tenant identifier
+     * @param productId inventory product identifier
+     * @return reserved quantity
+     */
     @Query(
             "select coalesce(sum(reservation.quantity), 0) from StockReservation reservation "
                     + "where reservation.hotelId = :hotelId and reservation.productId = :productId "
@@ -54,6 +85,14 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
     Long sumReservedQuantityByHotelAndProduct(
             @Param("hotelId") UUID hotelId, @Param("productId") UUID productId);
 
+    /**
+     * Totals reserved quantity for a product at one tenant branch.
+     *
+     * @param hotelId tenant identifier
+     * @param branchId branch identifier
+     * @param productId inventory product identifier
+     * @return reserved quantity
+     */
     @Query(
             "select coalesce(sum(reservation.quantity), 0) from StockReservation reservation "
                     + "where reservation.hotelId = :hotelId and reservation.branchId = :branchId "

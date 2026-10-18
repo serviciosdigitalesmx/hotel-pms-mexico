@@ -8,8 +8,7 @@ import java.util.UUID;
 /**
  * DTOs for the review-before-apply catalog ingestion flow.
  */
-public final class CatalogImportDtos {
-    private CatalogImportDtos() { }
+public interface CatalogImportDtos {
 
     /**
      * Status and proposed rows for a catalog import job.

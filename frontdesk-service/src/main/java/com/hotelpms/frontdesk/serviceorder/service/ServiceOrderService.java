@@ -62,6 +62,8 @@ public class ServiceOrderService {
     private static final String OPERATOR_ACTOR = "operator";
     private static final String PAYMENT_PENDING = "PENDING";
     private static final String PAYMENT_PAID = "PAID";
+    private static final String PAYMENT_METHOD_LABEL = " · método ";
+    private static final String ORDER_LABEL = "La orden ";
     private final ServiceOrderRepository repository;
     private final RepairTestRepository repairTests;
     private final ServiceOrderStatusHistoryRepository history;
@@ -305,7 +307,10 @@ public class ServiceOrderService {
                     saved.getStatus(),
                     saved.getStatus(),
                     historyActor,
-                    "Anticipo recibido " + deposit.toPlainString() + " · método " + depositMethod);
+                    "Anticipo recibido "
+                            + deposit.toPlainString()
+                            + PAYMENT_METHOD_LABEL
+                            + depositMethod);
         }
         auditEvents.record(
                 hotelId,
@@ -382,7 +387,7 @@ public class ServiceOrderService {
                     hotelId,
                     "ORDER_ASSIGNED",
                     "Orden de servicio reasignada",
-                    "La orden "
+                    ORDER_LABEL
                             + saved.getId()
                             + " cambió de responsable. Consulta el tablero de Fixi para ver la"
                             + " asignación actual.",
@@ -391,7 +396,7 @@ public class ServiceOrderService {
         if (previous != request.status()) {
             record(saved, previous, request.status(), OPERATOR_ACTOR, request.workLog());
         }
-        else if (!Objects.equals(previousWorkLog, request.workLog())
+        } else if (!Objects.equals(previousWorkLog, request.workLog())
                 && (previousWorkLog != null && !previousWorkLog.isBlank()
                         || request.workLog() != null && !request.workLog().isBlank())) {
             final String note =
@@ -474,6 +479,19 @@ public class ServiceOrderService {
     }
 
     /**
+     * Returns a tenant-scoped page of repair orders.
+     *
+     * @param hotelId tenant identifier
+     * @param pageable page request
+     * @return requested order page
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
+    @Transactional(readOnly = true)
+    public Page<ServiceOrder> listAll(final UUID hotelId, final Pageable pageable) {
+        return repository.findAllByHotelId(hotelId, pageable);
+    }
+
+    /**
      * Counts tenant-scoped orders for each distinct customer identifier supplied.
      *
      * @param hotelId tenant identifier
@@ -492,19 +510,6 @@ public class ServiceOrderService {
                 .stream()
                 .map(row -> new CustomerOrderCount((UUID) row[0], ((Number) row[1]).longValue()))
                 .toList();
-    }
-
-    /**
-     * Returns a tenant-scoped page of repair orders.
-     *
-     * @param hotelId tenant identifier
-     * @param pageable page request
-     * @return requested order page
-     * @implSpec Overrides must preserve tenant ownership checks.
-     */
-    @Transactional(readOnly = true)
-    public Page<ServiceOrder> listAll(final UUID hotelId, final Pageable pageable) {
-        return repository.findAllByHotelId(hotelId, pageable);
     }
 
     /**
@@ -659,7 +664,7 @@ public class ServiceOrderService {
                     hotelId,
                     "ORDER_READY",
                     "Orden lista para control de calidad",
-                    "La orden " + order.getId() + " está lista para control de calidad.",
+                    ORDER_LABEL + order.getId() + " está lista para control de calidad.",
                     "ORDER_READY:" + order.getId() + ":" + UUID.randomUUID());
         }
         return repairTests.save(
@@ -807,7 +812,7 @@ public class ServiceOrderService {
                         + order.getPaymentStatus()
                         + " · recibido "
                         + receivedOnDelivery.toPlainString()
-                        + " · método "
+                        + PAYMENT_METHOD_LABEL
                         + paymentMethod);
         if (PAYMENT_PENDING.equals(paymentMethod)
                 && outstanding.compareTo(BigDecimal.ZERO) > 0) {
@@ -815,7 +820,7 @@ public class ServiceOrderService {
                     hotelId,
                     "PAYMENT_DUE",
                     "Saldo pendiente de una orden entregada",
-                    "La orden "
+                    ORDER_LABEL
                             + saved.getId()
                             + " se entregó con un saldo pendiente de "
                             + outstanding.toPlainString()
@@ -968,7 +973,7 @@ public class ServiceOrderService {
                 actor.toString(),
                 "Pago recibido "
                         + received.toPlainString()
-                        + " · método "
+                        + PAYMENT_METHOD_LABEL
                         + paymentMethod
                         + " · acumulado "
                         + cumulativePaid.toPlainString()

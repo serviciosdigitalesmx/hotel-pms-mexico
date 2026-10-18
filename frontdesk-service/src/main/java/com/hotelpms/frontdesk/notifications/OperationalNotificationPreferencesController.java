@@ -19,6 +19,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/notifications/preferences")
 public class OperationalNotificationPreferencesController {
+    private static final String MANAGER_ROLES = "hasAnyRole('ADMIN', 'OWNER', 'MANAGER')";
     private final OperationalNotificationPreferencesService service;
 
     /**
@@ -28,7 +29,7 @@ public class OperationalNotificationPreferencesController {
      * @return event-to-channel preferences
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public Map<String, Map<String, Boolean>> get() {
         return service.get(hotelId());
     }
@@ -41,7 +42,7 @@ public class OperationalNotificationPreferencesController {
      * @return persisted event-to-channel preferences
      */
     @PutMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public Map<String, Map<String, Boolean>> update(
             @RequestBody final Map<String, Map<String, Boolean>> preferences) {
         return service.update(hotelId(), preferences);
@@ -54,7 +55,7 @@ public class OperationalNotificationPreferencesController {
      * @return recipients grouped by operational event
      */
     @GetMapping("/recipients")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public Map<String, List<String>> getEmailRecipients() {
         return service.getEmailRecipients(hotelId());
     }
@@ -67,7 +68,7 @@ public class OperationalNotificationPreferencesController {
      * @return persisted recipients grouped by event
      */
     @PutMapping("/recipients")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public Map<String, List<String>> updateEmailRecipients(
             @jakarta.validation.Valid @RequestBody
                     final OperationalEmailRecipientsRequest request) {

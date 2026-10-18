@@ -74,7 +74,7 @@ public class DocumentEvidenceService {
                 || semicolon > comma
                 || !storageKey.substring(DATA_URL_PREFIX_LENGTH, semicolon)
                         .equalsIgnoreCase(contentType)
-                || !storageKey.substring(semicolon, comma).equalsIgnoreCase(";base64")
+                || !";base64".equalsIgnoreCase(storageKey.substring(semicolon, comma))
                 || !contentType.matches("image/(jpeg|png|webp)|application/pdf")) {
             throw new IllegalArgumentException(INVALID_DATA_URL);
         }

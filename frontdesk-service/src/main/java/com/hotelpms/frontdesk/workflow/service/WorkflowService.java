@@ -32,6 +32,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class WorkflowService {
+    private static final String WORKFLOW_STATE_NOT_FOUND = "Workflow state not found";
+
     private final WorkflowDefinitionRepository definitions;
     private final WorkflowStateRepository states;
     private final WorkflowTransitionRepository transitions;
@@ -46,6 +48,11 @@ public class WorkflowService {
      * @return persisted workflow definition
      * @implSpec Overrides must preserve tenant ownership and request validation.
      */
+    @Transactional
+    public WorkflowDefinition create(final UUID hotel, final CreateWorkflowRequest r) {
+        return definitions.save(new WorkflowDefinition(hotel, r.verticalKey(), r.name()));
+    }
+
     /**
      * Lists active workflow definitions owned by a tenant.
      *
@@ -53,11 +60,6 @@ public class WorkflowService {
      * @return active tenant-owned workflows
      * @implSpec Overrides must preserve tenant scoping.
      */
-    @Transactional
-    public WorkflowDefinition create(final UUID hotel, final CreateWorkflowRequest r) {
-        return definitions.save(new WorkflowDefinition(hotel, r.verticalKey(), r.name()));
-    }
-
     @Transactional
     public List<WorkflowDefinition> list(final UUID hotel) {
         return definitions.findAllByHotelIdAndActiveTrue(hotel);
@@ -107,10 +109,10 @@ public class WorkflowService {
         final WorkflowDefinition w = definition(hotel, workflowId);
         final WorkflowState from =
                 states.findByWorkflowIdAndKey(workflowId, r.fromStateKey())
-                        .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+                        .orElseThrow(() -> new NotFoundException(WORKFLOW_STATE_NOT_FOUND));
         final WorkflowState to =
                 states.findByWorkflowIdAndKey(workflowId, r.toStateKey())
-                        .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+                        .orElseThrow(() -> new NotFoundException(WORKFLOW_STATE_NOT_FOUND));
         if (!from.isActive() || !to.isActive()) {
             throw new ConflictException("Inactive workflow states cannot be used in transitions");
         }
@@ -269,7 +271,7 @@ public class WorkflowService {
         definition(hotel, workflowId);
         final WorkflowState state =
                 states.findByWorkflowIdAndKey(workflowId, key)
-                        .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+                        .orElseThrow(() -> new NotFoundException(WORKFLOW_STATE_NOT_FOUND));
         state.setLabel(request.label().trim());
         return states.save(state);
     }
@@ -290,7 +292,7 @@ public class WorkflowService {
         definition(hotel, workflowId);
         final WorkflowState state =
                 states.findByWorkflowIdAndKey(workflowId, key)
-                        .orElseThrow(() -> new NotFoundException("Workflow state not found"));
+                        .orElseThrow(() -> new NotFoundException(WORKFLOW_STATE_NOT_FOUND));
         if (!active && state.isInitialState()) {
             throw new ConflictException("The initial workflow state cannot be deactivated");
         }

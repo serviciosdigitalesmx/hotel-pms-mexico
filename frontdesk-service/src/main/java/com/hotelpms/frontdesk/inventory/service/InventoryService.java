@@ -66,6 +66,8 @@ public class InventoryService {
     private static final String RESERVATION_CONSUMED = "CONSUMED";
     private static final String SKU_HEADER = "sku";
     private static final String NAME_HEADER = "name";
+    private static final String SUPPLIER_ID_HEADER = "supplierid";
+    private static final String BRANCH_ID_HEADER = "branchid";
     private static final String PRODUCT_ID_JSON = "\",\"productId\":\"";
     private static final String SERVICE_ORDER_JSON = "{\"serviceOrderId\":\"";
     private static final String QUANTITY_JSON = "\",\"quantity\":";
@@ -425,7 +427,7 @@ public class InventoryService {
                                                 .build());
         final long previous = balance.getQuantity();
         if (request.expectedCurrentQuantity() != null
-                && request.expectedCurrentQuantity().longValue() != previous) {
+                && request.expectedCurrentQuantity() != previous) {
             throw new ConflictException(
                     "STOCK_COUNT_STALE: current stock changed from "
                             + request.expectedCurrentQuantity()
@@ -878,12 +880,14 @@ public class InventoryService {
                     continue;
                 }
                 final UUID supplierId =
-                        values.containsKey("supplierid") && !values.get("supplierid").isBlank()
-                                ? UUID.fromString(values.get("supplierid"))
+                        values.containsKey(SUPPLIER_ID_HEADER)
+                                        && !values.get(SUPPLIER_ID_HEADER).isBlank()
+                                ? UUID.fromString(values.get(SUPPLIER_ID_HEADER))
                                 : null;
                 final UUID branchId =
-                        values.containsKey("branchid") && !values.get("branchid").isBlank()
-                                ? UUID.fromString(values.get("branchid"))
+                        values.containsKey(BRANCH_ID_HEADER)
+                                        && !values.get(BRANCH_ID_HEADER).isBlank()
+                                ? UUID.fromString(values.get(BRANCH_ID_HEADER))
                                 : defaultBranchId;
                 final long quantity =
                         longValue(values.getOrDefault("quantity", values.get("stock")), 0);
@@ -898,7 +902,7 @@ public class InventoryService {
                 if (quantity < 0
                         || reorderLevel < 0
                         || maximumStockLevel < 0
-                        || (maximumStockLevel > 0 && maximumStockLevel < reorderLevel)
+                        || maximumStockLevel > 0 && maximumStockLevel < reorderLevel
                         || !fitsProductAmount(cost)
                         || !fitsProductAmount(price)) {
                     rejected++;

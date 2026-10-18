@@ -19,6 +19,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/whatsapp/inbox")
 @SuppressWarnings("checkstyle:JavadocMethod")
 public class WhatsAppInboxController {
+    private static final String FRONTDESK_ROLES =
+            "hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')";
     // CHECKSTYLE: JavadocMethod OFF
     private final ConversationRepository conversations;
     private final WhatsAppMessageRepository messages;
@@ -26,14 +28,14 @@ public class WhatsAppInboxController {
 
     /** Lists conversations owned by the active tenant. */
     @GetMapping("/conversations")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
+    @PreAuthorize(FRONTDESK_ROLES)
     public List<Conversation> conversations() {
         return conversations.findAllByHotelIdOrderByUpdatedAtDesc(hotel());
     }
 
     /** Returns one conversation for the active tenant. */
     @GetMapping("/conversations/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
+    @PreAuthorize(FRONTDESK_ROLES)
     public Conversation conversation(@PathVariable final UUID id) {
         return conversations
                 .findById(id)
@@ -43,7 +45,7 @@ public class WhatsAppInboxController {
 
     /** Returns messages only after tenant ownership is checked. */
     @GetMapping("/conversations/{id}/messages")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
+    @PreAuthorize(FRONTDESK_ROLES)
     public List<WhatsAppMessage> messages(@PathVariable final UUID id) {
         conversation(id);
         return messages.findAllByHotelIdAndConversationIdOrderByCreatedAtAsc(hotel(), id);
@@ -51,7 +53,7 @@ public class WhatsAppInboxController {
 
     /** Sends a human reply through the tenant's Evolution instance and records it locally. */
     @PostMapping("/conversations/{id}/messages")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
+    @PreAuthorize(FRONTDESK_ROLES)
     public WhatsAppMessage reply(
             @PathVariable final UUID id,
             @org.springframework.web.bind.annotation.RequestParam final String text) {
@@ -77,7 +79,7 @@ public class WhatsAppInboxController {
 
     /** Puts a conversation in human handoff and disables automatic responses. */
     @PostMapping("/conversations/{id}/handoff")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
+    @PreAuthorize(FRONTDESK_ROLES)
     public Conversation handoff(@PathVariable final UUID id) {
         final Conversation target = conversation(id);
         target.setHandoff(true);

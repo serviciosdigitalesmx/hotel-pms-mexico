@@ -3,8 +3,8 @@ package com.hotelpms.frontdesk.serviceorder.dto;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Domain type.
+ * Customer authorization evidence for a quoted repair order.
  *
- * @param evidence value.
+ * @param evidence authorization record or reference
  */
-public record AuthorizationRequest(@NotBlank String evidence) {}
+public record AuthorizationRequest(@NotBlank String evidence) { }

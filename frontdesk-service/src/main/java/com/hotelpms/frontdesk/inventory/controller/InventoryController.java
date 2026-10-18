@@ -37,6 +37,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/inventory")
 public class InventoryController {
+    private static final String MANAGER_ROLES = "hasAnyRole('ADMIN', 'OWNER', 'MANAGER')";
     private final InventoryService service;
 
     /**
@@ -46,7 +47,7 @@ public class InventoryController {
      * @return persisted product
      */
     @PostMapping("/products")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public InventoryProduct product(@Valid @RequestBody final ProductRequest request) {
         return service.product(hotel(), request);
     }
@@ -60,7 +61,7 @@ public class InventoryController {
      * @implSpec Overrides must preserve tenant ownership and branch stock.
      */
     @PutMapping("/products/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public InventoryProduct updateProduct(
             @PathVariable final UUID id, @Valid @RequestBody final ProductRequest request) {
         return service.updateProduct(hotel(), id, request);
@@ -74,7 +75,7 @@ public class InventoryController {
      * @implSpec Overrides must preserve tenant scoping and request limits.
      */
     @PostMapping("/products/bulk-price")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public List<InventoryProduct> increasePrices(
             @Valid @RequestBody final BulkPriceRequest request) {
         return service.increasePrices(hotel(), request.productIds(), request.percentage());
@@ -88,7 +89,7 @@ public class InventoryController {
      * @return import result
      */
     @PostMapping(value = "/products/import", consumes = "text/csv")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public ImportResult importCsv(
             @RequestBody final String csv, @RequestParam(required = false) final UUID branchId) {
         return service.importCsv(hotel(), csv, branchId);
@@ -101,7 +102,7 @@ public class InventoryController {
      * @return import result
      */
     @PostMapping(value = "/products/import/xlsx", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public ImportResult importXlsx(@RequestPart("file") final MultipartFile file) {
         return service.importXlsx(hotel(), file);
     }
@@ -113,7 +114,7 @@ public class InventoryController {
      * @return import result
      */
     @PostMapping(value = "/products/import/pdf", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public ImportResult importPdf(@RequestPart("file") final MultipartFile file) {
         return service.importPdf(hotel(), file);
     }
@@ -136,7 +137,7 @@ public class InventoryController {
      * @return updated branch balance
      */
     @PostMapping("/movements")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public InventoryBalance move(@Valid @RequestBody final MovementRequest request) {
         return service.move(hotel(), request);
     }
@@ -162,7 +163,7 @@ public class InventoryController {
      * @return persisted branch balance
      */
     @PostMapping("/stock-counts")
-    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
+    @PreAuthorize(MANAGER_ROLES)
     public InventoryBalance count(@Valid @RequestBody final StockCountRequest request) {
         return service.count(hotel(), request);
     }
