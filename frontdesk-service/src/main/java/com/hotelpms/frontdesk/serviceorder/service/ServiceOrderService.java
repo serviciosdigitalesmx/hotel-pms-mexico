@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Type domain type. */
+/** Coordinates tenant-scoped repair orders and their workflow, inventory, and payment effects. */
 @Service
 @RequiredArgsConstructor
 public class ServiceOrderService {
@@ -59,13 +59,39 @@ public class ServiceOrderService {
     private final InventoryService inventoryService;
     private final OperationalNotificationOutboxService notificationOutbox;
 
-    public record ConfiguredWorkflowStatus(String workflowId, String stateKey, String label) {}
+    /** A configured workflow state exposed to repair-order clients.
+     *
+     * @param workflowId workflow identifier
+     * @param stateKey stable state key
+     * @param label human-readable state label
+     */
+    public record ConfiguredWorkflowStatus(
+            String workflowId, String stateKey, String label) {}
 
+    /** A permitted transition between two configured workflow states.
+     *
+     * @param key stable transition key
+     * @param fromStateKey source state key
+     * @param toStateKey destination state key
+     */
     public record ConfiguredWorkflowTransition(
             String key, String fromStateKey, String toStateKey) {}
 
+    /** Number of repair orders currently associated with a customer.
+     *
+     * @param customerId customer identifier
+     * @param count number of orders
+     */
     public record CustomerOrderCount(UUID customerId, long count) {}
 
+    /** Active configured workflow and its currently available transitions.
+     *
+     * @param id workflow identifier
+     * @param name workflow display name
+     * @param currentState current aggregate state key
+     * @param initialState configured initial state key
+     * @param transitions active transitions
+     */
     public record ConfiguredWorkflowView(
             String id,
             String name,
@@ -73,6 +99,13 @@ public class ServiceOrderService {
             String initialState,
             java.util.List<ConfiguredWorkflowTransition> transitions) {}
 
+    /** Returns the active repair workflow for an order in the requested tenant.
+     *
+     * @param hotelId tenant identifier
+     * @param orderId repair-order identifier
+     * @return active workflow view, or {@code null} when none is configured
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
     @Transactional(readOnly = true)
     public ConfiguredWorkflowView configuredWorkflow(final UUID hotelId, final UUID orderId) {
         get(hotelId, orderId);
@@ -101,6 +134,16 @@ public class ServiceOrderService {
                         .toList());
     }
 
+    /** Applies an authorized configured transition and synchronizes the order's operational state.
+     *
+     * @param hotelId tenant identifier
+     * @param orderId repair-order identifier
+     * @param transitionKey requested transition key
+     * @param actor authenticated actor label
+     * @param authorities actor authorities used for privileged transitions
+     * @return refreshed workflow view
+     * @implSpec Overrides must preserve authorization and workflow invariants.
+     */
     @Transactional
     public ConfiguredWorkflowView advanceConfiguredWorkflow(
             final UUID hotelId,
@@ -195,18 +238,26 @@ public class ServiceOrderService {
         return configuredWorkflow(hotelId, orderId);
     }
 
-    /**
-     * Executes the operation.
+    /** Creates a tenant-scoped order using the system actor for its initial history entry.
      *
-     * @param hotelId parameter.
-     * @param request parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @param request order creation data
+     * @return persisted order
+     * @implSpec Overrides must preserve tenant scoping and order-creation side effects.
      */
     @Transactional
     public ServiceOrder create(final UUID hotelId, final ServiceOrderRequest request) {
         return create(hotelId, request, "system");
     }
 
+    /** Creates an order and records its deposit, assignment, audit, and history effects.
+     *
+     * @param hotelId tenant identifier
+     * @param request order creation data
+     * @param actor actor recorded in the order history
+     * @return persisted order
+     * @implSpec Overrides must preserve tenant scoping and order-creation side effects.
+     */
     @Transactional
     public ServiceOrder create(
             final UUID hotelId, final ServiceOrderRequest request, final String actor) {
@@ -292,13 +343,13 @@ public class ServiceOrderService {
         return saved;
     }
 
-    /**
-     * Executes the operation.
+    /** Updates an open order without bypassing dedicated workflow transitions.
      *
-     * @param hotelId parameter.
-     * @param id parameter.
-     * @param request parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param request mutable order fields
+     * @return updated order
+     * @implSpec Overrides must preserve tenant scoping and transition restrictions.
      */
     @Transactional
     public ServiceOrder update(
@@ -388,12 +439,12 @@ public class ServiceOrderService {
         };
     }
 
-    /**
-     * Executes the operation.
+    /** Loads an order by identifier while enforcing tenant ownership in the repository query.
      *
-     * @param hotelId parameter.
-     * @param id parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @return matching order
+     * @implSpec Overrides must preserve tenant ownership checks.
      */
     @Transactional(readOnly = true)
     public ServiceOrder get(final UUID hotelId, final UUID id) {
@@ -402,29 +453,36 @@ public class ServiceOrderService {
                 .orElseThrow(() -> new NotFoundException("SERVICE_ORDER_NOT_FOUND"));
     }
 
-    /**
-     * Executes the operation.
+    /** Lists a customer's orders within the requested tenant, newest first.
      *
-     * @param hotelId parameter.
-     * @param customerId parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @return matching orders
+     * @implSpec Overrides must preserve tenant ownership checks.
      */
     @Transactional(readOnly = true)
     public List<ServiceOrder> list(final UUID hotelId, final UUID customerId) {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotelId, customerId);
     }
 
-    /**
-     * Executes the operation.
+    /** Lists all tenant orders, newest first.
      *
-     * @param hotelId parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @return tenant orders
+     * @implSpec Overrides must preserve tenant ownership checks.
      */
     @Transactional(readOnly = true)
     public List<ServiceOrder> listAll(final UUID hotelId) {
         return repository.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
     }
 
+    /** Counts tenant-scoped orders for each distinct customer identifier supplied.
+     *
+     * @param hotelId tenant identifier
+     * @param customerIds customer identifiers to count
+     * @return counts for matching customers
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
     @Transactional(readOnly = true)
     public List<CustomerOrderCount> customerOrderCounts(
             final UUID hotelId, final List<UUID> customerIds) {
@@ -436,19 +494,26 @@ public class ServiceOrderService {
                 .toList();
     }
 
+    /** Returns a tenant-scoped page of repair orders.
+     *
+     * @param hotelId tenant identifier
+     * @param pageable page request
+     * @return requested order page
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
     @Transactional(readOnly = true)
     public Page<ServiceOrder> listAll(final UUID hotelId, final Pageable pageable) {
         return repository.findAllByHotelId(hotelId, pageable);
     }
 
-    /**
-     * Executes the operation.
+    /** Records customer authorization of a quote and appends the corresponding status history.
      *
-     * @param hotelId parameter.
-     * @param id parameter.
-     * @param actor parameter.
-     * @param request parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor authorizing customer identifier
+     * @param request authorization evidence
+     * @return authorized order
+     * @implSpec Overrides must preserve quote-state and authorization invariants.
      */
     @Transactional
     public ServiceOrder authorize(
@@ -475,8 +540,21 @@ public class ServiceOrderService {
         return saved;
     }
 
+    /** Records a customer's rejection of a quote without changing its financial details.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor rejecting customer identifier
+     * @param request rejection evidence
+     * @return rejected order
+     * @implSpec Overrides must preserve quote-state and rejection invariants.
+     */
     @Transactional
-    public ServiceOrder reject(UUID hotelId, UUID id, UUID actor, AuthorizationRequest request) {
+    public ServiceOrder reject(
+            final UUID hotelId,
+            final UUID id,
+            final UUID actor,
+            final AuthorizationRequest request) {
         var order = get(hotelId, id);
         if (order.getStatus() != ServiceOrderStatus.QUOTED)
             throw new IllegalStateException("SERVICE_ORDER_NOT_QUOTED");
@@ -495,8 +573,17 @@ public class ServiceOrderService {
         return saved;
     }
 
+    /** Calculates and persists an order quote, applying the tenant's configured tax rate.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param request quotation details
+     * @return quoted order
+     * @implSpec Overrides must preserve quote-state and tax calculation behavior.
+     */
     @Transactional
-    public ServiceOrder quote(UUID hotelId, UUID id, QuotationUpdateRequest request) {
+    public ServiceOrder quote(
+            final UUID hotelId, final UUID id, final QuotationUpdateRequest request) {
         final ServiceOrder order = get(hotelId, id);
         if (order.getStatus() != ServiceOrderStatus.DIAGNOSIS
                 && order.getStatus() != ServiceOrderStatus.REVIEW) {
@@ -536,6 +623,14 @@ public class ServiceOrderService {
         return saved;
     }
 
+    /** Adds a repair test and moves an in-progress order into quality assurance on first test.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param request test details
+     * @return persisted repair test
+     * @implSpec Overrides must preserve quality-assurance transition behavior.
+     */
     @Transactional
     public RepairTest addTest(final UUID hotelId, final UUID id, final RepairTestRequest request) {
         final ServiceOrder order = get(hotelId, id);
@@ -572,18 +667,41 @@ public class ServiceOrderService {
                         .build());
     }
 
+    /** Lists repair tests after verifying that the order belongs to the tenant.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @return chronological repair tests
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
     @Transactional(readOnly = true)
-    public List<RepairTest> tests(UUID hotelId, UUID id) {
+    public List<RepairTest> tests(final UUID hotelId, final UUID id) {
         get(hotelId, id);
         return repairTests.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, id);
     }
 
+    /** Lists the chronological status and activity history for a tenant-owned order.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @return chronological history entries
+     * @implSpec Overrides must preserve tenant ownership checks.
+     */
     @Transactional(readOnly = true)
-    public List<ServiceOrderStatusHistory> history(UUID hotelId, UUID id) {
+    public List<ServiceOrderStatusHistory> history(final UUID hotelId, final UUID id) {
         get(hotelId, id);
         return history.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, id);
     }
 
+    /** Appends an internal note without changing the order's current status.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor note author
+     * @param note note contents
+     * @return persisted history entry
+     * @implSpec Overrides must preserve tenant ownership and immutable audit history.
+     */
     @Transactional
     public ServiceOrderStatusHistory addInternalNote(
             final UUID hotelId, final UUID id, final String actor, final String note) {
@@ -602,6 +720,15 @@ public class ServiceOrderService {
                         .build());
     }
 
+    /** Delivers an order after quality checks, recording payment or a valid outstanding balance.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor delivering user identifier
+     * @param paymentMethod payment method or {@code PENDING}
+     * @return delivered order
+     * @implSpec Overrides must preserve quality, inventory, and payment invariants.
+     */
     @Transactional
     public ServiceOrder deliver(
             final UUID hotelId, final UUID id, final UUID actor, final String paymentMethod) {
@@ -680,7 +807,7 @@ public class ServiceOrderService {
         return saved;
     }
 
-    private boolean hasFailedLatestRepairTest(UUID hotelId, UUID orderId) {
+    private boolean hasFailedLatestRepairTest(final UUID hotelId, final UUID orderId) {
         var latestByTest = new java.util.LinkedHashMap<String, RepairTest>();
         repairTests
                 .findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotelId, orderId)
@@ -691,12 +818,31 @@ public class ServiceOrderService {
         return latestByTest.values().stream().anyMatch(test -> !test.isPassed());
     }
 
+    /** Records the remaining balance using the full outstanding amount.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor payment recorder identifier
+     * @param paymentMethod received payment method
+     * @return updated order
+     * @implSpec Overrides must preserve tenant ownership and payment invariants.
+     */
     @Transactional
     public ServiceOrder recordPendingPayment(
             final UUID hotelId, final UUID id, final UUID actor, final String paymentMethod) {
         return recordPendingPayment(hotelId, id, actor, paymentMethod, null);
     }
 
+    /** Records a requested amount against the outstanding balance.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor payment recorder identifier
+     * @param paymentMethod received payment method
+     * @param requestedAmount amount received, or {@code null} for the full balance
+     * @return updated order
+     * @implSpec Overrides must preserve tenant ownership and payment invariants.
+     */
     @Transactional
     public ServiceOrder recordPendingPayment(
             final UUID hotelId,
@@ -707,6 +853,17 @@ public class ServiceOrderService {
         return recordPendingPayment(hotelId, id, actor, paymentMethod, requestedAmount, null);
     }
 
+    /** Records an idempotent balance payment and updates the order's cumulative paid amount.
+     *
+     * @param hotelId tenant identifier
+     * @param id repair-order identifier
+     * @param actor payment recorder identifier
+     * @param paymentMethod received payment method
+     * @param requestedAmount amount received, or {@code null} for the full balance
+     * @param requestId optional idempotency key
+     * @return updated order
+     * @implSpec Overrides must preserve tenant ownership, payment invariants, and idempotency.
+     */
     @Transactional
     public ServiceOrder recordPendingPayment(
             final UUID hotelId,
