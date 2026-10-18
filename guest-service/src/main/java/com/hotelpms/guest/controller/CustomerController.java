@@ -398,7 +398,12 @@ public class CustomerController {
    * @param errors row-level validation or conflict messages
    */
   public record CsvImportResult(int imported, List<String> errors) {
-    /** Prevents external mutation of the reported CSV error list. */
+    /**
+     * Prevents external mutation of the reported CSV error list.
+     *
+     * @param imported number of customers persisted
+     * @param errors row-level validation or conflict messages
+     */
     public CsvImportResult {
       if (errors != null) {
         errors = List.copyOf(errors);
