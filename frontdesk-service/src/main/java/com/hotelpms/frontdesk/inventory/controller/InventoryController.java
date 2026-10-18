@@ -194,6 +194,12 @@ public class InventoryController {
      * @param lines tenant-owned product quantities to deduct
      */
     public record PosConsumptionRequest(UUID branchId, List<PosConsumptionLine> lines) {
+        /**
+         * Stores an immutable snapshot of the requested stock deductions.
+         *
+         * @param branchId branch that owns the stock
+         * @param lines tenant-owned product quantities to deduct
+         */
         public PosConsumptionRequest {
             lines = ImmutableCopies.list(lines);
         }

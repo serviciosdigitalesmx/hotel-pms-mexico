@@ -31,6 +31,11 @@ public record OperationalEmailRecipientsRequest(
     private static final int MAX_RECIPIENTS_PER_EVENT = 20;
     private static final int MAX_EMAIL_LENGTH = 254;
 
+    /**
+     * Stores an immutable deep copy of the event recipient lists.
+     *
+     * @param recipients recipient addresses grouped by operational event
+     */
     public OperationalEmailRecipientsRequest {
         recipients = ImmutableCopies.mapOfLists(recipients);
     }

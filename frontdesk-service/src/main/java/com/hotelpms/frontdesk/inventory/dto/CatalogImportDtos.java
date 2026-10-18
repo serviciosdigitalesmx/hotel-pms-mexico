@@ -27,6 +27,15 @@ public interface CatalogImportDtos {
             String contentType,
             String status,
             List<Proposal> proposals) {
+        /**
+         * Stores an immutable snapshot of the proposals submitted by the importer.
+         *
+         * @param id import job identifier
+         * @param fileName uploaded file name
+         * @param contentType uploaded media type
+         * @param status current review/application status
+         * @param proposals parsed product proposals
+         */
         public ImportJobResponse {
             proposals = ImmutableCopies.list(proposals);
         }
@@ -51,6 +60,12 @@ public interface CatalogImportDtos {
      * @param proposals reviewed product proposals
      */
     record ReviewRequest(boolean approve, List<Proposal> proposals) {
+        /**
+         * Stores an immutable snapshot of the reviewed proposals.
+         *
+         * @param approve whether to apply the reviewed import
+         * @param proposals reviewed product proposals
+         */
         public ReviewRequest {
             proposals = ImmutableCopies.list(proposals);
         }

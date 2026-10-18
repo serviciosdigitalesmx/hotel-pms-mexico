@@ -31,6 +31,8 @@ public final class ImmutableCopies {
      * @param source input map
      * @return an unmodifiable nested copy, or null when the input is null
      */
+    // Preserve null so @NotNull validation distinguishes omission from an empty configuration.
+    @SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull")
     public static <K, V> Map<K, List<V>> mapOfLists(final Map<K, List<V>> source) {
         if (source == null) {
             return null;

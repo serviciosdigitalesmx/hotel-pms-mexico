@@ -65,7 +65,6 @@ ext {
 }
 
 dependencies {
-    compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.8")
     implementation(project(":internal-auth-lib"))
     implementation(project(":common-web-lib"))
     // Quotation PDF export — same renderer billing-service uses for invoices.

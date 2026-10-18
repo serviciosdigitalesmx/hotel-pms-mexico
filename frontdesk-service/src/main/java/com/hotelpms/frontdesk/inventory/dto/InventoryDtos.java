@@ -22,7 +22,9 @@ import java.util.UUID;
 
 /**
  * Validated request and response records for Fixi inventory and procurement APIs.
+ * Nested records are the public DTO API; this type only groups their declarations.
  */
+@SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
 public final class InventoryDtos {
     private static final int MIN_MOVEMENT_DELTA = -1_000_000;
     private static final int MAX_PRODUCT_SKU_LENGTH = 80;
@@ -295,6 +297,12 @@ public final class InventoryDtos {
                     @DecimalMax("1000.00")
                     @Digits(integer = 4, fraction = 2)
                     BigDecimal percentage) {
+        /**
+         * Stores an immutable snapshot of the selected product identifiers.
+         *
+         * @param productIds tenant-owned products to update
+         * @param percentage percentage increase from zero through the supported maximum
+         */
         public BulkPriceRequest {
             productIds = immutableList(productIds);
         }
@@ -420,6 +428,14 @@ public final class InventoryDtos {
             @NotNull UUID supplierId,
             UUID serviceOrderId,
             @NotNull @Size(min = 1, max = MAX_PURCHASE_LINES) List<@NotNull PurchaseLineRequest> lines) {
+        /**
+         * Stores an immutable snapshot of the requested purchase lines.
+         *
+         * @param branchId receiving branch identifier
+         * @param supplierId tenant-owned supplier identifier
+         * @param serviceOrderId optional associated service order
+         * @param lines requested product quantities and unit costs
+         */
         public PurchaseRequest {
             lines = immutableList(lines);
         }
@@ -450,6 +466,14 @@ public final class InventoryDtos {
             @NotNull UUID supplierId,
             UUID serviceOrderId,
             @NotNull @Size(min = 1, max = MAX_PURCHASE_LINES) List<@NotNull PurchaseLineRequest> lines) {
+        /**
+         * Stores an immutable snapshot of the requested purchase lines.
+         *
+         * @param branchId receiving branch identifier
+         * @param supplierId tenant-owned supplier identifier
+         * @param serviceOrderId optional associated service order
+         * @param lines requested product quantities and unit costs
+         */
         public PurchaseRequestWithLines {
             lines = immutableList(lines);
         }
@@ -483,6 +507,12 @@ public final class InventoryDtos {
      */
     public record PurchaseReceiptRequest(
             UUID requestId, @NotNull @Size(min = 1) List<@NotNull @Valid ReceiptLine> lines) {
+        /**
+         * Stores an immutable snapshot of the received quantities.
+         *
+         * @param requestId optional idempotency key
+         * @param lines quantities received per product
+         */
         public PurchaseReceiptRequest {
             lines = immutableList(lines);
         }
@@ -514,6 +544,11 @@ public final class InventoryDtos {
      */
     public record PurchaseReceiptCorrectionRequest(
             @NotNull @Size(min = 1) List<@NotNull @Valid ReceiptCorrectionLine> lines) {
+        /**
+         * Stores an immutable snapshot of the corrected receipt quantities.
+         *
+         * @param lines corrected cumulative quantities per product
+         */
         public PurchaseReceiptCorrectionRequest {
             lines = immutableList(lines);
         }
@@ -537,6 +572,13 @@ public final class InventoryDtos {
      * @param errors row-level validation messages
      */
     public record ImportResult(int imported, int rejected, List<String> errors) {
+        /**
+         * Stores an immutable snapshot of row-level import errors.
+         *
+         * @param imported number of imported rows
+         * @param rejected number of rejected rows
+         * @param errors row-level validation messages
+         */
         public ImportResult {
             errors = immutableList(errors);
         }

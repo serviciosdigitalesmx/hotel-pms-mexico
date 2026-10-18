@@ -1084,6 +1084,15 @@ public class ServiceOrderService {
             String currentState,
             String initialState,
             List<ConfiguredWorkflowTransition> transitions) {
+        /**
+         * Stores an immutable snapshot of the available configured transitions.
+         *
+         * @param id workflow identifier
+         * @param name workflow display name
+         * @param currentState current aggregate state key
+         * @param initialState configured initial state key
+         * @param transitions active transitions
+         */
         public ConfiguredWorkflowView {
             transitions = ImmutableCopies.list(transitions);
         }

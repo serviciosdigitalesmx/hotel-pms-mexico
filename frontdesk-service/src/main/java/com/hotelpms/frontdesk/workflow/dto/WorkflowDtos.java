@@ -11,7 +11,9 @@ import java.util.UUID;
 
 /**
  * Validated request and response records for tenant-configured repair workflows.
+ * Nested records are the public DTO API; this type only groups their declarations.
  */
+@SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass")
 public final class WorkflowDtos {
     private WorkflowDtos() { }
 
@@ -96,6 +98,8 @@ public final class WorkflowDtos {
 
     /**
      * Updates the display label of a workflow state.
+     *
+     * @param label new display label
      */
     public record UpdateStateLabelRequest(@NotBlank String label) { }
 
@@ -127,6 +131,16 @@ public final class WorkflowDtos {
             int version,
             List<StateResponse> states,
             List<TransitionResponse> transitions) {
+        /**
+         * Stores immutable snapshots of the configured workflow collections.
+         *
+         * @param id workflow identifier
+         * @param verticalKey business vertical key
+         * @param name workflow display name
+         * @param version optimistic-lock version
+         * @param states configured workflow states
+         * @param transitions configured workflow transitions
+         */
         public WorkflowResponse {
             states = immutableList(states);
             transitions = immutableList(transitions);
