@@ -200,6 +200,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
      * @param username  the username from the {@code X-Auth-User} header
      * @param role      the role from the {@code X-Auth-Role} header
      * @param hotelId   the hotel UUID from the {@code X-Auth-Hotel} header
+     * @param branchId  the optional branch UUID from the {@code X-Auth-Branch} header
      * @param timestamp the epoch-millis timestamp from {@code X-Auth-Timestamp}
      * @param nonce     the nonce from {@code X-Auth-Nonce}
      * @param signature the hex signature from the {@code X-Internal-Signature}
@@ -240,7 +241,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Computes {@code HMAC-SHA256(secret, "username:role:hotelId:timestamp:nonce")}
+     * Computes {@code HMAC-SHA256(secret, "username:role:hotelId:branchId:timestamp:nonce")}
      * and returns the result as a lowercase hex string, matching the API
      * Gateway's signing convention.
      *
@@ -254,6 +255,7 @@ public final class InternalAuthFilter extends OncePerRequestFilter {
      * @param username  the authenticated username
      * @param role      the role associated with the user
      * @param hotelId   the hotel UUID associated with the user
+     * @param branchId  the optional branch UUID associated with the user
      * @param timestamp the epoch-millis timestamp signed by the gateway
      * @param nonce     the random nonce signed by the gateway
      * @return hex-encoded HMAC digest

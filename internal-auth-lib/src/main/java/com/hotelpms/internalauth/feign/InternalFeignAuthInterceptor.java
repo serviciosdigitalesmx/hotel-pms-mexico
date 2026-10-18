@@ -91,20 +91,23 @@ public final class InternalFeignAuthInterceptor implements RequestInterceptor {
         template.header(HEADER_USER, user);
         template.header(HEADER_ROLE, role);
         template.header(HEADER_HOTEL, hotel);
-        if (StringUtils.hasText(branch)) template.header(HEADER_BRANCH, branch);
+        if (StringUtils.hasText(branch)) {
+            template.header(HEADER_BRANCH, branch);
+        }
         template.header(HEADER_TIMESTAMP, timestamp);
         template.header(HEADER_NONCE, nonce);
         template.header(HEADER_SIGNATURE, computeHmac(user, role, hotel, branch, timestamp, nonce));
     }
 
     /**
-     * Computes {@code HMAC-SHA256(secret, "username:role:hotelId:timestamp:nonce")}
+     * Computes {@code HMAC-SHA256(secret, "username:role:hotelId:branchId:timestamp:nonce")}
      * and returns the result as a lowercase hex string, matching the payload format
      * used by {@code InternalAuthFilter} in every downstream service (T-GW-08).
      *
      * @param username  the authenticated username
      * @param role      the role associated with the user
      * @param hotelId   the hotel UUID associated with the user
+     * @param branchId  the optional branch UUID associated with the user
      * @param timestamp the epoch-millis timestamp generated for this call
      * @param nonce     the random nonce generated for this call
      * @return hex-encoded HMAC digest
