@@ -2,11 +2,13 @@ package com.hotelpms.frontdesk.client;
 
 import com.hotelpms.frontdesk.client.dto.NotificationCheckinRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationCheckoutRequest;
-import com.hotelpms.frontdesk.client.dto.NotificationQuotationRequest;
-import com.hotelpms.frontdesk.client.dto.NotificationReservationRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationEventRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationEventResponse;
+import com.hotelpms.frontdesk.client.dto.NotificationQuotationRequest;
+import com.hotelpms.frontdesk.client.dto.NotificationReservationRequest;
+
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -23,135 +25,128 @@ import org.springframework.web.bind.annotation.RequestBody;
  * return).
  */
 @FeignClient(
-    name = "notification-service",
-    url = "${APPLICATION_CONFIG_NOTIFICATION_SERVICE_URL:http://notification-service:8088}")
+        name = "notification-service",
+        url = "${APPLICATION_CONFIG_NOTIFICATION_SERVICE_URL:http://notification-service:8088}")
 public interface NotificationClient {
 
-  Logger LOG = LoggerFactory.getLogger(NotificationClient.class);
+    Logger LOG = LoggerFactory.getLogger(NotificationClient.class);
 
-  /** Resilience4j circuit breaker instance name shared by all methods of this client. */
-  String CB_NOTIFICATION_SERVICE = "notificationService";
+    /** Resilience4j circuit breaker instance name shared by all methods of this client. */
+    String CB_NOTIFICATION_SERVICE = "notificationService";
 
-  /** Persists an idempotent operational email event in the notification outbox. */
-  @PostMapping("/internal/notifications/events")
-  @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "enqueueEventFallback")
-  NotificationEventResponse enqueueEvent(@RequestBody NotificationEventRequest request);
+    /** Persists an idempotent operational email event in the notification outbox. */
+    @PostMapping("/internal/notifications/events")
+    @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "enqueueEventFallback")
+    NotificationEventResponse enqueueEvent(@RequestBody NotificationEventRequest request);
 
-  default NotificationEventResponse enqueueEventFallback(
-      final NotificationEventRequest request, final Throwable throwable) {
-    LOG.warn("notification-service unavailable — operational alert deferred [eventKey={}]: {}",
-        request.eventKey(), throwable.getMessage());
-    return null;
-  }
+    default NotificationEventResponse enqueueEventFallback(
+            final NotificationEventRequest request, final Throwable throwable) {
+        LOG.warn(
+                "notification-service unavailable — operational alert deferred [eventKey={}]: {}",
+                request.eventKey(),
+                throwable.getMessage());
+        return null;
+    }
 
-  /**
-   * Sends a reservation-confirmed email to the guest.
-   *
-   * @param request notification payload
-   *
-   * @return {@code true} if the request reached notification-service, {@code false} if suppressed
-   */
-  @PostMapping("/internal/notifications/reservation-confirmed")
-  @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "reservationConfirmedFallback")
-  boolean sendReservationConfirmed(@RequestBody NotificationReservationRequest request);
+    /**
+     * Sends a reservation-confirmed email to the guest.
+     *
+     * @param request notification payload
+     * @return {@code true} if the request reached notification-service, {@code false} if suppressed
+     */
+    @PostMapping("/internal/notifications/reservation-confirmed")
+    @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "reservationConfirmedFallback")
+    boolean sendReservationConfirmed(@RequestBody NotificationReservationRequest request);
 
-  /**
-   * Sends a check-in welcome email to the guest.
-   *
-   * @param request notification payload
-   *
-   * @return {@code true} if the request reached notification-service, {@code false} if suppressed
-   */
-  @PostMapping("/internal/notifications/checkin")
-  @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "checkinFallback")
-  boolean sendCheckin(@RequestBody NotificationCheckinRequest request);
+    /**
+     * Sends a check-in welcome email to the guest.
+     *
+     * @param request notification payload
+     * @return {@code true} if the request reached notification-service, {@code false} if suppressed
+     */
+    @PostMapping("/internal/notifications/checkin")
+    @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "checkinFallback")
+    boolean sendCheckin(@RequestBody NotificationCheckinRequest request);
 
-  /**
-   * Sends a checkout summary email with invoice lines to the guest.
-   *
-   * @param request notification payload
-   *
-   * @return {@code true} if the request reached notification-service, {@code false} if suppressed
-   */
-  @PostMapping("/internal/notifications/checkout")
-  @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "checkoutFallback")
-  boolean sendCheckout(@RequestBody NotificationCheckoutRequest request);
+    /**
+     * Sends a checkout summary email with invoice lines to the guest.
+     *
+     * @param request notification payload
+     * @return {@code true} if the request reached notification-service, {@code false} if suppressed
+     */
+    @PostMapping("/internal/notifications/checkout")
+    @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "checkoutFallback")
+    boolean sendCheckout(@RequestBody NotificationCheckoutRequest request);
 
-  /**
-   * Sends a quotation email with the priced offer PDF attached.
-   *
-   * @param request notification payload
-   *
-   * @return {@code true} if the request reached notification-service, {@code false} if suppressed
-   */
-  @PostMapping("/internal/notifications/quotation")
-  @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "quotationFallback")
-  boolean sendQuotation(@RequestBody NotificationQuotationRequest request);
+    /**
+     * Sends a quotation email with the priced offer PDF attached.
+     *
+     * @param request notification payload
+     * @return {@code true} if the request reached notification-service, {@code false} if suppressed
+     */
+    @PostMapping("/internal/notifications/quotation")
+    @CircuitBreaker(name = CB_NOTIFICATION_SERVICE, fallbackMethod = "quotationFallback")
+    boolean sendQuotation(@RequestBody NotificationQuotationRequest request);
 
-  /**
-   * Fallback for sendReservationConfirmed — circuit open or call failed.
-   *
-   * @param request original request
-   *
-   * @param throwable cause
-   *
-   * @return {@code false}
-   */
-  default boolean reservationConfirmedFallback(
-      final NotificationReservationRequest request, final Throwable throwable) {
-    LOG.warn(
-        "notification-service CB open — reservation-confirmed email suppressed [reservationId={}]:"
-            + " {}",
-        request.reservationId(),
-        throwable.getMessage());
-    return false;
-  }
+    /**
+     * Fallback for sendReservationConfirmed — circuit open or call failed.
+     *
+     * @param request original request
+     * @param throwable cause
+     * @return {@code false}
+     */
+    default boolean reservationConfirmedFallback(
+            final NotificationReservationRequest request, final Throwable throwable) {
+        LOG.warn(
+                "notification-service CB open — reservation-confirmed email suppressed"
+                    + " [reservationId={}]: {}",
+                request.reservationId(),
+                throwable.getMessage());
+        return false;
+    }
 
-  /**
-   * Fallback for sendCheckin — circuit open or call failed.
-   *
-   * @param request original request
-   *
-   * @param throwable cause
-   *
-   * @return {@code false}
-   */
-  default boolean checkinFallback(
-      final NotificationCheckinRequest request, final Throwable throwable) {
-    LOG.warn(
-        "notification-service CB open — check-in email suppressed: {}", throwable.getMessage());
-    return false;
-  }
+    /**
+     * Fallback for sendCheckin — circuit open or call failed.
+     *
+     * @param request original request
+     * @param throwable cause
+     * @return {@code false}
+     */
+    default boolean checkinFallback(
+            final NotificationCheckinRequest request, final Throwable throwable) {
+        LOG.warn(
+                "notification-service CB open — check-in email suppressed: {}",
+                throwable.getMessage());
+        return false;
+    }
 
-  /**
-   * Fallback for sendCheckout — circuit open or call failed.
-   *
-   * @param request original request
-   *
-   * @param throwable cause
-   *
-   * @return {@code false}
-   */
-  default boolean checkoutFallback(
-      final NotificationCheckoutRequest request, final Throwable throwable) {
-    LOG.warn(
-        "notification-service CB open — checkout email suppressed: {}", throwable.getMessage());
-    return false;
-  }
+    /**
+     * Fallback for sendCheckout — circuit open or call failed.
+     *
+     * @param request original request
+     * @param throwable cause
+     * @return {@code false}
+     */
+    default boolean checkoutFallback(
+            final NotificationCheckoutRequest request, final Throwable throwable) {
+        LOG.warn(
+                "notification-service CB open — checkout email suppressed: {}",
+                throwable.getMessage());
+        return false;
+    }
 
-  /**
-   * Fallback for sendQuotation — circuit open or call failed.
-   *
-   * @param request original request
-   *
-   * @param throwable cause
-   *
-   * @return {@code false}
-   */
-  default boolean quotationFallback(
-      final NotificationQuotationRequest request, final Throwable throwable) {
-    LOG.warn(
-        "notification-service CB open — quotation email suppressed: {}", throwable.getMessage());
-    return false;
-  }
+    /**
+     * Fallback for sendQuotation — circuit open or call failed.
+     *
+     * @param request original request
+     * @param throwable cause
+     * @return {@code false}
+     */
+    default boolean quotationFallback(
+            final NotificationQuotationRequest request, final Throwable throwable) {
+        LOG.warn(
+                "notification-service CB open — quotation email suppressed: {}",
+                throwable.getMessage());
+        return false;
+    }
 }

@@ -72,6 +72,8 @@ import java.math.BigDecimal;
  *
  * @param currency 3-letter ISO currency code (optional)
  *
+ * @param defaultTaxRate optional default service-order tax percentage
+ *
  * @param locale Locale identifier, e.g. {@code "es-MX"} (optional)
  *
  * @param timezone Timezone identifier, e.g. {@code "America/Monterrey"} (optional)
@@ -85,6 +87,8 @@ import java.math.BigDecimal;
  * @param aiApiKey write-only provider API key; blank means unchanged
  *
  * @param aiInstructions hotel-specific assistant instructions
+ *
+ * @param clearDefaultTaxRate whether to clear the configured service-order tax rate
  */
 public record HotelSettingsRequest(
     Boolean alloggiatiAutoSend,

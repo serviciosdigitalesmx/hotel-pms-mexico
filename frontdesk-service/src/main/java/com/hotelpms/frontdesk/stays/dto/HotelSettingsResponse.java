@@ -58,6 +58,8 @@ import java.math.BigDecimal;
  *
  * @param currency ISO 4217 currency code for the hotel
  *
+ * @param defaultTaxRate optional default service-order tax percentage
+ *
  * @param locale locale used for formatting and translations
  *
  * @param timezone IANA timezone used for hotel operations

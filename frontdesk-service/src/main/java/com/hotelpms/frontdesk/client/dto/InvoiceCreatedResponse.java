@@ -8,4 +8,4 @@ import java.util.UUID;
  *
  * @param id the invoice UUID
  */
-public record InvoiceCreatedResponse(UUID id) { }
+public record InvoiceCreatedResponse(UUID id) {}

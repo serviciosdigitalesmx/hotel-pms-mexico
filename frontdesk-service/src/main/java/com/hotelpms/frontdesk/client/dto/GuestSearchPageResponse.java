@@ -1,6 +1,7 @@
 package com.hotelpms.frontdesk.client.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.List;
 
 /**
@@ -13,12 +14,12 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GuestSearchPageResponse(List<GuestResponse> content) {
 
-  /**
-   * Defensive copy of the content list.
-   *
-   * @param content the matching guests on the requested page
-   */
-  public GuestSearchPageResponse {
-    content = content == null ? List.of() : List.copyOf(content);
-  }
+    /**
+     * Defensive copy of the content list.
+     *
+     * @param content the matching guests on the requested page
+     */
+    public GuestSearchPageResponse {
+        content = content == null ? List.of() : List.copyOf(content);
+    }
 }

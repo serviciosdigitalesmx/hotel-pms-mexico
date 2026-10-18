@@ -1,72 +1,79 @@
 package com.hotelpms.frontdesk.inventory.controller;
 
 import com.hotelpms.frontdesk.inventory.domain.StockReservation;
-import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
 import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ProductConsumption;
+import com.hotelpms.frontdesk.inventory.dto.InventoryDtos.ReservationRequest;
 import com.hotelpms.frontdesk.inventory.service.InventoryService;
+
 import jakarta.validation.Valid;
-import java.util.UUID;
-import java.util.List;
-import java.time.LocalDate;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 
 /** Type domain type. */
 @RestController("inventoryReservationController")
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/inventory/reservations")
 public class ReservationController {
-  private final InventoryService service;
+    private final InventoryService service;
 
-  /**
-   * Reserves stock for a service order.
-   *
-   * @param r reservation request
-   * @return stock reservation
-   */
-  @PostMapping
-  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
-  public StockReservation reserve(@Valid @RequestBody final ReservationRequest r) {
-    return service.reserve(hotel(), r);
-  }
+    /**
+     * Reserves stock for a service order.
+     *
+     * @param r reservation request
+     * @return stock reservation
+     */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
+    public StockReservation reserve(@Valid @RequestBody final ReservationRequest r) {
+        return service.reserve(hotel(), r);
+    }
 
-  @GetMapping("/order/{order}")
-  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
-  public List<StockReservation> listForOrder(@PathVariable final UUID order) {
-    return service.reservationsForOrder(hotel(), order);
-  }
+    @GetMapping("/order/{order}")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
+    public List<StockReservation> listForOrder(@PathVariable final UUID order) {
+        return service.reservationsForOrder(hotel(), order);
+    }
 
-  @GetMapping("/consumption/top")
-  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
-  public List<ProductConsumption> topConsumedProducts(@RequestParam(required = false) final UUID branchId,
-      @RequestParam final LocalDate from,
-      @RequestParam final LocalDate to) {
-    return service.topConsumedProducts(hotel(), branchId, from, to);
-  }
+    @GetMapping("/consumption/top")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
+    public List<ProductConsumption> topConsumedProducts(
+            @RequestParam(required = false) final UUID branchId,
+            @RequestParam final LocalDate from,
+            @RequestParam final LocalDate to) {
+        return service.topConsumedProducts(hotel(), branchId, from, to);
+    }
 
-  /**
-   * Releases a stock reservation.
-   *
-   * @param order service order identifier
-   * @param product product identifier
-   * @return released reservation
-   */
-  @PostMapping("/{order}/{product}/release")
-  @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
-  public StockReservation release(@PathVariable final UUID order, @PathVariable final UUID product) {
-    return service.release(hotel(), order, product);
-  }
+    /**
+     * Releases a stock reservation.
+     *
+     * @param order service order identifier
+     * @param product product identifier
+     * @return released reservation
+     */
+    @PostMapping("/{order}/{product}/release")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
+    public StockReservation release(
+            @PathVariable final UUID order, @PathVariable final UUID product) {
+        return service.release(hotel(), order, product);
+    }
 
-  private UUID hotel() {
-    return UUID.fromString(
-        String.valueOf(SecurityContextHolder.getContext().getAuthentication().getDetails()));
-  }
+    private UUID hotel() {
+        return UUID.fromString(
+                String.valueOf(
+                        SecurityContextHolder.getContext().getAuthentication().getDetails()));
+    }
 }

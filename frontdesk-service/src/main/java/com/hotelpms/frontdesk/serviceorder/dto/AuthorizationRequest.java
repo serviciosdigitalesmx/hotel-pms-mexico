@@ -7,4 +7,4 @@ import jakarta.validation.constraints.NotBlank;
  *
  * @param evidence value.
  */
-public record AuthorizationRequest(@NotBlank String evidence) { }
+public record AuthorizationRequest(@NotBlank String evidence) {}

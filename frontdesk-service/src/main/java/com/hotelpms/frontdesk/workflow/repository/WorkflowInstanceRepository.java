@@ -1,42 +1,46 @@
 package com.hotelpms.frontdesk.workflow.repository;
 
 import com.hotelpms.frontdesk.workflow.domain.WorkflowInstance;
+
 import jakarta.persistence.LockModeType;
-import java.util.Optional;
-import java.util.UUID;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+import java.util.UUID;
+
 /** WorkflowInstanceRepository domain type. */
 public interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstance, UUID> {
-  boolean existsByHotelIdAndWorkflowIdAndStateKey(UUID hotelId, UUID workflowId, String stateKey);
-  /**
-   * Executes the locked lookup.
-   *
-   * @param hotelId hotel identifier.
-   * @param workflowId workflow identifier.
-   * @param aggregateId aggregate identifier.
-   * @return matching instance.
-   */
-  @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query(
-      "select i from WorkflowInstance i where i.hotelId = :hotelId and i.workflowId = :workflowId"
-          + " and i.aggregateId = :aggregateId")
-  Optional<WorkflowInstance> findLockedByHotelIdAndWorkflowIdAndAggregateId(
-      @Param("hotelId") UUID hotelId,
-      @Param("workflowId") UUID workflowId,
-      @Param("aggregateId") UUID aggregateId);
+    boolean existsByHotelIdAndWorkflowIdAndStateKey(UUID hotelId, UUID workflowId, String stateKey);
 
-  /**
-   * Finds an instance by its aggregate identity.
-   *
-   * @param hotelId hotel identifier.
-   * @param workflowId workflow identifier.
-   * @param aggregateId aggregate identifier.
-   * @return matching instance.
-   */
-  Optional<WorkflowInstance> findByHotelIdAndWorkflowIdAndAggregateId(
-      UUID hotelId, UUID workflowId, UUID aggregateId);
+    /**
+     * Executes the locked lookup.
+     *
+     * @param hotelId hotel identifier.
+     * @param workflowId workflow identifier.
+     * @param aggregateId aggregate identifier.
+     * @return matching instance.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            "select i from WorkflowInstance i where i.hotelId = :hotelId and i.workflowId ="
+                + " :workflowId and i.aggregateId = :aggregateId")
+    Optional<WorkflowInstance> findLockedByHotelIdAndWorkflowIdAndAggregateId(
+            @Param("hotelId") UUID hotelId,
+            @Param("workflowId") UUID workflowId,
+            @Param("aggregateId") UUID aggregateId);
+
+    /**
+     * Finds an instance by its aggregate identity.
+     *
+     * @param hotelId hotel identifier.
+     * @param workflowId workflow identifier.
+     * @param aggregateId aggregate identifier.
+     * @return matching instance.
+     */
+    Optional<WorkflowInstance> findByHotelIdAndWorkflowIdAndAggregateId(
+            UUID hotelId, UUID workflowId, UUID aggregateId);
 }

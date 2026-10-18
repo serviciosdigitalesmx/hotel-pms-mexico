@@ -43,6 +43,8 @@ public class HotelSettings {
   private static final int LEN_SLUG = 120;
   private static final int LEN_AI_MODEL = 150;
   private static final int LEN_AI_INSTRUCTIONS = 1000;
+  private static final int TAX_RATE_PRECISION = 5;
+  private static final int TAX_RATE_SCALE = 2;
 
   /** The hotel this settings row belongs to (primary key). */
   @Id
@@ -108,7 +110,7 @@ public class HotelSettings {
   private String currency = "MXN";
 
   /** Optional default tax percentage for service-order quotations; null preserves manual tax entry. */
-  @Column(name = "default_tax_rate", precision = 5, scale = 2)
+  @Column(name = "default_tax_rate", precision = TAX_RATE_PRECISION, scale = TAX_RATE_SCALE)
   private BigDecimal defaultTaxRate;
 
   @Column(name = "locale", length = LEN_LOCALE, nullable = false)

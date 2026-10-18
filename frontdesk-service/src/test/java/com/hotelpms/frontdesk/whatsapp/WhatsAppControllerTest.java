@@ -1,5 +1,12 @@
 package com.hotelpms.frontdesk.whatsapp;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,13 +21,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 class WhatsAppControllerTest {
     private AnnotationConfigApplicationContext context;
@@ -52,14 +52,16 @@ class WhatsAppControllerTest {
     void ownerUsesAuthenticatedTenantAndQrCannotBeCached() {
         final UUID hotel = UUID.randomUUID();
         authenticate("OWNER", hotel);
-        when(service.connect(hotel)).thenReturn(new EvolutionService.Connection("connecting", null));
+        when(service.connect(hotel))
+                .thenReturn(new EvolutionService.Connection("connecting", null));
         assertEquals("no-store", controller.connect().getHeaders().getCacheControl());
         verify(service).connect(hotel);
     }
 
     private static void authenticate(final String role, final UUID hotel) {
-        final UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                "staff", null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+        final UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        "staff", null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
         authentication.setDetails(hotel.toString());
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
