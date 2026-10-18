@@ -22,6 +22,9 @@ public final class ValidationConstants {
     public static final int MAX_VAT_NUMBER_LENGTH = 20;
     public static final int MAX_COMPANY_NAME_LENGTH = 200;
     public static final int MAX_SDI_CODE_LENGTH = 7;
+    public static final int MAX_DEVICE_CATEGORY_LENGTH = 80;
+    public static final int MAX_DEVICE_MANUFACTURER_LENGTH = 150;
+    public static final int MAX_DEVICE_MODEL_LENGTH = 150;
 
     /** Unicode letters, spaces, hyphens, apostrophes — covers international names. */
     public static final String NAME_PATTERN = "^[\\p{L} '\\-]+$";

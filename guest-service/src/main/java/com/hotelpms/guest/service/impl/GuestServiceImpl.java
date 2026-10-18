@@ -36,8 +36,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -59,6 +62,9 @@ import java.util.UUID;
 public class GuestServiceImpl implements GuestService {
 
     private static final String GUEST_NOT_FOUND_MSG = "GUEST_NOT_FOUND";
+    private static final String CUSTOMER_DUPLICATE_MATCH = "CUSTOMER_DUPLICATE_MATCH";
+    private static final String CUSTOMER_DUPLICATE_IN_IMPORT = "CUSTOMER_DUPLICATE_IN_IMPORT";
+    private static final int MAX_CSV_IMPORT_CUSTOMERS = 500;
     private static final String ANON_FIRST = "GDPR";
     private static final String ANON_LAST_PREFIX = "ERASED_";
 
@@ -83,7 +89,7 @@ public class GuestServiceImpl implements GuestService {
         final UUID hotelId = extractHotelId();
         final GuestResponse duplicate = findPotentialDuplicate(request);
         if (duplicate != null) {
-            throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
+            throw new GuestConflictException(CUSTOMER_DUPLICATE_MATCH);
         }
         final Guest entity = guestMapper.toEntity(request);
         normalizeMexicoGuest(entity);
@@ -94,29 +100,37 @@ public class GuestServiceImpl implements GuestService {
         return guestMapper.toResponse(saved);
     }
 
+    /**
+     * Imports a bounded batch of customers after checking for duplicate identity fields.
+     *
+     * @param requests validated customer import requests
+     * @return persisted customer responses
+     */
     @Override
     @Transactional
     public List<GuestResponse> importGuests(final List<GuestRequest> requests) {
-        if (requests == null || requests.isEmpty() || requests.size() > 500) {
+        if (requests == null || requests.isEmpty() || requests.size() > MAX_CSV_IMPORT_CUSTOMERS) {
             throw new IllegalArgumentException("CSV_IMPORT_REQUIRES_1_TO_500_CUSTOMERS");
         }
-        final java.util.Set<String> emails = new java.util.HashSet<>();
-        final java.util.Set<String> phones = new java.util.HashSet<>();
-        final java.util.Set<String> rfcs = new java.util.HashSet<>();
+        final Set<String> emails = new HashSet<>();
+        final Set<String> phones = new HashSet<>();
+        final Set<String> rfcs = new HashSet<>();
         for (final GuestRequest request : requests) {
             final GuestResponse existing = findPotentialDuplicate(request);
-            if (existing != null) throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
+            if (existing != null) {
+                throw new GuestConflictException(CUSTOMER_DUPLICATE_MATCH);
+            }
             if (request.email() != null && !request.email().isBlank()
-                    && !emails.add(request.email().trim().toLowerCase(java.util.Locale.ROOT))) {
-                throw new GuestConflictException("CUSTOMER_DUPLICATE_IN_IMPORT");
+                    && !emails.add(request.email().trim().toLowerCase(Locale.ROOT))) {
+                throw new GuestConflictException(CUSTOMER_DUPLICATE_IN_IMPORT);
             }
             if (request.phone() != null && !request.phone().isBlank()
                     && !phones.add(request.phone().trim())) {
-                throw new GuestConflictException("CUSTOMER_DUPLICATE_IN_IMPORT");
+                throw new GuestConflictException(CUSTOMER_DUPLICATE_IN_IMPORT);
             }
             if (request.rfc() != null && !request.rfc().isBlank()
-                    && !rfcs.add(request.rfc().trim().toUpperCase(java.util.Locale.ROOT))) {
-                throw new GuestConflictException("CUSTOMER_DUPLICATE_IN_IMPORT");
+                    && !rfcs.add(request.rfc().trim().toUpperCase(Locale.ROOT))) {
+                throw new GuestConflictException(CUSTOMER_DUPLICATE_IN_IMPORT);
             }
         }
         final UUID hotelId = extractHotelId();
@@ -215,11 +229,13 @@ public class GuestServiceImpl implements GuestService {
         final Guest guest = Objects.requireNonNull(resolveGuest(id, hotelId));
         final GuestResponse duplicate = findPotentialDuplicateExcluding(request, id, hotelId);
         if (duplicate != null) {
-            throw new GuestConflictException("CUSTOMER_DUPLICATE_MATCH");
+            throw new GuestConflictException(CUSTOMER_DUPLICATE_MATCH);
         }
         final String existingIdentityNumber = guest.getIdentityNumber();
         guestMapper.updateEntityFromRequest(request, guest);
-        if (request.identityNumber() == null) guest.setIdentityNumber(existingIdentityNumber);
+        if (request.identityNumber() == null) {
+            guest.setIdentityNumber(existingIdentityNumber);
+        }
         normalizeMexicoGuest(guest);
         final Guest savedGuest = Objects.requireNonNull(guestRepository.save(guest));
         return guestMapper.toResponse(savedGuest);
@@ -230,17 +246,23 @@ public class GuestServiceImpl implements GuestService {
         if (request.email() != null && !request.email().isBlank()) {
             final var match = guestRepository.findFirstByHotelIdAndEmailIgnoreCaseAndIdNot(
                     hotelId, request.email().trim(), excludedId);
-            if (match.isPresent()) return guestMapper.toResponse(match.get());
+            if (match.isPresent()) {
+                return guestMapper.toResponse(match.get());
+            }
         }
         if (request.phone() != null && !request.phone().isBlank()) {
             final var match = guestRepository.findFirstByHotelIdAndPhoneAndIdNot(
                     hotelId, request.phone().trim(), excludedId);
-            if (match.isPresent()) return guestMapper.toResponse(match.get());
+            if (match.isPresent()) {
+                return guestMapper.toResponse(match.get());
+            }
         }
         if (request.rfc() != null && !request.rfc().isBlank()) {
             final var match = guestRepository.findFirstByHotelIdAndRfcIgnoreCaseAndIdNot(
                     hotelId, request.rfc().trim(), excludedId);
-            if (match.isPresent()) return guestMapper.toResponse(match.get());
+            if (match.isPresent()) {
+                return guestMapper.toResponse(match.get());
+            }
         }
         return null;
     }

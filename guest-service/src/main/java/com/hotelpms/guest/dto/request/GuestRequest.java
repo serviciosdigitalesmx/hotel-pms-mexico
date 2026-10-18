@@ -35,6 +35,7 @@ import java.time.LocalDate;
  * @param cap               CAP — Italian 5-digit postal code (optional)
  * @param comune            Comune — municipality name (optional)
  * @param provincia         Provincia — 2-letter province code (optional)
+ * @param identityNumber    identity document number (optional)
  */
 public record GuestRequest(
         @NotBlank
@@ -110,8 +111,32 @@ public record GuestRequest(
         @Size(max = 100) @Pattern(regexp = "^$|^[A-Za-z0-9\\-]+$", message = "IDENTITY_NUMBER_INVALID") String identityNumber) {
 
     /** Compatibility constructor for existing integrations that do not send identityNumber. */
-    public GuestRequest(String firstName,String lastName,String email,String phone,String address,String city,String country,LocalDate dateOfBirth,String rfc,String fiscalName,String fiscalPostalCode,String fiscalRegime,String cfdiUse,String billingEmail,String fiscalCode,String vatNumber,String companyName,String sdiCode,String pecEmail,String cap,String comune,String provincia) {
-        this(firstName,lastName,email,phone,address,city,country,dateOfBirth,rfc,fiscalName,fiscalPostalCode,fiscalRegime,cfdiUse,billingEmail,fiscalCode,vatNumber,companyName,sdiCode,pecEmail,cap,comune,provincia,null);
+    public GuestRequest(
+            final String firstName,
+            final String lastName,
+            final String email,
+            final String phone,
+            final String address,
+            final String city,
+            final String country,
+            final LocalDate dateOfBirth,
+            final String rfc,
+            final String fiscalName,
+            final String fiscalPostalCode,
+            final String fiscalRegime,
+            final String cfdiUse,
+            final String billingEmail,
+            final String fiscalCode,
+            final String vatNumber,
+            final String companyName,
+            final String sdiCode,
+            final String pecEmail,
+            final String cap,
+            final String comune,
+            final String provincia) {
+        this(firstName, lastName, email, phone, address, city, country, dateOfBirth, rfc,
+                fiscalName, fiscalPostalCode, fiscalRegime, cfdiUse, billingEmail, fiscalCode,
+                vatNumber, companyName, sdiCode, pecEmail, cap, comune, provincia, null);
     }
 
     /**

@@ -20,13 +20,18 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceServiceImplTest {
-    @Mock DeviceRepository devices;
-    @Mock GuestRepository guests;
-    @InjectMocks DeviceServiceImpl service;
+    @Mock private DeviceRepository devices;
+    @Mock private GuestRepository guests;
+    @InjectMocks private DeviceServiceImpl service;
     private UUID hotelId;
     private UUID customerId;
 
@@ -34,7 +39,7 @@ class DeviceServiceImplTest {
     void setUp() {
         hotelId = UUID.randomUUID();
         customerId = UUID.randomUUID();
-        var authentication = new UsernamePasswordAuthenticationToken("worker", null);
+        final var authentication = new UsernamePasswordAuthenticationToken("worker", null);
         authentication.setDetails(hotelId.toString());
         SecurityContextHolder.getContext().setAuthentication(authentication);
         lenient().when(guests.findByIdAndHotelId(customerId, hotelId))
@@ -43,7 +48,7 @@ class DeviceServiceImplTest {
 
     @Test
     void createsDeviceForCustomerAndRejectsDuplicateImei() {
-        var request = new DeviceRequest("phone", "Acme", "X", null, "imei-1", null);
+        final var request = new DeviceRequest("phone", "Acme", "X", null, "imei-1", null);
         when(devices.existsByHotelIdAndImeiIgnoreCase(hotelId, "IMEI-1")).thenReturn(false, true);
         when(devices.save(any(Device.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -54,7 +59,7 @@ class DeviceServiceImplTest {
 
     @Test
     void doesNotExposeCustomerFromAnotherTenant() {
-        UUID foreignCustomer = UUID.randomUUID();
+        final UUID foreignCustomer = UUID.randomUUID();
         when(guests.findByIdAndHotelId(foreignCustomer, hotelId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> service.list(foreignCustomer));
         verifyNoInteractions(devices);
@@ -62,7 +67,7 @@ class DeviceServiceImplTest {
 
     @Test
     void catalogReturnsOnlyTheAuthenticatedTenantSummary() {
-        var entries = java.util.List.of(new DeviceCatalogEntry("Teléfono", "Acme", "X", 3L));
+        final var entries = java.util.List.of(new DeviceCatalogEntry("Teléfono", "Acme", "X", 3L));
         when(devices.catalogByHotelId(hotelId)).thenReturn(entries);
 
         assertEquals(entries, service.catalog());

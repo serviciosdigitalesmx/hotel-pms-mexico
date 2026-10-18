@@ -14,9 +14,9 @@ import com.hotelpms.guest.repository.DeviceOwnershipTransferRepository;
 import com.hotelpms.guest.repository.GuestRepository;
 import com.hotelpms.guest.service.DeviceService;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DeviceServiceImpl implements DeviceService {
   private static final String DEVICE_IDENTITY_ALREADY_EXISTS = "DEVICE_IDENTITY_ALREADY_EXISTS";
+  private static final String DEVICE_NOT_FOUND = "DEVICE_NOT_FOUND";
   private final DeviceRepository devices;
   private final GuestRepository guests;
   private final DeviceOwnershipTransferRepository transfers;
@@ -84,7 +85,7 @@ public class DeviceServiceImpl implements DeviceService {
     final UUID hotelId = hotel();
     customer(customerId);
     final Device device = devices.findByIdAndHotelIdAndGuestId(deviceId, hotelId, customerId)
-        .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
+        .orElseThrow(() -> new NotFoundException(DEVICE_NOT_FOUND));
     final String serialNumber = normalize(request.serialNumber(), false);
     final String imei = normalize(request.imei(), true);
     if (serialNumber != null && !serialNumber.equalsIgnoreCase(device.getSerialNumber())
@@ -186,7 +187,7 @@ public class DeviceServiceImpl implements DeviceService {
     customer(customerId);
     return devices.findByIdAndHotelIdAndGuestId(id, hotel(), customerId)
         .map(DeviceResponse::from)
-        .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
+        .orElseThrow(() -> new NotFoundException(DEVICE_NOT_FOUND));
   }
 
   /** Transfers ownership only inside the current tenant and records the actor/evidence. */
@@ -198,7 +199,7 @@ public class DeviceServiceImpl implements DeviceService {
     customer(fromCustomerId);
     customer(toCustomerId);
     final Device device = devices.findByIdAndHotelIdAndGuestId(deviceId, hotelId, fromCustomerId)
-        .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
+        .orElseThrow(() -> new NotFoundException(DEVICE_NOT_FOUND));
     if (fromCustomerId.equals(toCustomerId)) {
       throw new IllegalArgumentException("DEVICE_TRANSFER_REQUIRES_NEW_OWNER");
     }
@@ -233,15 +234,19 @@ public class DeviceServiceImpl implements DeviceService {
     customer(customerId);
     final UUID hotelId = hotel();
     devices.findByIdAndHotelIdAndGuestId(deviceId, hotelId, customerId)
-        .orElseThrow(() -> new NotFoundException("DEVICE_NOT_FOUND"));
+        .orElseThrow(() -> new NotFoundException(DEVICE_NOT_FOUND));
     return transfers.findAllByHotelIdAndDeviceIdOrderByTransferredAtDesc(hotelId, deviceId)
         .stream().map(DeviceOwnershipTransferResponse::from).toList();
   }
 
   private static String normalize(final String value, final boolean uppercase) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final String trimmed = value.trim();
-    if (trimmed.isEmpty()) return null;
-    return uppercase ? trimmed.toUpperCase(java.util.Locale.ROOT) : trimmed;
+    if (trimmed.isEmpty()) {
+      return null;
+    }
+    return uppercase ? trimmed.toUpperCase(Locale.ROOT) : trimmed;
   }
 }

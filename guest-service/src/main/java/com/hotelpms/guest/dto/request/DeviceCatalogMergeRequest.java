@@ -1,5 +1,6 @@
 package com.hotelpms.guest.dto.request;
 
+import com.hotelpms.guest.util.ValidationConstants;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -7,14 +8,26 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
-/** Tenant-local request to normalize one or more device catalog identities into a target. */
+/**
+ * Tenant-local request to normalize one or more device catalog identities into a target.
+ *
+ * @param sources source identities to normalize
+ * @param target destination identity
+ */
 public record DeviceCatalogMergeRequest(
     @NotEmpty List<@Valid Identity> sources,
     @NotNull @Valid Identity target) {
 
-  /** A catalog identity; blank manufacturer/model values are valid. */
+  /**
+   * A catalog identity; blank manufacturer/model values are valid.
+   *
+   * @param category device category
+   * @param manufacturer device manufacturer, if known
+   * @param model device model, if known
+   */
   public record Identity(
-      @NotBlank @Size(max = 80) String category,
-      @Size(max = 150) String manufacturer,
-      @Size(max = 150) String model) { }
+      @NotBlank @Size(max = ValidationConstants.MAX_DEVICE_CATEGORY_LENGTH) String category,
+      @Size(max = ValidationConstants.MAX_DEVICE_MANUFACTURER_LENGTH) String manufacturer,
+      @Size(max = ValidationConstants.MAX_DEVICE_MODEL_LENGTH) String model) {
+  }
 }

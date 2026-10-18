@@ -7,9 +7,6 @@ import com.hotelpms.guest.service.DeviceService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +15,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** HTTP endpoints for customer devices. */
@@ -69,7 +66,14 @@ public class DeviceController {
     return service.get(customerId, id);
   }
 
-  /** Updates device details without transferring its customer ownership. */
+  /**
+   * Updates device details without transferring its customer ownership.
+   *
+   * @param customerId customer identifier
+   * @param id device identifier
+   * @param request replacement device details
+   * @return updated device response
+   */
   @PutMapping("/{id}")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')")
   public DeviceResponse update(@PathVariable final UUID customerId, @PathVariable final UUID id,
@@ -77,7 +81,15 @@ public class DeviceController {
     return service.update(customerId, id, request);
   }
 
-  /** Transfers ownership while retaining an audit trail. */
+  /**
+   * Transfers ownership while retaining an audit trail.
+   *
+   * @param customerId current customer identifier
+   * @param id device identifier
+   * @param toCustomerId destination customer identifier
+   * @param evidence transfer evidence
+   * @return updated device response
+   */
   @PutMapping("/{id}/transfer")
   @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
   public DeviceResponse transfer(@PathVariable final UUID customerId, @PathVariable final UUID id,
@@ -85,7 +97,13 @@ public class DeviceController {
     return service.transfer(id, customerId, toCustomerId, evidence);
   }
 
-  /** Returns ownership changes for a device currently owned by this tenant customer. */
+  /**
+   * Returns ownership changes for a device currently owned by this tenant customer.
+   *
+   * @param customerId customer identifier
+   * @param id device identifier
+   * @return ownership history
+   */
   @GetMapping("/{id}/transfers")
   public List<DeviceOwnershipTransferResponse> ownershipHistory(
       @PathVariable final UUID customerId, @PathVariable final UUID id) {

@@ -33,43 +33,67 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      * @param hotelId the owning hotel UUID
      * @return the guest if found and owned by the hotel
      */
-    Optional<Guest> findByIdAndHotelId(UUID id, UUID hotelId);
+    Optional<Guest> findByIdAndHotelId(final UUID id, final UUID hotelId);
 
     /**
      * Finds the first guest matching email in a hotel.
      *
      * @param hotelId tenant identifier.
-     * @param email email value.
-     * @return matching guest.
+     * @param email email value
+     * @return matching guest, if present
      */
-    Optional<Guest> findFirstByHotelIdAndEmailIgnoreCase(UUID hotelId, String email);
+    Optional<Guest> findFirstByHotelIdAndEmailIgnoreCase(final UUID hotelId, final String email);
 
-    /** Finds a guest by email while excluding the profile currently being edited. */
-    Optional<Guest> findFirstByHotelIdAndEmailIgnoreCaseAndIdNot(UUID hotelId, String email, UUID id);
+    /**
+     * Finds a guest by email while excluding the profile currently being edited.
+     *
+     * @param hotelId tenant identifier
+     * @param email email value
+     * @param id customer identifier to exclude
+     * @return another matching guest, if present
+     */
+    Optional<Guest> findFirstByHotelIdAndEmailIgnoreCaseAndIdNot(
+            final UUID hotelId, final String email, final UUID id);
 
     /**
      * Finds the first guest matching phone in a hotel.
      *
      * @param hotelId tenant identifier.
-     * @param phone phone value.
-     * @return matching guest.
+     * @param phone phone value
+     * @return matching guest, if present
      */
-    Optional<Guest> findFirstByHotelIdAndPhone(UUID hotelId, String phone);
+    Optional<Guest> findFirstByHotelIdAndPhone(final UUID hotelId, final String phone);
 
-    /** Finds a guest by phone while excluding the profile currently being edited. */
-    Optional<Guest> findFirstByHotelIdAndPhoneAndIdNot(UUID hotelId, String phone, UUID id);
+    /**
+     * Finds a guest by phone while excluding the profile currently being edited.
+     *
+     * @param hotelId tenant identifier
+     * @param phone phone value
+     * @param id customer identifier to exclude
+     * @return another matching guest, if present
+     */
+    Optional<Guest> findFirstByHotelIdAndPhoneAndIdNot(
+            final UUID hotelId, final String phone, final UUID id);
 
     /**
      * Finds the first guest matching RFC in a hotel.
      *
      * @param hotelId tenant identifier.
-     * @param rfc RFC value.
-     * @return matching guest.
+     * @param rfc RFC value
+     * @return matching guest, if present
      */
-    Optional<Guest> findFirstByHotelIdAndRfcIgnoreCase(UUID hotelId, String rfc);
+    Optional<Guest> findFirstByHotelIdAndRfcIgnoreCase(final UUID hotelId, final String rfc);
 
-    /** Finds a guest by RFC while excluding the profile currently being edited. */
-    Optional<Guest> findFirstByHotelIdAndRfcIgnoreCaseAndIdNot(UUID hotelId, String rfc, UUID id);
+    /**
+     * Finds a guest by RFC while excluding the profile currently being edited.
+     *
+     * @param hotelId tenant identifier
+     * @param rfc RFC value
+     * @param id customer identifier to exclude
+     * @return another matching guest, if present
+     */
+    Optional<Guest> findFirstByHotelIdAndRfcIgnoreCaseAndIdNot(
+            final UUID hotelId, final String rfc, final UUID id);
 
     /**
      * Returns a paginated list of all active guests belonging to a hotel.
@@ -78,7 +102,7 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      * @param pageable pagination parameters
      * @return page of guests scoped to the hotel
      */
-    Page<Guest> findAllByHotelId(UUID hotelId, Pageable pageable);
+    Page<Guest> findAllByHotelId(final UUID hotelId, final Pageable pageable);
 
     /**
      * Returns all active guests with the given IDs that belong to the hotel.
@@ -88,7 +112,7 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
      * @param hotelId the owning hotel UUID
      * @return list of matching guests scoped to the hotel
      */
-    List<Guest> findAllByIdInAndHotelId(List<UUID> ids, UUID hotelId);
+    List<Guest> findAllByIdInAndHotelId(final List<UUID> ids, final UUID hotelId);
 
     /**
      * Searches guests within a hotel by first name, last name, email or city
@@ -125,5 +149,5 @@ public interface GuestRepository extends JpaRepository<Guest, UUID>, JpaSpecific
             + "every hotel for candidates, then GuestRetentionJobServiceImpl verifies the "
             + "per-guest legal-hold constraints (TULPS/fiscal) before ever anonymising anything "
             + "(T-GST-05) — this is a pre-filter, not a data-returning endpoint.")
-    List<Guest> findByGdprConsentDateBefore(LocalDate cutoff);
+    List<Guest> findByGdprConsentDateBefore(final LocalDate cutoff);
 }
