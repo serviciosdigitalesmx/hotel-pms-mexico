@@ -208,7 +208,7 @@ class NotificationServiceImplTest {
         verify(mailSender).send(captor.capture());
         final MimeMessage sent = captor.getValue();
         try {
-            org.junit.jupiter.api.Assertions.assertEquals("Il tuo soggiorno ti aspetta!", sent.getSubject());
+            assertEquals("Il tuo soggiorno ti aspetta!", sent.getSubject());
         } catch (final jakarta.mail.MessagingException e) {
             throw new AssertionError(SUBJECT_READ_ERROR, e);
         }
@@ -291,8 +291,8 @@ class NotificationServiceImplTest {
         assertTrue(content instanceof jakarta.mail.Multipart,
                 "Message with an attachment should be multipart but was: " + content.getClass());
         final jakarta.mail.Multipart multipart = (jakarta.mail.Multipart) content;
-        org.junit.jupiter.api.Assertions.assertEquals(2, multipart.getCount());
-        org.junit.jupiter.api.Assertions.assertEquals("fattura-101.pdf", multipart.getBodyPart(1).getFileName());
+        assertEquals(2, multipart.getCount());
+        assertEquals("fattura-101.pdf", multipart.getBodyPart(1).getFileName());
     }
 
     @Test

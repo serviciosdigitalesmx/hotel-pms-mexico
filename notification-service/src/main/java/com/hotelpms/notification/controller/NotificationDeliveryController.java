@@ -18,9 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/internal/notifications/events")
+@SuppressWarnings("checkstyle:DesignForExtension")
 public class NotificationDeliveryController {
   private final NotificationDeliveryService service;
 
+  /**
+   * Persists an authenticated tenant event for asynchronous delivery.
+   *
+   * @param request validated event envelope
+   * @param authenticatedHotelId tenant identity from the internal-authenticated header
+   * @return accepted response with the persisted delivery identity
+   */
   @PostMapping
   public ResponseEntity<EventNotificationResponse> enqueue(
       @Valid @RequestBody final EventNotificationRequest request,

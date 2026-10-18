@@ -39,6 +39,25 @@ public class NotificationServiceImpl implements NotificationService {
     private final String fromAddress;
     private final String fromName;
 
+    /**
+     * Constructs the service with injected mail infrastructure and configuration.
+     *
+     * @param mailSender the Spring JavaMailSender configured with SMTP settings
+     * @param templateEngine the Thymeleaf engine used to render email templates
+     * @param fromAddress the configured sender email address
+     * @param fromName the configured sender display name
+     */
+    public NotificationServiceImpl(
+            final JavaMailSender mailSender,
+            final TemplateEngine templateEngine,
+            @Value("${notification.from-address}") final String fromAddress,
+            @Value("${notification.from-name:Hotel PMS}") final String fromName) {
+        this.mailSender = mailSender;
+        this.templateEngine = templateEngine;
+        this.fromAddress = fromAddress;
+        this.fromName = fromName;
+    }
+
     /** {@inheritDoc} */
     @Override
     public void sendOperationalEmail(final OperationalEmailRequest request) {
@@ -54,25 +73,6 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (final MessagingException | UnsupportedEncodingException e) {
             throw new IllegalStateException("EMAIL_SEND_FAILED: " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * Constructs the service with injected mail infrastructure and configuration.
-     *
-     * @param mailSender       the Spring JavaMailSender configured with SMTP settings
-     * @param templateEngine   the Thymeleaf engine used to render HTML templates
-     * @param fromAddress      the "From" email address ({@code notification.from-address})
-     * @param fromName         the "From" display name ({@code notification.from-name})
-     */
-    public NotificationServiceImpl(
-            final JavaMailSender mailSender,
-            final TemplateEngine templateEngine,
-            @Value("${notification.from-address}") final String fromAddress,
-            @Value("${notification.from-name:Hotel PMS}") final String fromName) {
-        this.mailSender = mailSender;
-        this.templateEngine = templateEngine;
-        this.fromAddress = fromAddress;
-        this.fromName = fromName;
     }
 
     /** {@inheritDoc} */

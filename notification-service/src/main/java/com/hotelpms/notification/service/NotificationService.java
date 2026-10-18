@@ -2,6 +2,7 @@ package com.hotelpms.notification.service;
 
 import com.hotelpms.notification.dto.CheckinNotificationRequest;
 import com.hotelpms.notification.dto.CheckoutNotificationRequest;
+import com.hotelpms.notification.dto.OperationalEmailRequest;
 import com.hotelpms.notification.dto.QuotationNotificationRequest;
 import com.hotelpms.notification.dto.ReservationConfirmedRequest;
 
@@ -10,8 +11,12 @@ import com.hotelpms.notification.dto.ReservationConfirmedRequest;
  */
 public interface NotificationService {
 
-    /** Sends an operational alert to a configured business recipient. */
-    void sendOperationalEmail(com.hotelpms.notification.dto.OperationalEmailRequest request);
+    /**
+     * Sends an operational alert to a configured business recipient.
+     *
+     * @param request validated operational email payload
+     */
+    void sendOperationalEmail(OperationalEmailRequest request);
 
     /**
      * Sends a reservation-confirmed email to the guest.

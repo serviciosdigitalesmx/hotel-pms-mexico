@@ -9,9 +9,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@SuppressWarnings("checkstyle:DesignForExtension")
 public class NotificationDeliveryScheduler {
   private final NotificationDeliveryService deliveryService;
 
+  /** Dispatches eligible tenant notifications on each configured poll interval. */
   @Scheduled(fixedDelayString = "${notification.delivery.poll-interval-ms:30000}")
   public void dispatchPending() {
     final int delivered = deliveryService.deliverPending();
