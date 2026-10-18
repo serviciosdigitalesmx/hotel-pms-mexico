@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -57,9 +58,8 @@ public class ServiceCatalogService {
                         .basePrice(
                                 request.basePrice() == null ? BigDecimal.ZERO : request.basePrice())
                         .estimatedMinutes(
-                                request.estimatedMinutes() == null
-                                        ? DEFAULT_ESTIMATED_MINUTES
-                                        : request.estimatedMinutes())
+                                Objects.requireNonNullElse(
+                                        request.estimatedMinutes(), DEFAULT_ESTIMATED_MINUTES))
                         .active(true)
                         .createdAt(LocalDateTime.now())
                         .build());

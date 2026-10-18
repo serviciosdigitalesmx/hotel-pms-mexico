@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hotelpms.frontdesk.client.NotificationClient;
 import com.hotelpms.frontdesk.client.dto.NotificationEventRequest;
@@ -57,7 +58,7 @@ class OperationalNotificationOutboxServiceTest {
     }
 
     @Test
-    void persistsRecipientScopedMessageWhenEmailIsEnabled() throws Exception {
+    void persistsRecipientScopedMessageWhenEmailIsEnabled() throws JsonProcessingException {
         when(preferences.get(HOTEL_ID))
                 .thenReturn(Map.of(ORDER_ASSIGNED_EVENT, Map.of("EMAIL", true)));
         when(preferences.getEmailRecipients(HOTEL_ID))
@@ -101,7 +102,7 @@ class OperationalNotificationOutboxServiceTest {
     }
 
     @Test
-    void marksForwardedOutboxRowAndRemovesRecipientPayload() throws Exception {
+    void marksForwardedOutboxRowAndRemovesRecipientPayload() throws JsonProcessingException {
         final ObjectMapper mapper = new ObjectMapper();
         final String emailPayload =
                 mapper.writeValueAsString(

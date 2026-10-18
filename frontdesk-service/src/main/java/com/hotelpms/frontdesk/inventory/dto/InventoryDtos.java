@@ -450,15 +450,6 @@ public final class InventoryDtos {
         }
 
         /**
-         * Returns a defensive immutable copy of the requested purchase lines.
-         *
-         * @return immutable purchase-line snapshot, or null when absent
-         */
-        public List<PurchaseLineRequest> lines() {
-            return immutableList(lines);
-        }
-
-        /**
          * Creates a purchase request with no lines for legacy service callers.
          *
          * @param branchId receiving branch
@@ -468,6 +459,15 @@ public final class InventoryDtos {
         public PurchaseRequest(
                 final UUID branchId, final UUID supplierId, final UUID serviceOrderId) {
             this(branchId, supplierId, serviceOrderId, List.of());
+        }
+
+        /**
+         * Returns a defensive immutable copy of the requested purchase lines.
+         *
+         * @return immutable purchase-line snapshot, or null when absent
+         */
+        public List<PurchaseLineRequest> lines() {
+            return immutableList(lines);
         }
     }
 
@@ -545,21 +545,21 @@ public final class InventoryDtos {
         }
 
         /**
-         * Returns a defensive immutable copy of the received quantities.
-         *
-         * @return immutable receipt-line snapshot, or null when absent
-         */
-        public List<ReceiptLine> lines() {
-            return immutableList(lines);
-        }
-
-        /**
          * Creates a receipt request without an explicit idempotency identifier.
          *
          * @param lines quantities received per product
          */
         public PurchaseReceiptRequest(final List<ReceiptLine> lines) {
             this(null, lines);
+        }
+
+        /**
+         * Returns a defensive immutable copy of the received quantities.
+         *
+         * @return immutable receipt-line snapshot, or null when absent
+         */
+        public List<ReceiptLine> lines() {
+            return immutableList(lines);
         }
     }
 

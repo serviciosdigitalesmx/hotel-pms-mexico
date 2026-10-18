@@ -25,8 +25,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
@@ -36,9 +38,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
@@ -66,25 +65,24 @@ class WorkflowConcurrencyTest {
     private static AnnotationConfigApplicationContext context;
 
     @BeforeAll
-    static void database() throws IOException, SQLException {
+    static void database() throws SQLException {
         try (var connection =
                         DriverManager.getConnection(
                                 POSTGRES.getJdbcUrl(),
                                 POSTGRES.getUsername(),
-                                POSTGRES.getPassword());
-                var statement = connection.createStatement()) {
-            statement.execute(
-                    Files.readString(
-                            Path.of(
-                                    "src/main/resources/db/migration/V25__add_configurable_workflows.sql")));
-            statement.execute(
-                    Files.readString(
-                            Path.of(
-                                    "src/main/resources/db/migration/V26__enforce_workflow_instance_identity.sql")));
-            statement.execute(
-                    Files.readString(
-                            Path.of(
-                                    "src/main/resources/db/migration/V52__add_workflow_state_activation.sql")));
+                                POSTGRES.getPassword())) {
+            ScriptUtils.executeSqlScript(
+                    connection,
+                    new FileSystemResource(
+                            "src/main/resources/db/migration/V25__add_configurable_workflows.sql"));
+            ScriptUtils.executeSqlScript(
+                    connection,
+                    new FileSystemResource(
+                            "src/main/resources/db/migration/V26__enforce_workflow_instance_identity.sql"));
+            ScriptUtils.executeSqlScript(
+                    connection,
+                    new FileSystemResource(
+                            "src/main/resources/db/migration/V52__add_workflow_state_activation.sql"));
         }
         context = new AnnotationConfigApplicationContext(DatabaseConfig.class);
     }
