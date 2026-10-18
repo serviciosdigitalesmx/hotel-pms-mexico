@@ -26,7 +26,6 @@ import lombok.RequiredArgsConstructor;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -1073,7 +1072,6 @@ public class InventoryService {
             }
         } catch (
                 final IOException
-                        | EncryptedDocumentException
                         | IllegalArgumentException
                         | IllegalStateException ex) {
             throw new IllegalArgumentException("XLSX_IMPORT_FAILED", ex);

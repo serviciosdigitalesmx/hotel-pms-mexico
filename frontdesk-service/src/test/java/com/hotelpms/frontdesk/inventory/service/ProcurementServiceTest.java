@@ -2,6 +2,8 @@ package com.hotelpms.frontdesk.inventory.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -27,6 +29,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,16 +47,16 @@ class ProcurementServiceTest {
 
     @Test
     void archivesSupplierWithinTenantAndKeepsRecordForHistory() {
-        UUID hotelId = UUID.randomUUID();
-        UUID supplierId = UUID.randomUUID();
-        Supplier supplier = new Supplier();
+        final UUID hotelId = UUID.randomUUID();
+        final UUID supplierId = UUID.randomUUID();
+        final Supplier supplier = new Supplier();
         supplier.setId(supplierId);
         supplier.setHotelId(hotelId);
         supplier.setName("Proveedor histórico");
         when(suppliers.findByIdAndHotelId(supplierId, hotelId)).thenReturn(Optional.of(supplier));
         when(suppliers.save(supplier)).thenReturn(supplier);
 
-        Supplier archived = service.setSupplierActive(hotelId, supplierId, false);
+        final Supplier archived = service.setSupplierActive(hotelId, supplierId, false);
 
         assertThat(archived.isActive()).isFalse();
         assertThat(archived.getName()).isEqualTo("Proveedor histórico");
@@ -62,34 +66,33 @@ class ProcurementServiceTest {
 
     @Test
     void replayingSameReceiptRequestDoesNotAddStockTwice() {
-        UUID hotelId = UUID.randomUUID();
-        UUID purchaseId = UUID.randomUUID();
-        UUID branchId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        UUID requestId = UUID.randomUUID();
-        InventoryProduct product =
+        final UUID hotelId = UUID.randomUUID();
+        final UUID purchaseId = UUID.randomUUID();
+        final UUID branchId = UUID.randomUUID();
+        final UUID productId = UUID.randomUUID();
+        final UUID requestId = UUID.randomUUID();
+        final InventoryProduct product =
                 InventoryProduct.builder()
                         .id(productId)
                         .hotelId(hotelId)
                         .cost(new BigDecimal("10.00"))
                         .build();
-        PurchaseOrderLine line = new PurchaseOrderLine();
+        final PurchaseOrderLine line = new PurchaseOrderLine();
         line.setProductId(productId);
         line.setQuantityOrdered(5);
         line.setQuantityReceived(0);
         line.setUnitCost(new BigDecimal("12.00"));
-        PurchaseOrder purchase =
+        final PurchaseOrder purchase =
                 PurchaseOrder.builder()
                         .id(purchaseId)
                         .hotelId(hotelId)
                         .branchId(branchId)
                         .status("PENDING")
-                        .lines(new java.util.ArrayList<>(java.util.List.of(line)))
+                        .lines(new ArrayList<>(List.of(line)))
                         .build();
         line.setPurchaseOrder(purchase);
-        PurchaseReceiptRequest request =
-                new PurchaseReceiptRequest(
-                        requestId, java.util.List.of(new ReceiptLine(productId, 2)));
+        final PurchaseReceiptRequest request =
+                new PurchaseReceiptRequest(requestId, List.of(new ReceiptLine(productId, 2)));
         when(purchases.findForUpdateByIdAndHotelId(purchaseId, hotelId))
                 .thenReturn(Optional.of(purchase));
         when(products.findForUpdateByIdAndHotelId(productId, hotelId))
@@ -105,24 +108,24 @@ class ProcurementServiceTest {
         assertThat(line.getQuantityReceived()).isEqualTo(2);
         assertThat(purchase.getReceiptRequestDigests()).containsKey(requestId.toString());
         verify(inventory, times(1))
-                .move(org.mockito.ArgumentMatchers.eq(hotelId), org.mockito.ArgumentMatchers.any());
+                .move(eq(hotelId), any());
     }
 
     @Test
     void rejectsNonPositiveReceiptLineBeforeChangingInventory() {
-        UUID hotelId = UUID.randomUUID();
-        UUID purchaseId = UUID.randomUUID();
-        UUID productId = UUID.randomUUID();
-        PurchaseOrderLine line = new PurchaseOrderLine();
+        final UUID hotelId = UUID.randomUUID();
+        final UUID purchaseId = UUID.randomUUID();
+        final UUID productId = UUID.randomUUID();
+        final PurchaseOrderLine line = new PurchaseOrderLine();
         line.setProductId(productId);
         line.setQuantityOrdered(5);
         line.setQuantityReceived(0);
-        PurchaseOrder purchase =
+        final PurchaseOrder purchase =
                 PurchaseOrder.builder()
                         .id(purchaseId)
                         .hotelId(hotelId)
                         .status("PENDING")
-                        .lines(new java.util.ArrayList<>(java.util.List.of(line)))
+                        .lines(new ArrayList<>(List.of(line)))
                         .build();
         when(purchases.findForUpdateByIdAndHotelId(purchaseId, hotelId))
                 .thenReturn(Optional.of(purchase));
@@ -134,12 +137,12 @@ class ProcurementServiceTest {
                                 hotelId,
                                 purchaseId,
                                 new PurchaseReceiptRequest(
-                                        java.util.List.of(
+                                        List.of(
                                                 new ReceiptLine(productId, 2),
                                                 new ReceiptLine(productId, -1)))));
 
         assertThat(line.getQuantityReceived()).isZero();
         verify(inventory, never())
-                .move(org.mockito.ArgumentMatchers.eq(hotelId), org.mockito.ArgumentMatchers.any());
+                .move(eq(hotelId), any());
     }
 }

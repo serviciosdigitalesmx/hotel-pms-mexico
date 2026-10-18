@@ -1,8 +1,11 @@
 package com.hotelpms.frontdesk.workflow;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.hotelpms.frontdesk.workflow.domain.*;
+import com.hotelpms.frontdesk.workflow.domain.SemanticPhase;
+import com.hotelpms.frontdesk.workflow.domain.WorkflowDefinition;
+import com.hotelpms.frontdesk.workflow.domain.WorkflowState;
+import com.hotelpms.frontdesk.workflow.domain.WorkflowTransition;
 
 import org.junit.jupiter.api.Test;
 
@@ -11,10 +14,10 @@ import java.util.UUID;
 class WorkflowMappingTest {
     @Test
     void tenantWorkflowMapsCustomStateToSharedSemanticPhase() {
-        UUID tenant = UUID.randomUUID();
-        WorkflowDefinition workflow =
+        final UUID tenant = UUID.randomUUID();
+        final WorkflowDefinition workflow =
                 new WorkflowDefinition(tenant, "electronics-repair", "Repair");
-        WorkflowState diagnosis =
+        final WorkflowState diagnosis =
                 new WorkflowState(
                         workflow,
                         "bench-check",
@@ -22,7 +25,7 @@ class WorkflowMappingTest {
                         SemanticPhase.DIAGNOSIS,
                         true,
                         false);
-        WorkflowState quote =
+        final WorkflowState quote =
                 new WorkflowState(
                         workflow,
                         "waiting-approval",
@@ -30,7 +33,7 @@ class WorkflowMappingTest {
                         SemanticPhase.AUTHORIZATION,
                         false,
                         false);
-        WorkflowTransition transition =
+        final WorkflowTransition transition =
                 new WorkflowTransition(
                         workflow, diagnosis, quote, "submit-quote", "workflow.transition");
 

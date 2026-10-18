@@ -38,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -365,7 +366,7 @@ class InventoryServiceOperationalTest {
                 .thenReturn(Optional.of(balance));
         when(balances.save(any(InventoryBalance.class))).thenReturn(balance);
 
-        final var lines = java.util.List.of(new InventoryService.PosConsumptionLine(PRODUCT_ID, 2));
+        final var lines = List.of(new InventoryService.PosConsumptionLine(PRODUCT_ID, 2));
         service.consumePosOrder(HOTEL_ID, ORDER_ID, BRANCH_ID, lines);
         service.consumePosOrder(HOTEL_ID, ORDER_ID, BRANCH_ID, lines);
 
