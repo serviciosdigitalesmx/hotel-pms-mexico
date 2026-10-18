@@ -6,4 +6,4 @@ import java.util.UUID;
 
 /** Tenant-keyed notification preferences. */
 public interface OperationalNotificationPreferencesRepository
-        extends JpaRepository<OperationalNotificationPreferences, UUID> {}
+        extends JpaRepository<OperationalNotificationPreferences, UUID> { }

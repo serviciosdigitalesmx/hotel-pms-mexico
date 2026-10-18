@@ -17,6 +17,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class OperationalNotificationPreferencesService {
+    private static final int MAX_EMAIL_RECIPIENTS_PER_EVENT = 20;
     private static final Set<String> EVENTS =
             Set.of(
                     "ORDER_ASSIGNED",
@@ -28,6 +29,13 @@ public class OperationalNotificationPreferencesService {
     private static final Set<String> CHANNELS = Set.of("EMAIL", "WEB", "APP");
     private final OperationalNotificationPreferencesRepository repository;
 
+    /**
+     * Reads notification preferences for one tenant.
+     *
+     * @implSpec Overrides must read only the requested tenant's preferences.
+     * @param hotelId tenant identifier
+     * @return event-to-channel preference map, including defaults
+     */
     @Transactional
     public Map<String, Map<String, Boolean>> get(final UUID hotelId) {
         return repository
@@ -36,6 +44,13 @@ public class OperationalNotificationPreferencesService {
                 .orElseGet(OperationalNotificationPreferencesService::defaults);
     }
 
+    /**
+     * Reads configured recipient lists for one tenant.
+     *
+     * @implSpec Overrides must preserve tenant scoping and supported event filtering.
+     * @param hotelId tenant identifier
+     * @return validated recipient lists by event
+     */
     @Transactional(readOnly = true)
     public Map<String, List<String>> getEmailRecipients(final UUID hotelId) {
         final Map<String, List<String>> stored =
@@ -55,6 +70,14 @@ public class OperationalNotificationPreferencesService {
         return result;
     }
 
+    /**
+     * Updates operational email recipients for a tenant.
+     *
+     * @implSpec Overrides must preserve tenant scoping, event allowlisting, and recipient limits.
+     * @param hotelId tenant identifier
+     * @param request recipient lists to update
+     * @return persisted recipient lists by event
+     */
     @Transactional
     public Map<String, List<String>> updateEmailRecipients(
             final UUID hotelId, final OperationalEmailRecipientsRequest request) {
@@ -69,7 +92,7 @@ public class OperationalNotificationPreferencesService {
                 .forEach(
                         (event, addresses) -> {
                             if (addresses == null
-                                    || addresses.size() > 20
+                                    || addresses.size() > MAX_EMAIL_RECIPIENTS_PER_EVENT
                                     || addresses.stream()
                                             .anyMatch(
                                                     address ->
@@ -98,6 +121,14 @@ public class OperationalNotificationPreferencesService {
         return recipients;
     }
 
+    /**
+     * Updates channel preferences for a tenant.
+     *
+     * @implSpec Overrides must preserve tenant scoping and event/channel allowlists.
+     * @param hotelId tenant identifier
+     * @param requested event/channel values to update
+     * @return merged preferences after persistence
+     */
     @Transactional
     public Map<String, Map<String, Boolean>> update(
             final UUID hotelId, final Map<String, Map<String, Boolean>> requested) {
@@ -115,9 +146,10 @@ public class OperationalNotificationPreferencesService {
                     }
                     channels.forEach(
                             (channel, enabled) -> {
-                                if (enabled == null)
+                                if (enabled == null) {
                                     throw new IllegalArgumentException(
                                             "NOTIFICATION_VALUE_REQUIRED");
+                                }
                                 merged.get(event).put(channel, enabled);
                             });
                 });

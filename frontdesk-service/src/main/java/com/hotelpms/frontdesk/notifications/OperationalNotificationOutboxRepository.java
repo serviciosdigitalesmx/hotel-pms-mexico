@@ -12,7 +12,25 @@ import java.util.UUID;
 /** Tenant-aware durable outbox repository with safe concurrent polling. */
 public interface OperationalNotificationOutboxRepository
         extends JpaRepository<OperationalNotificationOutbox, UUID> {
+    /**
+     * Inserts an event only when its tenant-scoped idempotency key is new.
+     *
+     * @param id outbox row identifier
+     * @param hotelId tenant identifier
+     * @param eventKey tenant-scoped idempotency key
+     * @param sourceKey source event key
+     * @param eventType operational event type
+     * @param payload serialized downstream event
+     * @return affected row count, zero when the event already exists
+     */
     @Modifying
+    /**
+     * Locks due outbox events for concurrent-safe forwarding.
+     *
+     * @param maxAttempts maximum delivery attempts
+     * @param pageable bounded batch page
+     * @return locked due events
+     */
     @Query(
             value =
                     "insert into operational_notification_outbox"

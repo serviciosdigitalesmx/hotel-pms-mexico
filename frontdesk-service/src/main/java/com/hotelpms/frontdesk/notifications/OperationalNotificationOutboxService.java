@@ -31,6 +31,10 @@ import java.util.UUID;
 public class OperationalNotificationOutboxService {
     private static final int MAX_FORWARD_ATTEMPTS = 12;
     private static final int BATCH_SIZE = 10;
+    private static final int MAX_ERROR_LENGTH = 2000;
+    private static final long MAX_RETRY_DELAY_SECONDS = 3600L;
+    private static final long INITIAL_RETRY_DELAY_SECONDS = 30L;
+    private static final int MAX_BACKOFF_SHIFT = 7;
 
     private final OperationalNotificationPreferencesService preferences;
     private final OperationalNotificationOutboxRepository repository;
@@ -39,7 +43,17 @@ public class OperationalNotificationOutboxService {
     private final ObjectMapper objectMapper;
     private final ServiceOrderRepository serviceOrders;
 
-    /** Enqueues one recipient-scoped message atomically with the order or inventory mutation. */
+    /**
+     * Enqueues recipient-scoped messages atomically with an order or inventory mutation.
+     *
+     * @implSpec Overrides must retain tenant/event preference filtering and idempotent recipient
+     *     keys.
+     * @param hotelId authenticated tenant identifier
+     * @param eventType operational event key
+     * @param subject human-readable notification subject
+     * @param message notification body
+     * @param idempotencyKey stable source event key
+     */
     @Transactional
     public void enqueue(
             final UUID hotelId,
@@ -48,7 +62,9 @@ public class OperationalNotificationOutboxService {
             final String message,
             final String idempotencyKey) {
         final Map<String, Map<String, Boolean>> channels = preferences.get(hotelId);
-        if (!Boolean.TRUE.equals(channels.getOrDefault(eventType, Map.of()).get("EMAIL"))) return;
+        if (!Boolean.TRUE.equals(channels.getOrDefault(eventType, Map.of()).get("EMAIL"))) {
+            return;
+        }
         final List<String> recipients =
                 preferences.getEmailRecipients(hotelId).getOrDefault(eventType, List.of());
         for (final String recipient : recipients) {
@@ -81,7 +97,12 @@ public class OperationalNotificationOutboxService {
         }
     }
 
-    /** Creates each overdue-order alert once, with a stable key per promised-date occurrence. */
+    /**
+     * Creates an alert for each overdue order using a stable promised-date key.
+     *
+     * @implSpec Overrides must retain the tenant-specific order query and stable idempotency key.
+     * @return number of overdue orders processed
+     */
     @Scheduled(fixedDelayString = "${fixi.notifications.due-scan-ms:120000}")
     @Transactional
     public int enqueueOverdueOrders() {
@@ -99,6 +120,10 @@ public class OperationalNotificationOutboxService {
 
     /**
      * Forwards committed outbox rows; the downstream service then owns SMTP delivery and retries.
+     *
+     * @implSpec Overrides must preserve row locking, bounded retries, and internal tenant
+     *     authentication.
+     * @return number of events accepted by notification-service
      */
     @Scheduled(fixedDelayString = "${fixi.notifications.outbox-poll-ms:30000}")
     @Transactional
@@ -114,23 +139,27 @@ public class OperationalNotificationOutboxService {
                 final NotificationEventResponse response =
                         authContext.asHotel(
                                 outbox.getHotelId(), () -> notificationClient.enqueueEvent(event));
-                if (response == null)
+                if (response == null) {
                     throw new IllegalStateException("NOTIFICATION_EVENT_NOT_ACCEPTED");
+                }
                 outbox.setStatus(OperationalNotificationOutbox.Status.SENT);
                 outbox.setSentAt(LocalDateTime.now());
                 outbox.setNextAttemptAt(null);
                 outbox.setLastError(null);
                 outbox.setPayload("{}");
                 forwarded++;
-            } catch (final Exception exception) {
+            } catch (final JsonProcessingException | RuntimeException exception) {
                 outbox.setStatus(OperationalNotificationOutbox.Status.FAILED);
                 outbox.setLastError(summarizeError(exception));
                 outbox.setNextAttemptAt(
                         LocalDateTime.now()
                                 .plusSeconds(
                                         Math.min(
-                                                3600L,
-                                                30L << Math.min(7, outbox.getAttempts() - 1))));
+                                                MAX_RETRY_DELAY_SECONDS,
+                                                INITIAL_RETRY_DELAY_SECONDS
+                                                        << Math.min(
+                                                                MAX_BACKOFF_SHIFT,
+                                                                outbox.getAttempts() - 1))));
                 log.warn(
                         "Operational notification forwarding failed [eventKey={}, attempt={}]: {}",
                         outbox.getEventKey(),
@@ -156,6 +185,8 @@ public class OperationalNotificationOutboxService {
                 exception.getMessage() == null
                         ? exception.getClass().getSimpleName()
                         : exception.getMessage();
-        return message.length() <= 2000 ? message : message.substring(0, 2000);
+        return message.length() <= MAX_ERROR_LENGTH
+                ? message
+                : message.substring(0, MAX_ERROR_LENGTH);
     }
 }

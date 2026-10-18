@@ -21,12 +21,25 @@ import java.util.UUID;
 public class OperationalNotificationPreferencesController {
     private final OperationalNotificationPreferencesService service;
 
+    /**
+     * Reads the authenticated tenant's notification preferences.
+     *
+     * @implSpec Overrides must continue deriving tenant identity from the authenticated context.
+     * @return event-to-channel preferences
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public Map<String, Map<String, Boolean>> get() {
         return service.get(hotelId());
     }
 
+    /**
+     * Replaces notification preferences for the authenticated tenant.
+     *
+     * @implSpec Overrides must continue deriving tenant identity from the authenticated context.
+     * @param preferences requested event-to-channel preferences
+     * @return persisted event-to-channel preferences
+     */
     @PutMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public Map<String, Map<String, Boolean>> update(
@@ -34,12 +47,25 @@ public class OperationalNotificationPreferencesController {
         return service.update(hotelId(), preferences);
     }
 
+    /**
+     * Reads configured operational email recipients for the authenticated tenant.
+     *
+     * @implSpec Overrides must continue deriving tenant identity from the authenticated context.
+     * @return recipients grouped by operational event
+     */
     @GetMapping("/recipients")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public Map<String, List<String>> getEmailRecipients() {
         return service.getEmailRecipients(hotelId());
     }
 
+    /**
+     * Updates operational email recipients for the authenticated tenant.
+     *
+     * @implSpec Overrides must continue deriving tenant identity from the authenticated context.
+     * @param request recipient lists to persist
+     * @return persisted recipients grouped by event
+     */
     @PutMapping("/recipients")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER')")
     public Map<String, List<String>> updateEmailRecipients(

@@ -29,6 +29,10 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class OperationalNotificationOutbox {
+    private static final int EVENT_TYPE_MAX_LENGTH = 120;
+    private static final int STATUS_MAX_LENGTH = 24;
+
+    /** Delivery state of a persisted operational notification. */
     public enum Status {
         PENDING,
         SENT,
@@ -48,14 +52,14 @@ public class OperationalNotificationOutbox {
     @Column(name = "source_key", nullable = false, length = 180)
     private String sourceKey;
 
-    @Column(name = "event_type", nullable = false, length = 120)
+    @Column(name = "event_type", nullable = false, length = EVENT_TYPE_MAX_LENGTH)
     private String eventType;
 
     @Column(nullable = false, columnDefinition = "text")
     private String payload;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 24)
+    @Column(nullable = false, length = STATUS_MAX_LENGTH)
     private Status status = Status.PENDING;
 
     @Column(nullable = false)

@@ -25,35 +25,66 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+/** Tenant-scoped API for the service catalog used by Fixi orders. */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/services")
 public class ServiceCatalogController {
     private final ServiceCatalogService service;
 
+    /**
+     * Lists active catalog entries for the authenticated tenant.
+     *
+     * @implSpec Overrides must preserve tenant scope and role authorization.
+     * @return service catalog entries
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
     public List<ServiceCatalogEntry> list() {
         return service.list(tenantId());
     }
 
+    /**
+     * Creates a service catalog entry for the authenticated tenant.
+     *
+     * @implSpec Overrides must preserve tenant scope and role authorization.
+     * @param request catalog values to create
+     * @return the created catalog entry
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
-    public ServiceCatalogEntry create(@Valid @RequestBody ServiceCatalogRequest request) {
+    public ServiceCatalogEntry create(@Valid @RequestBody final ServiceCatalogRequest request) {
         return service.create(tenantId(), request);
     }
 
+    /**
+     * Changes whether a service is available to new orders.
+     *
+     * @implSpec Overrides must preserve tenant-scoped service lookup.
+     * @param id catalog entry identifier
+     * @param value whether the entry should be active
+     * @return the updated catalog entry
+     */
     @PatchMapping("/{id}/active")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
-    public ServiceCatalogEntry setActive(@PathVariable UUID id, @RequestParam boolean value) {
+    public ServiceCatalogEntry setActive(
+            @PathVariable final UUID id, @RequestParam final boolean value) {
         return service.setActive(tenantId(), id, value);
     }
 
+    /**
+     * Updates a service catalog entry for the authenticated tenant.
+     *
+     * @implSpec Overrides must preserve tenant scope and role authorization.
+     * @param id catalog entry identifier
+     * @param request replacement catalog values
+     * @return the updated catalog entry
+     */
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER')")
     public ServiceCatalogEntry update(
-            @PathVariable UUID id, @Valid @RequestBody ServiceCatalogRequest request) {
+            @PathVariable final UUID id, @Valid @RequestBody final ServiceCatalogRequest request) {
         return service.update(tenantId(), id, request);
     }
 
