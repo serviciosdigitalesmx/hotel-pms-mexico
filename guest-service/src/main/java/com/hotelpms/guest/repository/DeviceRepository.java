@@ -30,7 +30,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         + "group by lower(trim(d.category)), lower(coalesce(trim(d.manufacturer), '')), "
         + "lower(coalesce(trim(d.model), '')) "
         + "order by count(d.id) desc")
-    List<DeviceCatalogEntry> catalogByHotelId(@Param(HOTEL_ID_PARAMETER) final UUID hotelId);
+    List<DeviceCatalogEntry> catalogByHotelId(@Param(HOTEL_ID_PARAMETER) UUID hotelId);
 
     /**
      * Counts active devices with the normalized catalog identity.
@@ -45,9 +45,9 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         + "lower(trim(d.category)) = lower(trim(:category)) and "
         + "lower(coalesce(trim(d.manufacturer), '')) = lower(trim(:manufacturer)) and "
         + "lower(coalesce(trim(d.model), '')) = lower(trim(:model))")
-    long countCatalogIdentity(@Param(HOTEL_ID_PARAMETER) final UUID hotelId,
-        @Param("category") final String category, @Param("manufacturer") final String manufacturer,
-        @Param("model") final String model);
+    long countCatalogIdentity(@Param(HOTEL_ID_PARAMETER) UUID hotelId,
+        @Param("category") String category, @Param("manufacturer") String manufacturer,
+        @Param("model") String model);
 
     /**
      * Updates active tenant devices from one catalog identity to another.
@@ -68,14 +68,14 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         + "lower(trim(d.category)) = lower(trim(:sourceCategory)) and "
         + "lower(coalesce(trim(d.manufacturer), '')) = lower(trim(:sourceManufacturer)) and "
         + "lower(coalesce(trim(d.model), '')) = lower(trim(:sourceModel))")
-    int normalizeCatalogIdentity(@Param(HOTEL_ID_PARAMETER) final UUID hotelId,
-        @Param("sourceCategory") final String sourceCategory,
-        @Param("sourceManufacturer") final String sourceManufacturer,
-        @Param("sourceModel") final String sourceModel,
-        @Param("targetCategory") final String targetCategory,
-        @Param("targetManufacturer") final String targetManufacturer,
-        @Param("targetModel") final String targetModel,
-        @Param("updatedAt") final LocalDateTime updatedAt);
+    int normalizeCatalogIdentity(@Param(HOTEL_ID_PARAMETER) UUID hotelId,
+        @Param("sourceCategory") String sourceCategory,
+        @Param("sourceManufacturer") String sourceManufacturer,
+        @Param("sourceModel") String sourceModel,
+        @Param("targetCategory") String targetCategory,
+        @Param("targetManufacturer") String targetManufacturer,
+        @Param("targetModel") String targetModel,
+        @Param("updatedAt") LocalDateTime updatedAt);
 
     /**
      * Finds a device by tenant, customer and identifier.
@@ -86,7 +86,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return matching device.
      */
     Optional<Device> findByIdAndHotelIdAndGuestId(
-        final UUID id, final UUID hotelId, final UUID guestId);
+        UUID id, UUID hotelId, UUID guestId);
 
     /**
      * Lists devices for a tenant and customer.
@@ -95,7 +95,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @param guestId customer identifier.
      * @return matching devices.
      */
-    List<Device> findAllByHotelIdAndGuestId(final UUID hotelId, final UUID guestId);
+    List<Device> findAllByHotelIdAndGuestId(UUID hotelId, UUID guestId);
 
     /**
      * Searches device identity fields within the active tenant.
@@ -112,8 +112,8 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         + "or lower(coalesce(d.serialNumber, '')) like lower(concat('%', :query, '%')) "
         + "or lower(coalesce(d.imei, '')) like lower(concat('%', :query, '%'))) "
         + "order by d.updatedAt desc")
-    Page<Device> searchTenantDevices(@Param("hotelId") final UUID hotelId,
-        @Param("query") final String query, final Pageable pageable);
+    Page<Device> searchTenantDevices(@Param("hotelId") UUID hotelId,
+        @Param("query") String query, Pageable pageable);
 
     /**
      * Finds a device by serial number within a tenant and customer.
@@ -124,7 +124,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return matching device.
      */
     Optional<Device> findByHotelIdAndGuestIdAndSerialNumber(
-        final UUID hotelId, final UUID guestId, final String serialNumber);
+        UUID hotelId, UUID guestId, String serialNumber);
 
     /**
      * Finds a device by IMEI within a tenant and customer.
@@ -135,7 +135,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return matching device.
      */
     Optional<Device> findByHotelIdAndGuestIdAndImei(
-        final UUID hotelId, final UUID guestId, final String imei);
+        UUID hotelId, UUID guestId, String imei);
 
     /**
      * Checks if a tenant customer already has a device with the serial number.
@@ -146,7 +146,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return whether a matching device exists
      */
     boolean existsByHotelIdAndGuestIdAndSerialNumberIgnoreCase(
-        final UUID hotelId, final UUID guestId, final String serialNumber);
+        UUID hotelId, UUID guestId, String serialNumber);
 
     /**
      * Checks for a duplicate serial number excluding the device being updated.
@@ -158,7 +158,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return whether another matching device exists
      */
     boolean existsByHotelIdAndGuestIdAndSerialNumberIgnoreCaseAndIdNot(
-        final UUID hotelId, final UUID guestId, final String serialNumber, final UUID id);
+        UUID hotelId, UUID guestId, String serialNumber, UUID id);
 
     /**
      * Checks if a tenant already has a device with the IMEI.
@@ -167,7 +167,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @param imei IMEI value
      * @return whether a matching device exists
      */
-    boolean existsByHotelIdAndImeiIgnoreCase(final UUID hotelId, final String imei);
+    boolean existsByHotelIdAndImeiIgnoreCase(UUID hotelId, String imei);
 
     /**
      * Checks for a duplicate IMEI excluding the device being updated.
@@ -178,5 +178,5 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
      * @return whether another matching device exists
      */
     boolean existsByHotelIdAndImeiIgnoreCaseAndIdNot(
-        final UUID hotelId, final String imei, final UUID id);
+        UUID hotelId, String imei, UUID id);
 }

@@ -20,7 +20,7 @@ public interface DeviceService {
    * @param request device data.
    * @return created device.
    */
-  DeviceResponse create(final UUID customerId, final DeviceRequest request);
+  DeviceResponse create(UUID customerId, DeviceRequest request);
 
   /**
    * Updates a device's catalog and identity fields without changing ownership.
@@ -30,7 +30,7 @@ public interface DeviceService {
    * @param request replacement device data
    * @return updated device
    */
-  DeviceResponse update(final UUID customerId, final UUID deviceId, final DeviceRequest request);
+  DeviceResponse update(UUID customerId, UUID deviceId, DeviceRequest request);
 
   /**
    * Lists active devices for a customer.
@@ -38,7 +38,7 @@ public interface DeviceService {
    * @param customerId customer identifier.
    * @return active devices.
    */
-  List<DeviceResponse> list(final UUID customerId);
+  List<DeviceResponse> list(UUID customerId);
 
   /**
    * Searches active tenant devices by category, make, model, serial, or IMEI.
@@ -47,7 +47,7 @@ public interface DeviceService {
    * @param pageable page and sort criteria
    * @return matching tenant devices
    */
-  Page<DeviceResponse> search(final String query, final Pageable pageable);
+  Page<DeviceResponse> search(String query, Pageable pageable);
 
   /**
    * Lists observed device models and their tenant-local registration counts.
@@ -62,7 +62,7 @@ public interface DeviceService {
    * @param request selected source and target identities
    * @return merge counts and resulting catalog entry
    */
-  DeviceCatalogMergeResponse mergeCatalog(final DeviceCatalogMergeRequest request);
+  DeviceCatalogMergeResponse mergeCatalog(DeviceCatalogMergeRequest request);
 
   /**
    * Finds one active device for a customer.
@@ -71,7 +71,7 @@ public interface DeviceService {
    * @param id device identifier.
    * @return device response.
    */
-  DeviceResponse get(final UUID customerId, final UUID id);
+  DeviceResponse get(UUID customerId, UUID id);
 
   /**
    * Transfers an asset and appends an auditable ownership record.
@@ -82,8 +82,8 @@ public interface DeviceService {
    * @param evidence transfer evidence
    * @return transferred device
    */
-  DeviceResponse transfer(final UUID deviceId, final UUID fromCustomerId,
-      final UUID toCustomerId, final String evidence);
+  DeviceResponse transfer(UUID deviceId, UUID fromCustomerId,
+      UUID toCustomerId, String evidence);
 
   /**
    * Returns the tenant-scoped ownership audit for a device currently owned by the customer.
@@ -92,5 +92,5 @@ public interface DeviceService {
    * @param deviceId device identifier
    * @return ownership transfer history
    */
-  List<DeviceOwnershipTransferResponse> ownershipHistory(final UUID customerId, final UUID deviceId);
+  List<DeviceOwnershipTransferResponse> ownershipHistory(UUID customerId, UUID deviceId);
 }

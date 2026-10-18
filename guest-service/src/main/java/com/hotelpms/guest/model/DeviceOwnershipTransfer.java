@@ -1,5 +1,6 @@
 package com.hotelpms.guest.model;
 
+import com.hotelpms.guest.util.ValidationConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -42,7 +43,7 @@ public class DeviceOwnershipTransfer {
   @Column(name = "actor_id")
   private UUID actorId;
 
-  @Column(length = 2000)
+  @Column(length = ValidationConstants.MAX_TRANSFER_EVIDENCE_LENGTH)
   private String evidence;
 
   @Column(nullable = false, updatable = false)

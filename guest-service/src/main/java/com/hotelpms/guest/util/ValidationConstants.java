@@ -25,6 +25,7 @@ public final class ValidationConstants {
     public static final int MAX_DEVICE_CATEGORY_LENGTH = 80;
     public static final int MAX_DEVICE_MANUFACTURER_LENGTH = 150;
     public static final int MAX_DEVICE_MODEL_LENGTH = 150;
+    public static final int MAX_TRANSFER_EVIDENCE_LENGTH = 2000;
 
     /** Unicode letters, spaces, hyphens, apostrophes — covers international names. */
     public static final String NAME_PATTERN = "^[\\p{L} '\\-]+$";

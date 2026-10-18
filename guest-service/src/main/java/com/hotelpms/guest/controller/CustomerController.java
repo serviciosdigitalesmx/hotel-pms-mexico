@@ -55,6 +55,7 @@ public class CustomerController {
   private static final String CUSTOMER_WRITE_ROLES =
       "hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST')";
   private static final String CSV_ROW_PREFIX = "Fila ";
+  private static final String CSV_QUOTE = "\"";
   private static final int MAX_CSV_FILE_BYTES = 5_000_000;
   private static final int MAX_CSV_CUSTOMERS = 500;
   private static final int MIN_CSV_ROWS = 2;
@@ -285,7 +286,7 @@ public class CustomerController {
   @GetMapping("/search")
   public Page<GuestResponse> search(
       @RequestParam(required = false) final String query,
-      @PageableDefault(size = 50) final Pageable pageable) {
+      @PageableDefault(size = CUSTOMER_PAGE_SIZE) final Pageable pageable) {
     return service.searchGuests(query, pageable);
   }
 
@@ -329,10 +330,10 @@ public class CustomerController {
 
   private static String cell(final String value) {
     if (value == null) {
-      return "\"\"";
+      return CSV_QUOTE + CSV_QUOTE;
     }
     final String safe = value.matches("^[\\t\\r ]*[=+@-].*") ? "'" + value : value;
-    return "\"" + safe.replace("\"", "\"\"") + "\"";
+    return CSV_QUOTE + safe.replace(CSV_QUOTE, CSV_QUOTE + CSV_QUOTE) + CSV_QUOTE;
   }
 
   private static String cell(

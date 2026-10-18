@@ -280,7 +280,7 @@ public class GuestServiceImpl implements GuestService {
         if (guest.getRfc() != null) {
             guest.setRfc(
                     guest.getRfc().trim()
-                            .toUpperCase(java.util.Locale.ROOT));
+                            .toUpperCase(Locale.ROOT));
         }
 
         if (guest.getFiscalName() != null) {
@@ -298,13 +298,13 @@ public class GuestServiceImpl implements GuestService {
         if (guest.getCfdiUse() != null) {
             guest.setCfdiUse(
                     guest.getCfdiUse().trim()
-                            .toUpperCase(java.util.Locale.ROOT));
+                            .toUpperCase(Locale.ROOT));
         }
 
         if (guest.getBillingEmail() != null) {
             guest.setBillingEmail(
                     guest.getBillingEmail().trim()
-                            .toLowerCase(java.util.Locale.ROOT));
+                            .toLowerCase(Locale.ROOT));
         }
     }
 

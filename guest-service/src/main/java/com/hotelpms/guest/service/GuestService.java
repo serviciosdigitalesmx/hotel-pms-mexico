@@ -24,7 +24,12 @@ public interface GuestService {
      */
     GuestResponse createGuest(GuestRequest request);
 
-    /** Imports a validated customer batch atomically for the authenticated tenant. */
+    /**
+     * Imports a validated customer batch atomically for the authenticated tenant.
+     *
+     * @param requests validated customer import data
+     * @return persisted customer responses
+     */
     List<GuestResponse> importGuests(List<GuestRequest> requests);
 
     /**
