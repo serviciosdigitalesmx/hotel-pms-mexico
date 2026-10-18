@@ -395,7 +395,6 @@ public class ServiceOrderService {
         }
         if (previous != request.status()) {
             record(saved, previous, request.status(), OPERATOR_ACTOR, request.workLog());
-        }
         } else if (!Objects.equals(previousWorkLog, request.workLog())
                 && (previousWorkLog != null && !previousWorkLog.isBlank()
                         || request.workLog() != null && !request.workLog().isBlank())) {
