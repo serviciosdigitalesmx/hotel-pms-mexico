@@ -345,7 +345,10 @@ public class ServiceOrderService {
      */
     @Transactional
     public ServiceOrder update(
-            final UUID hotelId, final UUID id, final ServiceOrderUpdateRequest request) {
+            final UUID hotelId,
+            final UUID id,
+            final ServiceOrderUpdateRequest request,
+            final String actor) {
         final ServiceOrder order =
                 repository
                         .findByIdAndHotelId(id, hotelId)
@@ -395,7 +398,12 @@ public class ServiceOrderService {
                     "ORDER_ASSIGNED:" + saved.getId() + ":" + UUID.randomUUID());
         }
         if (previous != request.status()) {
-            record(saved, previous, request.status(), OPERATOR_ACTOR, request.workLog());
+            record(
+                    saved,
+                    previous,
+                    request.status(),
+                    normalizeActor(actor),
+                    "Estado cambiado de " + previous + " a " + request.status());
         } else if (!Objects.equals(previousWorkLog, request.workLog())
                 && (previousWorkLog != null && !previousWorkLog.isBlank()
                         || request.workLog() != null && !request.workLog().isBlank())) {
@@ -416,6 +424,24 @@ public class ServiceOrderService {
                     "{\"from\":\"" + previous + "\",\"to\":\"" + request.status() + "\"}");
         }
         return saved;
+    }
+
+    /**
+     * Updates an open order using the system actor for internal/non-request callers.
+     *
+     * @param hotelId tenant identifier
+     * @param id order identifier
+     * @param request mutable order fields
+     * @return updated order
+     */
+    @Transactional
+    public ServiceOrder update(
+            final UUID hotelId, final UUID id, final ServiceOrderUpdateRequest request) {
+        return update(hotelId, id, request, OPERATOR_ACTOR);
+    }
+
+    private String normalizeActor(final String actor) {
+        return actor == null || actor.isBlank() ? OPERATOR_ACTOR : actor.trim();
     }
 
     private void validateCustomerDevice(final UUID customerId, final UUID deviceId) {

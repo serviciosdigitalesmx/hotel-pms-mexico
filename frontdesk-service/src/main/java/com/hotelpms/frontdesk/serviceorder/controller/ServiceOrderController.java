@@ -172,7 +172,11 @@ public class ServiceOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'TECHNICIAN')")
     public ServiceOrder update(
             @PathVariable final UUID id, @Valid @RequestBody final ServiceOrderUpdateRequest r) {
-        return service.update(hotel(), id, r);
+        return service.update(
+                hotel(),
+                id,
+                r,
+                SecurityContextHolder.getContext().getAuthentication().getName());
     }
 
     /**
