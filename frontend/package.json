@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "vite",
     "test:coverage": "vitest run src --coverage",
-    "test:e2e:ci": "playwright test",
     "typecheck": "tsc -p tsconfig.fixi.json --noEmit",
     "typecheck:legacy": "tsc -b",
     "build": "pnpm run typecheck && vite build",

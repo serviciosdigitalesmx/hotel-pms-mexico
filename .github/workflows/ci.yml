@@ -283,123 +283,12 @@ jobs:
           sarif_file: "trivy-thirdparty-${{ strategy.job-index }}.sarif"
           category: "trivy-thirdparty-${{ matrix.image }}"
 
-  # ── Job 5: E2E ──────────────────────────────────────────────────────────────
-  # Runs only after backend, frontend, and trivy pass.
-  # Builds the full Docker stack, waits for every service to be healthy,
-  # then runs Playwright E2E tests against the containerised frontend (nginx:80).
-  #
-  # REQUIRED SECRET: INTERNAL_HMAC_SECRET must be set in the repository's
-  # Settings → Secrets and variables → Actions. Generate one with:
-  #   openssl rand -hex 32
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ── Job 5: Fixi integrated Docker E2E ───────────────────────────────────────
+  # Reuse the Fixi-specific real-API Docker stack workflow. The old generic
+  # frontend/e2e suite targets the retired hotel-PMS routes and is not Fixi CI.
   e2e:
-    name: "E2E — Docker Stack + Playwright"
-    runs-on: ubuntu-latest
+    name: "Fixi Web Business E2E — Docker Stack"
     needs: [backend, frontend, trivy]
-    timeout-minutes: 75
-    # Do not cancel running E2E jobs — lets playwright install complete so the
-    # browser cache saves correctly. GitHub Actions keeps only the latest queued run.
-    concurrency:
-      group: e2e-${{ github.ref }}
-      cancel-in-progress: false
     permissions:
       contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Set up Node 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: "24"
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.25.0
-          run_install: false
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      # All Playwright tests intercept every API call via page.route() before
-      # it reaches the network — no backend service is needed at runtime.
-      # Only the nginx frontend image is required to serve the React SPA.
-      - name: Build frontend Docker image (with layer cache)
-        run: |
-          docker buildx bake \
-            --file docker-compose.yml \
-            --load \
-            --set "*.cache-from=type=gha" \
-            --set "*.cache-to=type=gha,mode=max" \
-            frontend
-
-      # ubuntu-latest ships google-chrome-stable — no 167 MB download needed.
-      # install-deps installs only the system libs playwright needs (apt-get, fast;
-      # most packages are already present on the runner image).
-      - name: Install Playwright system dependencies
-        working-directory: frontend
-        run: npx playwright install-deps chromium
-
-      # --no-deps prevents Compose from starting the api-gateway dependency chain.
-      - name: Start frontend container
-        run: docker compose up -d --no-deps frontend
-
-      - name: Wait for frontend (nginx) to be serving
-        run: |
-          echo "Polling http://localhost:80 for HTTP 200 ..."
-          for i in $(seq 1 30); do
-            STATUS=$(curl -so /dev/null -w "%{http_code}" http://localhost:80 2>/dev/null || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "Frontend is serving (HTTP 200, attempt $i)."
-              exit 0
-            fi
-            echo "Attempt $i/30 — got HTTP $STATUS, retrying in 5 s ..."
-            sleep 5
-          done
-          echo "::error::Frontend did not return HTTP 200 within 150 s."
-          exit 1
-
-      # Run the full Playwright suite against the Docker-hosted frontend.
-      # PLAYWRIGHT_BASE_URL overrides the config default (Vite dev server)
-      # so every page.goto('/') resolves to http://localhost:80/.
-      - name: Run Playwright E2E tests
-        working-directory: frontend
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:80
-        run: npm run test:e2e:ci
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: playwright-report
-          path: frontend/playwright-report/
-          retention-days: 30
-
-      - name: Dump container logs on failure
-        if: failure()
-        run: |
-          {
-            echo "=== CONTAINER STATUS ==="
-            docker compose ps --all
-            echo ""
-            echo "=== CONTAINER LOGS ==="
-            docker compose logs --tail=500
-          } > /tmp/docker-logs.txt 2>&1 || true
-
-      - name: Upload container logs on failure
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: docker-container-logs
-          path: /tmp/docker-logs.txt
-          retention-days: 3
-
-      - name: Tear down Docker stack and volumes
-        if: always()
-        run: docker compose down -v
+    uses: ./.github/workflows/fixi-web-business-e2e.yml
