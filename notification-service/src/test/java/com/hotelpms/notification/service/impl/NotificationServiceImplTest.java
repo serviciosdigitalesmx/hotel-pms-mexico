@@ -192,7 +192,7 @@ class NotificationServiceImplTest {
         try {
             assertTrue(sent.getSubject().contains(HOTEL_NAME),
                     "Subject should contain hotel name but was: " + sent.getSubject());
-        } catch (final jakarta.mail.MessagingException e) {
+        } catch (final MessagingException e) {
             throw new AssertionError(SUBJECT_READ_ERROR, e);
         }
     }
@@ -211,7 +211,7 @@ class NotificationServiceImplTest {
         final MimeMessage sent = captor.getValue();
         try {
             assertEquals("Il tuo soggiorno ti aspetta!", sent.getSubject());
-        } catch (final jakarta.mail.MessagingException e) {
+        } catch (final MessagingException e) {
             throw new AssertionError(SUBJECT_READ_ERROR, e);
         }
     }
@@ -248,7 +248,7 @@ class NotificationServiceImplTest {
         try {
             assertTrue(message.getFrom()[0].toString().contains(expected),
                     "From header should contain \"" + expected + "\" but was: " + message.getFrom()[0]);
-        } catch (final jakarta.mail.MessagingException e) {
+        } catch (final MessagingException e) {
             throw new AssertionError("Could not read From header", e);
         }
     }
@@ -270,13 +270,13 @@ class NotificationServiceImplTest {
         try {
             assertTrue(sent.getSubject().startsWith("Riepilogo soggiorno e fattura"),
                     "Blank custom subject should fall back to default but was: " + sent.getSubject());
-        } catch (final jakarta.mail.MessagingException e) {
+        } catch (final MessagingException e) {
             throw new AssertionError(SUBJECT_READ_ERROR, e);
         }
     }
 
     @Test
-    void sendCheckoutWithInvoicePdfAttachesIt() throws jakarta.mail.MessagingException, java.io.IOException {
+    void sendCheckoutWithInvoicePdfAttachesIt() throws MessagingException, IOException {
         final ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
         final byte[] pdfBytes = {1, 2, 3, 4};
         final CheckoutNotificationRequest req = new CheckoutNotificationRequest(
@@ -298,7 +298,7 @@ class NotificationServiceImplTest {
     }
 
     @Test
-    void sendCheckoutWithoutInvoicePdfSendsPlainMessage() throws jakarta.mail.MessagingException, java.io.IOException {
+    void sendCheckoutWithoutInvoicePdfSendsPlainMessage() throws MessagingException, IOException {
         final ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
         final CheckoutNotificationRequest req = new CheckoutNotificationRequest(
                 GUEST_EMAIL, GUEST_NAME, HOTEL_NAME, ROOM_NUMBER_101,
