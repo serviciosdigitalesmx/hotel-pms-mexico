@@ -340,6 +340,7 @@ public class ServiceOrderService {
      * @param hotelId tenant identifier
      * @param id repair-order identifier
      * @param request mutable order fields
+     * @param actor authenticated actor recorded for status changes
      * @return updated order
      * @implSpec Overrides must preserve tenant scoping and transition restrictions.
      */
