@@ -164,7 +164,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: ${{ !inputs.reuse_baseline_pdf_probe }}
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Exactly one native-image invocation is performed by this runner. PRs
       # run the cheap -Ob gate; dispatch with false for the final -O2 gate.

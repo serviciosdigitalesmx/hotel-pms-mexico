@@ -101,7 +101,7 @@ jobs:
           docker build --tag hotel-pms/billing-service-jvm:ci --file billing-service/Dockerfile .
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build one Native Image
         id: native_image
