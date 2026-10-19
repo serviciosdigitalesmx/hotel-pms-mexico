@@ -5,6 +5,7 @@ import com.hotelpms.notification.dto.CheckoutNotificationRequest;
 import com.hotelpms.notification.dto.InvoiceLineItemDto;
 import com.hotelpms.notification.dto.ReservationConfirmedRequest;
 import com.hotelpms.notification.dto.OperationalEmailRequest;
+import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.IContext;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -123,7 +125,7 @@ class NotificationServiceImplTest {
     }
 
     @Test
-    void sendsOperationalAlertAsPlainTextToConfiguredRecipient() throws Exception {
+    void sendsOperationalAlertAsPlainTextToConfiguredRecipient() throws IOException, MessagingException {
         final OperationalEmailRequest request = new OperationalEmailRequest(
                 "ops@example.com", "Fixi: stock bajo", "Producto A tiene 1 unidad.", "Taller Norte");
 

@@ -56,6 +56,7 @@ jobs:
             **/build/reports/tests/
             **/build/reports/pmd/
             **/build/reports/checkstyle/
+            **/build/reports/spotbugs/
             **/build/reports/jacoco/
           retention-days: 14
 
