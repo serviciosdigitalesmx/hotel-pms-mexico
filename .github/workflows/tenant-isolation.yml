@@ -25,6 +25,8 @@ jobs:
       CONFIG_SERVER_PASSWORD: tenant-ci-config-only
       INTERNAL_HMAC_SECRET: tenant-ci-hmac-secret-with-sufficient-length
       JWT_SECRET: VGVuYW50Q0ktb25seS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
+      GW_AUTH_RATE_LIMIT_REPLENISH_RATE: '30'
+      GW_AUTH_RATE_LIMIT_BURST_CAPACITY: '60'
       PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
       CHROME_CHANNEL: chrome
     steps:
