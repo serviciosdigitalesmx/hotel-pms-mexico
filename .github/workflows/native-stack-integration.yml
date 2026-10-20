@@ -93,6 +93,7 @@ jobs:
 
       - name: Resolve and verify all eight exact-SHA image references
         run: |
+          set -euo pipefail
           compose=(docker compose --project-name "$CI_PROJECT" \
             -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml)
           services=(config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service)
@@ -107,7 +108,9 @@ jobs:
           cat build-native-images.txt >> "$GITHUB_STEP_SUMMARY"
           "${compose[@]}" pull "${services[@]}"
           while IFS=$'\t' read -r service image; do
-            docker image inspect "$image" --format '{{.Id}} {{join .RepoDigests ","}}' \
+            image_identity="$(docker image inspect "$image" --format '{{.Id}} {{json .RepoDigests}}')"
+            [[ "$image_identity" == *"@sha256:"* ]]
+            printf '%s\t%s\t%s\n' "$service" "$image" "$image_identity" \
               | tee -a "build-native-image-digests.txt"
           done < build-native-images.txt
           cat build-native-image-digests.txt >> "$GITHUB_STEP_SUMMARY"
