@@ -284,7 +284,6 @@ jobs:
       FIXI_RELEASE_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       FIXI_PUBLIC_HOST: fixi.localhost
       FIXI_PUBLIC_URL: https://fixi.localhost:8443
-      PGBACKREST_CIPHER_PASS_FILE: ${{ runner.temp }}/pgbackrest-cipher-pass
       POSTGRES_PASSWORD: ci-only-postgres
       REDIS_PASSWORD: ci-only-redis
       CONFIG_SERVER_PASSWORD: ci-only-config
@@ -311,6 +310,8 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
       - name: Validate image, build, secret, and publication invariants
+        env:
+          PGBACKREST_CIPHER_PASS_FILE: ${{ runner.temp }}/pgbackrest-cipher-pass
         run: |
           set -euo pipefail
           printf '%s\n' 'ci-only-not-a-production-passphrase' > "$PGBACKREST_CIPHER_PASS_FILE"
