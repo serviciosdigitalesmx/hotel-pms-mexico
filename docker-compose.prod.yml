@@ -1,68 +1,231 @@
-# ============================================================
-# Hotel PMS – Production port-hardening override
-# ============================================================
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-#          --profile observability up -d
-# The --profile flag is required here: docker-compose.yml gates
-# loki/grafana/zipkin/alertmanager/prometheus ("observability") behind an
-# opt-in profile for a leaner dev default. An override file only changes
-# settings for services already selected — it does NOT re-enable a
-# profile-gated service. Omitting this flag in production would silently
-# drop monitoring, not just harden ports. (WAL archiving + local pgBackRest
-# backups are part of the always-on postgres service, not profile-gated —
-# see docker-compose.yml.)
-#
-# Removes host port publishing for every service except the two
-# meant to be reachable from outside the host: frontend (:80) and
-# api-gateway (:8080). All other services (Postgres, Redis, Loki,
-# Grafana, Zipkin, Alertmanager, Prometheus, config-server, and every
-# backend microservice incl. notification-service) stay reachable on
-# the internal compose networks — inter-container DNS resolution does
-# not depend on host port publishing — but are no longer bound to the
-# host's network interface. OWASP A05 — Security Misconfiguration
-# (ROADMAP P0). New services (e.g. Alertmanager/P4, notification-service/C1)
-# must be added here too, or they leak onto the host in "production".
-# ============================================================
+# Pull-only Fixi runtime overlay. Use with docker-compose.yml and
+# docker-compose.native.yml. All application images are immutable source-SHA
+# tags published by GitHub Actions; no service in this overlay builds locally.
+# This temporary-laptop profile binds the TLS edge to loopback only. It does
+# not configure router forwarding, public DNS, or internet exposure.
 
 services:
   postgres:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-postgres-pgbackrest:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_POSTGRES_DIGEST:?Set FIXI_POSTGRES_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
     ports: !reset []
+    environment: !override
+      POSTGRES_USER: postgres
+      FIXI_RUNTIME_MODE: production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      PGBACKREST_STANZA: hotel-pms
+      PGBACKREST_ARCHIVE_TIMEOUT: "120"
+      BACKUP_FULL_INTERVAL_SECONDS: "604800"
+      BACKUP_INCR_INTERVAL_SECONDS: "86400"
+      PGBACKREST_REPO1_RETENTION_FULL: "4"
+      PGBACKREST_CIPHER_PASS_FILE: /run/secrets/pgbackrest_cipher_pass
+    secrets:
+      - pgbackrest_cipher_pass
+    volumes: !override
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+      # A clean encrypted repository avoids changing the cipher mode of the
+      # existing unencrypted repository; the old named volume remains intact.
+      - pgbackrest_repo_encrypted:/var/lib/pgbackrest
+    restart: unless-stopped
+    networks: !override [db-network]
+
+  notification-db-init:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-postgres-pgbackrest:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_POSTGRES_DIGEST:?Set FIXI_POSTGRES_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
 
   redis:
+    image: ${FIXI_REDIS_IMAGE:-redis:8.8.1-alpine}@${FIXI_REDIS_DIGEST:?Set FIXI_REDIS_DIGEST from the matching Actions artifact}
+    container_name: !reset null
     ports: !reset []
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+    volumes:
+      - redis_data:/data
+    networks: !override [gateway-network, backend-network]
 
-  loki:
+  config-server:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-config-server:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_CONFIG_SERVER_DIGEST:?Set FIXI_CONFIG_SERVER_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
     ports: !reset []
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+    networks: !override [backend-network]
 
-  grafana:
+  api-gateway:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-api-gateway:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_API_GATEWAY_DIGEST:?Set FIXI_API_GATEWAY_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
     ports: !reset []
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      GW_CORS_ALLOWED_ORIGINS: ${FIXI_PUBLIC_URL:?Set FIXI_PUBLIC_URL including the externally used port when nonstandard}
+    networks: !override [dmz-network, gateway-network, backend-network]
 
-  zipkin:
+  auth-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-auth-service:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_AUTH_SERVICE_DIGEST:?Set FIXI_AUTH_SERVICE_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      FIXI_PUBLIC_URL: ${FIXI_PUBLIC_URL:?Set FIXI_PUBLIC_URL including the externally used port when nonstandard}
+    networks: !override [backend-network, db-network, gateway-network]
+
+  guest-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-guest-service:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_GUEST_SERVICE_DIGEST:?Set FIXI_GUEST_SERVICE_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+    networks: !override [backend-network, db-network]
+
+  frontdesk-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-frontdesk-service:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_FRONTDESK_SERVICE_DIGEST:?Set FIXI_FRONTDESK_SERVICE_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+    networks: !override [backend-network, db-network]
+
+  billing-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-billing-service:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_BILLING_SERVICE_DIGEST:?Set FIXI_BILLING_SERVICE_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+    networks: !override [backend-network, db-network]
+
+  fb-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-fb-service:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_FB_SERVICE_DIGEST:?Set FIXI_FB_SERVICE_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+    networks: !override [backend-network, db-network]
+
+  notification-service:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-notification-service:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_NOTIFICATION_SERVICE_DIGEST:?Set FIXI_NOTIFICATION_SERVICE_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    depends_on: !override
+      notification-db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?Set CONFIG_SERVER_PASSWORD}
+      INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      NOTIFICATION_FROM_ADDRESS: ${NOTIFICATION_FROM_ADDRESS:-noreply@fixi.localhost}
+      NOTIFICATION_FROM_NAME: ${NOTIFICATION_FROM_NAME:-Fixi}
+    networks: !override [backend-network, db-network]
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER:-serviciosdigitalesmx}/fixi-frontend:${FIXI_RELEASE_SHA:?Set FIXI_RELEASE_SHA}@${FIXI_FRONTEND_DIGEST:?Set FIXI_FRONTEND_DIGEST from the matching Actions artifact}
+    build: !reset null
+    pull_policy: always
+    container_name: !reset null
+    ports: !reset []
+    networks: !override [dmz-network]
+
+  fixi-mail:
+    profiles: !override [development]
     ports: !reset []
 
   prometheus:
     ports: !reset []
-
-  config-server:
+  grafana:
     ports: !reset []
-
-  auth-service:
+  loki:
     ports: !reset []
-
-  guest-service:
+  zipkin:
     ports: !reset []
-
-  frontdesk-service:
-    ports: !reset []
-
-  billing-service:
-    ports: !reset []
-
-  fb-service:
-    ports: !reset []
-
-  notification-service:
-    ports: !reset []
-
   alertmanager:
     ports: !reset []
+
+  caddy:
+    image: ${FIXI_CADDY_IMAGE:-caddy:2.10.2-alpine}@${FIXI_CADDY_DIGEST:?Set FIXI_CADDY_DIGEST from the matching Actions artifact}
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FIXI_HTTP_PORT:-8080}:${FIXI_HTTP_PORT:-8080}"
+      - "127.0.0.1:${FIXI_HTTPS_PORT:-8443}:${FIXI_HTTPS_PORT:-8443}"
+    environment:
+      FIXI_PUBLIC_HOST: ${FIXI_PUBLIC_HOST:-fixi.localhost}
+      FIXI_HTTP_PORT: ${FIXI_HTTP_PORT:-8080}
+      FIXI_HTTPS_PORT: ${FIXI_HTTPS_PORT:-8443}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - dmz-network
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  redis_data:
+  pgbackrest_repo_encrypted:
+  caddy_data:
+  caddy_config:
+
+networks:
+  gateway-network:
+    internal: true
+  db-network:
+    internal: true
+  observability-network:
+    internal: true
+
+secrets:
+  pgbackrest_cipher_pass:
+    file: ${PGBACKREST_CIPHER_PASS_FILE:?Set PGBACKREST_CIPHER_PASS_FILE to a protected local secret file}

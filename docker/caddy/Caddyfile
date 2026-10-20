@@ -1,0 +1,13 @@
+{
+	admin off
+	http_port {$FIXI_HTTP_PORT:80}
+	https_port {$FIXI_HTTPS_PORT:443}
+}
+
+{$FIXI_PUBLIC_HOST:fixi.localhost} {
+	tls internal
+	encode zstd gzip
+	reverse_proxy frontend:8080 {
+		header_up X-Real-IP {http.request.remote.host}
+	}
+}

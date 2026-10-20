@@ -158,6 +158,10 @@ jobs:
             dockerfile: frontend/Dockerfile
             image: hotel-pms/frontend
             context: ./frontend
+          - service: postgres-pgbackrest
+            dockerfile: docker/postgres/Dockerfile
+            image: hotel-pms/fixi-postgres-pgbackrest
+            context: docker/postgres
 
     steps:
       - name: Checkout repository

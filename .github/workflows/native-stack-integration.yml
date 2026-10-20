@@ -7,10 +7,6 @@ on:
         description: Full source commit SHA used by all eight GHCR Native images
         required: true
         type: string
-  workflow_run:
-    workflows: [Publish Fixi Native Images (Parallel)]
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: read
@@ -22,12 +18,14 @@ concurrency:
 
 jobs:
   integrated-native-runtime:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       GHCR_OWNER: serviciosdigitalesmx
-      FIXI_NATIVE_TAG: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+      FIXI_NATIVE_TAG: ${{ inputs.native_tag }}
+      FIXI_FRONTEND_IMAGE: ghcr.io/serviciosdigitalesmx/fixi-frontend:${{ inputs.native_tag }}
+      FIXI_POSTGRES_IMAGE: ghcr.io/serviciosdigitalesmx/fixi-postgres-pgbackrest:${{ inputs.native_tag }}
       NATIVE_STACK_MODE: native
       POSTGRES_PASSWORD: fixi-native-ci-postgres
       REDIS_PASSWORD: fixi-native-ci-redis
@@ -50,7 +48,7 @@ jobs:
     steps:
       - name: Validate exact image source SHA
         env:
-          TARGET_SHA: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+          TARGET_SHA: ${{ inputs.native_tag }}
         run: |
           [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$FIXI_NATIVE_TAG" == "$TARGET_SHA" ]]
@@ -58,7 +56,7 @@ jobs:
 
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+          ref: ${{ inputs.native_tag }}
 
       - uses: docker/login-action@v3
         with:
@@ -81,17 +79,7 @@ jobs:
           pnpm install --frozen-lockfile --prefer-offline
           pnpm exec playwright install --with-deps chromium
 
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build the existing frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: frontend
-          file: frontend/Dockerfile
-          load: true
-          tags: hotel-pms/frontend:stack-ci
-
-      - name: Resolve and verify all eight exact-SHA image references
+      - name: Resolve and verify all ten exact-SHA image references
         run: |
           set -euo pipefail
           compose=(docker compose --project-name "$CI_PROJECT" \
@@ -106,13 +94,29 @@ jobs:
           done
           [[ "$(wc -l < build-native-images.txt)" -eq 8 ]]
           cat build-native-images.txt >> "$GITHUB_STEP_SUMMARY"
+          for pair in "frontend|$FIXI_FRONTEND_IMAGE" "postgres|$FIXI_POSTGRES_IMAGE"; do
+            service="${pair%%|*}"
+            expected_image="${pair#*|}"
+            actual_image="$(jq -r --arg service "$service" '.services[$service].image' <<< "$config")"
+            [[ "$actual_image" == "$expected_image" ]]
+            printf '%s\t%s\n' "$service" "$actual_image" | tee -a build-runtime-images.txt
+          done
+          [[ "$(jq -r '.services["notification-db-init"].image' <<< "$config")" == "$FIXI_POSTGRES_IMAGE" ]]
+          cat build-runtime-images.txt >> "$GITHUB_STEP_SUMMARY"
           "${compose[@]}" pull "${services[@]}"
+          "${compose[@]}" pull postgres frontend notification-db-init
           while IFS=$'\t' read -r service image; do
             image_identity="$(docker image inspect "$image" --format '{{.Id}} {{json .RepoDigests}}')"
             [[ "$image_identity" == *"@sha256:"* ]]
             printf '%s\t%s\t%s\n' "$service" "$image" "$image_identity" \
               | tee -a "build-native-image-digests.txt"
           done < build-native-images.txt
+          for image in "$FIXI_FRONTEND_IMAGE" "$FIXI_POSTGRES_IMAGE"; do
+            image_identity="$(docker image inspect "$image" --format '{{.Id}} {{json .RepoDigests}}')"
+            [[ "$image_identity" == *"@sha256:"* ]]
+            printf '%s\t%s\n' "$image" "$image_identity" | tee -a build-runtime-image-digests.txt
+          done
+          cat build-runtime-image-digests.txt >> "$GITHUB_STEP_SUMMARY"
           cat build-native-image-digests.txt >> "$GITHUB_STEP_SUMMARY"
 
       - name: Start the isolated eight-image Native stack

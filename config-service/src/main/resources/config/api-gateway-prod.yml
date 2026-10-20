@@ -8,3 +8,9 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+# In production, the gateway is reachable only through the private Docker
+# network behind the frontend reverse proxy. The proxy overwrites X-Real-IP.
+gateway:
+  security:
+    trust-forwarded-header: true

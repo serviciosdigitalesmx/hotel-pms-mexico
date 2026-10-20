@@ -11,6 +11,27 @@ STANZA="${PGBACKREST_STANZA:-hotel-pms}"
 CONF=/etc/pgbackrest/pgbackrest.conf
 ARCHIVE_TIMEOUT="${PGBACKREST_ARCHIVE_TIMEOUT:-120}"
 
+# Docker Compose mounts production secrets as files. Read the passphrase only
+# inside this process; never echo it or include it in command output.
+if [[ -n "${PGBACKREST_CIPHER_PASS_FILE:-}" ]]; then
+    if [[ ! -r "${PGBACKREST_CIPHER_PASS_FILE}" ]]; then
+        echo "[postgres-entrypoint] ERROR pgBackRest cipher secret file is not readable" >&2
+        exit 1
+    fi
+    IFS= read -r PGBACKREST_CIPHER_PASS < "${PGBACKREST_CIPHER_PASS_FILE}" || true
+    PGBACKREST_CIPHER_PASS="${PGBACKREST_CIPHER_PASS%$'\r'}"
+    if [[ -z "${PGBACKREST_CIPHER_PASS:-}" ]]; then
+        echo "[postgres-entrypoint] ERROR pgBackRest cipher secret file is empty" >&2
+        exit 1
+    fi
+    export PGBACKREST_CIPHER_PASS
+fi
+
+if [[ "${FIXI_RUNTIME_MODE:-}" == "production" && -z "${PGBACKREST_CIPHER_PASS:-}" ]]; then
+    echo "[postgres-entrypoint] ERROR encrypted pgBackRest is mandatory in production" >&2
+    exit 1
+fi
+
 log() {
     echo "[postgres-entrypoint] $(date -Iseconds) $*"
 }
@@ -78,6 +99,7 @@ write_pgbackrest_conf() {
 }
 
 write_pgbackrest_conf
+unset PGBACKREST_CIPHER_PASS
 
 # Start Postgres in the background; our own shell stays PID 1.
 docker-entrypoint.sh postgres \

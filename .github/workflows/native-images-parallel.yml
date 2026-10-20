@@ -2,26 +2,15 @@ name: Publish Fixi Native Images (Parallel)
 
 on:
   workflow_dispatch:
-  push:
+    inputs:
+      source_sha:
+        description: Exact 40-character source SHA to publish (defaults to selected ref HEAD)
+        required: false
+        type: string
+  workflow_run:
+    workflows: [CI Quality Gate]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'api-gateway/**'
-      - 'auth-service/**'
-      - 'billing-service/**'
-      - 'config-service/**'
-      - 'fb-service/**'
-      - 'frontdesk-service/**'
-      - 'guest-service/**'
-      - 'notification-service/**'
-      - 'common-web-lib/**'
-      - 'internal-auth-lib/**'
-      - 'pdf-template-engine/**'
-      - 'gradle/**'
-      - 'gradlew'
-      - 'settings.gradle.kts'
-      - 'build.gradle.kts'
-      - 'docker-compose.native.yml'
-      - '.github/workflows/native-images-parallel.yml'
 
 permissions:
   contents: read
@@ -32,10 +21,58 @@ env:
   IMAGE_PREFIX: fixi
 
 jobs:
+  ci-gate:
+    name: Require successful source CI before publishing
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Require successful CI Quality Gate and tenant isolation for the exact SHA
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          branch="$(jq -rn --arg value "$SOURCE_BRANCH" '$value|@uri')"
+          for attempt in $(seq 1 60); do
+            ready=true
+            for workflow in ci.yml tenant-isolation.yml; do
+              response="$(curl --fail --silent --show-error \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H 'Accept: application/vnd.github+json' \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?head_sha=${SOURCE_SHA}&branch=${branch}&per_page=20")"
+              state="$(jq -r --arg sha "$SOURCE_SHA" --arg branch "$SOURCE_BRANCH" \
+                '[.workflow_runs[] | select(.head_sha == $sha and .head_branch == $branch)] | sort_by(.run_number) | last // empty | [.status, (.conclusion // "")] | @tsv' <<< "$response")"
+              if [[ "$state" != $'completed\tsuccess' ]]; then
+                ready=false
+                echo "Waiting for ${workflow} on ${SOURCE_SHA}: ${state:-no matching run}"
+              fi
+            done
+            [[ "$ready" == true ]] && break
+            if [[ "$attempt" -eq 60 ]]; then
+              echo "Required CI or tenant isolation did not succeed for ${SOURCE_SHA}." >&2
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "CI Quality Gate and tenant isolation are green for ${SOURCE_SHA}." >> "$GITHUB_STEP_SUMMARY"
+
   publish:
     name: Build ${{ matrix.service }} Native image
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    needs: ci-gate
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+      SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
     strategy:
       fail-fast: false
       max-parallel: 8
@@ -68,6 +105,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -96,20 +135,331 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and publish ${{ matrix.service }}
+        id: publish-image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ env.SOURCE_SHA }}
           cache-from: type=gha,scope=native-${{ matrix.scope }}
           cache-to: type=gha,mode=max,scope=native-${{ matrix.scope }}
 
+      - name: Scan published Native image with Trivy
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ env.SOURCE_SHA }}
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          timeout: 10m0s
+
+      - name: Record published digest
+        env:
+          SERVICE: ${{ matrix.service }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ env.SOURCE_SHA }}
+          DIGEST: ${{ steps.publish-image.outputs.digest }}
+        run: |
+          mkdir -p image-record
+          printf '%s|%s|%s\n' "$SERVICE" "$IMAGE" "$DIGEST" > "image-record/${SERVICE}.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixi-image-${{ matrix.service }}-${{ env.SOURCE_SHA }}
+          path: image-record/${{ matrix.service }}.txt
+          retention-days: 30
+
+  publish-production-runtime-images:
+    name: Build ${{ matrix.service }} production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: ci-gate
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: frontend
+            repository: fixi-frontend
+            dockerfile: frontend/Dockerfile
+            context: frontend
+            cache: runtime-frontend
+          - service: postgres-pgbackrest
+            repository: fixi-postgres-pgbackrest
+            dockerfile: docker/postgres/Dockerfile
+            context: docker/postgres
+            cache: runtime-postgres-pgbackrest
+    steps:
+      - name: Checkout exact source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish ${{ matrix.service }}
+        id: publish-image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          provenance: true
+          sbom: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.repository }}:${{ env.SOURCE_SHA }}
+          cache-from: type=gha,scope=${{ matrix.cache }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.cache }}
+      - name: Scan published image with Trivy
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ matrix.repository }}:${{ env.SOURCE_SHA }}
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          timeout: 10m0s
+      - name: Verify encrypted pgBackRest startup
+        if: matrix.service == 'postgres-pgbackrest'
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.repository }}:${{ env.SOURCE_SHA }}
+          POSTGRES_PASSWORD: ci-only-pgbackrest-password
+        run: |
+          set -euo pipefail
+          secret_file="$RUNNER_TEMP/pgbackrest-cipher-pass"
+          container="fixi-pgbackrest-ci-${GITHUB_RUN_ID}"
+          openssl rand -base64 48 > "$secret_file"
+          chmod 600 "$secret_file"
+          cleanup() { docker rm -fv "$container" >/dev/null 2>&1 || true; rm -f "$secret_file"; }
+          trap cleanup EXIT
+          docker run -d --name "$container" \
+            -e POSTGRES_PASSWORD \
+            -e FIXI_RUNTIME_MODE=production \
+            -e PGBACKREST_CIPHER_PASS_FILE=/run/secrets/pgbackrest_cipher_pass \
+            -v "$secret_file:/run/secrets/pgbackrest_cipher_pass:ro" \
+            "$IMAGE" >/dev/null
+          ready=false
+          for attempt in $(seq 1 90); do
+            if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then ready=true; break; fi
+            sleep 2
+          done
+          [[ "$ready" == true ]]
+          info="$(docker exec "$container" gosu postgres pgbackrest --config=/etc/pgbackrest/pgbackrest.conf info)"
+          grep -qi 'cipher: aes-256-cbc' <<< "$info"
+          echo 'PostgreSQL/pgBackRest image started with mandatory encrypted repo1; test secret remained ephemeral.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Record published digest
+        env:
+          SERVICE: ${{ matrix.service }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.repository }}:${{ env.SOURCE_SHA }}
+          DIGEST: ${{ steps.publish-image.outputs.digest }}
+        run: |
+          mkdir -p image-record
+          printf '%s|%s|%s\n' "$SERVICE" "$IMAGE" "$DIGEST" > "image-record/${SERVICE}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixi-image-${{ matrix.service }}-${{ env.SOURCE_SHA }}
+          path: image-record/${{ matrix.service }}.txt
+          retention-days: 30
+
+  validate-production-compose:
+    name: Validate pull-only production Compose
+    runs-on: ubuntu-latest
+    needs: ci-gate
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+    env:
+      GHCR_OWNER: serviciosdigitalesmx
+      FIXI_RELEASE_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_PUBLIC_HOST: fixi.localhost
+      FIXI_PUBLIC_URL: https://fixi.localhost:8443
+      PGBACKREST_CIPHER_PASS_FILE: ${{ runner.temp }}/pgbackrest-cipher-pass
+      POSTGRES_PASSWORD: ci-only-postgres
+      REDIS_PASSWORD: ci-only-redis
+      CONFIG_SERVER_PASSWORD: ci-only-config
+      INTERNAL_HMAC_SECRET: ci-only-hmac-secret-with-sufficient-length
+      JWT_SECRET: ci-only-jwt-secret-with-sufficient-length
+      SMTP_HOST: localhost
+      GRAFANA_ADMIN_PASSWORD: ci-only-grafana
+      FIXI_CONFIG_SERVER_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_API_GATEWAY_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_AUTH_SERVICE_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_GUEST_SERVICE_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_FRONTDESK_SERVICE_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_BILLING_SERVICE_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_FB_SERVICE_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_NOTIFICATION_SERVICE_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_FRONTEND_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_POSTGRES_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_REDIS_IMAGE: redis:8.8.1-alpine
+      FIXI_REDIS_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      FIXI_CADDY_IMAGE: caddy:2.10.2-alpine
+      FIXI_CADDY_DIGEST: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+      - name: Validate image, build, secret, and publication invariants
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'ci-only-not-a-production-passphrase' > "$PGBACKREST_CIPHER_PASS_FILE"
+          docker compose -p fixi-compose-config \
+            -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.prod.yml \
+            config --format json > "$RUNNER_TEMP/production-compose.json"
+          config="$RUNNER_TEMP/production-compose.json"
+          declare -A digests=(
+            [postgres]="$FIXI_POSTGRES_DIGEST"
+            [config-server]="$FIXI_CONFIG_SERVER_DIGEST"
+            [api-gateway]="$FIXI_API_GATEWAY_DIGEST"
+            [auth-service]="$FIXI_AUTH_SERVICE_DIGEST"
+            [guest-service]="$FIXI_GUEST_SERVICE_DIGEST"
+            [frontdesk-service]="$FIXI_FRONTDESK_SERVICE_DIGEST"
+            [billing-service]="$FIXI_BILLING_SERVICE_DIGEST"
+            [fb-service]="$FIXI_FB_SERVICE_DIGEST"
+            [notification-service]="$FIXI_NOTIFICATION_SERVICE_DIGEST"
+            [frontend]="$FIXI_FRONTEND_DIGEST"
+          )
+          for service in postgres config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service frontend; do
+            jq -e --arg service "$service" --arg sha "$FIXI_RELEASE_SHA" --arg digest "${digests[$service]}" \
+              '.services[$service].build == null and (.services[$service].image | endswith(":" + $sha + "@" + $digest))' "$config" >/dev/null
+          done
+          jq -e '.services["notification-db-init"].build == null and .services["notification-db-init"].image == .services.postgres.image' "$config" >/dev/null
+          jq -e 'all(.services[]; .build == null)' "$config" >/dev/null
+          jq -e 'all(.services[]; ((.image // "") | contains("native-latest") | not))' "$config" >/dev/null
+          jq -e 'all(.services | to_entries[]; .key == "caddy" or ((.value.ports // []) | length == 0))' "$config" >/dev/null
+          jq -e 'all(.services.caddy.ports[]; .host_ip == "127.0.0.1")' "$config" >/dev/null
+          jq -e '.services.caddy.image | startswith("caddy:2.10.2-alpine@sha256:")' "$config" >/dev/null
+          jq -e '.services.redis.image | startswith("redis:8.8.1-alpine@sha256:")' "$config" >/dev/null
+          jq -e '.networks["db-network"].internal == true and .networks["gateway-network"].internal == true and .networks["observability-network"].internal == true' "$config" >/dev/null
+          jq -e '.services.postgres.secrets | any(.source == "pgbackrest_cipher_pass")' "$config" >/dev/null
+          jq -e '.services.postgres.environment.PGBACKREST_CIPHER_PASS_FILE == "/run/secrets/pgbackrest_cipher_pass" and .services.postgres.environment.PGBACKREST_CIPHER_PASS == null and .services.postgres.environment.S3_BUCKET == null' "$config" >/dev/null
+          jq -e '[.services.postgres.volumes[] | select(.target == "/var/lib/pgbackrest") | .source] | length == 1 and (.[0] | contains("pgbackrest_repo_encrypted"))' "$config" >/dev/null
+          echo 'Production Compose: pull-only services, local-loopback TLS edge, no direct backend/database ports.' >> "$GITHUB_STEP_SUMMARY"
+
+  pin-runtime-dependencies:
+    name: Resolve immutable Redis and Caddy digests
+    runs-on: ubuntu-latest
+    needs: ci-gate
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+    steps:
+      - name: Pull exact third-party runtime versions and record digests
+        run: |
+          set -euo pipefail
+          mkdir -p image-record
+          for service in redis caddy; do
+            case "$service" in
+              redis) image=redis:8.8.1-alpine ;;
+              caddy) image=caddy:2.10.2-alpine ;;
+            esac
+            docker pull "$image"
+            repo_digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
+            digest="${repo_digest##*@}"
+            [[ "$digest" == sha256:* ]]
+            printf '%s|%s|%s\n' "$service" "$image" "$digest" > "image-record/${service}.txt"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixi-image-runtime-dependencies-${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+          path: image-record/*.txt
+          retention-days: 30
+
+  release-image-manifest:
+    name: Create SHA and digest manifest
+    needs: [publish, publish-production-runtime-images, validate-production-compose, pin-runtime-dependencies]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fixi-image-*-${{ env.SOURCE_SHA }}
+          path: image-records
+          merge-multiple: true
+      - name: Build image reference manifest (no credentials)
+        run: |
+          set -euo pipefail
+          echo "FIXI_RELEASE_SHA=${SOURCE_SHA}" > fixi-production-images.env
+          : > image-refs.txt
+          for record in image-records/*.txt; do
+            while IFS='|' read -r service image digest; do
+              [[ -n "$service" && "$image" == *":${SOURCE_SHA}" && "$digest" == sha256:* ]]
+              case "$service" in
+                config-server) key=FIXI_CONFIG_SERVER_DIGEST ;;
+                api-gateway) key=FIXI_API_GATEWAY_DIGEST ;;
+                auth-service) key=FIXI_AUTH_SERVICE_DIGEST ;;
+                guest-service) key=FIXI_GUEST_SERVICE_DIGEST ;;
+                frontdesk-service) key=FIXI_FRONTDESK_SERVICE_DIGEST ;;
+                billing-service) key=FIXI_BILLING_SERVICE_DIGEST ;;
+                fb-service) key=FIXI_FB_SERVICE_DIGEST ;;
+                notification-service) key=FIXI_NOTIFICATION_SERVICE_DIGEST ;;
+                frontend) key=FIXI_FRONTEND_DIGEST ;;
+                postgres-pgbackrest) key=FIXI_POSTGRES_DIGEST ;;
+                redis) key=FIXI_REDIS_DIGEST ;;
+                caddy) key=FIXI_CADDY_DIGEST ;;
+                *) echo "Unexpected image record service: $service" >&2; exit 1 ;;
+              esac
+              printf '%s=%s\n' "$key" "$digest" >> fixi-production-images.env
+              printf '%s\t%s@%s\n' "$service" "$image" "$digest" >> image-refs.txt
+            done < "$record"
+          done
+          [[ "$(wc -l < fixi-production-images.env)" -eq 13 ]]
+          cat image-refs.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixi-production-image-refs-${{ env.SOURCE_SHA }}
+          path: |
+            fixi-production-images.env
+            image-refs.txt
+          retention-days: 30
+
+  dispatch-native-stack-integration:
+    name: Dispatch integration against the exact published SHA
+    needs: [publish, publish-production-runtime-images, validate-production-compose, pin-runtime-dependencies, release-image-manifest]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
+      SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Dispatch Native integration for the published source SHA
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          payload="$(jq -n --arg ref "$SOURCE_BRANCH" --arg sha "$SOURCE_SHA" \
+            '{ref:$ref,inputs:{native_tag:$sha}}')"
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/native-stack-integration.yml/dispatches" \
+            -d "$payload"
+          echo "Dispatched Native integration for ${SOURCE_SHA} (${SOURCE_BRANCH})." >> "$GITHUB_STEP_SUMMARY"
+
   aliases:
     name: Publish native-latest aliases
-    needs: publish
-    if: github.ref == 'refs/heads/main'
+    needs: [publish, publish-production-runtime-images, validate-production-compose, pin-runtime-dependencies]
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || inputs.source_sha || github.sha }}
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -122,7 +472,7 @@ jobs:
       - name: Alias all SHA images as native-latest
         env:
           OWNER: ${{ github.repository_owner }}
-          SHA: ${{ github.sha }}
+          SHA: ${{ env.SOURCE_SHA }}
         run: |
           set -euo pipefail
           for service in config-server auth-service api-gateway guest-service frontdesk-service billing-service fb-service notification-service; do

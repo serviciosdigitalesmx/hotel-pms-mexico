@@ -19,7 +19,7 @@ x-ci-resources: &ci-resources
 services:
   postgres:
     build: !reset null
-    image: postgres:15-alpine
+    image: ${FIXI_POSTGRES_IMAGE:-postgres:15-alpine}
     container_name: !reset null
     ports: !reset []
     healthcheck:
@@ -144,10 +144,14 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
+  notification-db-init:
+    build: !reset null
+    image: ${FIXI_POSTGRES_IMAGE:-postgres:15-alpine}
+    container_name: !reset null
   frontend:
     build: !reset null
     container_name: !reset null
-    image: hotel-pms/frontend:stack-ci
+    image: ${FIXI_FRONTEND_IMAGE:-hotel-pms/frontend:stack-ci}
     ports: !override
       - "127.0.0.1:18080:8080"
   fixi-mail:
