@@ -313,12 +313,26 @@ jobs:
         env:
           PGBACKREST_CIPHER_PASS_FILE: ${{ runner.temp }}/pgbackrest-cipher-pass
         run: |
-          set -euo pipefail
+          set -uo pipefail
           printf '%s\n' 'ci-only-not-a-production-passphrase' > "$PGBACKREST_CIPHER_PASS_FILE"
-          docker compose -p fixi-compose-config \
+          if ! docker compose -p fixi-compose-config \
             -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.prod.yml \
-            config --format json > "$RUNNER_TEMP/production-compose.json"
+            config --format json > "$RUNNER_TEMP/production-compose.json"; then
+            echo '::error title=Compose render::Production Compose could not be rendered with CI-only values.'
+            exit 1
+          fi
           config="$RUNNER_TEMP/production-compose.json"
+          failures=0
+          check() {
+            local label="$1"
+            local filter="$2"
+            if jq -e "$filter" "$config" >/dev/null; then
+              echo "PASS: ${label}"
+            else
+              echo "::error title=Compose invariant failed::${label}"
+              failures=$((failures + 1))
+            fi
+          }
           declare -A digests=(
             [postgres]="$FIXI_POSTGRES_DIGEST"
             [config-server]="$FIXI_CONFIG_SERVER_DIGEST"
@@ -332,20 +346,25 @@ jobs:
             [frontend]="$FIXI_FRONTEND_DIGEST"
           )
           for service in postgres config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service frontend; do
-            jq -e --arg service "$service" --arg sha "$FIXI_RELEASE_SHA" --arg digest "${digests[$service]}" \
-              '.services[$service].build == null and (.services[$service].image | endswith(":" + $sha + "@" + $digest))' "$config" >/dev/null
+            check "${service} image is source-SHA and digest pinned with no build" \
+              ".services[\"$service\"].build == null and (.services[\"$service\"].image | endswith(\":$FIXI_RELEASE_SHA@${digests[$service]}\"))"
           done
-          jq -e '.services["notification-db-init"].build == null and .services["notification-db-init"].image == .services.postgres.image' "$config" >/dev/null
-          jq -e 'all(.services[]; .build == null)' "$config" >/dev/null
-          jq -e 'all(.services[]; ((.image // "") | contains("native-latest") | not))' "$config" >/dev/null
-          jq -e 'all(.services | to_entries[]; .key == "caddy" or ((.value.ports // []) | length == 0))' "$config" >/dev/null
-          jq -e 'all(.services.caddy.ports[]; .host_ip == "127.0.0.1")' "$config" >/dev/null
-          jq -e '.services.caddy.image | startswith("caddy:2.10.2-alpine@sha256:")' "$config" >/dev/null
-          jq -e '.services.redis.image | startswith("redis:8.8.1-alpine@sha256:")' "$config" >/dev/null
-          jq -e '.networks["db-network"].internal == true and .networks["gateway-network"].internal == true and .networks["observability-network"].internal == true' "$config" >/dev/null
-          jq -e '.services.postgres.secrets | any(.source == "pgbackrest_cipher_pass")' "$config" >/dev/null
-          jq -e '.services.postgres.environment.PGBACKREST_CIPHER_PASS_FILE == "/run/secrets/pgbackrest_cipher_pass" and .services.postgres.environment.PGBACKREST_CIPHER_PASS == null and .services.postgres.environment.S3_BUCKET == null' "$config" >/dev/null
-          jq -e '[.services.postgres.volumes[] | select(.target == "/var/lib/pgbackrest") | .source] | length == 1 and (.[0] | contains("pgbackrest_repo_encrypted"))' "$config" >/dev/null
+          check 'notification database initializer uses the same immutable PostgreSQL image' \
+            '.services["notification-db-init"].build == null and .services["notification-db-init"].image == .services.postgres.image'
+          check 'no service has a build definition' 'all(.services[]; .build == null)'
+          check 'no service references native-latest' 'all(.services[]; ((.image // "") | contains("native-latest") | not))'
+          check 'Caddy is the only service publishing host ports' 'all(.services | to_entries[]; .key == "caddy" or ((.value.ports // []) | length == 0))'
+          check 'Caddy ports bind only to loopback' 'all(.services.caddy.ports[]; .host_ip == "127.0.0.1")'
+          check 'Caddy image is pinned to its resolved digest' '.services.caddy.image | startswith("caddy:2.10.2-alpine@sha256:")'
+          check 'Redis image is pinned to its resolved digest' '.services.redis.image | startswith("redis:8.8.1-alpine@sha256:")'
+          check 'production gateway, database and observability networks are internal' '.networks["db-network"].internal == true and .networks["gateway-network"].internal == true and .networks["observability-network"].internal == true'
+          check 'PostgreSQL receives pgBackRest passphrase as a file secret' '.services.postgres.secrets | any(.source == "pgbackrest_cipher_pass")'
+          check 'production PostgreSQL has no plaintext cipher passphrase or S3 repo settings' '.services.postgres.environment.PGBACKREST_CIPHER_PASS_FILE == "/run/secrets/pgbackrest_cipher_pass" and .services.postgres.environment.PGBACKREST_CIPHER_PASS == null and .services.postgres.environment.S3_BUCKET == null'
+          check 'PostgreSQL uses the separate encrypted pgBackRest volume' '[.services.postgres.volumes[] | select(.target == "/var/lib/pgbackrest") | .source] | length == 1 and (.[0] | contains("pgbackrest_repo_encrypted"))'
+          if [[ "$failures" -ne 0 ]]; then
+            echo "${failures} production Compose invariant(s) failed." >&2
+            exit 1
+          fi
           echo 'Production Compose: pull-only services, local-loopback TLS edge, no direct backend/database ports.' >> "$GITHUB_STEP_SUMMARY"
 
   pin-runtime-dependencies:
