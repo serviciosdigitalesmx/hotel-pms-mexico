@@ -30,6 +30,9 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
   }), 200);
   expect(diagnosed.status).toBe('REVIEW');
 
+  // The isolated suite reuses one synthetic account; let the real frontdesk
+  // route bucket refill before the page's concurrent bootstrap requests.
+  await new Promise(resolve => setTimeout(resolve, 3_000));
   await page.goto(`/service-orders/${order.id}`);
   await expect(page.getByRole('heading', { name: 'Orden de servicio' })).toBeVisible();
   const progressForm = page.locator('form').first();
