@@ -18,7 +18,12 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
      * @param workflowId parameter.
      * @return operation result.
      */
-    List<WorkflowTransition> findAllByWorkflowId(UUID workflowId);
+    @Query(
+            "select t from WorkflowTransition t "
+                    + "join fetch t.fromState "
+                    + "join fetch t.toState "
+                    + "where t.workflow.id = :workflowId")
+    List<WorkflowTransition> findAllByWorkflowId(@Param("workflowId") UUID workflowId);
 
     /**
      * Keep the tenant predicate in the transition query itself. Workflow IDs are opaque, but tenant
@@ -31,7 +36,10 @@ public interface WorkflowTransitionRepository extends JpaRepository<WorkflowTran
      * @return matching transition.
      */
     @Query(
-            "select t from WorkflowTransition t join t.workflow w "
+            "select t from WorkflowTransition t "
+                    + "join fetch t.fromState "
+                    + "join fetch t.toState "
+                    + "join t.workflow w "
                     + "where w.id = :workflowId and w.hotelId = :hotelId "
                     + "and t.fromState.key = :fromStateKey and t.key = :transitionKey")
     Optional<WorkflowTransition> findByTenantAndWorkflowIdAndFromStateKeyAndKey(

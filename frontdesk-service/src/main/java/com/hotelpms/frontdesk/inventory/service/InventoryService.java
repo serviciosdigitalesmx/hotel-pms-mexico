@@ -632,13 +632,15 @@ public class InventoryService {
             throw new IllegalStateException("DELIVERED_SERVICE_ORDER_STOCK_CANNOT_BE_RELEASED");
         }
         final List<StockReservation> orderReservations =
-                reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+                reservations.findAllForUpdateByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
+                        hotel, orderId);
         for (final StockReservation reservation : orderReservations) {
             if (RESERVATION_RESERVED.equals(reservation.getStatus())) {
                 release(hotel, orderId, reservation.getProductId());
             }
         }
-        return reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+        return reservations.findAllForUpdateByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
+                hotel, orderId);
     }
 
     /**
@@ -652,7 +654,8 @@ public class InventoryService {
     @Transactional
     public List<StockReservation> consumeReservations(final UUID hotel, final UUID orderId) {
         final List<StockReservation> orderReservations =
-                reservations.findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(hotel, orderId);
+                reservations.findAllForUpdateByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
+                        hotel, orderId);
         for (final StockReservation reservation : orderReservations) {
             if (!RESERVATION_RESERVED.equals(reservation.getStatus())) {
                 continue;

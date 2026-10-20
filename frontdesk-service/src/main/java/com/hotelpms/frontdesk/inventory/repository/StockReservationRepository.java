@@ -46,8 +46,18 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
      * @param order service order identifier
      * @return locked reservations
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<StockReservation> findAllByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
+            UUID hotel, UUID order);
+
+    /**
+     * Locks all reservations for one tenant-owned order in creation order before mutation.
+     *
+     * @param hotel tenant identifier
+     * @param order service order identifier
+     * @return locked reservations
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<StockReservation> findAllForUpdateByHotelIdAndServiceOrderIdOrderByCreatedAtAsc(
             UUID hotel, UUID order);
 
     /**
