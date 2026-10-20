@@ -19,7 +19,6 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
       SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/hotel_notifications \
       SPRING_DATASOURCE_USERNAME=build-only \
       SPRING_DATASOURCE_PASSWORD=build-only \
-      SPRING_FLYWAY_ENABLED=false \
       SPRING_JPA_HIBERNATE_DDL_AUTO=none \
       SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect \
       SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS=false \
