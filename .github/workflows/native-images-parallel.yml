@@ -357,7 +357,10 @@ jobs:
           check 'Caddy ports bind only to loopback' 'all(.services.caddy.ports[]; .host_ip == "127.0.0.1")'
           check 'Caddy image is pinned to its resolved digest' '.services.caddy.image | startswith("caddy:2.10.2-alpine@sha256:")'
           check 'Redis image is pinned to its resolved digest' '.services.redis.image | startswith("redis:8.8.1-alpine@sha256:")'
-          check 'production gateway, database and observability networks are internal' '.networks["db-network"].internal == true and .networks["gateway-network"].internal == true and .networks["observability-network"].internal == true'
+          check 'production database network is internal' '.networks["db-network"].internal == true'
+          check 'production gateway network is internal' '.networks["gateway-network"].internal == true'
+          check 'production observability network is internal' '.networks["observability-network"].internal == true'
+          jq -r '.networks | to_entries[] | [.key, (.value.internal // false | tostring)] | @tsv' "$config" >> "$GITHUB_STEP_SUMMARY"
           check 'PostgreSQL receives pgBackRest passphrase as a file secret' '.services.postgres.secrets | any(.source == "pgbackrest_cipher_pass")'
           check 'production PostgreSQL has no plaintext cipher passphrase or S3 repo settings' '.services.postgres.environment.PGBACKREST_CIPHER_PASS_FILE == "/run/secrets/pgbackrest_cipher_pass" and .services.postgres.environment.PGBACKREST_CIPHER_PASS == null and .services.postgres.environment.S3_BUCKET == null'
           check 'PostgreSQL uses the separate encrypted pgBackRest volume' '[.services.postgres.volumes[] | select(.target == "/var/lib/pgbackrest") | .source] | length == 1 and (.[0] | contains("pgbackrest_repo_encrypted"))'
