@@ -126,7 +126,7 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:18101/actuator/health \
             | jq -e '.status == "UP"' >/dev/null
           curl --fail --silent --show-error -u "configuser:$CONFIG_SERVER_PASSWORD" \
-            http://127.0.0.1:18100/auth-service/default \
+            http://127.0.0.1:18888/auth-service/default \
             | jq -e '.name == "auth-service" and (.propertySources | length) > 0' >/dev/null
           docker compose --project-name "$CI_PROJECT" \
             -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml \
