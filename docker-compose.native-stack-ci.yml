@@ -150,6 +150,9 @@ services:
     image: hotel-pms/frontend:stack-ci
     ports: !override
       - "127.0.0.1:18080:8080"
+  fixi-mail:
+    container_name: !reset null
+    ports: !reset []
   zipkin:
     container_name: !reset null
     ports: !override
@@ -160,7 +163,6 @@ services:
       - "127.0.0.1:13100:3100"
   mailpit:
     image: axllent/mailpit:v1.31.0
-    ports:
-      - "127.0.0.1:18025:8025"
+    ports: !reset []
     networks:
       - backend-network

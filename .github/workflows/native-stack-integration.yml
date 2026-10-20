@@ -1,124 +1,203 @@
-name: All Native PMS stack integration
+name: Fixi Native stack integration
 
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/native-stack-validation]
-    paths:
-      - .github/workflows/native-stack-integration.yml
-      - scripts/ci/verify-native-stack-runtime.sh
-      - scripts/ci/native-stack-lifecycle.sh
-      - scripts/ci/test-native-stack-lifecycle.sh
-      - scripts/ci/load-native-stack-images.sh
-      - docker-compose.yml
-      - docker-compose.native-stack-ci.yml
-      - frontend/playwright-native.config.ts
-      - frontend/e2e-native-stack/**
-      - docs/native-stack-images.json
-      - frontend/Dockerfile
-      - frontend/nginx.conf
+    inputs:
+      native_tag:
+        description: Full source commit SHA used by all eight GHCR Native images
+        required: true
+        type: string
+  workflow_run:
+    workflows: [Publish Fixi Native Images (Parallel)]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
 
 concurrency:
-  group: native-stack-integration
-  cancel-in-progress: true
+  group: fixi-native-stack-integration
+  cancel-in-progress: false
 
 jobs:
-
-  integrated-runtime:
+  integrated-native-runtime:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: read
-      actions: read
+    timeout-minutes: 120
     env:
-      GH_TOKEN: ${{ github.token }}
-      POSTGRES_PASSWORD: native-stack-ci-postgres-password
-      REDIS_PASSWORD: native-stack-ci-redis-password
-      CONFIG_SERVER_PASSWORD: native-stack-ci-config-password
-      INTERNAL_HMAC_SECRET: native-stack-ci-hmac-secret-with-sufficient-length
-      # CI-only Base64 HMAC key; keep the same encoding contract as Auth/Gateway.
+      GHCR_OWNER: serviciosdigitalesmx
+      FIXI_NATIVE_TAG: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+      POSTGRES_PASSWORD: fixi-native-ci-postgres
+      REDIS_PASSWORD: fixi-native-ci-redis
+      CONFIG_SERVER_PASSWORD: fixi-native-ci-config
+      INTERNAL_HMAC_SECRET: fixi-native-ci-hmac-secret-with-sufficient-length
       JWT_SECRET: TmF0aXZlQXV0aC1jaS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
+      NATIVE_ADMIN_USERNAME: e2e-live-other-hotel-admin
+      NATIVE_ADMIN_PASSWORD: password
       PLAYWRIGHT_NATIVE_BASE_URL: http://127.0.0.1:18080
+      NATIVE_API_BASE_URL: http://127.0.0.1:18080
+      GW_CORS_ALLOWED_ORIGINS: http://127.0.0.1:18080
+      GW_DEFAULT_RATE_LIMIT_REPLENISH_RATE: '60'
+      GW_DEFAULT_RATE_LIMIT_BURST_CAPACITY: '120'
+      GW_AUTH_RATE_LIMIT_REPLENISH_RATE: '30'
+      GW_AUTH_RATE_LIMIT_BURST_CAPACITY: '60'
       SMTP_HOST: mailpit
       SMTP_PORT: '1025'
-      CHROME_CHANNEL: chrome
+      NATIVE_E2E_OUTPUT_DIR: ${{ github.workspace }}/build/native-stack-runtime/playwright
+      CI_PROJECT: fixi-native-${{ github.run_id }}
     steps:
+      - name: Validate exact image source SHA
+        env:
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+        run: |
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$FIXI_NATIVE_TAG" == "$TARGET_SHA" ]]
+          echo "Validated Native image source SHA: $TARGET_SHA" >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
           run_install: false
-      - name: Inspect available runner resources
-        run: |
-          free -h
-          df -h /
-          nproc
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils
-      - name: Load eight verified Native/JVM image pairs
-        id: images
-        run: bash scripts/ci/load-native-stack-images.sh
-      - name: Verify bounded sampler lifecycle failure paths
-        run: |
-          bash -n scripts/ci/verify-native-stack-runtime.sh scripts/ci/native-stack-lifecycle.sh
-          timeout --signal=TERM --kill-after=5s 30s bash scripts/ci/test-native-stack-lifecycle.sh
-      - name: Prepare real browser tests
-        id: browser
+
+      - name: Install Playwright dependencies
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile --prefer-offline
-          timeout 30s google-chrome --version
+          pnpm exec playwright install --with-deps chromium
+
       - uses: docker/setup-buildx-action@v3
-      - name: Build the existing frontend
-        id: frontend
+
+      - name: Build the existing frontend image
         uses: docker/build-push-action@v6
         with:
           context: frontend
           file: frontend/Dockerfile
           load: true
           tags: hotel-pms/frontend:stack-ci
-          cache-from: type=gha,scope=native-stack-frontend
-          cache-to: type=gha,scope=native-stack-frontend,mode=max
-      - name: Verify all Native services together through the frontend
-        id: native
-        run: bash scripts/ci/verify-native-stack-runtime.sh native
-      - name: Verify the paired JVM fallback with the same E2E flows
-        id: jvm
-        if: always() && steps.images.outcome == 'success' && steps.browser.outcome == 'success' && steps.frontend.outcome == 'success'
-        run: bash scripts/ci/verify-native-stack-runtime.sh jvm
-      - name: Compare the actual Flyway migration histories
-        if: always() && steps.native.outcome == 'success' && steps.jvm.outcome == 'success'
+
+      - name: Resolve and verify all eight exact-SHA image references
         run: |
+          compose=(docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml)
+          services=(config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service)
+          expected="ghcr.io/${GHCR_OWNER}/fixi-"
+          config="$("${compose[@]}" config --format json)"
+          for service in "${services[@]}"; do
+            image="$(jq -r --arg service "$service" '.services[$service].image' <<< "$config")"
+            [[ "$image" == "${expected}${service}:${FIXI_NATIVE_TAG}" ]]
+            printf '%s\t%s\n' "$service" "$image" | tee -a build-native-images.txt
+          done
+          [[ "$(wc -l < build-native-images.txt)" -eq 8 ]]
+          cat build-native-images.txt >> "$GITHUB_STEP_SUMMARY"
+          "${compose[@]}" pull "${services[@]}"
+          while IFS=$'\t' read -r service image; do
+            docker image inspect "$image" --format '{{.Id}} {{join .RepoDigests ","}}' \
+              | tee -a "build-native-image-digests.txt"
+          done < build-native-images.txt
+          cat build-native-image-digests.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start the isolated eight-image Native stack
+        run: |
+          compose=(docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml)
+          services=(postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service frontend mailpit)
+          "${compose[@]}" up -d --no-build --wait --wait-timeout 900 "${services[@]}" || {
+            "${compose[@]}" ps --all || true
+            "${compose[@]}" logs --no-color --tail=300 || true
+            exit 1
+          }
+          curl --fail --silent --show-error http://127.0.0.1:18080/ >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:18101/actuator/health \
+            | jq -e '.status == "UP"' >/dev/null
+          curl --fail --silent --show-error -u "configuser:$CONFIG_SERVER_PASSWORD" \
+            http://127.0.0.1:18100/auth-service/default \
+            | jq -e '.name == "auth-service" and (.propertySources | length) > 0' >/dev/null
+          docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml \
+            ps --all
+
+      - name: Verify Native process identity, health, restart and OOM state
+        run: |
+          compose=(docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml)
+          services=(config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service)
+          for service in "${services[@]}"; do
+            container="$("${compose[@]}" ps -q "$service")"
+            [[ -n "$container" ]]
+            executable="$(docker exec "$container" readlink /proc/1/exe)"
+            [[ "$executable" == /app/app ]]
+            docker inspect "$container" --format '{{.State.Status}} {{.State.Health.Status}} {{.RestartCount}} {{.State.OOMKilled}} {{.Config.Image}}' \
+              | tee -a "build-native-runtime-identity.txt"
+            docker inspect "$container" --format '{{.State.Status}} {{.State.Health.Status}} {{.RestartCount}} {{.State.OOMKilled}} {{.Config.Image}}' \
+              | awk -v tag=":${FIXI_NATIVE_TAG}" '$1 != "running" || $2 != "healthy" || $3 != 0 || $4 != "false" || index($5, tag) == 0 { exit 1 }'
+            echo "$service PID 1 executable: $executable" >> "$GITHUB_STEP_SUMMARY"
+          done
+          docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml \
+            exec -T postgres pg_isready -U postgres
+          [[ "$(docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml \
+            exec -T redis redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping)" == PONG ]]
           for database in hotel_auth hotel_guest hotel_frontdesk hotel_billing hotel_fb hotel_notifications; do
-            jq -se '.[0] == .[1]' "build/native-stack-runtime/native/$database-flyway.json" \
-              "build/native-stack-runtime/jvm/$database-flyway.json" >/dev/null
+            docker compose --project-name "$CI_PROJECT" \
+              -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml \
+              exec -T postgres psql -U postgres -d "$database" -v ON_ERROR_STOP=1 \
+              -c "SELECT count(*) > 0 AND bool_and(success) FROM flyway_schema_history" \
+              | tee -a "build-native-flyway.txt" | grep -q t
+            echo "Flyway $database: PASS" >> "$GITHUB_STEP_SUMMARY"
           done
-          echo 'Native/JVM Flyway history and checksum parity: PASS' >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish stack measurements
+
+      - name: Run Fixi business, inventory, workflow and portal E2E on Native
+        working-directory: frontend
+        run: >-
+          pnpm exec playwright test --config playwright-native.config.ts
+          e2e-native-stack/business-contract.spec.ts
+          e2e-native-stack/fixi-operations.spec.ts
+          e2e-native-stack/public-portal.spec.ts
+          e2e-native-stack/service-order.spec.ts
+          e2e-native-stack/workflow.spec.ts
+
+      - name: Capture stack evidence
         if: always()
         run: |
-          for mode in native jvm; do
-            if test -f "build/native-stack-runtime/$mode/metrics.txt"; then
-              cat "build/native-stack-runtime/$mode/metrics.txt" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-      - name: Final cleanup of this run's disposable Compose projects
-        if: always()
-        run: |
-          source scripts/ci/native-stack-lifecycle.sh
-          failed=0
-          for mode in native jvm; do
-            cleanup_ci_project "pms-native-ci-$GITHUB_RUN_ID-$mode" "$mode" || failed=1
-          done
-          exit "$failed"
+          mkdir -p build/native-stack-runtime
+          compose=(docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml)
+          "${compose[@]}" ps --all > build/native-stack-runtime/containers.txt || true
+          "${compose[@]}" logs --no-color > build/native-stack-runtime/stack.log || true
+          cp build-native-* build/native-stack-runtime/ 2>/dev/null || true
+          printf 'FIXI NATIVE STACK INTEGRATION\nsource_sha=%s\nrun=%s\n' "$FIXI_NATIVE_TAG" "$GITHUB_RUN_ID" \
+            > build/native-stack-runtime/report.txt
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-stack-integration-evidence
+          name: fixi-native-stack-${{ env.FIXI_NATIVE_TAG }}
           path: |
             build/native-stack-runtime
-            build/native-stack-artifact-evidence
+            frontend/build/native-stack-runtime
+            frontend/test-results/native-stack
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Destroy only this run's disposable stack and volumes
+        if: always()
+        run: |
+          docker compose --project-name "$CI_PROJECT" \
+            -f docker-compose.yml -f docker-compose.native-stack-ci.yml -f docker-compose.native.yml \
+            down --timeout 30 --volumes --remove-orphans
