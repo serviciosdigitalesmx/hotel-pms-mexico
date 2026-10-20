@@ -28,6 +28,7 @@ jobs:
     env:
       GHCR_OWNER: serviciosdigitalesmx
       FIXI_NATIVE_TAG: ${{ github.event.workflow_run.head_sha || inputs.native_tag }}
+      NATIVE_STACK_MODE: native
       POSTGRES_PASSWORD: fixi-native-ci-postgres
       REDIS_PASSWORD: fixi-native-ci-redis
       CONFIG_SERVER_PASSWORD: fixi-native-ci-config
