@@ -33,6 +33,8 @@ public class ModuleFlywayConfiguration {
     Flyway.configure()
         .dataSource(dataSource)
         .locations("classpath:db/monolith-migrations/" + module)
+        .resourceProvider(
+            new EmbeddedMigrationResourceProvider(module, ModuleFlywayConfiguration.class.getClassLoader()))
         .table(historyTable)
         // Each bounded context has its own history table but shares the public
         // schema. Baseline at zero so a prior module's objects don't block this

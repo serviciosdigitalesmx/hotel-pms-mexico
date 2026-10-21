@@ -90,6 +90,22 @@ val collectModuleMigrations by tasks.registering(Copy::class) {
         }
     }
     into(generatedMigrations)
+    doLast {
+        val migrationIndex = generatedMigrations.get().file("db/monolith-migrations/index.txt").get().asFile
+        migrationIndex.parentFile.mkdirs()
+        migrationIndex.writeText(
+            migrationModules
+                .flatMap { module ->
+                    rootProject.file("$module/src/main/resources/db/migration")
+                        .walkTopDown()
+                        .filter { it.isFile && it.extension.equals("sql", ignoreCase = true) }
+                        .map { file -> "db/monolith-migrations/$module/${file.relativeTo(rootProject.file("$module/src/main/resources/db/migration")).invariantSeparatorsPath}" }
+                        .toList()
+                }
+                .sorted()
+                .joinToString(separator = "\n", postfix = "\n"),
+        )
+    }
 }
 
 sourceSets.main {
