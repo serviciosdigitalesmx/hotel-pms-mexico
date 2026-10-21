@@ -67,7 +67,7 @@ jobs:
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" platform-tools "platforms;android-35" "build-tools;35.0.0" "emulator" "system-images;android-33;google_apis;x86_64"
           gradle wrapper --gradle-version 8.11.1
           chmod +x ./gradlew
@@ -85,16 +85,22 @@ jobs:
             adb install -r fixi-android/app/build/outputs/apk/ci/debug/*.apk
             adb shell am force-stop mx.fixi.app
             adb shell monkey -p mx.fixi.app 1
-            adb shell uiautomator dump /sdcard/fixi-ui.xml || true
-            adb pull /sdcard/fixi-ui.xml ../fixi-ui.xml || true
-            adb logcat -d -t 200 > ../fixi-logcat.txt
+            APP_PID="$(adb shell pidof mx.fixi.app | tr -d '\r')"
+            test -n "$APP_PID"
+            adb shell dumpsys activity activities | tee fixi-activity.txt
+            grep -Eq 'mResumedActivity.*mx\.fixi\.app|ResumedActivity.*mx\.fixi\.app' fixi-activity.txt
+            adb logcat -d -t 500 > fixi-logcat.txt
+            if grep -Fq 'Process: mx.fixi.app' fixi-logcat.txt; then
+              echo "Fixi Android process crashed during the emulator smoke run"
+              exit 1
+            fi
       - name: Collect backend and emulator evidence
         if: always()
         run: |
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
-            -f docker-compose.yml -f docker-compose.android-lab.yml ps --all > backend-containers.txt || true
+            -f docker-compose.yml -f docker-compose.android-lab.yml ps --all > backend-containers.txt
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
-            -f docker-compose.yml -f docker-compose.android-lab.yml logs --no-color > backend.log || true
+            -f docker-compose.yml -f docker-compose.android-lab.yml logs --no-color > backend.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -102,11 +108,11 @@ jobs:
           path: |
             fixi-android/app/build/outputs/apk/ci/debug/*.apk
             fixi-android/android-build.log
-            fixi-ui.xml
             fixi-logcat.txt
+            fixi-activity.txt
             backend-containers.txt
             backend.log
-          if-no-files-found: warn
+          if-no-files-found: error
       - name: Destroy disposable backend lab
         if: always()
         run: docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.android-lab.yml down -v --remove-orphans
