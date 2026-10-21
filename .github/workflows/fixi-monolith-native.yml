@@ -85,7 +85,6 @@ jobs:
         with:
           distribution: graalvm-community
           version: "24.0.2"
-          components: native-image
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: gradle
           native-image-job-reports: "true"
