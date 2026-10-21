@@ -81,7 +81,7 @@ public class FrontdeskInProcessClients {
   @Bean
   BillingClient monolithFrontdeskBillingClient(
       @Lazy final InvoiceService invoices,
-      final PdfInvoiceService pdfInvoices,
+      @Lazy final PdfInvoiceService pdfInvoices,
       final ObjectMapper objectMapper) {
     return new BillingClient() {
       @Override
