@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 
 /** Direct in-process adapters replacing the Repair/Guest/Billing Feign boundaries. */
@@ -29,7 +30,7 @@ public class FrontdeskInProcessClients {
 
   @Bean
   GuestClient monolithFrontdeskGuestClient(
-      final GuestService guests,
+      @Lazy final GuestService guests,
       final DeviceService devices,
       final ObjectMapper objectMapper) {
     return new GuestClient() {
