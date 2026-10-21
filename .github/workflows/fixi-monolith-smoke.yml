@@ -104,7 +104,7 @@ jobs:
 
           ready=0
           for attempt in $(seq 1 120); do
-            if curl --silent --show-error --fail http://127.0.0.1:8080/actuator/health > /tmp/fixi-health.json; then
+            if curl --silent --show-error --fail http://127.0.0.1:8090/actuator/health > /tmp/fixi-health.json; then
               ready=1
               break
             fi
@@ -159,7 +159,7 @@ jobs:
           check_get 'F&B orders API' '/api/v1/fb/orders?page=0&size=1' /tmp/fixi-fb-orders.json
 
           sleep 20
-          curl --silent --show-error --fail http://127.0.0.1:8080/actuator/health \
+          curl --silent --show-error --fail http://127.0.0.1:8090/actuator/health \
             | jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"'
 
           echo 'Health, DB migrations, authenticated login, and exposed module APIs passed.'
