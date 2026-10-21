@@ -55,6 +55,7 @@ dependencies {
     // libraries use. The microservices get this transitively from their own
     // Spring Cloud starters; the standalone monolith does not.
     implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2025.0.0"))
+    implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j")
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
