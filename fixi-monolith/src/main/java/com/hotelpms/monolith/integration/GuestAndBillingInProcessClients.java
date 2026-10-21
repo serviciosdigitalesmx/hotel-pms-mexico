@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 
 /** In-process adapters for the guest, stay, billing, and hotel-profile bounded contexts. */
@@ -52,7 +53,7 @@ public class GuestAndBillingInProcessClients {
 
   @Bean
   BillingServiceClient monolithGuestBillingClient(
-      final InvoiceService invoices, final ObjectMapper mapper) {
+      @Lazy final InvoiceService invoices, final ObjectMapper mapper) {
     return new BillingServiceClient() {
       @Override
       public GuestInvoiceClientResponse getLastInvoiceDate(final UUID guestId) {
