@@ -17,6 +17,7 @@ import com.hotelpms.guest.client.dto.GuestLastStayClientResponse;
 import com.hotelpms.guest.client.dto.InvoiceSummaryClientResponse;
 import com.hotelpms.guest.client.dto.StaySummaryClientResponse;
 import com.hotelpms.guest.service.GuestService;
+import com.hotelpms.guest.config.BatchJobContext;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
@@ -162,6 +163,10 @@ public class GuestAndBillingInProcessClients {
   }
 
   private static UUID tenantId() {
+    final BatchJobContext batchContext = BatchJobContext.get();
+    if (batchContext != null) {
+      return UUID.fromString(batchContext.getHotelId());
+    }
     final var authentication =
         org.springframework.security.core.context.SecurityContextHolder.getContext()
             .getAuthentication();

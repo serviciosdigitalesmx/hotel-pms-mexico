@@ -3,6 +3,7 @@ package com.hotelpms.monolith.integration;
 import com.hotelpms.auth.controller.BranchController;
 import com.hotelpms.auth.controller.CapabilityController;
 import com.hotelpms.auth.controller.UserManagementController;
+import com.hotelpms.auth.dto.TenantBranchResponse;
 import com.hotelpms.frontdesk.client.BranchClient;
 import com.hotelpms.frontdesk.client.CapabilityClient;
 import com.hotelpms.frontdesk.client.UserAssignmentClient;
@@ -24,14 +25,14 @@ public class AuthInProcessClients {
       final UUID tenantId = currentTenantId();
       final ResponseEntity<?> response =
           branches.validateBranch(tenantId, branchId, currentAuthentication());
-      final Object body = response.getBody();
+      final TenantBranchResponse body = response.getBody();
       if (body == null) {
         throw new IllegalStateException("BRANCH_VALIDATION_RETURNED_EMPTY_BODY");
       }
       return Map.of(
-          "id", readProperty(body, "id"),
-          "hotelId", readProperty(body, "hotelId"),
-          "active", readProperty(body, "active"));
+          "id", body.id(),
+          "hotelId", body.hotelId(),
+          "active", body.active());
     };
   }
 
@@ -67,11 +68,4 @@ public class AuthInProcessClients {
     return UUID.fromString(tenantId);
   }
 
-  private static Object readProperty(final Object value, final String property) {
-    try {
-      return value.getClass().getMethod(property).invoke(value);
-    } catch (final ReflectiveOperationException exception) {
-      throw new IllegalStateException("BRANCH_RESPONSE_CONTRACT_MISMATCH", exception);
-    }
-  }
 }

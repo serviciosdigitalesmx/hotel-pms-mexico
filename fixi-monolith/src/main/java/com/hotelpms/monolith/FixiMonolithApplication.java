@@ -8,8 +8,11 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.cache.annotation.EnableCaching;
 import java.util.Map;
 
 /** Single JVM entry point that reuses Fixi's bounded-context modules. */
@@ -26,11 +29,15 @@ import java.util.Map;
             "com\\.hotelpms\\..*\\.SecurityConfig",
             "com\\.hotelpms\\..*\\.FeignHeaderConfig",
             "com\\.hotelpms\\..*\\.PdfTemplateConfig",
+            "com\\.hotelpms\\.auth\\.config\\.MailConfig",
             "com\\.hotelpms\\.internalauth\\.security\\.InternalAuthFilter"
           })
     })
 @EntityScan("com.hotelpms")
 @EnableJpaRepositories("com.hotelpms")
+@EnableJpaAuditing
+@EnableScheduling
+@EnableCaching
 @EnableSpringDataWebSupport(pageSerializationMode = PageSerializationMode.VIA_DTO)
 public class FixiMonolithApplication {
 

@@ -8,6 +8,8 @@ import com.hotelpms.frontdesk.client.dto.NotificationEventRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationEventResponse;
 import com.hotelpms.frontdesk.client.dto.NotificationQuotationRequest;
 import com.hotelpms.frontdesk.client.dto.NotificationReservationRequest;
+import com.hotelpms.frontdesk.notifications.NotificationServiceAuthContext;
+import com.hotelpms.internalauth.feign.FeignAuthContext;
 import com.hotelpms.notification.dto.EventNotificationRequest;
 import com.hotelpms.notification.service.NotificationDeliveryService;
 import com.hotelpms.notification.service.NotificationService;
@@ -25,28 +27,32 @@ public class NotificationInProcessClient {
   MonolithNotificationClient monolithNotificationClient(
       final NotificationService notifications,
       final NotificationDeliveryService delivery,
+      final NotificationServiceAuthContext scheduledAuthContext,
       final ObjectMapper mapper) {
-    return new MonolithNotificationClient(notifications, delivery, mapper);
+    return new MonolithNotificationClient(notifications, delivery, scheduledAuthContext, mapper);
   }
 
   /** Concrete adapter type allows Spring AOT to generate its resilience proxy for Native Image. */
   public static class MonolithNotificationClient implements NotificationClient {
     private final NotificationService notifications;
     private final NotificationDeliveryService delivery;
+    private final NotificationServiceAuthContext scheduledAuthContext;
     private final ObjectMapper mapper;
 
     public MonolithNotificationClient(
         final NotificationService notifications,
         final NotificationDeliveryService delivery,
+        final NotificationServiceAuthContext scheduledAuthContext,
         final ObjectMapper mapper) {
       this.notifications = notifications;
       this.delivery = delivery;
+      this.scheduledAuthContext = scheduledAuthContext;
       this.mapper = mapper;
     }
 
     @Override
     public NotificationEventResponse enqueueEvent(final NotificationEventRequest request) {
-      final UUID authenticatedTenant = tenantId();
+      final UUID authenticatedTenant = authenticatedTenant(scheduledAuthContext);
       if (!authenticatedTenant.equals(request.hotelId())) {
         throw new AccessDeniedException("CROSS_TENANT_NOTIFICATION_REJECTED");
       }
@@ -85,7 +91,18 @@ public class NotificationInProcessClient {
     }
   }
 
-  private static UUID tenantId() {
+  private static UUID authenticatedTenant(
+      final NotificationServiceAuthContext scheduledAuthContext) {
+    final var scheduledIdentity = scheduledAuthContext.resolve();
+    if (scheduledIdentity.isPresent()) {
+      final FeignAuthContext identity = scheduledIdentity.get();
+      if (!"frontdesk-service".equals(identity.user())
+          || !"ROLE_SERVICE".equals(identity.role())
+          || identity.hotelId() == null) {
+        throw new AccessDeniedException("INVALID_SCHEDULED_NOTIFICATION_IDENTITY");
+      }
+      return UUID.fromString(identity.hotelId());
+    }
     final var authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null || !(authentication.getDetails() instanceof String tenant)) {
       throw new AccessDeniedException("TENANT_CONTEXT_REQUIRED");

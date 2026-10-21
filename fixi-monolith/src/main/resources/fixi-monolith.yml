@@ -19,20 +19,27 @@ spring:
     baseline-on-migrate: false
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      host: ${INTERNAL_REDIS_HOST:${AUTH_REDIS_HOST:${REDIS_HOST:localhost}}}
+      port: ${INTERNAL_REDIS_PORT:${REDIS_PORT:6379}}
+      password: ${INTERNAL_REDIS_PASSWORD:${REDIS_PASSWORD:}}
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:15MB}
   mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    host: ${SMTP_HOST:${MAIL_HOST:localhost}}
+    port: ${SMTP_PORT:${MAIL_PORT:1025}}
+    username: ${SMTP_USERNAME:${MAIL_USERNAME:}}
+    password: ${SMTP_PASSWORD:${MAIL_PASSWORD:}}
     properties:
       mail:
         smtp:
-          auth: ${MAIL_SMTP_AUTH:false}
+          auth: ${SMTP_AUTH:${MAIL_SMTP_AUTH:false}}
           starttls:
-            enable: ${MAIL_STARTTLS:false}
+            enable: ${SMTP_STARTTLS:${MAIL_STARTTLS:false}}
+          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:5000}
+          timeout: ${SMTP_TIMEOUT:5000}
+          writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
   cloud:
     config:
       enabled: false
@@ -40,18 +47,56 @@ spring:
         enabled: false
 
 notification:
-  from-address: ${NOTIFICATION_FROM_ADDRESS:noreply@hotelpms.local}
+  from-address: ${NOTIFICATION_FROM_ADDRESS:${FIXI_MAIL_FROM:noreply@fixi.local}}
+  from-name: ${NOTIFICATION_FROM_NAME:Fixi}
+
+fixi:
+  public-url: ${FIXI_PUBLIC_URL:http://localhost}
+  mail-from: ${FIXI_MAIL_FROM:no-reply@fixi.local}
+
+security:
+  secrets:
+    encryption-key: ${ALLOGGIATI_CREDENTIALS_ENCRYPTION_KEY:${SECURITY_SECRETS_ENCRYPTION_KEY:change-me}}
+    encryption-salt: ${ALLOGGIATI_CREDENTIALS_ENCRYPTION_SALT:${SECURITY_SECRETS_ENCRYPTION_SALT:00000000000000000000000000000000}}
+
+evolution:
+  base-url: ${EVOLUTION_BASE_URL:}
+  api-key: ${EVOLUTION_API_KEY:}
+  webhook-secret: ${EVOLUTION_WEBHOOK_SECRET:}
+
+gateway:
+  security:
+    trust-forwarded-header: ${GATEWAY_TRUST_FORWARDED_HEADER:false}
 
 server:
   port: ${PORT:8080}
   forward-headers-strategy: framework
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: auth-service
+        url: /v3/api-docs/auth-service
+      - name: frontdesk-service
+        url: /v3/api-docs/frontdesk-service
+      - name: guest-service
+        url: /v3/api-docs/guest-service
+      - name: billing-service
+        url: /v3/api-docs/billing-service
+      - name: fb-service
+        url: /v3/api-docs/fb-service
+
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION_MS:900000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+  expiration: ${JWT_EXPIRATION:${JWT_EXPIRATION_MS:900000}}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:${JWT_REFRESH_EXPIRATION_MS:604800000}}
 
 management:
+  server:
+    port: ${MANAGEMENT_PORT:8090}
   endpoints:
     web:
       exposure:
@@ -61,7 +106,59 @@ management:
       probes:
         enabled: true
       show-details: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationService:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+      billingService:
+        ignoreExceptions:
+          - feign.FeignException$FeignClientException
+      aiProvider:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 1
+        ignoreExceptions:
+          - com.hotelpms.frontdesk.assistant.PermanentAiProviderException
+  retry:
+    instances:
+      aiProvider:
+        maxAttempts: 3
+        waitDuration: 250ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - com.hotelpms.frontdesk.assistant.RetryableAiProviderException
+  ratelimiter:
+    instances:
+      aiProvider:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
 
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
