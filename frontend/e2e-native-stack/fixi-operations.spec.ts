@@ -55,6 +55,10 @@ test('Fixi shop-floor journey: diagnose, quote and authorize a service order', a
 
   await page.getByRole('button', { name: 'Autorizar' }).click();
   await expect(page.getByText('Cotización autorizada').first()).toBeVisible();
+  // The UI fires its own authenticated refreshes on this shared synthetic
+  // account; allow the real per-user gateway bucket to replenish before the
+  // independent persisted-state assertion (no mutation retry or limiter bypass).
+  await new Promise(resolve => setTimeout(resolve, 3_000));
   const authorized = await json<{ status: string; authorizationEvidence?: string }>(
     await api.get(`/api/v1/service-orders/${order.id}`));
   expect(authorized.status).toBe('AUTHORIZED');

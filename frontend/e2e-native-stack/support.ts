@@ -37,11 +37,12 @@ class BrowserResponse implements HttpResponse {
 
 let nextRequestAt = 0;
 async function requestSlot(): Promise<void> {
-  // Keep functional assertions below the real gateway's 10 req/s default.
+  // Serialize calls for the shared synthetic user below the strictest real
+  // per-user route limit; browser-driven page requests are paced at UI boundaries.
   // Do not disable rate limiting or retry a failed mutation to hide an error.
   const now = Date.now();
   const scheduledAt = Math.max(now, nextRequestAt);
-  nextRequestAt = scheduledAt + 200;
+  nextRequestAt = scheduledAt + 500;
   if (scheduledAt > now) await new Promise(resolve => setTimeout(resolve, scheduledAt - now));
 }
 

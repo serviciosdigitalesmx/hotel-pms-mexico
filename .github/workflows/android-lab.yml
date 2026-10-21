@@ -1,17 +1,12 @@
 name: Fixi Android real backend lab
-# Uses the latest published Native image after each backend image release.
+# Run only after the Native publisher succeeds, and consume that exact source SHA.
 
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: [Publish Fixi Native Images (Parallel)]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'fixi-android/**'
-      - '.github/workflows/android-lab.yml'
-      - 'docker-compose.yml'
-      - 'docker-compose.native-stack-ci.yml'
-      - 'docker-compose.android-lab.yml'
-      - 'auth-service/src/main/resources/db/migration/**'
 
 permissions:
   contents: read
@@ -24,6 +19,7 @@ concurrency:
 
 jobs:
   android-lab:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -35,9 +31,11 @@ jobs:
       INTERNAL_HMAC_SECRET: fixi-android-ci-hmac-secret-with-sufficient-length
       JWT_SECRET: TmF0aXZlQXV0aC1jaS1qd3Qtc2VjcmV0LXdpdGgtc3VmZmljaWVudC1sZW5ndGg=
       GHCR_OWNER: serviciosdigitalesmx
-      FIXI_NATIVE_TAG: native-latest
+      FIXI_NATIVE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -51,12 +49,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Start real Native backend
         run: |
+          [[ "$FIXI_NATIVE_TAG" =~ ^[0-9a-f]{40}$ ]]
           docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" \
             -f docker-compose.yml -f docker-compose.android-lab.yml \
             up -d --no-build --wait --wait-timeout 600 \
             postgres redis config-server api-gateway auth-service guest-service frontdesk-service billing-service fb-service notification-service || {
-              docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.android-lab.yml logs --no-color auth-service || true
-              docker inspect auth-service || true
+              docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.android-lab.yml ps --all
+              docker compose --project-name "fixi-android-${GITHUB_RUN_ID}" -f docker-compose.yml -f docker-compose.android-lab.yml logs --no-color --tail=300 notification-service config-server postgres notification-db-init
               exit 1
             }
           curl --fail --retry 20 --retry-delay 3 http://127.0.0.1:18101/actuator/health/liveness
