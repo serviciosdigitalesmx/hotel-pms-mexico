@@ -120,7 +120,11 @@ jobs:
             cat /tmp/fixi-monolith.log
             exit 1
           fi
-          jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP" and .components.mail.status == "UP"' /tmp/fixi-health.json
+          if ! jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP" and .components.mail.status == "UP"' /tmp/fixi-health.json; then
+            echo 'Monolith health response did not report all required components UP:'
+            cat /tmp/fixi-health.json
+            exit 1
+          fi
 
           login_status="$(curl --silent --show-error --output /tmp/fixi-login.json --dump-header /tmp/fixi-login.headers --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
