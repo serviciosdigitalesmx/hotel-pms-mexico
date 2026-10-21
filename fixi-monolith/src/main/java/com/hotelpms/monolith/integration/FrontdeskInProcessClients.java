@@ -29,53 +29,67 @@ import org.springframework.data.domain.PageRequest;
 public class FrontdeskInProcessClients {
 
   @Bean
-  GuestClient monolithFrontdeskGuestClient(
+  MonolithGuestClient monolithFrontdeskGuestClient(
       @Lazy final GuestService guests,
       final DeviceService devices,
       final ObjectMapper objectMapper) {
-    return new GuestClient() {
-      @Override
-      public GuestResponse getGuestById(final UUID id) {
-        return convert(guests.getGuestById(id), GuestResponse.class, objectMapper);
-      }
+    return new MonolithGuestClient(guests, devices, objectMapper);
+  }
 
-      @Override
-      public CustomerDeviceResponse getCustomerDevice(final UUID customerId, final UUID deviceId) {
-        return convert(devices.get(customerId, deviceId), CustomerDeviceResponse.class, objectMapper);
-      }
+  /** Concrete adapter type allows Spring AOT to generate its resilience proxy for Native Image. */
+  public static class MonolithGuestClient implements GuestClient {
+    private final GuestService guests;
+    private final DeviceService devices;
+    private final ObjectMapper objectMapper;
 
-      @Override
-      public GuestResponse createGuest(final GuestCreateRequest request) {
-        final var guestRequest =
-            convert(request, com.hotelpms.guest.dto.request.GuestRequest.class, objectMapper);
-        return convert(guests.createGuest(guestRequest), GuestResponse.class, objectMapper);
-      }
+    public MonolithGuestClient(
+        final GuestService guests, final DeviceService devices, final ObjectMapper objectMapper) {
+      this.guests = guests;
+      this.devices = devices;
+      this.objectMapper = objectMapper;
+    }
 
-      @Override
-      public List<GuestResponse> getGuestsBatch(final List<UUID> ids) {
-        return guests.getGuestsByIds(ids).stream()
-            .map(guest -> convert(guest, GuestResponse.class, objectMapper))
-            .toList();
-      }
+    @Override
+    public GuestResponse getGuestById(final UUID id) {
+      return convert(guests.getGuestById(id), GuestResponse.class, objectMapper);
+    }
 
-      @Override
-      public GuestSearchPageResponse searchGuests(final String query, final int size) {
-        return search(query, size);
-      }
+    @Override
+    public CustomerDeviceResponse getCustomerDevice(final UUID customerId, final UUID deviceId) {
+      return convert(devices.get(customerId, deviceId), CustomerDeviceResponse.class, objectMapper);
+    }
 
-      @Override
-      public GuestSearchPageResponse searchGuestsStrict(final String query, final int size) {
-        return search(query, size);
-      }
+    @Override
+    public GuestResponse createGuest(final GuestCreateRequest request) {
+      final var guestRequest =
+          convert(request, com.hotelpms.guest.dto.request.GuestRequest.class, objectMapper);
+      return convert(guests.createGuest(guestRequest), GuestResponse.class, objectMapper);
+    }
 
-      private GuestSearchPageResponse search(final String query, final int size) {
-        final var page = guests.searchGuests(query, PageRequest.of(0, Math.max(1, size)));
-        return new GuestSearchPageResponse(
-            page.getContent().stream()
-                .map(guest -> convert(guest, GuestResponse.class, objectMapper))
-                .toList());
-      }
-    };
+    @Override
+    public List<GuestResponse> getGuestsBatch(final List<UUID> ids) {
+      return guests.getGuestsByIds(ids).stream()
+          .map(guest -> convert(guest, GuestResponse.class, objectMapper))
+          .toList();
+    }
+
+    @Override
+    public GuestSearchPageResponse searchGuests(final String query, final int size) {
+      return search(query, size);
+    }
+
+    @Override
+    public GuestSearchPageResponse searchGuestsStrict(final String query, final int size) {
+      return search(query, size);
+    }
+
+    private GuestSearchPageResponse search(final String query, final int size) {
+      final var page = guests.searchGuests(query, PageRequest.of(0, Math.max(1, size)));
+      return new GuestSearchPageResponse(
+          page.getContent().stream()
+              .map(guest -> convert(guest, GuestResponse.class, objectMapper))
+              .toList());
+    }
   }
 
   @Bean
