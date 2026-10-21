@@ -22,7 +22,7 @@ import java.util.Map;
             "com\\.hotelpms\\..*\\.SecurityConfig",
             "com\\.hotelpms\\..*\\.FeignHeaderConfig",
             "com\\.hotelpms\\..*\\.PdfTemplateConfig",
-            "com\\.hotelpms\\internalauth\\security\\InternalAuthFilter"
+            "com\\.hotelpms\\.internalauth\\.security\\.InternalAuthFilter"
           })
     })
 @EntityScan("com.hotelpms")
