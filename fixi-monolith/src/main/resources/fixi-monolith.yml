@@ -39,6 +39,9 @@ spring:
       import-check:
         enabled: false
 
+notification:
+  from-address: ${NOTIFICATION_FROM_ADDRESS:noreply@hotelpms.local}
+
 server:
   port: ${PORT:8080}
   forward-headers-strategy: framework
