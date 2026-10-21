@@ -25,14 +25,14 @@ public class AuthInProcessClients {
       final UUID tenantId = currentTenantId();
       final ResponseEntity<?> response =
           branches.validateBranch(tenantId, branchId, currentAuthentication());
-      final TenantBranchResponse body = response.getBody();
-      if (body == null) {
+      final Object body = response.getBody();
+      if (!(body instanceof TenantBranchResponse branch)) {
         throw new IllegalStateException("BRANCH_VALIDATION_RETURNED_EMPTY_BODY");
       }
       return Map.of(
-          "id", body.id(),
-          "hotelId", body.hotelId(),
-          "active", body.active());
+          "id", branch.id(),
+          "hotelId", branch.hotelId(),
+          "active", branch.active());
     };
   }
 

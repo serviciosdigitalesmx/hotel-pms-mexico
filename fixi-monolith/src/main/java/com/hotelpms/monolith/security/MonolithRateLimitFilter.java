@@ -10,6 +10,7 @@ import java.util.List;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Redis token-bucket equivalent of the API Gateway route limits. */
@@ -50,7 +51,7 @@ public final class MonolithRateLimitFilter extends OncePerRequestFilter {
                 Integer.toString(limit.capacity),
                 Integer.toString(limit.refillPerSecond));
         if (!Long.valueOf(1L).equals(allowed)) {
-          response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+          response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
           response.setHeader("Retry-After", "1");
           return;
         }

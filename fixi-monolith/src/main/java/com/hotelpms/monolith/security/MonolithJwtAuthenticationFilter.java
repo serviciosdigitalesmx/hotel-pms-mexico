@@ -274,20 +274,16 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     if (PRIVILEGED_ROLES.contains(role)) {
       return true;
     }
-    final HttpMethod method = HttpMethod.resolve(methodName);
-    if (method == null) {
-      return false;
-    }
     if ("KITCHEN".equals(role)) {
       return path.startsWith("/api/v1/fb/orders")
-          || (path.equals("/api/v1/stays/settings") && method == HttpMethod.GET);
+          || (path.equals("/api/v1/stays/settings") && "GET".equals(methodName));
     }
     if ("HOUSEKEEPER".equals(role)) {
-      return (method == HttpMethod.GET && path.startsWith("/api/v1/rooms"))
-          || (method == HttpMethod.PATCH
+      return ("GET".equals(methodName) && path.startsWith("/api/v1/rooms"))
+          || ("PATCH".equals(methodName)
               && path.startsWith("/api/v1/rooms/")
               && path.endsWith("/status"))
-          || (path.equals("/api/v1/stays/settings") && method == HttpMethod.GET);
+          || (path.equals("/api/v1/stays/settings") && "GET".equals(methodName));
     }
     if ("TECHNICIAN".equals(role)) {
       return path.startsWith("/api/v1/service-orders")
@@ -304,7 +300,7 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
       return false;
     }
     return WRITE_RESTRICTED_PREFIXES.stream()
-        .noneMatch(prefix -> path.startsWith(prefix) && method != HttpMethod.GET);
+        .noneMatch(prefix -> path.startsWith(prefix) && !"GET".equals(methodName));
   }
 
   private static boolean isGatewayFilteredAuthPath(final String path) {
