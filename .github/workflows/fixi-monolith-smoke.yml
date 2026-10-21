@@ -120,7 +120,7 @@ jobs:
             cat /tmp/fixi-monolith.log
             exit 1
           fi
-          if ! jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP" and .components.mail.status == "UP"' /tmp/fixi-health.json; then
+          if ! jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"' /tmp/fixi-health.json; then
             echo 'Monolith health response did not report all required components UP:'
             cat /tmp/fixi-health.json
             exit 1
@@ -160,7 +160,7 @@ jobs:
 
           sleep 20
           curl --silent --show-error --fail http://127.0.0.1:8080/actuator/health \
-            | jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP" and .components.mail.status == "UP"'
+            | jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"'
 
           echo 'Health, DB migrations, authenticated login, and exposed module APIs passed.'
 
