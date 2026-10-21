@@ -357,6 +357,7 @@ jobs:
           check 'Caddy ports bind only to loopback' 'all(.services.caddy.ports[]; .host_ip == "127.0.0.1")'
           check 'Caddy image is pinned to its resolved digest' '.services.caddy.image | startswith("caddy:2.10.2-alpine@sha256:")'
           check 'Redis image is pinned to its resolved digest' '.services.redis.image | startswith("redis:8.8.1-alpine@sha256:")'
+          jq -r '.networks | to_entries[] | "\(.key): driver=\(.value.driver // "default"), internal=\(.value.internal // false)"' "$config"
           check 'production database network is internal' '.networks["db-network"].internal == true'
           check 'production gateway network is internal' '.networks["gateway-network"].internal == true'
           check 'production observability network is internal' '.networks["observability-network"].internal == true'
