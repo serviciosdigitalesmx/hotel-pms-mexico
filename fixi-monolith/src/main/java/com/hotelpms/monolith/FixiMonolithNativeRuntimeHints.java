@@ -12,6 +12,7 @@ public final class FixiMonolithNativeRuntimeHints implements RuntimeHintsRegistr
   public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
     hints.resources().registerPattern("fixi-monolith.yml");
     hints.resources().registerPattern("db/monolith-migrations/**");
+    hints.resources().registerPattern("fonts/**");
     hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
   }
 }
