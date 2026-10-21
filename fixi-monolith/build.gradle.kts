@@ -91,7 +91,7 @@ val collectModuleMigrations by tasks.registering(Copy::class) {
     }
     into(generatedMigrations)
     doLast {
-        val migrationIndex = generatedMigrations.get().file("db/monolith-migrations/index.txt").get().asFile
+        val migrationIndex = generatedMigrations.get().file("db/monolith-migrations/index.txt").asFile
         migrationIndex.parentFile.mkdirs()
         migrationIndex.writeText(
             migrationModules
