@@ -80,7 +80,7 @@ public class FrontdeskInProcessClients {
 
   @Bean
   BillingClient monolithFrontdeskBillingClient(
-      final InvoiceService invoices,
+      @Lazy final InvoiceService invoices,
       final PdfInvoiceService pdfInvoices,
       final ObjectMapper objectMapper) {
     return new BillingClient() {
