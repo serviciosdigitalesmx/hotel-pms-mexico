@@ -26,7 +26,7 @@ graalvmNative {
             } else {
                 buildArgs.add("-O2")
             }
-            buildArgs.add("-J-Xmx8g")
+            buildArgs.add("-J-Xmx16g")
             buildArgs.add("--parallelism=2")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
         }
