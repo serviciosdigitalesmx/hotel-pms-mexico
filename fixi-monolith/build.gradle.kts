@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.graalvm.buildtools.native")
 }
 
 group = "com.hotelpms"
@@ -15,6 +16,21 @@ java {
 
 springBoot {
     mainClass.set("com.hotelpms.monolith.FixiMonolithApplication")
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            if (providers.gradleProperty("nativeQuickBuild").orNull == "true") {
+                buildArgs.add("-Ob")
+            } else {
+                buildArgs.add("-O2")
+            }
+            buildArgs.add("-J-Xmx8g")
+            buildArgs.add("--parallelism=2")
+            buildArgs.add("-H:DeadlockWatchdogInterval=60")
+        }
+    }
 }
 
 repositories {

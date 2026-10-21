@@ -1,0 +1,229 @@
+name: Fixi Monolith Native Image runtime and RSS
+
+on:
+  push:
+    branches:
+      - codex/fixi-monolith
+    paths:
+      - "fixi-monolith/**"
+      - "auth-service/**"
+      - "frontdesk-service/**"
+      - "guest-service/**"
+      - "billing-service/**"
+      - "fb-service/**"
+      - "notification-service/**"
+      - "pdf-template-engine/**"
+      - "internal-auth-lib/**"
+      - "common-web-lib/**"
+      - "gradle/**"
+      - "gradlew"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/fixi-monolith-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fixi-monolith-native-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native-runtime:
+    name: Build one Native Image, smoke APIs, and measure RSS
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fixi
+          POSTGRES_USER: fixi
+          POSTGRES_PASSWORD: fixi-monolith-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fixi -d fixi"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports:
+          - 1025:1025
+    env:
+      DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/fixi
+      DATABASE_USERNAME: fixi
+      DATABASE_PASSWORD: fixi-monolith-ci
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      MAIL_HOST: 127.0.0.1
+      MAIL_PORT: "1025"
+      MAIL_SMTP_AUTH: "false"
+      MAIL_STARTTLS: "false"
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_COMPONENTS: always
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+      PORT: "8080"
+      ADMIN_USERNAME: e2e-live-other-hotel-admin
+      ADMIN_PASSWORD: password
+    steps:
+      - name: Checkout branch under test
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up GraalVM 24.0.2 with Native Image
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm-community
+          version: "24.0.2"
+          components: native-image
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: gradle
+          native-image-job-reports: "true"
+
+      - name: Prepare Java 24 toolchains used by the existing Native builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -name build.gradle.kts -not -path './.git/*' \
+            -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/g' {} +
+          java --version
+          native-image --version
+
+      - name: Build the single Fixi Monolith Native executable
+        run: ./gradlew --no-daemon --stacktrace --max-workers=2 -PnativeQuickBuild=true :fixi-monolith:nativeCompile
+
+      - name: Start Native executable, smoke modules, and measure process RSS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/fixi-monolith-native-metrics
+          metrics=build/fixi-monolith-native-metrics/rss.tsv
+          printf 'phase\telapsed_seconds\trss_kib\n' > "$metrics"
+          export JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
+          binary="fixi-monolith/build/native/nativeCompile/fixi-monolith"
+          test -x "$binary"
+          "$binary" > /tmp/fixi-monolith-native.log 2>&1 &
+          app_pid=$!
+          start_epoch=$(date +%s)
+          cleanup() {
+            kill "$app_pid" 2>/dev/null || true
+            wait "$app_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          sample_rss() {
+            local phase="$1" duration="$2" deadline
+            deadline=$(( $(date +%s) + duration ))
+            while kill -0 "$app_pid" 2>/dev/null && (( $(date +%s) <= deadline )); do
+              rss_kib="$(awk '/^VmRSS:/ {print $2}' "/proc/$app_pid/status")"
+              if [[ -n "$rss_kib" ]]; then
+                printf '%s\t%s\t%s\n' "$phase" "$(( $(date +%s) - start_epoch ))" "$rss_kib" >> "$metrics"
+              fi
+              sleep 1
+            done
+          }
+
+          ready=0
+          for attempt in $(seq 1 180); do
+            if curl --silent --show-error --fail http://127.0.0.1:8080/actuator/health > /tmp/fixi-native-health.json; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              echo 'Native monolith exited before becoming healthy.'
+              cat /tmp/fixi-monolith-native.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [[ "$ready" != 1 ]]; then
+            echo 'Native monolith did not become healthy within six minutes.'
+            cat /tmp/fixi-monolith-native.log
+            exit 1
+          fi
+          jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"' /tmp/fixi-native-health.json
+          sample_rss startup 5
+          sample_rss idle 60 &
+          idle_sampler=$!
+          wait "$idle_sampler"
+
+          login_status="$(curl --silent --show-error --output /tmp/fixi-native-login.json --dump-header /tmp/fixi-native-login.headers --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data "$(jq -nc --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASSWORD" '{username:$u,password:$p}')")"
+          if [[ "$login_status" != 200 ]]; then
+            echo "Native auth login returned HTTP $login_status"
+            cat /tmp/fixi-native-login.json
+            cat /tmp/fixi-monolith-native.log
+            exit 1
+          fi
+          token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-native-login.headers | tr -d '\r' | head -n 1)"
+          test -n "$token"
+
+          sample_rss smoke 90 &
+          smoke_sampler=$!
+          check_get() {
+            local label="$1" path="$2" output="$3" status
+            status="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' \
+              -H "Authorization: Bearer $token" -H "Cookie: jwt=$token" \
+              "http://127.0.0.1:8080$path")"
+            if [[ "$status" != 200 ]]; then
+              echo "$label returned HTTP $status"
+              cat "$output"
+              return 1
+            fi
+            echo "$label: HTTP 200"
+          }
+          check_get 'Auth current-user API' '/api/v1/auth/me' /tmp/fixi-native-me.json
+          check_get 'Clients API' '/api/v1/guests?page=0&size=1' /tmp/fixi-native-clients.json
+          check_get 'Orders API' '/api/v1/service-orders?page=0&size=1' /tmp/fixi-native-orders.json
+          check_get 'Inventory API' '/api/v1/inventory/products' /tmp/fixi-native-inventory.json
+          check_get 'Billing API' '/api/v1/invoices?page=0&size=1' /tmp/fixi-native-billing.json
+          check_get 'F&B API' '/api/v1/fb/orders?page=0&size=1' /tmp/fixi-native-fb.json
+          wait "$smoke_sampler"
+          curl --silent --show-error --fail http://127.0.0.1:8080/actuator/health \
+            | jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"'
+
+          awk -F '\t' 'NR > 1 {sum[$1]+=$3; count[$1]++; if ($3>max[$1]) max[$1]=$3} END {for (phase in count) printf "%s_samples=%d\n%s_avg_mib=%.2f\n%s_peak_mib=%.2f\n", phase,count[phase],phase,sum[phase]/count[phase]/1024,phase,max[phase]/1024}' "$metrics" | sort > build/fixi-monolith-native-metrics/summary.txt
+          startup="$(awk -F '\t' '$1=="startup" {print $3; exit}' "$metrics")"
+          idle="$(awk -F '\t' '$1=="idle" {sum+=$3; count++} END {if(count) printf "%.2f",sum/count/1024}' "$metrics")"
+          peak="$(awk -F '\t' 'NR>1 && $3>max {max=$3} END {printf "%.2f",max/1024}' "$metrics")"
+          {
+            echo '### Fixi Monolith Native runtime and RSS'
+            echo
+            echo "- startup RSS sample: $(awk -v value="$startup" 'BEGIN {printf "%.2f MiB",value/1024}')"
+            echo "- stabilized idle RSS average: ${idle} MiB"
+            echo "- peak RSS across startup/idle/smoke: ${peak} MiB"
+            echo '- health, PostgreSQL, Redis, login, clients, orders, inventory, billing, and F&B smoke: PASS'
+            echo
+            echo '```text'
+            cat build/fixi-monolith-native-metrics/summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat build/fixi-monolith-native-metrics/summary.txt
+          echo 'Native startup, dependencies, authenticated module smoke, and RSS capture passed.'
+          if awk -v peak="$peak" 'BEGIN {exit !(peak > 512)}'; then
+            echo "Native process peak RSS ${peak} MiB exceeds the 512 MiB target."
+            exit 1
+          fi
+
+      - name: Upload Native logs and RSS evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: fixi-monolith-native-evidence-${{ github.sha }}
+          path: |
+            build/fixi-monolith-native-metrics/
+            /tmp/fixi-monolith-native.log
+            /tmp/fixi-native-*.json
+          if-no-files-found: warn
+          retention-days: 14
