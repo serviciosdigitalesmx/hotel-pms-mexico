@@ -9,6 +9,7 @@ val projects = listOf(
     "auth-service",
     "api-gateway",
     "notification-service",
+    "fixi-monolith",
     "pdf-template-engine",
     "internal-auth-lib",
     "common-web-lib"
