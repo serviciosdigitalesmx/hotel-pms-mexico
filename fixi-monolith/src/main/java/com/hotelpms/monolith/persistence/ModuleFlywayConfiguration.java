@@ -34,6 +34,11 @@ public class ModuleFlywayConfiguration {
         .dataSource(dataSource)
         .locations("classpath:db/monolith-migrations/" + module)
         .table(historyTable)
+        // Each bounded context has its own history table but shares the public
+        // schema. Baseline at zero so a prior module's objects don't block this
+        // module and its V1 migration is still applied.
+        .baselineOnMigrate(true)
+        .baselineVersion("0")
         .load()
         .migrate();
   }
