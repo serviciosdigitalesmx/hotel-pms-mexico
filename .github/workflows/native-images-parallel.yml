@@ -315,7 +315,7 @@ jobs:
         run: |
           set -uo pipefail
           printf '%s\n' 'ci-only-not-a-production-passphrase' > "$PGBACKREST_CIPHER_PASS_FILE"
-          if ! docker compose -p fixi-compose-config \
+          if ! docker compose --profile observability -p fixi-compose-config \
             -f docker-compose.yml -f docker-compose.native.yml -f docker-compose.prod.yml \
             config --format json > "$RUNNER_TEMP/production-compose.json"; then
             echo '::error title=Compose render::Production Compose could not be rendered with CI-only values.'

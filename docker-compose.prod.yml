@@ -220,13 +220,10 @@ volumes:
 
 networks:
   gateway-network:
-    driver: bridge
     internal: true
   db-network:
-    driver: bridge
     internal: true
   observability-network:
-    driver: bridge
     internal: true
 
 secrets:
