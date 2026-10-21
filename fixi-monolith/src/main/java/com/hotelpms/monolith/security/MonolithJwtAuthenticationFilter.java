@@ -56,7 +56,7 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
       final FilterChain chain)
       throws ServletException, IOException {
     final String path = request.getRequestURI();
-    if (path.startsWith("/internal/")) {
+    if (path.startsWith("/internal/") && !MonolithWebhookPath.isWhatsAppWebhook(path)) {
       response.sendError(HttpServletResponse.SC_NOT_FOUND);
       return;
     }
@@ -234,6 +234,7 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     return PUBLIC_EXACT_PATHS.contains(path)
         || path.equals("/actuator")
         || path.startsWith("/actuator/")
+        || MonolithWebhookPath.isWhatsAppWebhook(path)
         || path.startsWith("/api/v1/auth/public/")
         || path.startsWith("/api/public/portal/")
         || path.startsWith("/api/v1/public/requests")
@@ -323,7 +324,8 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     if (path.equals("/actuator") || path.startsWith("/actuator/")) {
       return true;
     }
-    return path.startsWith("/api/v1/auth/")
+    return MonolithWebhookPath.isWhatsAppWebhook(path)
+        || path.startsWith("/api/v1/auth/")
         || path.equals("/api/v1/auth")
         || startsWithPath(path, "/api/v1/guests")
         || startsWithPath(path, "/api/v1/customers")

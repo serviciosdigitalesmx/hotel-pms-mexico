@@ -97,6 +97,9 @@ public final class MonolithRateLimitFilter extends OncePerRequestFilter {
     if (startsWithAny(path, "/api/v1/auth/platform/")) {
       return new Limit("auth-platform", 2, 5, true);
     }
+    if (MonolithWebhookPath.isWhatsAppWebhook(path)) {
+      return new Limit("whatsapp-webhook", 5, 10, false);
+    }
     if (startsWithAny(path, "/api/v1/auth/users/")) {
       return new Limit("auth-users", 10, 20, true);
     }
@@ -188,6 +191,7 @@ public final class MonolithRateLimitFilter extends OncePerRequestFilter {
             "/api/v1/services/",
             "/api/v1/audit-events/",
             "/api/v1/notifications/preferences/",
+            "/internal/whatsapp/webhook/",
             "/v3/api-docs/",
             "/swagger-ui/",
             "/auth-service/v3/api-docs",
@@ -196,6 +200,7 @@ public final class MonolithRateLimitFilter extends OncePerRequestFilter {
             "/billing-service/v3/api-docs",
             "/fb-service/v3/api-docs")
         || path.equals("/api/v1/auth")
+        || MonolithWebhookPath.isWhatsAppWebhook(path)
         || path.equals("/api/v1/guests")
         || path.equals("/api/v1/customers")
         || path.equals("/api/public/portal")

@@ -59,6 +59,7 @@ public final class MonolithCsrfFilter extends OncePerRequestFilter {
 
   private static boolean isExcludedPath(final String path) {
     return EXCLUDED_EXACT_PATHS.contains(path)
+        || MonolithWebhookPath.isWhatsAppWebhook(path)
         || path.startsWith("/api/v1/auth/public/")
         || path.startsWith("/api/public/portal/")
         || (path.startsWith("/api/public/hotels/") && path.endsWith("/reservations"));
