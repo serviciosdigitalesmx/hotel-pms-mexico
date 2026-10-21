@@ -27,7 +27,7 @@ graalvmNative {
                 buildArgs.add("-O2")
             }
             buildArgs.add("-J-Xmx16g")
-            buildArgs.add("--parallelism=2")
+            buildArgs.add("--parallelism=${System.getenv("NATIVE_IMAGE_PARALLELISM") ?: "2"}")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
         }
     }

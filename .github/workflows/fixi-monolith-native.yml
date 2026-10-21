@@ -93,13 +93,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "NATIVE_IMAGE_PARALLELISM=$(nproc)" >> "$GITHUB_ENV"
+          echo "Native Image parallelism: $(nproc) vCPUs"
           find . -name build.gradle.kts -not -path './.git/*' \
             -exec sed -i 's/JavaLanguageVersion.of(21)/JavaLanguageVersion.of(24)/g' {} +
           java --version
           native-image --version
 
       - name: Build the single Fixi Monolith Native executable
-        run: ./gradlew --no-daemon --stacktrace --max-workers=2 -PnativeQuickBuild=true :fixi-monolith:nativeCompile
+        run: ./gradlew --no-daemon --stacktrace --max-workers="$(nproc)" -PnativeQuickBuild=true :fixi-monolith:nativeCompile
 
       - name: Start Native executable, smoke modules, and measure process RSS
         shell: bash
