@@ -22,51 +22,67 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public class NotificationInProcessClient {
 
   @Bean
-  NotificationClient monolithNotificationClient(
+  MonolithNotificationClient monolithNotificationClient(
       final NotificationService notifications,
       final NotificationDeliveryService delivery,
       final ObjectMapper mapper) {
-    return new NotificationClient() {
-      @Override
-      public NotificationEventResponse enqueueEvent(final NotificationEventRequest request) {
-        final UUID authenticatedTenant = tenantId();
-        if (!authenticatedTenant.equals(request.hotelId())) {
-          throw new AccessDeniedException("CROSS_TENANT_NOTIFICATION_REJECTED");
-        }
-        final var persisted = delivery.enqueue(
-            convert(request, EventNotificationRequest.class, mapper), authenticatedTenant);
-        return convert(com.hotelpms.notification.dto.EventNotificationResponse.from(persisted),
-            NotificationEventResponse.class, mapper);
-      }
+    return new MonolithNotificationClient(notifications, delivery, mapper);
+  }
 
-      @Override
-      public boolean sendReservationConfirmed(final NotificationReservationRequest request) {
-        notifications.sendReservationConfirmed(convert(request,
-            com.hotelpms.notification.dto.ReservationConfirmedRequest.class, mapper));
-        return true;
-      }
+  /** Concrete adapter type allows Spring AOT to generate its resilience proxy for Native Image. */
+  public static class MonolithNotificationClient implements NotificationClient {
+    private final NotificationService notifications;
+    private final NotificationDeliveryService delivery;
+    private final ObjectMapper mapper;
 
-      @Override
-      public boolean sendCheckin(final NotificationCheckinRequest request) {
-        notifications.sendCheckin(convert(request,
-            com.hotelpms.notification.dto.CheckinNotificationRequest.class, mapper));
-        return true;
-      }
+    public MonolithNotificationClient(
+        final NotificationService notifications,
+        final NotificationDeliveryService delivery,
+        final ObjectMapper mapper) {
+      this.notifications = notifications;
+      this.delivery = delivery;
+      this.mapper = mapper;
+    }
 
-      @Override
-      public boolean sendCheckout(final NotificationCheckoutRequest request) {
-        notifications.sendCheckout(convert(request,
-            com.hotelpms.notification.dto.CheckoutNotificationRequest.class, mapper));
-        return true;
+    @Override
+    public NotificationEventResponse enqueueEvent(final NotificationEventRequest request) {
+      final UUID authenticatedTenant = tenantId();
+      if (!authenticatedTenant.equals(request.hotelId())) {
+        throw new AccessDeniedException("CROSS_TENANT_NOTIFICATION_REJECTED");
       }
+      final var persisted = delivery.enqueue(
+          convert(request, EventNotificationRequest.class, mapper), authenticatedTenant);
+      return convert(com.hotelpms.notification.dto.EventNotificationResponse.from(persisted),
+          NotificationEventResponse.class, mapper);
+    }
 
-      @Override
-      public boolean sendQuotation(final NotificationQuotationRequest request) {
-        notifications.sendQuotation(convert(request,
-            com.hotelpms.notification.dto.QuotationNotificationRequest.class, mapper));
-        return true;
-      }
-    };
+    @Override
+    public boolean sendReservationConfirmed(final NotificationReservationRequest request) {
+      notifications.sendReservationConfirmed(convert(request,
+          com.hotelpms.notification.dto.ReservationConfirmedRequest.class, mapper));
+      return true;
+    }
+
+    @Override
+    public boolean sendCheckin(final NotificationCheckinRequest request) {
+      notifications.sendCheckin(convert(request,
+          com.hotelpms.notification.dto.CheckinNotificationRequest.class, mapper));
+      return true;
+    }
+
+    @Override
+    public boolean sendCheckout(final NotificationCheckoutRequest request) {
+      notifications.sendCheckout(convert(request,
+          com.hotelpms.notification.dto.CheckoutNotificationRequest.class, mapper));
+      return true;
+    }
+
+    @Override
+    public boolean sendQuotation(final NotificationQuotationRequest request) {
+      notifications.sendQuotation(convert(request,
+          com.hotelpms.notification.dto.QuotationNotificationRequest.class, mapper));
+      return true;
+    }
   }
 
   private static UUID tenantId() {

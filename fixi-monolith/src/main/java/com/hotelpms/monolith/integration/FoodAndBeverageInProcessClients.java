@@ -21,9 +21,25 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public class FoodAndBeverageInProcessClients {
 
   @Bean
-  StayClient monolithFbStayClient(final StayService stays, final ObjectMapper mapper) {
-    return stayId -> convert(stays.getStayById(stayId, tenantId()),
-        com.hotelpms.fb.client.dto.StayResponse.class, mapper);
+  MonolithFbStayClient monolithFbStayClient(final StayService stays, final ObjectMapper mapper) {
+    return new MonolithFbStayClient(stays, mapper);
+  }
+
+  /** Concrete adapter types let Spring AOT pre-generate resilience proxies for Native Image. */
+  public static class MonolithFbStayClient implements StayClient {
+    private final StayService stays;
+    private final ObjectMapper mapper;
+
+    public MonolithFbStayClient(final StayService stays, final ObjectMapper mapper) {
+      this.stays = stays;
+      this.mapper = mapper;
+    }
+
+    @Override
+    public com.hotelpms.fb.client.dto.StayResponse getStayById(final UUID stayId) {
+      return convert(stays.getStayById(stayId, tenantId()),
+          com.hotelpms.fb.client.dto.StayResponse.class, mapper);
+    }
   }
 
   @Bean
@@ -48,33 +64,47 @@ public class FoodAndBeverageInProcessClients {
   }
 
   @Bean
-  BillingClient monolithFbBillingClient(
+  MonolithFbBillingClient monolithFbBillingClient(
       final InvoiceService invoices, final PaymentService payments, final ObjectMapper mapper) {
-    return new BillingClient() {
-      @Override
-      public ChargeResponse addCharge(final UUID stayId,
-          final com.hotelpms.fb.client.dto.ChargeRequest request) {
-        final var result = invoices.addCharge(stayId,
-            convert(request, com.hotelpms.billing.dto.ChargeRequest.class, mapper));
-        return new ChargeResponse(result.id());
-      }
+    return new MonolithFbBillingClient(invoices, payments, mapper);
+  }
 
-      @Override
-      public ChargeResponse addPayment(final UUID stayId,
-          final com.hotelpms.fb.client.dto.PaymentRequest request) {
-        final var result = payments.addPaymentForStay(stayId,
-            convert(request, com.hotelpms.billing.dto.PaymentRequest.class, mapper));
-        return new ChargeResponse(result.id());
-      }
+  public static class MonolithFbBillingClient implements BillingClient {
+    private final InvoiceService invoices;
+    private final PaymentService payments;
+    private final ObjectMapper mapper;
 
-      @Override
-      public ChargeResponse refund(final UUID stayId, final UUID paymentId,
-          final com.hotelpms.fb.client.dto.RefundRequest request) {
-        final var result = payments.refundForStay(stayId, paymentId,
-            convert(request, com.hotelpms.billing.dto.RefundRequest.class, mapper));
-        return new ChargeResponse(result.id());
-      }
-    };
+    public MonolithFbBillingClient(
+        final InvoiceService invoices, final PaymentService payments, final ObjectMapper mapper) {
+      this.invoices = invoices;
+      this.payments = payments;
+      this.mapper = mapper;
+    }
+
+    @Override
+    public ChargeResponse addCharge(
+        final UUID stayId, final com.hotelpms.fb.client.dto.ChargeRequest request) {
+      final var result = invoices.addCharge(stayId,
+          convert(request, com.hotelpms.billing.dto.ChargeRequest.class, mapper));
+      return new ChargeResponse(result.id());
+    }
+
+    @Override
+    public ChargeResponse addPayment(
+        final UUID stayId, final com.hotelpms.fb.client.dto.PaymentRequest request) {
+      final var result = payments.addPaymentForStay(stayId,
+          convert(request, com.hotelpms.billing.dto.PaymentRequest.class, mapper));
+      return new ChargeResponse(result.id());
+    }
+
+    @Override
+    public ChargeResponse refund(
+        final UUID stayId, final UUID paymentId,
+        final com.hotelpms.fb.client.dto.RefundRequest request) {
+      final var result = payments.refundForStay(stayId, paymentId,
+          convert(request, com.hotelpms.billing.dto.RefundRequest.class, mapper));
+      return new ChargeResponse(result.id());
+    }
   }
 
   private static UUID tenantId() {

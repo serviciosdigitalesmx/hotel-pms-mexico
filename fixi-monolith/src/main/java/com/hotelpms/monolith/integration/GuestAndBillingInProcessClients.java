@@ -29,75 +29,136 @@ import org.springframework.data.domain.PageRequest;
 public class GuestAndBillingInProcessClients {
 
   @Bean
-  ReservationClient monolithGuestReservationClient(final ReservationService reservations) {
-    return reservations::hasActiveReservations;
+  MonolithReservationClient monolithGuestReservationClient(final ReservationService reservations) {
+    return new MonolithReservationClient(reservations);
   }
 
   @Bean
-  StayServiceClient monolithGuestStayClient(
+  MonolithStayServiceClient monolithGuestStayClient(
       final StayService stays, final ObjectMapper mapper) {
-    return new StayServiceClient() {
-      @Override
-      public GuestLastStayClientResponse getLastStayDate(final UUID guestId) {
-        return convert(stays.getLastStayDateForGuest(guestId, tenantId()),
-            GuestLastStayClientResponse.class, mapper);
-      }
+    return new MonolithStayServiceClient(stays, mapper);
+  }
 
-      @Override
-      public List<StaySummaryClientResponse> getStayHistory(final UUID guestId) {
-        return stays.getStayHistoryForGuest(guestId, tenantId()).stream()
-            .map(item -> convert(item, StaySummaryClientResponse.class, mapper)).toList();
-      }
-    };
+  /** Concrete adapter types let Spring AOT pre-generate resilience proxies for Native Image. */
+  public static class MonolithReservationClient implements ReservationClient {
+    private final ReservationService reservations;
+
+    public MonolithReservationClient(final ReservationService reservations) {
+      this.reservations = reservations;
+    }
+
+    @Override
+    public boolean hasActiveReservations(final UUID guestId) {
+      return reservations.hasActiveReservations(guestId);
+    }
   }
 
   @Bean
-  BillingServiceClient monolithGuestBillingClient(
+  MonolithGuestBillingServiceClient monolithGuestBillingClient(
       @Lazy final InvoiceService invoices, final ObjectMapper mapper) {
-    return new BillingServiceClient() {
-      @Override
-      public GuestInvoiceClientResponse getLastInvoiceDate(final UUID guestId) {
-        return convert(invoices.getLastInvoiceDateForGuest(guestId, tenantId()),
-            GuestInvoiceClientResponse.class, mapper);
-      }
+    return new MonolithGuestBillingServiceClient(invoices, mapper);
+  }
 
-      @Override
-      public List<InvoiceSummaryClientResponse> getInvoiceHistory(final UUID guestId) {
-        return invoices.getInvoiceHistoryForGuest(guestId, tenantId()).stream()
-            .map(item -> convert(item, InvoiceSummaryClientResponse.class, mapper)).toList();
-      }
-    };
+  public static class MonolithStayServiceClient implements StayServiceClient {
+    private final StayService stays;
+    private final ObjectMapper mapper;
+
+    public MonolithStayServiceClient(final StayService stays, final ObjectMapper mapper) {
+      this.stays = stays;
+      this.mapper = mapper;
+    }
+
+    @Override
+    public GuestLastStayClientResponse getLastStayDate(final UUID guestId) {
+      return convert(stays.getLastStayDateForGuest(guestId, tenantId()),
+          GuestLastStayClientResponse.class, mapper);
+    }
+
+    @Override
+    public List<StaySummaryClientResponse> getStayHistory(final UUID guestId) {
+      return stays.getStayHistoryForGuest(guestId, tenantId()).stream()
+          .map(item -> convert(item, StaySummaryClientResponse.class, mapper)).toList();
+    }
+  }
+
+  public static class MonolithGuestBillingServiceClient implements BillingServiceClient {
+    private final InvoiceService invoices;
+    private final ObjectMapper mapper;
+
+    public MonolithGuestBillingServiceClient(
+        final InvoiceService invoices, final ObjectMapper mapper) {
+      this.invoices = invoices;
+      this.mapper = mapper;
+    }
+
+    @Override
+    public GuestInvoiceClientResponse getLastInvoiceDate(final UUID guestId) {
+      return convert(invoices.getLastInvoiceDateForGuest(guestId, tenantId()),
+          GuestInvoiceClientResponse.class, mapper);
+    }
+
+    @Override
+    public List<InvoiceSummaryClientResponse> getInvoiceHistory(final UUID guestId) {
+      return invoices.getInvoiceHistoryForGuest(guestId, tenantId()).stream()
+          .map(item -> convert(item, InvoiceSummaryClientResponse.class, mapper)).toList();
+    }
   }
 
   @Bean
-  GuestClient monolithBillingGuestClient(
+  MonolithBillingGuestClient monolithBillingGuestClient(
       final GuestService guests, final ObjectMapper mapper) {
-    return new GuestClient() {
-      @Override
-      public GuestResponse getGuestById(final UUID id) {
-        return convert(guests.getGuestById(id), GuestResponse.class, mapper);
-      }
+    return new MonolithBillingGuestClient(guests, mapper);
+  }
 
-      @Override
-      public GuestSearchPageResponse searchGuests(final String query, final int size) {
-        return new GuestSearchPageResponse(guests.searchGuests(query,
-            PageRequest.of(0, Math.max(1, size))).getContent().stream()
-            .map(item -> convert(item, GuestResponse.class, mapper)).toList());
-      }
+  public static class MonolithBillingGuestClient implements GuestClient {
+    private final GuestService guests;
+    private final ObjectMapper mapper;
 
-      @Override
-      public List<GuestResponse> getGuestsBatch(final List<UUID> ids) {
-        return guests.getGuestsByIds(ids).stream()
-            .map(item -> convert(item, GuestResponse.class, mapper)).toList();
-      }
-    };
+    public MonolithBillingGuestClient(final GuestService guests, final ObjectMapper mapper) {
+      this.guests = guests;
+      this.mapper = mapper;
+    }
+
+    @Override
+    public GuestResponse getGuestById(final UUID id) {
+      return convert(guests.getGuestById(id), GuestResponse.class, mapper);
+    }
+
+    @Override
+    public GuestSearchPageResponse searchGuests(final String query, final int size) {
+      return new GuestSearchPageResponse(guests.searchGuests(query,
+          PageRequest.of(0, Math.max(1, size))).getContent().stream()
+          .map(item -> convert(item, GuestResponse.class, mapper)).toList());
+    }
+
+    @Override
+    public List<GuestResponse> getGuestsBatch(final List<UUID> ids) {
+      return guests.getGuestsByIds(ids).stream()
+          .map(item -> convert(item, GuestResponse.class, mapper)).toList();
+    }
   }
 
   @Bean
-  HotelSettingsClient monolithBillingHotelSettingsClient(
+  MonolithBillingHotelSettingsClient monolithBillingHotelSettingsClient(
       final HotelSettingsService settings, final ObjectMapper mapper) {
-    return () -> convert(settings.getOrCreate(tenantId()),
-        com.hotelpms.billing.client.dto.HotelSettingsResponse.class, mapper);
+    return new MonolithBillingHotelSettingsClient(settings, mapper);
+  }
+
+  public static class MonolithBillingHotelSettingsClient implements HotelSettingsClient {
+    private final HotelSettingsService settings;
+    private final ObjectMapper mapper;
+
+    public MonolithBillingHotelSettingsClient(
+        final HotelSettingsService settings, final ObjectMapper mapper) {
+      this.settings = settings;
+      this.mapper = mapper;
+    }
+
+    @Override
+    public com.hotelpms.billing.client.dto.HotelSettingsResponse getSettings() {
+      return convert(settings.getOrCreate(tenantId()),
+          com.hotelpms.billing.client.dto.HotelSettingsResponse.class, mapper);
+    }
   }
 
   private static UUID tenantId() {

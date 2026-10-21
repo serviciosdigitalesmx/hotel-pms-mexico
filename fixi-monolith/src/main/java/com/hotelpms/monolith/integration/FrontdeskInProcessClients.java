@@ -93,51 +93,67 @@ public class FrontdeskInProcessClients {
   }
 
   @Bean
-  BillingClient monolithFrontdeskBillingClient(
+  MonolithFrontdeskBillingClient monolithFrontdeskBillingClient(
       @Lazy final InvoiceService invoices,
       @Lazy final PdfInvoiceService pdfInvoices,
       final ObjectMapper objectMapper) {
-    return new BillingClient() {
-      @Override
-      public InvoiceStatusResponse getLatestInvoiceByReservation(final UUID reservationId) {
-        return convert(
-            invoices.getLatestInvoiceByReservation(reservationId),
-            InvoiceStatusResponse.class,
-            objectMapper);
-      }
+    return new MonolithFrontdeskBillingClient(invoices, pdfInvoices, objectMapper);
+  }
 
-      @Override
-      public InvoiceStatusResponse getInvoiceById(final UUID invoiceId) {
-        return convert(invoices.getInvoice(invoiceId), InvoiceStatusResponse.class, objectMapper);
-      }
+  /** Concrete adapter type allows Spring AOT to generate its resilience proxy for Native Image. */
+  public static class MonolithFrontdeskBillingClient implements BillingClient {
+    private final InvoiceService invoices;
+    private final PdfInvoiceService pdfInvoices;
+    private final ObjectMapper objectMapper;
 
-      @Override
-      public InvoiceForEmailResponse getInvoiceForEmail(final UUID invoiceId) {
-        return convert(invoices.getInvoice(invoiceId), InvoiceForEmailResponse.class, objectMapper);
-      }
+    public MonolithFrontdeskBillingClient(
+        final InvoiceService invoices,
+        final PdfInvoiceService pdfInvoices,
+        final ObjectMapper objectMapper) {
+      this.invoices = invoices;
+      this.pdfInvoices = pdfInvoices;
+      this.objectMapper = objectMapper;
+    }
 
-      @Override
-      public byte[] getInvoicePdf(final UUID invoiceId) {
-        return pdfInvoices.generateInvoicePdf(invoiceId);
-      }
+    @Override
+    public InvoiceStatusResponse getLatestInvoiceByReservation(final UUID reservationId) {
+      return convert(
+          invoices.getLatestInvoiceByReservation(reservationId),
+          InvoiceStatusResponse.class,
+          objectMapper);
+    }
 
-      @Override
-      public InvoiceCreatedResponse createInvoiceForStay(final StayInvoiceRequest request) {
-        final var billingRequest =
-            convert(request, com.hotelpms.billing.dto.StayInvoiceRequest.class, objectMapper);
-        return convert(
-            invoices.createInvoiceForStay(billingRequest),
-            InvoiceCreatedResponse.class,
-            objectMapper);
-      }
+    @Override
+    public InvoiceStatusResponse getInvoiceById(final UUID invoiceId) {
+      return convert(invoices.getInvoice(invoiceId), InvoiceStatusResponse.class, objectMapper);
+    }
 
-      @Override
-      public ChargeResponse addCharge(final UUID stayId, final ChargeRequest request) {
-        final var billingRequest =
-            convert(request, com.hotelpms.billing.dto.ChargeRequest.class, objectMapper);
-        return convert(invoices.addCharge(stayId, billingRequest), ChargeResponse.class, objectMapper);
-      }
-    };
+    @Override
+    public InvoiceForEmailResponse getInvoiceForEmail(final UUID invoiceId) {
+      return convert(invoices.getInvoice(invoiceId), InvoiceForEmailResponse.class, objectMapper);
+    }
+
+    @Override
+    public byte[] getInvoicePdf(final UUID invoiceId) {
+      return pdfInvoices.generateInvoicePdf(invoiceId);
+    }
+
+    @Override
+    public InvoiceCreatedResponse createInvoiceForStay(final StayInvoiceRequest request) {
+      final var billingRequest =
+          convert(request, com.hotelpms.billing.dto.StayInvoiceRequest.class, objectMapper);
+      return convert(
+          invoices.createInvoiceForStay(billingRequest),
+          InvoiceCreatedResponse.class,
+          objectMapper);
+    }
+
+    @Override
+    public ChargeResponse addCharge(final UUID stayId, final ChargeRequest request) {
+      final var billingRequest =
+          convert(request, com.hotelpms.billing.dto.ChargeRequest.class, objectMapper);
+      return convert(invoices.addCharge(stayId, billingRequest), ChargeResponse.class, objectMapper);
+    }
   }
 
   private static <T> T convert(
