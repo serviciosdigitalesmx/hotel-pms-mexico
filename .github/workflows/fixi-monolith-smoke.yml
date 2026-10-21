@@ -1,6 +1,9 @@
 name: Fixi Monolith compile and startup smoke
 
 on:
+  push:
+    branches:
+      - codex/fixi-monolith
   workflow_dispatch:
 
 permissions:
