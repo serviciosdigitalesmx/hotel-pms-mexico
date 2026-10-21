@@ -1,5 +1,7 @@
 package com.hotelpms.monolith;
 
+import java.util.UUID;
+import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 
@@ -9,5 +11,6 @@ public final class FixiMonolithNativeRuntimeHints implements RuntimeHintsRegistr
   @Override
   public void registerHints(final RuntimeHints hints, final ClassLoader classLoader) {
     hints.resources().registerPattern("fixi-monolith.yml");
+    hints.reflection().registerType(UUID[].class, MemberCategory.UNSAFE_ALLOCATED);
   }
 }
