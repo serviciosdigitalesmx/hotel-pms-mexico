@@ -8,6 +8,8 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
+import org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode;
 import java.util.Map;
 
 /** Single JVM entry point that reuses Fixi's bounded-context modules. */
@@ -29,6 +31,7 @@ import java.util.Map;
     })
 @EntityScan("com.hotelpms")
 @EnableJpaRepositories("com.hotelpms")
+@EnableSpringDataWebSupport(pageSerializationMode = PageSerializationMode.VIA_DTO)
 public class FixiMonolithApplication {
 
   public static void main(final String[] args) {
