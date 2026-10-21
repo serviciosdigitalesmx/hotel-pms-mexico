@@ -79,17 +79,36 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          cores: 4
           disable-linux-hw-accel: true
           emulator-boot-timeout: 1200
           script: |
             adb install -r fixi-android/app/build/outputs/apk/ci/debug/*.apk
             adb shell am force-stop mx.fixi.app
-            adb shell monkey -p mx.fixi.app 1
+            set +e
+            adb shell am start -W -n mx.fixi.app/.MainActivity > fixi-launch.txt 2>&1
+            launch_status=$?
+            adb shell dumpsys activity activities > fixi-activity.txt 2>&1
+            activity_status=$?
+            adb logcat -d -t 500 > fixi-logcat.txt 2>&1
+            logcat_status=$?
             APP_PID="$(adb shell pidof mx.fixi.app | tr -d '\r')"
+            set -e
+            cat fixi-launch.txt
+            if [ "$launch_status" -ne 0 ]; then
+              echo "Fixi Android launcher activity failed to start"
+              exit "$launch_status"
+            fi
+            if [ "$activity_status" -ne 0 ]; then
+              echo "Could not capture Android activity state"
+              exit "$activity_status"
+            fi
+            if [ "$logcat_status" -ne 0 ]; then
+              echo "Could not capture Android logcat"
+              exit "$logcat_status"
+            fi
             test -n "$APP_PID"
-            adb shell dumpsys activity activities | tee fixi-activity.txt
             grep -Eq 'mResumedActivity.*mx\.fixi\.app|ResumedActivity.*mx\.fixi\.app' fixi-activity.txt
-            adb logcat -d -t 500 > fixi-logcat.txt
             if grep -Fq 'Process: mx.fixi.app' fixi-logcat.txt; then
               echo "Fixi Android process crashed during the emulator smoke run"
               exit 1
@@ -108,6 +127,7 @@ jobs:
           path: |
             fixi-android/app/build/outputs/apk/ci/debug/*.apk
             fixi-android/android-build.log
+            fixi-launch.txt
             fixi-logcat.txt
             fixi-activity.txt
             backend-containers.txt
