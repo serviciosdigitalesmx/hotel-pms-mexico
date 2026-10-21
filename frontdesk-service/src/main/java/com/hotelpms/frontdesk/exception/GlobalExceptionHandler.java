@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * corresponding server-side stack trace — no other service does this, so it cannot live in the
  * shared base without adding it everywhere.
  */
-@RestControllerAdvice
+@RestControllerAdvice(name = "frontdeskGlobalExceptionHandler")
 public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);

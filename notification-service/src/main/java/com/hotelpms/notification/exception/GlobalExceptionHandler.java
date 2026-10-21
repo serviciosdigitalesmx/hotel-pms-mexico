@@ -20,7 +20,7 @@ import java.util.Objects;
  * different {@code type}/{@code title}) — now inherited from the base for the
  * same RFC 7807 shape every other service returns.
  */
-@RestControllerAdvice
+@RestControllerAdvice(name = "notificationGlobalExceptionHandler")
 @Slf4j
 public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
 

@@ -16,7 +16,7 @@ import java.time.Instant;
  * bodies, bean validation, Feign failures, {@code @PreAuthorize} denials, the
  * generic 500 catch-all) live in {@link AbstractProblemDetailAdvice}.
  */
-@RestControllerAdvice
+@RestControllerAdvice(name = "guestGlobalExceptionHandler")
 public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
 
     /**

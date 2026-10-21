@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * {@link AbstractProblemDetailAdvice}.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(name = "billingGlobalExceptionHandler")
 public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
 
   /**

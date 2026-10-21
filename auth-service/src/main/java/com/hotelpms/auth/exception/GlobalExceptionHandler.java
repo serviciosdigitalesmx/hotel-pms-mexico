@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * Feign failures, {@code @PreAuthorize} denials, the generic 500 catch-all) live in {@link
  * AbstractProblemDetailAdvice}.
  */
-@RestControllerAdvice
+@RestControllerAdvice(name = "authGlobalExceptionHandler")
 public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
 
   /**

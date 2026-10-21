@@ -18,7 +18,7 @@ import java.util.Objects;
  * {@link AbstractProblemDetailAdvice}.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(name = "fbGlobalExceptionHandler")
 public class GlobalExceptionHandler extends AbstractProblemDetailAdvice {
 
     private static final String URI_NOT_FOUND = "https://hotel-pms.com/errors/not-found";
