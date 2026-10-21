@@ -1,6 +1,11 @@
 spring:
   application:
     name: fixi-monolith
+  task:
+    scheduling:
+      # Keep the four bounded-context schedules independent as they were in separate services.
+      pool:
+        size: ${TASK_SCHEDULING_POOL_SIZE:4}
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/fixi}
     username: ${DATABASE_USERNAME:fixi}
