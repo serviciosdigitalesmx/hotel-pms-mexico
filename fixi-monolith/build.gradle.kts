@@ -34,6 +34,12 @@ dependencies {
     implementation(project(":internal-auth-lib"))
     implementation(project(":common-web-lib"))
 
+    // The monolith consumes the shared libraries directly, so it must import
+    // the same Spring Cloud BOM that provides the managed Feign version those
+    // libraries use. The microservices get this transitively from their own
+    // Spring Cloud starters; the standalone monolith does not.
+    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:2025.0.0"))
+
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
