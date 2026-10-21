@@ -6,12 +6,14 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import java.util.Map;
 
 /** Single JVM entry point that reuses Fixi's bounded-context modules. */
 @SpringBootConfiguration
 @EnableAutoConfiguration
+@ImportRuntimeHints(FixiMonolithNativeRuntimeHints.class)
 @ComponentScan(
     basePackages = "com.hotelpms",
     excludeFilters = {
