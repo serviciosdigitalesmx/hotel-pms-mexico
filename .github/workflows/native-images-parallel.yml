@@ -421,7 +421,14 @@ jobs:
           : > image-refs.txt
           for record in image-records/*.txt; do
             while IFS='|' read -r service image digest; do
-              [[ -n "$service" && "$image" == *":${SOURCE_SHA}" && "$digest" == sha256:* ]]
+              [[ -n "$service" && "$digest" == sha256:* ]]
+              if [[ "$service" == redis ]]; then
+                [[ "$image" == 'redis:8.8.1-alpine' ]] || { echo 'Unexpected Redis image reference.' >&2; exit 1; }
+              elif [[ "$service" == caddy ]]; then
+                [[ "$image" == 'caddy:2.10.2-alpine' ]] || { echo 'Unexpected Caddy image reference.' >&2; exit 1; }
+              else
+                [[ "$image" == *":${SOURCE_SHA}" ]] || { echo "Image for ${service} is not tagged with the source SHA." >&2; exit 1; }
+              fi
               case "$service" in
                 config-server) key=FIXI_CONFIG_SERVER_DIGEST ;;
                 api-gateway) key=FIXI_API_GATEWAY_DIGEST ;;
@@ -442,6 +449,7 @@ jobs:
             done < "$record"
           done
           [[ "$(wc -l < fixi-production-images.env)" -eq 13 ]]
+          [[ "$(cut -d= -f1 fixi-production-images.env | sort -u | wc -l)" -eq 13 ]]
           cat image-refs.txt >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
