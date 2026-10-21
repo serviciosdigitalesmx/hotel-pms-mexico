@@ -13,7 +13,12 @@ import com.hotelpms.internalauth.feign.FeignAuthContext;
 import com.hotelpms.notification.dto.EventNotificationRequest;
 import com.hotelpms.notification.service.NotificationDeliveryService;
 import com.hotelpms.notification.service.NotificationService;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.UUID;
+import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,13 +28,17 @@ import org.springframework.security.core.context.SecurityContextHolder;
 @Configuration(proxyBeanMethods = false)
 public class NotificationInProcessClient {
 
+  private static final Logger LOG = LoggerFactory.getLogger(NotificationInProcessClient.class);
+
   @Bean
   MonolithNotificationClient monolithNotificationClient(
       final NotificationService notifications,
       final NotificationDeliveryService delivery,
       final NotificationServiceAuthContext scheduledAuthContext,
+      final CircuitBreakerRegistry circuitBreakers,
       final ObjectMapper mapper) {
-    return new MonolithNotificationClient(notifications, delivery, scheduledAuthContext, mapper);
+    return new MonolithNotificationClient(
+        notifications, delivery, scheduledAuthContext, circuitBreakers, mapper);
   }
 
   /** Concrete adapter type allows Spring AOT to generate its resilience proxy for Native Image. */
@@ -37,16 +46,19 @@ public class NotificationInProcessClient {
     private final NotificationService notifications;
     private final NotificationDeliveryService delivery;
     private final NotificationServiceAuthContext scheduledAuthContext;
+    private final CircuitBreakerRegistry circuitBreakers;
     private final ObjectMapper mapper;
 
     public MonolithNotificationClient(
         final NotificationService notifications,
         final NotificationDeliveryService delivery,
         final NotificationServiceAuthContext scheduledAuthContext,
+        final CircuitBreakerRegistry circuitBreakers,
         final ObjectMapper mapper) {
       this.notifications = notifications;
       this.delivery = delivery;
       this.scheduledAuthContext = scheduledAuthContext;
+      this.circuitBreakers = circuitBreakers;
       this.mapper = mapper;
     }
 
@@ -56,38 +68,79 @@ public class NotificationInProcessClient {
       if (!authenticatedTenant.equals(request.hotelId())) {
         throw new AccessDeniedException("CROSS_TENANT_NOTIFICATION_REJECTED");
       }
-      final var persisted = delivery.enqueue(
-          convert(request, EventNotificationRequest.class, mapper), authenticatedTenant);
-      return convert(com.hotelpms.notification.dto.EventNotificationResponse.from(persisted),
-          NotificationEventResponse.class, mapper);
+      return withNotificationFallback(
+          "enqueue-event",
+          () -> {
+            final var persisted = delivery.enqueue(
+                convert(request, EventNotificationRequest.class, mapper), authenticatedTenant);
+            return convert(com.hotelpms.notification.dto.EventNotificationResponse.from(persisted),
+                NotificationEventResponse.class, mapper);
+          },
+          null);
     }
 
     @Override
     public boolean sendReservationConfirmed(final NotificationReservationRequest request) {
-      notifications.sendReservationConfirmed(convert(request,
-          com.hotelpms.notification.dto.ReservationConfirmedRequest.class, mapper));
-      return true;
+      authenticatedTenant(scheduledAuthContext);
+      return withNotificationFallback(
+          "reservation-confirmed",
+          () -> {
+            notifications.sendReservationConfirmed(convert(request,
+                com.hotelpms.notification.dto.ReservationConfirmedRequest.class, mapper));
+            return true;
+          },
+          false);
     }
 
     @Override
     public boolean sendCheckin(final NotificationCheckinRequest request) {
-      notifications.sendCheckin(convert(request,
-          com.hotelpms.notification.dto.CheckinNotificationRequest.class, mapper));
-      return true;
+      authenticatedTenant(scheduledAuthContext);
+      return withNotificationFallback(
+          "checkin",
+          () -> {
+            notifications.sendCheckin(convert(request,
+                com.hotelpms.notification.dto.CheckinNotificationRequest.class, mapper));
+            return true;
+          },
+          false);
     }
 
     @Override
     public boolean sendCheckout(final NotificationCheckoutRequest request) {
-      notifications.sendCheckout(convert(request,
-          com.hotelpms.notification.dto.CheckoutNotificationRequest.class, mapper));
-      return true;
+      authenticatedTenant(scheduledAuthContext);
+      return withNotificationFallback(
+          "checkout",
+          () -> {
+            notifications.sendCheckout(convert(request,
+                com.hotelpms.notification.dto.CheckoutNotificationRequest.class, mapper));
+            return true;
+          },
+          false);
     }
 
     @Override
     public boolean sendQuotation(final NotificationQuotationRequest request) {
-      notifications.sendQuotation(convert(request,
-          com.hotelpms.notification.dto.QuotationNotificationRequest.class, mapper));
-      return true;
+      authenticatedTenant(scheduledAuthContext);
+      return withNotificationFallback(
+          "quotation",
+          () -> {
+            notifications.sendQuotation(convert(request,
+                com.hotelpms.notification.dto.QuotationNotificationRequest.class, mapper));
+            return true;
+          },
+          false);
+    }
+
+    private <T> T withNotificationFallback(
+        final String operation, final Supplier<T> action, final T fallback) {
+      final CircuitBreaker circuitBreaker = circuitBreakers.circuitBreaker("notificationService");
+      try {
+        return CircuitBreaker.decorateSupplier(circuitBreaker, action).get();
+      } catch (final RuntimeException exception) {
+        LOG.warn("Notification operation {} deferred by circuit breaker: {}",
+            operation, exception.getMessage());
+        return fallback;
+      }
     }
   }
 
