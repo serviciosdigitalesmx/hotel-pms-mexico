@@ -186,15 +186,17 @@ jobs:
             cat /tmp/fixi-monolith-production-startup.log
             exit 1
           fi
-          production_login_status="$(curl --silent --show-error --output /tmp/fixi-production-login.json --write-out '%{http_code}' \
-            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
-            --data "$(jq -nc --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASSWORD" '{username:$u,password:$p}')")"
-          if [[ "$production_login_status" != 401 ]]; then
-            echo "Seeded E2E account remained usable in production mode (HTTP $production_login_status)."
-            cat /tmp/fixi-production-login.json
-            cat /tmp/fixi-monolith-production-startup.log
-            exit 1
-          fi
+          for seeded_username in "$ADMIN_USERNAME" admin; do
+            production_login_status="$(curl --silent --show-error --output /tmp/fixi-production-login.json --write-out '%{http_code}' \
+              -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+              --data "$(jq -nc --arg u "$seeded_username" --arg p "$ADMIN_PASSWORD" '{username:$u,password:$p}')")"
+            if [[ "$production_login_status" != 401 ]]; then
+              echo "A seeded test account remained usable in production mode (HTTP $production_login_status)."
+              cat /tmp/fixi-production-login.json
+              cat /tmp/fixi-monolith-production-startup.log
+              exit 1
+            fi
+          done
 
           echo 'Health, DB migrations, authenticated module smoke, and production test-seed removal passed.'
 

@@ -139,3 +139,67 @@ jobs:
             echo "- Image: \`${IMAGE}\`"
             echo "- Digest: \`${DIGEST}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Exercise the published image with the production Compose stack
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/fixi-monolith:${{ github.sha }}@${{ steps.image.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          env_file="$(mktemp)"
+          project="fixi-ci-${GITHUB_RUN_ID}"
+          compose=(docker compose --project-name "$project" --file fixi-monolith/deploy/compose.yml --env-file "$env_file")
+          cleanup() {
+            "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
+            rm -f "$env_file"
+          }
+          trap cleanup EXIT
+
+          cat > "$env_file" <<EOF
+          FIXI_IMAGE=${IMAGE}
+          FIXI_PUBLIC_HOST=localhost
+          GW_CORS_ALLOWED_ORIGINS=https://localhost
+          POSTGRES_ADMIN_PASSWORD=$(openssl rand -hex 32)
+          DATABASE_PASSWORD=$(openssl rand -hex 32)
+          REDIS_PASSWORD=$(openssl rand -hex 32)
+          JWT_SECRET=$(openssl rand -hex 48)
+          SECURITY_SECRETS_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          SECURITY_SECRETS_ENCRYPTION_SALT=$(openssl rand -hex 32)
+          EOF
+
+          "${compose[@]}" up --detach --pull always --wait --wait-timeout 900
+
+          for service in postgres redis fixi-monolith caddy; do
+            container="$("${compose[@]}" ps --quiet "$service")"
+            test -n "$container"
+            docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' "$container" | grep -Fx 'running healthy'
+          done
+
+          app_health="$("${compose[@]}" exec --no-TTY fixi-monolith curl --fail --silent http://127.0.0.1:8090/actuator/health/readiness)"
+          jq -e '.status == "UP"' <<< "$app_health"
+          "${compose[@]}" exec --no-TTY postgres pg_isready -U fixi_app -d fixi
+          app_is_superuser="$("${compose[@]}" exec --no-TTY postgres psql --username postgres --dbname fixi --no-align --tuples-only --command "SELECT rolsuper FROM pg_roles WHERE rolname = 'fixi_app'")"
+          [[ "$app_is_superuser" == "f" ]]
+          installed_extensions="$("${compose[@]}" exec --no-TTY postgres psql --username postgres --dbname fixi --no-align --tuples-only --command "SELECT count(*) FROM pg_extension WHERE extname IN ('pg_trgm', 'btree_gist')")"
+          [[ "$installed_extensions" == "2" ]]
+          redis_health="$("${compose[@]}" exec --no-TTY redis sh -ec 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping')"
+          [[ "$redis_health" == "PONG" ]]
+
+          for service in postgres redis fixi-monolith; do
+            container="$("${compose[@]}" ps --quiet "$service")"
+            bindings="$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$container")"
+            jq -e '(. == null) or all(.[]; . == null or . == [])' <<< "$bindings"
+          done
+          caddy_container="$("${compose[@]}" ps --quiet caddy)"
+          caddy_bindings="$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$caddy_container")"
+          jq -e 'keys == ["443/tcp", "80/tcp"] and all(.[]; length == 1)' <<< "$caddy_bindings"
+
+          http_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --resolve 'localhost:80:127.0.0.1' http://localhost/)"
+          [[ "$http_status" == "308" || "$http_status" == "301" ]]
+          https_status="$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --resolve 'localhost:443:127.0.0.1' https://localhost/)"
+          [[ "$https_status" == "401" || "$https_status" == "404" ]]
+
+          echo 'Published image, private Postgres/Redis, production seed cleanup, and Caddy-only ports passed.'
