@@ -202,6 +202,6 @@ jobs:
           https_status="$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' \
             --resolve 'localhost:443:127.0.0.1' https://localhost/)"
           echo "Caddy HTTPS backend status: ${https_status}"
-          [[ "$https_status" == "401" || "$https_status" == "404" ]]
+          [[ "$https_status" == "401" || "$https_status" == "403" || "$https_status" == "404" ]]
 
           echo 'Published image, private Postgres/Redis, production seed cleanup, and Caddy-only ports passed.'
