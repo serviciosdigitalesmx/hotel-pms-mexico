@@ -1,0 +1,126 @@
+name: fixi
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fixi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in /etc/fixi/fixi.env}
+      FIXI_DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in /etc/fixi/fixi.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fixi"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 768m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in /etc/fixi/fixi.env}
+    volumes:
+      - redis_data:/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    mem_limit: 128m
+
+  fixi-monolith:
+    image: ${FIXI_IMAGE:?Set FIXI_IMAGE to the immutable GHCR SHA tag}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    expose:
+      - "8080"
+      - "8090"
+    environment:
+      PORT: "8080"
+      MANAGEMENT_PORT: "8090"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/fixi
+      DATABASE_USERNAME: fixi_app
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in /etc/fixi/fixi.env}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in /etc/fixi/fixi.env}
+      INTERNAL_REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in /etc/fixi/fixi.env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in /etc/fixi/fixi.env}
+      SECURITY_SECRETS_ENCRYPTION_KEY: ${SECURITY_SECRETS_ENCRYPTION_KEY:?Set SECURITY_SECRETS_ENCRYPTION_KEY in /etc/fixi/fixi.env}
+      SECURITY_SECRETS_ENCRYPTION_SALT: ${SECURITY_SECRETS_ENCRYPTION_SALT:?Set SECURITY_SECRETS_ENCRYPTION_SALT in /etc/fixi/fixi.env}
+      FIXI_PUBLIC_HOST: ${FIXI_PUBLIC_HOST:?Set FIXI_PUBLIC_HOST in /etc/fixi/fixi.env}
+      FIXI_PUBLIC_URL: https://${FIXI_PUBLIC_HOST:?Set FIXI_PUBLIC_HOST in /etc/fixi/fixi.env}
+      GW_CORS_ALLOWED_ORIGINS: ${GW_CORS_ALLOWED_ORIGINS:?Set GW_CORS_ALLOWED_ORIGINS in /etc/fixi/fixi.env}
+      GATEWAY_TRUST_FORWARDED_HEADER: "true"
+      FIXI_BOOTSTRAP_REMOVE_TEST_USERS_ON_STARTUP: "true"
+      LOG_LEVEL: INFO
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=15.0 -XX:+ExitOnOutOfMemoryError
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data
+      - edge
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8090/actuator/health/readiness"]
+      interval: 20s
+      timeout: 4s
+      retries: 5
+      start_period: 180s
+    mem_limit: 2300m
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+    environment:
+      FIXI_PUBLIC_HOST: ${FIXI_PUBLIC_HOST:?Set FIXI_PUBLIC_HOST in /etc/fixi/fixi.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      fixi-monolith:
+        condition: service_healthy
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    mem_limit: 128m
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  data:
+    internal: true
+  edge:

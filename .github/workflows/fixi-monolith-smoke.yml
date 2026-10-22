@@ -162,13 +162,49 @@ jobs:
           curl --silent --show-error --fail http://127.0.0.1:8090/actuator/health \
             | jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"'
 
-          echo 'Health, DB migrations, authenticated login, and exposed module APIs passed.'
+          # Reboot into the production seed-cleanup mode and prove that the fixed
+          # E2E login can no longer authenticate before a reverse proxy is exposed.
+          kill "$app_pid"
+          wait "$app_pid" 2>/dev/null || true
+          FIXI_BOOTSTRAP_REMOVE_TEST_USERS_ON_STARTUP=true java -jar "$jar" > /tmp/fixi-monolith-production-startup.log 2>&1 &
+          app_pid=$!
+          ready=0
+          for attempt in $(seq 1 120); do
+            if curl --silent --show-error --fail http://127.0.0.1:8090/actuator/health/readiness >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              echo 'Monolith exited during production seed-cleanup startup.'
+              cat /tmp/fixi-monolith-production-startup.log
+              exit 1
+            fi
+            sleep 5
+          done
+          if [[ "$ready" != 1 ]]; then
+            echo 'Monolith did not become ready after production seed cleanup.'
+            cat /tmp/fixi-monolith-production-startup.log
+            exit 1
+          fi
+          production_login_status="$(curl --silent --show-error --output /tmp/fixi-production-login.json --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data "$(jq -nc --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASSWORD" '{username:$u,password:$p}')")"
+          if [[ "$production_login_status" != 401 ]]; then
+            echo "Seeded E2E account remained usable in production mode (HTTP $production_login_status)."
+            cat /tmp/fixi-production-login.json
+            cat /tmp/fixi-monolith-production-startup.log
+            exit 1
+          fi
+
+          echo 'Health, DB migrations, authenticated module smoke, and production test-seed removal passed.'
 
       - name: Upload startup logs on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: fixi-monolith-startup-${{ github.run_id }}
-          path: /tmp/fixi-monolith.log
+          path: |
+            /tmp/fixi-monolith.log
+            /tmp/fixi-monolith-production-startup.log
           if-no-files-found: warn
           retention-days: 7
