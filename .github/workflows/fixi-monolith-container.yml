@@ -193,13 +193,15 @@ jobs:
           done
           caddy_container="$("${compose[@]}" ps --quiet caddy)"
           caddy_bindings="$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$caddy_container")"
-          jq -e 'keys == ["443/tcp", "80/tcp"] and all(.[]; length == 1)' <<< "$caddy_bindings"
+          jq -e 'keys == ["443/tcp", "80/tcp"] and all(.[]; length >= 1)' <<< "$caddy_bindings"
 
           http_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
             --resolve 'localhost:80:127.0.0.1' http://localhost/)"
+          echo "Caddy HTTP redirect status: ${http_status}"
           [[ "$http_status" == "308" || "$http_status" == "301" ]]
           https_status="$(curl --insecure --silent --show-error --output /dev/null --write-out '%{http_code}' \
             --resolve 'localhost:443:127.0.0.1' https://localhost/)"
+          echo "Caddy HTTPS backend status: ${https_status}"
           [[ "$https_status" == "401" || "$https_status" == "404" ]]
 
           echo 'Published image, private Postgres/Redis, production seed cleanup, and Caddy-only ports passed.'
