@@ -3,7 +3,9 @@ package com.hotelpms.auth.dto;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Safe platform-wide tenant summary; contains no credentials or operational records.
+/**
+ * Safe platform-wide tenant summary; contains no credentials or operational records.
+ *
  * @param id tenant identifier
  * @param name tenant display name
  * @param slug tenant URL key

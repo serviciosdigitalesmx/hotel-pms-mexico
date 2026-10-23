@@ -3,7 +3,9 @@ package com.hotelpms.auth.dto;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Administrative account directory projection without password or token fields.
+/**
+ * Administrative account directory projection without password or token fields.
+ *
  * @param id account identifier
  * @param username login name
  * @param fullName display name

@@ -52,7 +52,9 @@ public class PlatformAdministrationService {
   private final PlatformAuditEventRepository auditEvents;
   private final HotelOnboardingService onboarding;
 
-  /** Searches tenants using platform-level filters and bounded pagination.
+  /**
+   * Searches tenants using platform-level filters and bounded pagination.
+   *
    * @param search optional name or slug substring
    * @param status optional lifecycle-state filter
    * @param page zero-based page index
@@ -92,7 +94,9 @@ public class PlatformAdministrationService {
     return page(content, safePage, safeSize, count == null ? 0 : count);
   }
 
-  /** Reads one tenant's current administrative projection.
+  /**
+   * Reads one tenant's current administrative projection.
+   *
    * @param tenantId tenant identifier
    * @return tenant projection
    * @throws NotFoundException when the tenant does not exist
@@ -122,7 +126,9 @@ public class PlatformAdministrationService {
         .orElseThrow(() -> new NotFoundException(TENANT_NOT_FOUND));
   }
 
-  /** Calculates dashboard totals from persisted Fixi records.
+  /**
+   * Calculates dashboard totals from persisted Fixi records.
+   *
    * @return current platform totals
    * @implSpec Keep counts database-backed; do not substitute presentation fixtures.
    */
@@ -138,7 +144,9 @@ public class PlatformAdministrationService {
         tenantsTotal, tenantsActive, tenantsSuspended, usersTotal, ownersTotal, ordersTotal);
   }
 
-  /** Searches the safe global account directory.
+  /**
+   * Searches the safe global account directory.
+   *
    * @param search optional username, name, or email substring
    * @param role optional tenant-role filter
    * @param active optional account active-state filter
@@ -180,7 +188,9 @@ public class PlatformAdministrationService {
     return page(content, safePage, safeSize, count == null ? 0 : count);
   }
 
-  /** Lists plan keys already assigned to tenants.
+  /**
+   * Lists plan keys already assigned to tenants.
+   *
    * @return assigned plan keys and tenant counts
    * @implSpec Do not synthesize unpersisted catalog entries.
    */
@@ -191,7 +201,9 @@ public class PlatformAdministrationService {
         (rs, row) -> new PlatformPlanSummary(rs.getString(PLAN_KEY_COLUMN), rs.getLong("assigned")));
   }
 
-  /** Lists plan-history rows, optionally scoped to one tenant.
+  /**
+   * Lists plan-history rows, optionally scoped to one tenant.
+   *
    * @param tenantId optional tenant identifier
    * @param page zero-based page index
    * @param size requested page size
@@ -226,7 +238,9 @@ public class PlatformAdministrationService {
     return page(content, safePage, safeSize, count == null ? 0 : count);
   }
 
-  /** Lists audit events, optionally filtered by tenant and action.
+  /**
+   * Lists audit events, optionally filtered by tenant and action.
+   *
    * @param tenantId optional affected tenant identifier
    * @param action optional action name
    * @param page zero-based page index
@@ -247,7 +261,9 @@ public class PlatformAdministrationService {
         events.getNumber(), safeSize, events.getTotalElements());
   }
 
-  /** Creates a tenant with its first owner and records the actor in the platform audit.
+  /**
+   * Creates a tenant with its first owner and records the actor in the platform audit.
+   *
    * @param request validated tenant and owner details
    * @param actor authenticated platform administrator
    * @return created tenant projection
@@ -261,7 +277,9 @@ public class PlatformAdministrationService {
     return tenant(created.id());
   }
 
-  /** Applies a validated tenant lifecycle transition and records its audit event.
+  /**
+   * Applies a validated tenant lifecycle transition and records its audit event.
+   *
    * @param tenantId tenant identifier
    * @param request requested lifecycle status
    * @param actor authenticated platform administrator
@@ -289,7 +307,9 @@ public class PlatformAdministrationService {
     return tenant(tenantId);
   }
 
-  /** Assigns a plan key and preserves the prior assignment in history.
+  /**
+   * Assigns a plan key and preserves the prior assignment in history.
+   *
    * @param tenantId tenant identifier
    * @param request requested plan key
    * @param actor authenticated platform administrator

@@ -111,7 +111,9 @@ public class JwtService {
     return generateToken(username, role, hotelId, branchId, tokenVersion, mustChangePassword, false);
   }
 
-  /** Generates an access token carrying a platform authority only for a server-granted account.
+  /**
+   * Generates an access token carrying a platform authority only for a server-granted account.
+   *
    * @param username login subject
    * @param role tenant-scoped account role
    * @param hotelId owning tenant identifier
@@ -191,7 +193,9 @@ public class JwtService {
         username, role, hotelId, branchId, tokenVersion, mustChangePassword, false);
   }
 
-  /** Generates a refresh token; callers must resolve the platform grant from persistence.
+  /**
+   * Generates a refresh token; callers must resolve the platform grant from persistence.
+   *
    * @param username login subject
    * @param role tenant-scoped account role
    * @param hotelId owning tenant identifier
@@ -311,7 +315,9 @@ public class JwtService {
     return raw == null ? null : UUID.fromString(raw);
   }
 
-  /** Returns the optional server-issued platform authority claim.
+  /**
+   * Returns the optional server-issued platform authority claim.
+   *
    * @param token signed JWT
    * @return platform role value, or {@code null} when absent
    */

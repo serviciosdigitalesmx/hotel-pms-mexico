@@ -10,7 +10,9 @@ import org.springframework.stereotype.Component;
 public class PlatformAdminGrantGuard {
   private final PlatformAdminGrantRepository grants;
 
-  /** Checks the persisted grant so revocation takes effect without waiting for token expiry.
+  /**
+   * Checks the persisted grant so revocation takes effect without waiting for token expiry.
+   *
    * @param username authenticated account name
    * @return whether that account has an active platform grant
    */

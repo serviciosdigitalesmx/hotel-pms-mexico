@@ -3,7 +3,9 @@ package com.hotelpms.auth.dto;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Historical administrative plan assignment; not a representation of external billing.
+/**
+ * Historical administrative plan assignment; not a representation of external billing.
+ *
  * @param id assignment identifier
  * @param tenantId owning tenant identifier
  * @param tenantName owning tenant display name

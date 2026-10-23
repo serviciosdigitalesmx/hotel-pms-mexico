@@ -35,7 +35,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class PlatformAdministrationController {
   private final PlatformAdministrationService administration;
 
-  /** Returns database-backed platform totals.
+  /**
+   * Returns database-backed platform totals.
+   *
    * @return current tenant, user, owner, and order totals
    * @implSpec Preserve the grant guard on this controller when changing its routes.
    */
@@ -44,7 +46,9 @@ public class PlatformAdministrationController {
     return administration.dashboard();
   }
 
-  /** Searches tenant records with lifecycle filters and bounded pagination.
+  /**
+   * Searches tenant records with lifecycle filters and bounded pagination.
+   *
    * @param search optional case-insensitive tenant name or slug fragment
    * @param status optional lifecycle status
    * @param page zero-based page index
@@ -61,7 +65,9 @@ public class PlatformAdministrationController {
     return administration.tenants(search, status, page, size);
   }
 
-  /** Returns one tenant's administrative summary.
+  /**
+   * Returns one tenant's administrative summary.
+   *
    * @param tenantId tenant identifier
    * @return tenant summary
    * @implSpec Keep tenant lookup behind the platform grant guard.
@@ -71,7 +77,9 @@ public class PlatformAdministrationController {
     return administration.tenant(tenantId);
   }
 
-  /** Changes a tenant's lifecycle state without deleting tenant data.
+  /**
+   * Changes a tenant's lifecycle state without deleting tenant data.
+   *
    * @param tenantId tenant identifier
    * @param request requested status
    * @param actor authenticated platform administrator
@@ -86,7 +94,9 @@ public class PlatformAdministrationController {
     return administration.updateStatus(tenantId, request, actor.getName());
   }
 
-  /** Assigns an administrative plan key and records its history.
+  /**
+   * Assigns an administrative plan key and records its history.
+   *
    * @param tenantId tenant identifier
    * @param request requested plan key
    * @param actor authenticated platform administrator
@@ -101,7 +111,9 @@ public class PlatformAdministrationController {
     return administration.assignPlan(tenantId, request, actor.getName());
   }
 
-  /** Lists plan assignments for one tenant.
+  /**
+   * Lists plan assignments for one tenant.
+   *
    * @param tenantId tenant identifier
    * @param page zero-based page index
    * @param size requested page size
@@ -116,7 +128,9 @@ public class PlatformAdministrationController {
     return administration.subscriptions(tenantId, page, size);
   }
 
-  /** Searches the safe global user directory.
+  /**
+   * Searches the safe global user directory.
+   *
    * @param search optional username, name, or email fragment
    * @param role optional tenant role filter
    * @param active optional account active-state filter
@@ -135,7 +149,9 @@ public class PlatformAdministrationController {
     return administration.users(search, role, active, page, size);
   }
 
-  /** Lists plan keys already present in tenant assignments.
+  /**
+   * Lists plan keys already present in tenant assignments.
+   *
    * @return assigned plan keys and counts
    * @implSpec Do not invent catalog entries or imply payment-provider state.
    */
@@ -144,7 +160,9 @@ public class PlatformAdministrationController {
     return administration.plans();
   }
 
-  /** Lists platform plan assignment history, optionally narrowed to one tenant.
+  /**
+   * Lists platform plan assignment history, optionally narrowed to one tenant.
+   *
    * @param tenantId optional tenant identifier
    * @param page zero-based page index
    * @param size requested page size
@@ -159,7 +177,9 @@ public class PlatformAdministrationController {
     return administration.subscriptions(tenantId, page, size);
   }
 
-  /** Lists platform administrative audit events.
+  /**
+   * Lists platform administrative audit events.
+   *
    * @param tenantId optional affected tenant identifier
    * @param action optional action filter
    * @param page zero-based page index

@@ -29,7 +29,9 @@ public class PlatformAdminBootstrapRunner implements ApplicationRunner {
   @Value("${fixi.platform.bootstrap.username:}")
   private String username;
 
-  /** Grants the configured existing account once, only when bootstrap is explicitly enabled.
+  /**
+   * Grants the configured existing account once, only when bootstrap is explicitly enabled.
+   *
    * @param args Spring application arguments
    * @implSpec Keep this operation idempotent and require an active, verified account.
    */

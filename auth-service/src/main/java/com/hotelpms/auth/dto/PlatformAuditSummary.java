@@ -3,7 +3,9 @@ package com.hotelpms.auth.dto;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Safe platform audit projection.
+/**
+ * Safe platform audit projection.
+ *
  * @param id event identifier
  * @param actorUsername username that performed the operation
  * @param action operation name

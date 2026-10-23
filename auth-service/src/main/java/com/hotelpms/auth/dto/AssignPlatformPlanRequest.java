@@ -4,7 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** Administrative plan assignment without payment-provider semantics.
+/**
+ * Administrative plan assignment without payment-provider semantics.
+ *
  * @param planKey existing plan key to assign
  */
 public record AssignPlatformPlanRequest(

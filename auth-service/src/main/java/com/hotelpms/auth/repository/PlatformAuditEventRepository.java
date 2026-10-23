@@ -10,7 +10,9 @@ import org.springframework.data.repository.query.Param;
 
 /** Global platform audit queries used only by platform administration services. */
 public interface PlatformAuditEventRepository extends JpaRepository<PlatformAuditEvent, UUID> {
-  /** Searches platform audit events by optional tenant and action filters.
+  /**
+   * Searches platform audit events by optional tenant and action filters.
+   *
    * @param tenantId optional target tenant
    * @param action optional action name
    * @param pageable bounded page request

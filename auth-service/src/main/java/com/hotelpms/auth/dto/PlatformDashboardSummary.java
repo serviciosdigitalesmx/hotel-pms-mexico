@@ -1,6 +1,8 @@
 package com.hotelpms.auth.dto;
 
-/** Real aggregate counts for the platform dashboard.
+/**
+ * Real aggregate counts for the platform dashboard.
+ *
  * @param tenantsTotal number of registered tenants
  * @param tenantsActive number of active tenants
  * @param tenantsSuspended number of suspended tenants
