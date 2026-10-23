@@ -7,6 +7,7 @@ import com.hotelpms.auth.dto.ChangePasswordRequest;
 import com.hotelpms.auth.dto.LoginRequest;
 import com.hotelpms.auth.exception.AccountLockedException;
 import com.hotelpms.auth.exception.BadCredentialsException;
+import com.hotelpms.auth.repository.HotelRegistryRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import io.jsonwebtoken.JwtException;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +63,9 @@ class AuthServiceImplTest {
 
     @Mock
     private UserAccountRepository userRepository;
+
+    @Mock
+    private HotelRegistryRepository hotelRegistry;
 
     @Mock
     private PasswordEncoder passwordEncoder;

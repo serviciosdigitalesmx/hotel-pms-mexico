@@ -1,11 +1,12 @@
 package com.hotelpms.auth.controller;
 
 import com.hotelpms.auth.dto.CreateHotelRequest;
+import com.hotelpms.auth.dto.PlatformDashboardSummary;
 import com.hotelpms.auth.dto.PlatformTenantSummary;
 import com.hotelpms.auth.repository.PlatformAdminGrantRepository;
 import com.hotelpms.auth.service.HotelOnboardingService;
-import com.hotelpms.auth.service.PlatformAdministrationService;
 import com.hotelpms.auth.service.PlatformAdminGrantGuard;
+import com.hotelpms.auth.service.PlatformAdministrationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class PlatformHotelControllerTest {
 
     private AnnotationConfigApplicationContext context;
     private PlatformHotelController controller;
+    private PlatformAdministrationController administrationController;
     private HotelOnboardingService onboarding;
     private PlatformAdministrationService platform;
     private PlatformAdminGrantRepository grants;
@@ -50,6 +52,7 @@ class PlatformHotelControllerTest {
     void start() {
         context = new AnnotationConfigApplicationContext(TestConfig.class);
         controller = context.getBean(PlatformHotelController.class);
+        administrationController = context.getBean(PlatformAdministrationController.class);
         onboarding = context.getBean(HotelOnboardingService.class);
         platform = context.getBean(PlatformAdministrationService.class);
         grants = context.getBean(PlatformAdminGrantRepository.class);
@@ -84,6 +87,27 @@ class PlatformHotelControllerTest {
         }
         verifyNoInteractions(onboarding);
         verifyNoInteractions(platform);
+    }
+
+    @Test
+    void platformConsoleRequiresPersistedGrantForTenantRoles() {
+        when(grants.hasActiveGrantForUsername(OPERATOR)).thenReturn(false);
+        authenticate("OWNER");
+
+        assertThrows(AccessDeniedException.class, administrationController::dashboard);
+
+        verifyNoInteractions(platform);
+    }
+
+    @Test
+    void activeGrantAllowsPlatformConsoleIndependentOfTenantRole() {
+        final PlatformDashboardSummary expected = new PlatformDashboardSummary(2, 1, 1, 4, 2, 8);
+        when(grants.hasActiveGrantForUsername(OPERATOR)).thenReturn(true);
+        when(platform.dashboard()).thenReturn(expected);
+        authenticate("TECHNICIAN");
+
+        assertEquals(expected, administrationController.dashboard());
+        verify(platform).dashboard();
     }
 
     private static void authenticate(final String role) {
@@ -122,6 +146,12 @@ class PlatformHotelControllerTest {
         PlatformHotelController controller(
                 final HotelOnboardingService service, final PlatformAdministrationService platform) {
             return new PlatformHotelController(service, platform);
+        }
+
+        @Bean
+        PlatformAdministrationController administrationController(
+                final PlatformAdministrationService platform) {
+            return new PlatformAdministrationController(platform);
         }
     }
 }
