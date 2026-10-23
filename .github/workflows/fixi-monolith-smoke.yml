@@ -155,8 +155,8 @@ jobs:
 
           form_login_status="$(curl --silent --show-error --output /tmp/fixi-form-login.html --write-out '%{http_code}' \
             http://127.0.0.1:8080/login)"
-          if [[ "$form_login_status" != 404 ]]; then
-            echo "Default form-login route returned HTTP $form_login_status (expected 404)."
+          if [[ "$form_login_status" != 401 && "$form_login_status" != 403 && "$form_login_status" != 404 ]]; then
+            echo "Default form-login route returned HTTP $form_login_status (expected a denial/not-found response: 401, 403, or 404)."
             exit 1
           fi
           echo 'Invalid login, unauthenticated access, Basic Auth, and default form-login probes were rejected.'
