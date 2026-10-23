@@ -145,3 +145,99 @@ test('platform provisions two hotels and keeps owners, guests and settings isola
     await secondContext.close();
   }
 });
+
+test('Super Admin console uses live platform APIs and tenant owners cannot enter it', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const tag = uniqueTag();
+  const platformContext = await browser.newContext({ baseURL });
+  const ownerContext = await browser.newContext({ baseURL });
+  try {
+    const platform = new PmsApi(await platformContext.newPage());
+    await platform.login(otherCredentials());
+
+    const page = platform.page;
+    await page.goto(`${baseURL}/platform`);
+    await expect(page.getByRole('heading', { name: 'Resumen de plataforma' })).toBeVisible();
+    await expect(page.getByText('Talleres registrados')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Navegación de plataforma' })).toBeVisible();
+
+    await page.getByRole('link', { name: 'Talleres', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Talleres' })).toBeVisible();
+    await page.getByRole('button', { name: 'Crear taller' }).click();
+
+    const ownerCredentials = {
+      username: `${tag}-owner`,
+      password: 'TempOwner123',
+      newPassword: 'OwnerStrong123',
+    };
+    const tenantName = `${tag} Fixi tenant`;
+    const tenantSlug = `${tag}-fixi`;
+    await page.getByLabel('Nombre del taller').fill(tenantName);
+    await page.getByLabel('Slug').fill(tenantSlug);
+    await page.getByLabel('Usuario owner').fill(ownerCredentials.username);
+    await page.getByLabel('Correo owner').fill(`${tag}@tenant.test`);
+    await page.getByLabel('Contraseña temporal').fill(ownerCredentials.password);
+    await page.getByRole('button', { name: 'Crear tenant' }).click();
+    await expect(page.getByText(tenantSlug)).toBeVisible();
+
+    await page.getByLabel('Buscar talleres').fill(tenantSlug);
+    await expect(page.getByText(tenantName)).toBeVisible();
+    await page.getByRole('link', { name: 'Ver detalle' }).click();
+    await expect(page.getByRole('heading', { name: tenantName })).toBeVisible();
+
+    const planKey = `qa-${tag}`;
+    await page.getByLabel('Plan key').fill(planKey);
+    await page.getByRole('button', { name: 'Guardar plan' }).click();
+    await expect(page.getByText(new RegExp(`Actual: ${planKey} · activo`))).toBeVisible();
+    await expect(page.getByRole('cell', { name: planKey })).toBeVisible();
+
+    page.on('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Suspender taller' }).click();
+    await expect(page.getByRole('button', { name: 'Reactivar taller' })).toBeVisible();
+    await page.getByRole('button', { name: 'Reactivar taller' }).click();
+    await expect(page.getByRole('button', { name: 'Suspender taller' })).toBeVisible();
+
+    await page.getByRole('link', { name: 'Usuarios', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Usuarios globales' })).toBeVisible();
+    await page.getByLabel('Buscar usuarios').fill(ownerCredentials.username);
+    await expect(page.getByText(ownerCredentials.username)).toBeVisible();
+
+    await page.getByRole('link', { name: 'Planes', exact: true }).click();
+    await expect(page.getByText(planKey)).toBeVisible();
+    await page.getByRole('link', { name: 'Suscripciones', exact: true }).click();
+    await expect(page.getByText(planKey)).toBeVisible();
+    await page.getByRole('link', { name: 'Auditoría', exact: true }).click();
+    await expect(page.getByText('TENANT_CREATED')).toBeVisible();
+    await expect(page.getByText('TENANT_PLAN_ASSIGNED')).toBeVisible();
+    await expect(page.getByText('TENANT_SUSPENDED')).toBeVisible();
+    await expect(page.getByText('TENANT_REACTIVATED')).toBeVisible();
+
+    const created = await json<{ content: Array<{ id: string }> }>(await platform.get(
+      `/api/v1/auth/platform/tenants?search=${encodeURIComponent(tenantSlug)}&page=0&size=10`));
+    expect(created.content).toHaveLength(1);
+    const owner = new PmsApi(await ownerContext.newPage());
+    await owner.login(ownerCredentials);
+    await status(await owner.get('/api/v1/auth/platform/dashboard?tenantId=spoofed&branchId=spoofed', {
+      'X-Auth-Role': 'SUPER_ADMIN',
+      'X-Auth-Tenant': '00000000-0000-0000-0000-000000000001',
+      'X-Auth-Branch': '00000000-0000-0000-0000-000000000002',
+    }), 403);
+    await status(await owner.mutate('POST', '/api/v1/auth/platform/hotels', {
+      name: 'Forged tenant', slug: `${tag}-forged`, ownerUsername: `${tag}-forged-owner`,
+      ownerEmail: `${tag}-forged@tenant.test`, initialPassword: 'TempOwner123',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      branchId: '00000000-0000-0000-0000-000000000002', platformRole: 'SUPER_ADMIN',
+    }, {
+      'X-Auth-Role': 'SUPER_ADMIN',
+      'X-Auth-Tenant': '00000000-0000-0000-0000-000000000001',
+      'X-Auth-Branch': '00000000-0000-0000-0000-000000000002',
+    }), 403);
+
+    await owner.page.goto(`${baseURL}/platform`);
+    await expect(owner.page.getByRole('alert')).toBeVisible();
+    await expect(owner.page.getByRole('navigation', { name: 'Navegación de plataforma' })).toHaveCount(0);
+  } finally {
+    await platformContext.close();
+    await ownerContext.close();
+  }
+});
