@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -21,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,7 +52,11 @@ class PlatformHotelControllerTest {
 
     @BeforeEach
     void start() {
-        context = new AnnotationConfigApplicationContext(TestConfig.class);
+        context = new AnnotationConfigApplicationContext();
+        context.getEnvironment().getPropertySources().addFirst(
+                new MapPropertySource("platform-console-test", Map.of("fixi.platform.console.enabled", "true")));
+        context.register(TestConfig.class);
+        context.refresh();
         controller = context.getBean(PlatformHotelController.class);
         administrationController = context.getBean(PlatformAdministrationController.class);
         onboarding = context.getBean(HotelOnboardingService.class);
@@ -92,9 +98,10 @@ class PlatformHotelControllerTest {
     @Test
     void platformConsoleRequiresPersistedGrantForTenantRoles() {
         when(grants.hasActiveGrantForUsername(OPERATOR)).thenReturn(false);
-        authenticate("OWNER");
-
-        assertThrows(AccessDeniedException.class, administrationController::dashboard);
+        for (final String role : List.of("OWNER", "ADMIN", "MANAGER", "TECHNICIAN", "USER")) {
+            authenticate(role);
+            assertThrows(AccessDeniedException.class, administrationController::dashboard, "role=" + role);
+        }
 
         verifyNoInteractions(platform);
     }

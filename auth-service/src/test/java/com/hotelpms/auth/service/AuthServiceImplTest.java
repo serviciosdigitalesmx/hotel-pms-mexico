@@ -1,5 +1,6 @@
 package com.hotelpms.auth.service;
 
+import com.hotelpms.auth.domain.HotelRegistry;
 import com.hotelpms.auth.domain.Role;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.AuthResponse;
@@ -8,6 +9,7 @@ import com.hotelpms.auth.dto.LoginRequest;
 import com.hotelpms.auth.exception.AccountLockedException;
 import com.hotelpms.auth.exception.BadCredentialsException;
 import com.hotelpms.auth.repository.HotelRegistryRepository;
+import com.hotelpms.auth.repository.PlatformAdminGrantRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import io.jsonwebtoken.JwtException;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,6 +68,9 @@ class AuthServiceImplTest {
 
     @Mock
     private HotelRegistryRepository hotelRegistry;
+
+    @Mock
+    private PlatformAdminGrantRepository platformAdminGrants;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -158,6 +163,22 @@ class AuthServiceImplTest {
         assertEquals(MOCK_TOKEN, response.token(),
                 "BUG-5: generateToken must be called with mustChangePassword=true so the gateway can enforce it");
         assertNotNull(response.mustChangePassword());
+    }
+
+    @Test
+    void loginRejectsValidCredentialsForSuspendedTenantWithoutPlatformGrant() {
+        final UUID userId = UUID.randomUUID();
+        testUser.setId(userId);
+        final HotelRegistry suspendedTenant = new HotelRegistry();
+        suspendedTenant.setStatus("SUSPENDED");
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+        when(hotelRegistry.findById(TEST_HOTEL_ID)).thenReturn(Optional.of(suspendedTenant));
+        when(platformAdminGrants.hasActiveGrantForUserId(userId)).thenReturn(false);
+
+        assertThrows(BadCredentialsException.class, () -> authService.login(loginRequest, TEST_IP));
+
+        verify(refreshTokenService, never()).storeTokenVersion(anyString(), anyInt(), any(Duration.class));
     }
 
     @Test
@@ -385,6 +406,25 @@ class AuthServiceImplTest {
 
         assertThrows(BadCredentialsException.class, () -> authService.refresh(MOCK_REFRESH_TOKEN),
                 "Should reject refresh tokens for deleted/inactive users");
+        verify(refreshTokenService, never()).blacklist(anyString(), any(Instant.class));
+    }
+
+    @Test
+    void refreshRejectsExistingTokenForSuspendedTenantWithoutPlatformGrant() {
+        final UUID userId = UUID.randomUUID();
+        testUser.setId(userId);
+        final HotelRegistry suspendedTenant = new HotelRegistry();
+        suspendedTenant.setStatus("SUSPENDED");
+        when(jwtService.isRefreshToken(MOCK_REFRESH_TOKEN)).thenReturn(true);
+        when(jwtService.extractJti(MOCK_REFRESH_TOKEN)).thenReturn(TEST_JTI);
+        when(refreshTokenService.isBlacklisted(TEST_JTI)).thenReturn(false);
+        when(jwtService.extractUsername(MOCK_REFRESH_TOKEN)).thenReturn(TEST_USER);
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(hotelRegistry.findById(TEST_HOTEL_ID)).thenReturn(Optional.of(suspendedTenant));
+        when(platformAdminGrants.hasActiveGrantForUserId(userId)).thenReturn(false);
+
+        assertThrows(BadCredentialsException.class, () -> authService.refresh(MOCK_REFRESH_TOKEN));
+
         verify(refreshTokenService, never()).blacklist(anyString(), any(Instant.class));
     }
 

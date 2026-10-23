@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth/platform")
 @RequiredArgsConstructor
 @PreAuthorize("@platformAdminGrantGuard.isActive(authentication.name)")
+@ConditionalOnProperty(name = "fixi.platform.console.enabled", havingValue = "true")
 public class PlatformAdministrationController {
   private final PlatformAdministrationService administration;
 
