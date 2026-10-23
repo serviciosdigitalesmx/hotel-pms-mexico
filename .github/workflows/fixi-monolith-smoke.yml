@@ -253,10 +253,19 @@ jobs:
             exit 1
           fi
           platform_token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-platform-login.headers | tr -d '\r' | head -n 1)"
-          test -n "$platform_token"
-          platform_me="$(curl --silent --show-error --fail -H "Cookie: jwt=$platform_token" \
-            http://127.0.0.1:8080/api/v1/auth/me)"
-          if [[ "$(jq -r '.platformRole // empty' <<<"$platform_me")" != 'SUPER_ADMIN' ]]; then
+          if [[ -z "$platform_token" ]]; then
+            echo 'Platform bootstrap login returned HTTP 200 but did not set the expected JWT cookie.'
+            exit 1
+          fi
+          platform_me_status="$(curl --silent --show-error --output /tmp/fixi-platform-me.json --write-out '%{http_code}' \
+            -H "Cookie: jwt=$platform_token" http://127.0.0.1:8080/api/v1/auth/me)"
+          if [[ "$platform_me_status" != 200 ]]; then
+            echo "Current-user endpoint after bootstrap login returned HTTP $platform_me_status."
+            exit 1
+          fi
+          platform_role="$(jq -r '.platformRole // empty' /tmp/fixi-platform-me.json)"
+          if [[ "$platform_role" != 'SUPER_ADMIN' ]]; then
+            echo "Persisted bootstrap login returned platformRole=${platform_role:-absent}, expected SUPER_ADMIN."
             echo 'Explicit persisted bootstrap did not issue the server-validated SUPER_ADMIN claim.'
             exit 1
           fi

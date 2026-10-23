@@ -98,8 +98,8 @@ describe('Super Admin console', () => {
 
     expect(await screen.findByRole('heading', { name: 'Resumen de plataforma' }))
       .toBeInTheDocument();
-    expect(screen.getAllByText('4')).toHaveLength(2);
-    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(await screen.findAllByText('4')).toHaveLength(2);
+    expect(await screen.findByText('12')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Navegación de plataforma' }))
       .toBeInTheDocument();
   });
@@ -205,7 +205,7 @@ describe('Super Admin console', () => {
 
     renderConsole('/platform/users');
 
-    expect(await screen.findByText('owner-a@example.test')).toBeInTheDocument();
+    expect(await screen.findByText(/owner-a@example\.test/)).toBeInTheDocument();
     expect(screen.queryByText(/passwordHash|refreshToken|tokenVersion/i)).not.toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith(expect.stringContaining('/api/v1/auth/platform/users?'));
   });
