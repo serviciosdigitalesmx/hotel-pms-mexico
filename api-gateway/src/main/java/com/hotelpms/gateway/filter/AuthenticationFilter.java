@@ -166,6 +166,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
             final String username = claims.getSubject();
             final String role = claims.get("role", String.class);
+            final String platformRole = claims.get("platformRole", String.class);
             final String hotelId = claims.get("hotelId", String.class);
             final String branchId = claims.get("branchId", String.class);
 
@@ -182,7 +183,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             }
 
             // RBAC enforcement — runs before the request is forwarded
-            if (!isAccessAllowed(role, request.getPath().value(), request.getMethod())) {
+            if (!isAccessAllowed(role, platformRole, request.getPath().value(), request.getMethod())) {
                 return this.onError(exchange, "ACCESS_DENIED", HttpStatus.FORBIDDEN);
             }
 
@@ -284,9 +285,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      * @param method the HTTP method
      * @return {@code true} if the request is permitted, {@code false} otherwise
      */
-    private static boolean isAccessAllowed(final String role, final String path, final HttpMethod method) {
+    private static boolean isAccessAllowed(
+            final String role, final String platformRole, final String path, final HttpMethod method) {
         if (path.startsWith("/api/v1/auth/platform/")) {
-            return "ADMIN".equals(role);
+            return "SUPER_ADMIN".equals(platformRole);
         }
         if (role == null || !OPERATIONAL_ROLES.contains(role)) {
             return false;

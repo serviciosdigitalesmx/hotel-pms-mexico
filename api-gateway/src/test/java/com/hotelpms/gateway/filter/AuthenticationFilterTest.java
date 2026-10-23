@@ -100,6 +100,11 @@ class AuthenticationFilterTest {
          */
         private String buildJwt(final long ttlMillis, final String username, final String role,
                         final Boolean mustChangePassword) {
+                return buildJwt(ttlMillis, username, role, mustChangePassword, null);
+        }
+
+        private String buildJwt(final long ttlMillis, final String username, final String role,
+                        final Boolean mustChangePassword, final String platformRole) {
                 final Key key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(JWT_SECRET_B64));
                 final Date now = new Date();
                 final Date expiration = new Date(now.getTime() + ttlMillis);
@@ -111,6 +116,9 @@ class AuthenticationFilterTest {
                                 .setExpiration(expiration);
                 if (mustChangePassword != null) {
                         builder.claim("mustChangePassword", mustChangePassword);
+                }
+                if (platformRole != null) {
+                        builder.claim("platformRole", platformRole);
                 }
                 return builder.signWith(key, SignatureAlgorithm.HS256).compact();
         }
@@ -284,6 +292,39 @@ class AuthenticationFilterTest {
                                         .verifyComplete();
 
                         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                }
+        }
+
+        @Nested
+        @DisplayName("Platform administration grant")
+        class PlatformGrantTests {
+                @Test
+                @DisplayName("tenant ADMIN is denied platform routes without a platform grant claim")
+                void deniesTenantAdminWithoutPlatformRole() {
+                        final String token = buildJwt(ONE_HOUR_MS, "admin", "ADMIN");
+                        final MockServerWebExchange exchange = MockServerWebExchange.from(
+                                MockServerHttpRequest.get("/api/v1/auth/platform/hotels")
+                                        .cookie(new HttpCookie("jwt", token)).build());
+
+                        StepVerifier.create(authenticationFilter.apply(config).filter(exchange, chainMock))
+                                .verifyComplete();
+
+                        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                }
+
+                @Test
+                @DisplayName("server-issued SUPER_ADMIN claim can reach platform routes")
+                void allowsPlatformAdminClaim() {
+                        when(chainMock.filter(any())).thenReturn(Mono.empty());
+                        final String token = buildJwt(ONE_HOUR_MS, "operator", "ADMIN", null, "SUPER_ADMIN");
+                        final MockServerWebExchange exchange = MockServerWebExchange.from(
+                                MockServerHttpRequest.get("/api/v1/auth/platform/hotels")
+                                        .cookie(new HttpCookie("jwt", token)).build());
+
+                        StepVerifier.create(authenticationFilter.apply(config).filter(exchange, chainMock))
+                                .verifyComplete();
+
+                        verify(chainMock).filter(any());
                 }
         }
 

@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth/platform")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('PLATFORM_SUPER_ADMIN')")
+@PreAuthorize("@platformAdminGrantGuard.isActive(authentication.name)")
 @ConditionalOnProperty(name = "fixi.platform.console.enabled", havingValue = "true")
 public class PlatformAdministrationController {
   private final PlatformAdministrationService administration;

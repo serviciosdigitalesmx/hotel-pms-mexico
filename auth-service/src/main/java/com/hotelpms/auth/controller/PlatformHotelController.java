@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth/platform/hotels")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('PLATFORM_SUPER_ADMIN')")
+@PreAuthorize("@platformAdminGrantGuard.isActive(authentication.name)")
 public class PlatformHotelController {
   private final HotelOnboardingService onboarding;
   private final PlatformAdministrationService platform;
