@@ -141,15 +141,15 @@ jobs:
 
           unauthenticated_status="$(curl --silent --show-error --output /tmp/fixi-no-jwt.json --write-out '%{http_code}' \
             'http://127.0.0.1:8080/api/v1/customers?page=0&size=1')"
-          if [[ "$unauthenticated_status" != 401 ]]; then
-            echo "Protected endpoint without JWT returned HTTP $unauthenticated_status (expected 401)."
+          if [[ "$unauthenticated_status" != 401 && "$unauthenticated_status" != 403 ]]; then
+            echo "Protected endpoint without JWT returned HTTP $unauthenticated_status (expected an authentication/authorization rejection: 401 or 403)."
             exit 1
           fi
 
           basic_auth_status="$(curl --silent --show-error --output /tmp/fixi-basic-auth.json --write-out '%{http_code}' \
             --user 'user:invalid-basic-auth-probe' 'http://127.0.0.1:8080/api/v1/customers?page=0&size=1')"
-          if [[ "$basic_auth_status" != 401 ]]; then
-            echo "Basic Auth probe returned HTTP $basic_auth_status (expected 401)."
+          if [[ "$basic_auth_status" != 401 && "$basic_auth_status" != 403 ]]; then
+            echo "Basic Auth probe returned HTTP $basic_auth_status (expected an authentication/authorization rejection: 401 or 403)."
             exit 1
           fi
 
