@@ -16,7 +16,11 @@ test('platform provisions two hotels and keeps owners, guests and settings isola
   try {
     const platform = new PmsApi(await platformContext.newPage());
     const platformUser = await platform.login(otherCredentials());
-    expect(platformUser).toMatchObject({ role: 'ADMIN', hotelId: '00000000-0000-0000-0000-000000000001' });
+    expect(platformUser).toMatchObject({
+      role: 'ADMIN',
+      platformRole: 'SUPER_ADMIN',
+      hotelId: '00000000-0000-0000-0000-000000000001',
+    });
 
     const firstCredentials = { username: `${tag}-owner-a`, password: 'TempOwner1A', newPassword: 'NewOwner2A' };
     const secondCredentials = { username: `${tag}-owner-b`, password: 'TempOwner1B', newPassword: 'NewOwner2B' };
