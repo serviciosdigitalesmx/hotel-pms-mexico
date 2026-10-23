@@ -30,7 +30,6 @@ import java.util.Map;
             "com\\.hotelpms\\..*\\.SecurityConfig",
             "com\\.hotelpms\\..*\\.FeignHeaderConfig",
             "com\\.hotelpms\\..*\\.PdfTemplateConfig",
-            "com\\.hotelpms\\.auth\\.config\\.MailConfig",
             "com\\.hotelpms\\.internalauth\\.security\\.InternalAuthFilter"
           })
     })

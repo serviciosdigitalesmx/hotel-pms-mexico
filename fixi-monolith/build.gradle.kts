@@ -124,4 +124,5 @@ tasks.named("processResources") {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    systemProperty("fixi.monolith.projectDir", projectDir.absolutePath)
 }

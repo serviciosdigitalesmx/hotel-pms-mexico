@@ -42,6 +42,7 @@ spring:
           auth: ${SMTP_AUTH:${MAIL_SMTP_AUTH:false}}
           starttls:
             enable: ${SMTP_STARTTLS:${MAIL_STARTTLS:false}}
+          # SMTP_STARTTLS controls STARTTLS only; implicit SMTPS is not configured.
           connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:5000}
           timeout: ${SMTP_TIMEOUT:5000}
           writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
@@ -52,7 +53,9 @@ spring:
         enabled: false
 
 notification:
-  from-address: ${NOTIFICATION_FROM_ADDRESS:${FIXI_MAIL_FROM:noreply@fixi.local}}
+  # AccountMailService uses fixi.mail-from; NotificationService may override
+  # that canonical address, while its from-name is specific to notifications.
+  from-address: ${NOTIFICATION_FROM_ADDRESS:${fixi.mail-from}}
   from-name: ${NOTIFICATION_FROM_NAME:Fixi}
 
 fixi:
