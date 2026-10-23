@@ -125,7 +125,7 @@ class MonolithRateLimitFilterTest {
   }
 
   @Test
-  void validWebhookPathUsesDedicatedPublicIdentityBucketAndInvalidPathIsUnrated() throws Exception {
+  void validWebhookPathUsesDedicatedBucketAndInvalidPathUsesOnlyDefaultBucket() throws Exception {
     final List<String> keys = new ArrayList<>();
     when(redis.execute(any(RedisScript.class), anyList(), any(Object[].class)))
         .thenAnswer(invocation -> {
@@ -150,7 +150,7 @@ class MonolithRateLimitFilterTest {
     assertEquals(200, validResponse.getStatus());
     assertEquals(200, invalidResponse.getStatus());
     assertTrue(invalidChain.getRequest() != null);
-    assertTrue(keys.isEmpty());
+    assertEquals(List.of("fixi:rate-limit:default:ip:unknown"), keys);
   }
 
   private static String expectedIdentity(final String bucket) {

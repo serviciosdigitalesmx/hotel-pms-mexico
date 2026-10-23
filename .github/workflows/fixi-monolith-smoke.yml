@@ -303,8 +303,12 @@ jobs:
           }
 
           platform_get '/api/v1/auth/platform/dashboard' /tmp/fixi-platform-dashboard.json
-          assert_json 'dashboard totals' '.tenantsTotal > 0 and .usersTotal > 0 and .ownersTotal > 0' \
+          assert_json 'dashboard count fields' \
+            '.tenantsTotal >= 0 and .usersTotal >= 0 and .ownersTotal >= 0' \
             /tmp/fixi-platform-dashboard.json
+          initial_tenants_total="$(jq -er '.tenantsTotal' /tmp/fixi-platform-dashboard.json)"
+          initial_users_total="$(jq -er '.usersTotal' /tmp/fixi-platform-dashboard.json)"
+          initial_owners_total="$(jq -er '.ownersTotal' /tmp/fixi-platform-dashboard.json)"
           platform_get '/api/v1/auth/platform/tenants?page=0&size=10' /tmp/fixi-platform-tenants.json
           platform_get '/api/v1/auth/platform/hotels' /tmp/fixi-platform-hotels.json
           platform_get '/api/v1/auth/platform/plans' /tmp/fixi-platform-plans.json
@@ -344,6 +348,13 @@ jobs:
           platform_get "/api/v1/auth/platform/tenants?search=$tenant_slug&page=0&size=10" /tmp/fixi-platform-tenant-search.json
           assert_json 'tenant search result' --arg id "$tenant_id" \
             '[.content[].id] | index($id) != null' /tmp/fixi-platform-tenant-search.json
+          platform_get '/api/v1/auth/platform/dashboard' /tmp/fixi-platform-dashboard-after-create.json
+          assert_json 'dashboard reflects created tenant and owner' \
+            --argjson tenants "$initial_tenants_total" \
+            --argjson users "$initial_users_total" \
+            --argjson owners "$initial_owners_total" \
+            '.tenantsTotal > $tenants and .usersTotal > $users and .ownersTotal > $owners' \
+            /tmp/fixi-platform-dashboard-after-create.json
 
           plan_body='{"planKey":"qa-validation-plan"}'
           platform_mutate PUT "/api/v1/auth/platform/tenants/$tenant_id/plan" "$plan_body" 200 /tmp/fixi-platform-plan-assigned.json
