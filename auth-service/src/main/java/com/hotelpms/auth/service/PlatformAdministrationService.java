@@ -21,9 +21,10 @@ import com.hotelpms.auth.repository.PlatformTenantSubscriptionRepository;
 import com.hotelpms.auth.repository.TenantPlanRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,10 @@ import org.springframework.util.StringUtils;
 public class PlatformAdministrationService {
   private static final String ACTIVE = "ACTIVE";
   private static final String SUSPENDED = "SUSPENDED";
+  private static final String TENANT_NOT_FOUND = "TENANT_NOT_FOUND";
+  private static final String ID_COLUMN = "id";
+  private static final String PLAN_KEY_COLUMN = "plan_key";
+  private static final String JSON_OBJECT_END = "\"}";
   private static final int MAX_PAGE_SIZE = 100;
 
   private final JdbcTemplate jdbc;
@@ -47,6 +52,14 @@ public class PlatformAdministrationService {
   private final PlatformAuditEventRepository auditEvents;
   private final HotelOnboardingService onboarding;
 
+  /** Searches tenants using platform-level filters and bounded pagination.
+   * @param search optional name or slug substring
+   * @param status optional lifecycle-state filter
+   * @param page zero-based page index
+   * @param size requested page size
+   * @return tenant projection page
+   * @implSpec Preserve SQL filtering, page bounds, and platform-only data access.
+   */
   @Transactional(readOnly = true)
   public PlatformPage<PlatformTenantSummary> tenants(
       final String search, final String status, final int page, final int size) {
@@ -79,6 +92,12 @@ public class PlatformAdministrationService {
     return page(content, safePage, safeSize, count == null ? 0 : count);
   }
 
+  /** Reads one tenant's current administrative projection.
+   * @param tenantId tenant identifier
+   * @return tenant projection
+   * @throws NotFoundException when the tenant does not exist
+   * @implSpec Keep this cross-tenant read behind the platform grant guard.
+   */
   @Transactional(readOnly = true)
   public PlatformTenantSummary tenant(final UUID tenantId) {
     return jdbc.query(
@@ -100,9 +119,13 @@ public class PlatformAdministrationService {
             (rs, row) -> tenantSummary(rs), tenantId)
         .stream()
         .findFirst()
-        .orElseThrow(() -> new NotFoundException("TENANT_NOT_FOUND"));
+        .orElseThrow(() -> new NotFoundException(TENANT_NOT_FOUND));
   }
 
+  /** Calculates dashboard totals from persisted Fixi records.
+   * @return current platform totals
+   * @implSpec Keep counts database-backed; do not substitute presentation fixtures.
+   */
   @Transactional(readOnly = true)
   public PlatformDashboardSummary dashboard() {
     final long tenantsTotal = scalar("SELECT count(*) FROM hotel_registry");
@@ -115,6 +138,15 @@ public class PlatformAdministrationService {
         tenantsTotal, tenantsActive, tenantsSuspended, usersTotal, ownersTotal, ordersTotal);
   }
 
+  /** Searches the safe global account directory.
+   * @param search optional username, name, or email substring
+   * @param role optional tenant-role filter
+   * @param active optional account active-state filter
+   * @param page zero-based page index
+   * @param size requested page size
+   * @return safe user projection page
+   * @implSpec Never select password hashes, cookies, refresh tokens, or API secrets.
+   */
   @Transactional(readOnly = true)
   public PlatformPage<PlatformUserSummary> users(
       final String search, final String role, final Boolean active, final int page, final int size) {
@@ -139,22 +171,33 @@ public class PlatformAdministrationService {
             LEFT JOIN hotel_registry h ON h.id = u.hotel_id
             """ + where + " ORDER BY u.created_at DESC, u.id LIMIT ? OFFSET ?",
         (rs, row) -> new PlatformUserSummary(
-            rs.getObject("id", UUID.class), rs.getString("username"), rs.getString("full_name"),
+            rs.getObject(ID_COLUMN, UUID.class), rs.getString("username"), rs.getString("full_name"),
             rs.getString("email"), rs.getString("role"), rs.getBoolean("active"),
             rs.getObject("hotel_id", UUID.class), rs.getString("tenant_name"),
-            instant(rs.getTimestamp("created_at"))),
+            instant(rs.getObject("created_at", LocalDateTime.class))),
         query, pattern(query), pattern(query), pattern(query), roleFilter, roleFilter,
         activeFilter, activeFilter, safeSize, (long) safePage * safeSize);
     return page(content, safePage, safeSize, count == null ? 0 : count);
   }
 
+  /** Lists plan keys already assigned to tenants.
+   * @return assigned plan keys and tenant counts
+   * @implSpec Do not synthesize unpersisted catalog entries.
+   */
   @Transactional(readOnly = true)
   public List<PlatformPlanSummary> plans() {
     return jdbc.query(
         "SELECT plan_key, count(*) AS assigned FROM tenant_plan GROUP BY plan_key ORDER BY plan_key",
-        (rs, row) -> new PlatformPlanSummary(rs.getString("plan_key"), rs.getLong("assigned")));
+        (rs, row) -> new PlatformPlanSummary(rs.getString(PLAN_KEY_COLUMN), rs.getLong("assigned")));
   }
 
+  /** Lists plan-history rows, optionally scoped to one tenant.
+   * @param tenantId optional tenant identifier
+   * @param page zero-based page index
+   * @param size requested page size
+   * @return bounded plan-history page
+   * @implSpec Preserve tenant filtering and bounded pagination.
+   */
   @Transactional(readOnly = true)
   public PlatformPage<PlatformSubscriptionSummary> subscriptions(
       final UUID tenantId, final int page, final int size) {
@@ -175,13 +218,22 @@ public class PlatformAdministrationService {
         : new Object[] {tenantId, safeSize, (long) safePage * safeSize};
     final List<PlatformSubscriptionSummary> content = jdbc.query(
         sql, (rs, row) -> new PlatformSubscriptionSummary(
-            rs.getObject("id", UUID.class), rs.getObject("tenant_id", UUID.class),
-            rs.getString("tenant_name"), rs.getString("plan_key"), rs.getString("status"),
-            instant(rs.getTimestamp("starts_at")), instant(rs.getTimestamp("ends_at")),
+            rs.getObject(ID_COLUMN, UUID.class), rs.getObject("tenant_id", UUID.class),
+            rs.getString("tenant_name"), rs.getString(PLAN_KEY_COLUMN), rs.getString("status"),
+            instant(rs.getObject("starts_at", OffsetDateTime.class)),
+            instant(rs.getObject("ends_at", OffsetDateTime.class)),
             rs.getString("created_by")), args);
     return page(content, safePage, safeSize, count == null ? 0 : count);
   }
 
+  /** Lists audit events, optionally filtered by tenant and action.
+   * @param tenantId optional affected tenant identifier
+   * @param action optional action name
+   * @param page zero-based page index
+   * @param size requested page size
+   * @return bounded audit page
+   * @implSpec Preserve secret-free metadata and the platform-only access boundary.
+   */
   @Transactional(readOnly = true)
   public PlatformPage<PlatformAuditSummary> audit(
       final UUID tenantId, final String action, final int page, final int size) {
@@ -195,14 +247,27 @@ public class PlatformAdministrationService {
         events.getNumber(), safeSize, events.getTotalElements());
   }
 
+  /** Creates a tenant with its first owner and records the actor in the platform audit.
+   * @param request validated tenant and owner details
+   * @param actor authenticated platform administrator
+   * @return created tenant projection
+   * @implSpec Preserve atomic onboarding and audit-event persistence.
+   */
   @Transactional
   public PlatformTenantSummary createTenant(final CreateHotelRequest request, final String actor) {
     final var created = onboarding.create(request);
     hotels.flush();
-    appendAudit(actor, "TENANT_CREATED", created.id(), "{\"slug\":\"" + json(request.slug()) + "\"}");
+    appendAudit(actor, "TENANT_CREATED", created.id(), "{\"slug\":\"" + json(request.slug()) + JSON_OBJECT_END);
     return tenant(created.id());
   }
 
+  /** Applies a validated tenant lifecycle transition and records its audit event.
+   * @param tenantId tenant identifier
+   * @param request requested lifecycle status
+   * @param actor authenticated platform administrator
+   * @return updated tenant projection
+   * @implSpec Preserve data on suspension and write the audit event in the same transaction.
+   */
   @Transactional
   public PlatformTenantSummary updateStatus(
       final UUID tenantId, final UpdatePlatformTenantStatusRequest request, final String actor) {
@@ -212,23 +277,29 @@ public class PlatformAdministrationService {
           org.springframework.http.HttpStatus.BAD_REQUEST, "INVALID_TENANT_STATUS");
     }
     final HotelRegistry tenant = hotels.findById(tenantId)
-        .orElseThrow(() -> new NotFoundException("TENANT_NOT_FOUND"));
+        .orElseThrow(() -> new NotFoundException(TENANT_NOT_FOUND));
     final String previous = tenant.getStatus();
     if (!requested.equalsIgnoreCase(previous)) {
       tenant.setStatus(requested);
       hotels.save(tenant);
       hotels.flush();
       appendAudit(actor, SUSPENDED.equals(requested) ? "TENANT_SUSPENDED" : "TENANT_REACTIVATED",
-          tenantId, "{\"previousStatus\":\"" + json(previous) + "\",\"status\":\"" + requested + "\"}");
+          tenantId, "{\"previousStatus\":\"" + json(previous) + "\",\"status\":\"" + requested + JSON_OBJECT_END);
     }
     return tenant(tenantId);
   }
 
+  /** Assigns a plan key and preserves the prior assignment in history.
+   * @param tenantId tenant identifier
+   * @param request requested plan key
+   * @param actor authenticated platform administrator
+   * @return updated tenant projection
+   * @implSpec Keep history and audit updates transactional; this is not payment processing.
+   */
   @Transactional
   public PlatformTenantSummary assignPlan(
       final UUID tenantId, final AssignPlatformPlanRequest request, final String actor) {
-    final HotelRegistry tenant = hotels.findById(tenantId)
-        .orElseThrow(() -> new NotFoundException("TENANT_NOT_FOUND"));
+    hotels.findById(tenantId).orElseThrow(() -> new NotFoundException(TENANT_NOT_FOUND));
     final String planKey = request.planKey().trim();
     final TenantPlan current = plans.findById(tenantId).orElseGet(() -> {
       final TenantPlan created = new TenantPlan();
@@ -241,7 +312,7 @@ public class PlatformAdministrationService {
       return tenant(tenantId);
     }
     final Instant now = Instant.now();
-    subscriptions.findFirstByTenantIdAndStatusOrderByStartsAtDesc(tenantId, "ACTIVE")
+    subscriptions.findFirstByTenantIdAndStatusOrderByStartsAtDesc(tenantId, ACTIVE)
         .ifPresent(active -> {
           active.setStatus("ENDED");
           active.setEndsAt(now);
@@ -251,7 +322,7 @@ public class PlatformAdministrationService {
     assignment.setId(UUID.randomUUID());
     assignment.setTenantId(tenantId);
     assignment.setPlanKey(planKey);
-    assignment.setStatus("ACTIVE");
+    assignment.setStatus(ACTIVE);
     assignment.setStartsAt(now);
     assignment.setCreatedBy(actor);
     subscriptions.save(assignment);
@@ -266,7 +337,7 @@ public class PlatformAdministrationService {
     plans.flush();
     subscriptions.flush();
     appendAudit(actor, "TENANT_PLAN_ASSIGNED", tenantId,
-        "{\"previousPlanKey\":\"" + json(previous) + "\",\"planKey\":\"" + json(planKey) + "\"}");
+        "{\"previousPlanKey\":\"" + json(previous) + "\",\"planKey\":\"" + json(planKey) + JSON_OBJECT_END);
     return tenant(tenantId);
   }
 
@@ -288,15 +359,19 @@ public class PlatformAdministrationService {
   }
 
   private static PlatformTenantSummary tenantSummary(final ResultSet rs) throws SQLException {
-    final Timestamp created = rs.getTimestamp("created_at");
+    final LocalDateTime created = rs.getObject("created_at", LocalDateTime.class);
     return new PlatformTenantSummary(
-        rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("slug"),
+        rs.getObject(ID_COLUMN, UUID.class), rs.getString("name"), rs.getString("slug"),
         rs.getString("status"), instant(created), rs.getString("owner_username"),
-        rs.getString("owner_name"), rs.getString("owner_email"), rs.getString("plan_key"),
+        rs.getString("owner_name"), rs.getString("owner_email"), rs.getString(PLAN_KEY_COLUMN),
         rs.getBoolean("plan_active"), rs.getBoolean("onboarding_completed"));
   }
 
-  private static Instant instant(final Timestamp value) {
+  private static Instant instant(final LocalDateTime value) {
+    return value == null ? null : value.atZone(ZoneId.systemDefault()).toInstant();
+  }
+
+  private static Instant instant(final OffsetDateTime value) {
     return value == null ? null : value.toInstant();
   }
 

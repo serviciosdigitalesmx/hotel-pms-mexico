@@ -73,7 +73,7 @@ services:
     deploy: *ci-resources
     environment:
       FIXI_PLATFORM_BOOTSTRAP_ENABLED: "true"
-      FIXI_PLATFORM_BOOTSTRAP_USERNAME: e2e-live-other-hotel-admin
+      FIXI_PLATFORM_BOOTSTRAP_USERNAME: admin
       INTERNAL_REDIS_HOST: redis
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
       JAVA_TOOL_OPTIONS: "-Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"

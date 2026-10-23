@@ -10,7 +10,11 @@ import org.springframework.stereotype.Component;
 public class PlatformAdminGrantGuard {
   private final PlatformAdminGrantRepository grants;
 
-  public boolean isActive(final String username) {
-    return username != null && grants.existsByUser_UsernameAndActiveTrue(username);
+  /** Checks the persisted grant so revocation takes effect without waiting for token expiry.
+   * @param username authenticated account name
+   * @return whether that account has an active platform grant
+   */
+  public final boolean isActive(final String username) {
+    return username != null && grants.hasActiveGrantForUsername(username);
   }
 }

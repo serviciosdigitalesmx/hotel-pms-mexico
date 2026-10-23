@@ -396,6 +396,6 @@ public class AuthServiceImpl implements AuthService {
   }
 
   private boolean hasPlatformGrant(final UserAccount user) {
-    return platformAdminGrants.existsByUser_IdAndActiveTrue(user.getId());
+    return platformAdminGrants.hasActiveGrantForUserId(user.getId());
   }
 }

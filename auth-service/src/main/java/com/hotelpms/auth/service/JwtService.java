@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class JwtService {
+  private static final String CLAIM_PLATFORM_ROLE = "platformRole";
 
   /** Custom claim key that marks a token as a refresh token. */
   private static final String CLAIM_TYPE = "typ";
@@ -110,7 +111,17 @@ public class JwtService {
     return generateToken(username, role, hotelId, branchId, tokenVersion, mustChangePassword, false);
   }
 
-  /** Generates an access token carrying a platform authority only for a server-granted account. */
+  /** Generates an access token carrying a platform authority only for a server-granted account.
+   * @param username login subject
+   * @param role tenant-scoped account role
+   * @param hotelId owning tenant identifier
+   * @param branchId optional branch scope
+   * @param tokenVersion user's current token version
+   * @param mustChangePassword whether password rotation is required
+   * @param superAdmin whether an active persisted platform grant was found
+   * @return signed access token
+   * @implSpec The platform claim must only be enabled after checking the persisted grant.
+   */
   public String generateToken(
       final String username,
       final Role role,
@@ -122,7 +133,7 @@ public class JwtService {
     final Map<String, Object> claims = new HashMap<>();
     claims.put("role", role.name());
     if (superAdmin) {
-      claims.put("platformRole", "SUPER_ADMIN");
+      claims.put(CLAIM_PLATFORM_ROLE, "SUPER_ADMIN");
     }
     claims.put(CLAIM_HOTEL_ID, hotelId.toString());
     if (branchId != null) {
@@ -180,7 +191,17 @@ public class JwtService {
         username, role, hotelId, branchId, tokenVersion, mustChangePassword, false);
   }
 
-  /** Generates a refresh token; callers must resolve the platform grant from persistence. */
+  /** Generates a refresh token; callers must resolve the platform grant from persistence.
+   * @param username login subject
+   * @param role tenant-scoped account role
+   * @param hotelId owning tenant identifier
+   * @param branchId optional branch scope
+   * @param tokenVersion user's current token version
+   * @param mustChangePassword whether password rotation is required
+   * @param superAdmin whether an active persisted platform grant was found
+   * @return signed refresh token
+   * @implSpec The platform claim must only be enabled after checking the persisted grant.
+   */
   public String generateRefreshToken(
       final String username,
       final Role role,
@@ -192,7 +213,7 @@ public class JwtService {
     final Map<String, Object> claims = new HashMap<>();
     claims.put("role", role.name());
     if (superAdmin) {
-      claims.put("platformRole", "SUPER_ADMIN");
+      claims.put(CLAIM_PLATFORM_ROLE, "SUPER_ADMIN");
     }
     claims.put(CLAIM_HOTEL_ID, hotelId.toString());
     if (branchId != null) {
@@ -290,9 +311,12 @@ public class JwtService {
     return raw == null ? null : UUID.fromString(raw);
   }
 
-  /** Returns the optional server-issued platform authority claim. */
+  /** Returns the optional server-issued platform authority claim.
+   * @param token signed JWT
+   * @return platform role value, or {@code null} when absent
+   */
   public String extractPlatformRole(final String token) {
-    return extractClaim(token, claims -> claims.get("platformRole", String.class));
+    return extractClaim(token, claims -> claims.get(CLAIM_PLATFORM_ROLE, String.class));
   }
 
   /**

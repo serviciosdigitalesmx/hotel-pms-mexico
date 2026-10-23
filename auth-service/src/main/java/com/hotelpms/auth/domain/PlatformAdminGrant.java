@@ -24,6 +24,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class PlatformAdminGrant {
+  private static final int GRANTOR_LENGTH = 80;
+
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
@@ -42,6 +44,6 @@ public class PlatformAdminGrant {
   @Column(name = "granted_at", nullable = false, updatable = false)
   private Instant grantedAt = Instant.now();
 
-  @Column(name = "granted_by", nullable = false, length = 80)
+  @Column(name = "granted_by", nullable = false, length = GRANTOR_LENGTH)
   private String grantedBy;
 }

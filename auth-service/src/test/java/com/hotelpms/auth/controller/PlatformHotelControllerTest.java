@@ -18,9 +18,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,6 +30,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class PlatformHotelControllerTest {
+    private static final String OPERATOR = "operator";
+    private static final String ADMIN = "ADMIN";
+    private static final int CREATED_STATUS = 201;
     private static final CreateHotelRequest REQUEST = new CreateHotelRequest(
             "Hotel SB", "hotel-sb", "sb-owner", "owner@sb.example", "Initial123");
     private static final PlatformTenantSummary CREATED = new PlatformTenantSummary(
@@ -60,20 +63,20 @@ class PlatformHotelControllerTest {
 
     @Test
     void activePlatformGrantCanCreateTenant() {
-        when(grants.existsByUser_UsernameAndActiveTrue("operator")).thenReturn(true);
-        authenticate("ADMIN");
-        when(platform.createTenant(REQUEST, "operator")).thenReturn(CREATED);
+        when(grants.hasActiveGrantForUsername(OPERATOR)).thenReturn(true);
+        authenticate(ADMIN);
+        when(platform.createTenant(REQUEST, OPERATOR)).thenReturn(CREATED);
 
-        final var response = controller.create(REQUEST, authentication("ADMIN"));
+        final var response = controller.create(REQUEST, authentication(ADMIN));
 
-        assertEquals(201, response.getStatusCode().value());
+        assertEquals(CREATED_STATUS, response.getStatusCode().value());
         assertEquals(CREATED.id(), response.getBody().id());
-        verify(platform).createTenant(REQUEST, "operator");
+        verify(platform).createTenant(REQUEST, OPERATOR);
     }
 
     @Test
     void tenantRolesAndNormalUsersCannotCreateTenantWithoutPlatformGrant() {
-        when(grants.existsByUser_UsernameAndActiveTrue("operator")).thenReturn(false);
+        when(grants.hasActiveGrantForUsername(OPERATOR)).thenReturn(false);
         for (final String role : List.of("OWNER", "ADMIN", "MANAGER", "TECHNICIAN", "USER")) {
             authenticate(role);
             assertThrows(AccessDeniedException.class,
@@ -89,7 +92,7 @@ class PlatformHotelControllerTest {
 
     private static UsernamePasswordAuthenticationToken authentication(final String role) {
         return new UsernamePasswordAuthenticationToken(
-                "operator", null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                OPERATOR, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
     }
 
     @Configuration

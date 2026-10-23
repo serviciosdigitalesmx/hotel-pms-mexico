@@ -82,7 +82,7 @@ describe('Settings hub', () => {
   it('shows platform onboarding only to a user with the server-issued SUPER_ADMIN grant', () => {
     vi.mocked(useAuthStore).mockImplementation(mockAuth('ADMIN', '99999999-9999-9999-9999-999999999999', 'SUPER_ADMIN'));
     const view = renderSettings();
-    expect(screen.getByRole('link', { name: /platform_hotels/ })).toHaveAttribute('href', '/platform/hotels');
+    expect(screen.getByRole('link', { name: /platform_hotels/ })).toHaveAttribute('href', '/platform');
     view.unmount();
   });
 

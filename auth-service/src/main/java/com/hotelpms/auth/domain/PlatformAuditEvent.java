@@ -17,12 +17,15 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class PlatformAuditEvent {
+  private static final int USERNAME_LENGTH = 50;
+  private static final int ACTION_LENGTH = 80;
+
   @Id private UUID id;
 
-  @Column(name = "actor_username", nullable = false, length = 50)
+  @Column(name = "actor_username", nullable = false, length = USERNAME_LENGTH)
   private String actorUsername;
 
-  @Column(nullable = false, length = 80)
+  @Column(nullable = false, length = ACTION_LENGTH)
   private String action;
 
   @Column(name = "target_tenant_id")
