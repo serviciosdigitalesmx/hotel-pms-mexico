@@ -27,6 +27,7 @@ permissions:
   actions: read
   contents: read
   packages: write
+  security-events: write
 
 concurrency:
   group: fixi-monolith-container-${{ github.ref }}
@@ -126,6 +127,48 @@ jobs:
           cache-from: type=gha,scope=fixi-monolith
           cache-to: type=gha,mode=max,scope=fixi-monolith
           provenance: true
+
+      - name: Pull the exact published monolith digest for scanning
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/fixi-monolith@${{ steps.image.outputs.digest }}
+        run: docker pull "$IMAGE"
+
+      - name: Trivy vulnerability scan — published Fixi Monolith digest
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/fixi-monolith@${{ steps.image.outputs.digest }}
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          timeout: 10m0s
+
+      - name: Trivy SARIF scan — published Fixi Monolith digest
+        if: always()
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/fixi-monolith@${{ steps.image.outputs.digest }}
+          format: sarif
+          output: trivy-fixi-monolith.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          timeout: 10m0s
+
+      - name: Upload Fixi Monolith SARIF to GitHub Security
+        if: always() && hashFiles('trivy-fixi-monolith.sarif') != ''
+        uses: github/codeql-action/upload-sarif@24c7eb380a2dc368f2d129e4c65e51d172983a1e # v4
+        with:
+          sarif_file: trivy-fixi-monolith.sarif
+          category: trivy-fixi-monolith
+
+      - name: Trivy misconfiguration scan — production Compose
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: fixi-monolith/deploy/compose.yml
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
 
       - name: Record immutable image reference
         env:

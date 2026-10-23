@@ -173,6 +173,24 @@ jobs:
           token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-login.headers | tr -d '\r' | head -n 1)"
           test -n "$token"
 
+          baseline_platform_role="$(curl --silent --show-error --fail \
+            -H "Cookie: jwt=$token" http://127.0.0.1:8080/api/v1/auth/me | jq -r '.platformRole // empty')"
+          if [[ -n "$baseline_platform_role" ]]; then
+            echo 'Bootstrap is enabled before explicit operator configuration.'
+            exit 1
+          fi
+          baseline_platform_status="$(curl --silent --show-error --output /tmp/fixi-platform-baseline.json --write-out '%{http_code}' \
+            -H "Authorization: Bearer $token" \
+            -H 'X-Auth-Role: SUPER_ADMIN' \
+            -H 'X-Auth-User: forged-platform-operator' \
+            -H 'X-Auth-Hotel: 00000000-0000-0000-0000-000000000001' \
+            http://127.0.0.1:8080/api/v1/auth/platform/dashboard)"
+          if [[ "$baseline_platform_status" != 403 ]]; then
+            echo "Tenant admin JWT plus forged platform headers returned HTTP $baseline_platform_status (expected 403)."
+            exit 1
+          fi
+          echo 'Bootstrap is disabled by default; tenant role and forged identity headers do not grant platform access.'
+
           check_get() {
             local label="$1" path="$2" output="$3" status
             status="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' \
@@ -197,8 +215,197 @@ jobs:
           curl --silent --show-error --fail http://127.0.0.1:8090/actuator/health \
             | jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"'
 
+          # Explicitly enable one-time bootstrap only for this disposable CI database.
+          kill "$app_pid"
+          wait "$app_pid" 2>/dev/null || true
+          FIXI_PLATFORM_BOOTSTRAP_ENABLED=true \
+          FIXI_PLATFORM_BOOTSTRAP_USERNAME="$ADMIN_USERNAME" \
+            java -jar "$jar" > /tmp/fixi-monolith-platform-bootstrap.log 2>&1 &
+          app_pid=$!
+          ready=0
+          for attempt in $(seq 1 120); do
+            if curl --silent --show-error --fail http://127.0.0.1:8090/actuator/health/readiness >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              echo 'Monolith exited during explicit Super Admin bootstrap.'
+              sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith-platform-bootstrap.log
+              exit 1
+            fi
+            sleep 5
+          done
+          if [[ "$ready" != 1 ]]; then
+            echo 'Monolith did not become ready during explicit Super Admin bootstrap.'
+            sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith-platform-bootstrap.log
+            exit 1
+          fi
+          if grep -Eqi 'Using generated security password' /tmp/fixi-monolith-platform-bootstrap.log; then
+            echo 'Spring Security generated a default development credential during Super Admin bootstrap.'
+            exit 1
+          fi
+
+          login_status="$(curl --silent --show-error --output /tmp/fixi-platform-login.json --dump-header /tmp/fixi-platform-login.headers --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data "$(jq -nc --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASSWORD" '{username:$u,password:$p}')")"
+          if [[ "$login_status" != 200 ]]; then
+            echo "Platform bootstrap account login returned HTTP $login_status."
+            exit 1
+          fi
+          platform_token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-platform-login.headers | tr -d '\r' | head -n 1)"
+          test -n "$platform_token"
+          platform_me="$(curl --silent --show-error --fail -H "Cookie: jwt=$platform_token" \
+            http://127.0.0.1:8080/api/v1/auth/me)"
+          if [[ "$(jq -r '.platformRole // empty' <<<"$platform_me")" != 'SUPER_ADMIN' ]]; then
+            echo 'Explicit persisted bootstrap did not issue the server-validated SUPER_ADMIN claim.'
+            exit 1
+          fi
+
+          platform_get() {
+            local path="$1" output="$2" status
+            status="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' \
+              -H "Authorization: Bearer $platform_token" "http://127.0.0.1:8080$path")"
+            if [[ "$status" != 200 ]]; then
+              echo "Platform GET $path returned HTTP $status."
+              cat "$output"
+              return 1
+            fi
+          }
+          platform_mutate() {
+            local method="$1" path="$2" body="$3" expected_status="$4" output="$5" status
+            status="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' \
+              -H "Authorization: Bearer $platform_token" -H 'Content-Type: application/json' \
+              -X "$method" "http://127.0.0.1:8080$path" --data "$body")"
+            if [[ "$status" != "$expected_status" ]]; then
+              echo "Platform $method $path returned HTTP $status (expected $expected_status)."
+              cat "$output"
+              return 1
+            fi
+          }
+
+          platform_get '/api/v1/auth/platform/dashboard' /tmp/fixi-platform-dashboard.json
+          jq -e '.tenantsTotal > 0 and .usersTotal > 0 and .ownersTotal > 0' /tmp/fixi-platform-dashboard.json >/dev/null
+          platform_get '/api/v1/auth/platform/tenants?page=0&size=10' /tmp/fixi-platform-tenants.json
+          platform_get '/api/v1/auth/platform/hotels' /tmp/fixi-platform-hotels.json
+          platform_get '/api/v1/auth/platform/plans' /tmp/fixi-platform-plans.json
+          platform_get '/api/v1/auth/platform/users?page=0&size=10' /tmp/fixi-platform-users.json
+          platform_get '/api/v1/auth/platform/audit?page=0&size=50' /tmp/fixi-platform-bootstrap-audit.json
+          jq -e '[.content[].action] | index("SUPER_ADMIN_BOOTSTRAPPED") != null' \
+            /tmp/fixi-platform-bootstrap-audit.json >/dev/null
+          jq -e '[.content[].metadataJson | test("password|token|cookie|secret"; "i")] | any | not' \
+            /tmp/fixi-platform-bootstrap-audit.json >/dev/null
+          if jq -e '[.content[] | has("password") or has("passwordHash") or has("token") or has("refreshToken") or has("tokenVersion")] | any' \
+            /tmp/fixi-platform-users.json >/dev/null; then
+            echo 'Global user directory exposed authentication-sensitive fields.'
+            exit 1
+          fi
+
+          run_tag="${GITHUB_RUN_ID:-local}"
+          tenant_slug="fixi-ci-$run_tag"
+          owner_username="fixi-owner-$run_tag"
+          owner_email="fixi-owner-$run_tag@example.test"
+          temporary_owner_password='TempOwner123'
+          owner_password='OwnerStrong123'
+          create_body="$(jq -nc --arg name "Fixi CI $run_tag" --arg slug "$tenant_slug" \
+            --arg username "$owner_username" --arg email "$owner_email" \
+            --arg password "$temporary_owner_password" \
+            '{name:$name,slug:$slug,ownerUsername:$username,ownerEmail:$email,initialPassword:$password}')"
+          platform_mutate POST '/api/v1/auth/platform/hotels' "$create_body" 201 /tmp/fixi-platform-created-tenant.json
+          tenant_id="$(jq -er '.id' /tmp/fixi-platform-created-tenant.json)"
+          jq -e --arg slug "$tenant_slug" '.slug == $slug' /tmp/fixi-platform-created-tenant.json >/dev/null
+          platform_get "/api/v1/auth/platform/tenants/$tenant_id" /tmp/fixi-platform-tenant-detail.json
+          platform_get "/api/v1/auth/platform/tenants?search=$tenant_slug&page=0&size=10" /tmp/fixi-platform-tenant-search.json
+          jq -e --arg id "$tenant_id" '[.content[].id] | index($id) != null' /tmp/fixi-platform-tenant-search.json >/dev/null
+
+          plan_body='{"planKey":"qa-validation-plan"}'
+          platform_mutate PUT "/api/v1/auth/platform/tenants/$tenant_id/plan" "$plan_body" 200 /tmp/fixi-platform-plan-assigned.json
+          jq -e '.planKey == "qa-validation-plan" and .planActive == true' /tmp/fixi-platform-plan-assigned.json >/dev/null
+          platform_get "/api/v1/auth/platform/tenants/$tenant_id/subscriptions?page=0&size=10" /tmp/fixi-platform-tenant-subscriptions.json
+          jq -e '[.content[].planKey] | index("qa-validation-plan") != null' /tmp/fixi-platform-tenant-subscriptions.json >/dev/null
+          platform_get '/api/v1/auth/platform/subscriptions?page=0&size=20' /tmp/fixi-platform-subscriptions.json
+          jq -e --arg id "$tenant_id" '[.content[].tenantId] | index($id) != null' /tmp/fixi-platform-subscriptions.json >/dev/null
+
+          owner_login_status="$(curl --silent --show-error --output /tmp/fixi-platform-owner-login.json --dump-header /tmp/fixi-platform-owner-login.headers --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data "$(jq -nc --arg u "$owner_username" --arg p "$temporary_owner_password" '{username:$u,password:$p}')")"
+          if [[ "$owner_login_status" != 200 ]] || ! jq -e '.mustChangePassword == true' /tmp/fixi-platform-owner-login.json >/dev/null; then
+            echo "New tenant owner did not receive the expected first-login password-change state (HTTP $owner_login_status)."
+            exit 1
+          fi
+          owner_token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-platform-owner-login.headers | tr -d '\r' | head -n 1)"
+          owner_csrf="$(sed -n 's/^[Ss]et-[Cc]ookie: csrf_token=\([^;]*\).*/\1/p' /tmp/fixi-platform-owner-login.headers | tr -d '\r' | head -n 1)"
+          test -n "$owner_token" && test -n "$owner_csrf"
+          change_password_status="$(curl --silent --show-error --output /tmp/fixi-platform-owner-password-change.json --dump-header /tmp/fixi-platform-owner-password-change.headers --write-out '%{http_code}' \
+            -H "Cookie: jwt=$owner_token; csrf_token=$owner_csrf" -H "X-CSRF-Token: $owner_csrf" \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/change-password \
+            --data "$(jq -nc --arg current "$temporary_owner_password" --arg next "$owner_password" '{currentPassword:$current,newPassword:$next}')")"
+          if [[ "$change_password_status" != 200 ]]; then
+            echo "New tenant owner could not complete the required password change (HTTP $change_password_status)."
+            cat /tmp/fixi-platform-owner-password-change.json
+            exit 1
+          fi
+          owner_token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-platform-owner-password-change.headers | tr -d '\r' | head -n 1)"
+          owner_refresh="$(sed -n 's/^[Ss]et-[Cc]ookie: refresh_token=\([^;]*\).*/\1/p' /tmp/fixi-platform-owner-password-change.headers | tr -d '\r' | head -n 1)"
+          test -n "$owner_token" && test -n "$owner_refresh"
+
+          suspend_body='{"status":"SUSPENDED"}'
+          platform_mutate PATCH "/api/v1/auth/platform/tenants/$tenant_id/status" "$suspend_body" 200 /tmp/fixi-platform-suspended.json
+          jq -e '.status == "SUSPENDED"' /tmp/fixi-platform-suspended.json >/dev/null
+          suspended_login_status="$(curl --silent --show-error --output /tmp/fixi-platform-suspended-login.json --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data "$(jq -nc --arg u "$owner_username" --arg p "$owner_password" '{username:$u,password:$p}')")"
+          if [[ "$suspended_login_status" != 401 ]]; then
+            echo "New login for suspended tenant returned HTTP $suspended_login_status (expected 401)."
+            exit 1
+          fi
+          suspended_refresh_status="$(curl --silent --show-error --output /tmp/fixi-platform-suspended-refresh.json --write-out '%{http_code}' \
+            -H "Cookie: refresh_token=$owner_refresh" -X POST http://127.0.0.1:8080/api/v1/auth/refresh)"
+          if [[ "$suspended_refresh_status" != 401 ]]; then
+            echo "Refresh for suspended tenant returned HTTP $suspended_refresh_status (expected 401)."
+            exit 1
+          fi
+          suspended_session_status="$(curl --silent --show-error --output /tmp/fixi-platform-suspended-session.json --write-out '%{http_code}' \
+            -H "Authorization: Bearer $owner_token" -H "Cookie: jwt=$owner_token" \
+            'http://127.0.0.1:8080/api/v1/customers?page=0&size=1')"
+          if [[ "$suspended_session_status" != 403 ]]; then
+            echo "Existing tenant access token during suspension returned HTTP $suspended_session_status (expected 403)."
+            exit 1
+          fi
+          platform_get "/api/v1/auth/platform/tenants/$tenant_id" /tmp/fixi-platform-suspended-admin-read.json
+          jq -e '.status == "SUSPENDED"' /tmp/fixi-platform-suspended-admin-read.json >/dev/null
+
+          activate_body='{"status":"ACTIVE"}'
+          platform_mutate PATCH "/api/v1/auth/platform/tenants/$tenant_id/status" "$activate_body" 200 /tmp/fixi-platform-reactivated.json
+          jq -e '.status == "ACTIVE"' /tmp/fixi-platform-reactivated.json >/dev/null
+          reactivated_login_status="$(curl --silent --show-error --output /tmp/fixi-platform-reactivated-login.json --dump-header /tmp/fixi-platform-reactivated-login.headers --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data "$(jq -nc --arg u "$owner_username" --arg p "$owner_password" '{username:$u,password:$p}')")"
+          if [[ "$reactivated_login_status" != 200 ]]; then
+            echo "Tenant owner login after reactivation returned HTTP $reactivated_login_status (expected 200)."
+            exit 1
+          fi
+          reactivated_owner_token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-platform-reactivated-login.headers | tr -d '\r' | head -n 1)"
+          test -n "$reactivated_owner_token"
+          reactivated_tenant_status="$(curl --silent --show-error --output /tmp/fixi-platform-reactivated-tenant.json --write-out '%{http_code}' \
+            -H "Authorization: Bearer $reactivated_owner_token" -H "Cookie: jwt=$reactivated_owner_token" \
+            'http://127.0.0.1:8080/api/v1/customers?page=0&size=1')"
+          if [[ "$reactivated_tenant_status" != 200 ]]; then
+            echo "Tenant API access after reactivation returned HTTP $reactivated_tenant_status (expected 200)."
+            cat /tmp/fixi-platform-reactivated-tenant.json
+            exit 1
+          fi
+
+          platform_get "/api/v1/auth/platform/users?search=$owner_username&page=0&size=10" /tmp/fixi-platform-owner-directory.json
+          jq -e --arg username "$owner_username" '[.content[].username] | index($username) != null' /tmp/fixi-platform-owner-directory.json >/dev/null
+          platform_get "/api/v1/auth/platform/audit?tenantId=$tenant_id&page=0&size=50" /tmp/fixi-platform-audit.json
+          for action in TENANT_CREATED TENANT_PLAN_ASSIGNED TENANT_SUSPENDED TENANT_REACTIVATED; do
+            jq -e --arg action "$action" '[.content[].action] | index($action) != null' /tmp/fixi-platform-audit.json >/dev/null
+          done
+          jq -e '[.content[].metadataJson | test("password|token|cookie|secret"; "i")] | any | not' \
+            /tmp/fixi-platform-audit.json >/dev/null
+
           # Reboot into the production seed-cleanup mode and prove that the fixed
-          # E2E login can no longer authenticate before a reverse proxy is exposed.
+          # E2E logins and their explicit bootstrap grants cannot authenticate.
           kill "$app_pid"
           wait "$app_pid" 2>/dev/null || true
           FIXI_BOOTSTRAP_REMOVE_TEST_USERS_ON_STARTUP=true java -jar "$jar" > /tmp/fixi-monolith-production-startup.log 2>&1 &
@@ -244,7 +451,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for file in /tmp/fixi-monolith.log /tmp/fixi-monolith-production-startup.log; do
+          for file in /tmp/fixi-monolith.log /tmp/fixi-monolith-platform-bootstrap.log /tmp/fixi-monolith-production-startup.log; do
             if [[ -f "$file" ]]; then
               sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' "$file" > "${file}.redacted"
               mv "${file}.redacted" "$file"
@@ -258,6 +465,7 @@ jobs:
           name: fixi-monolith-startup-${{ github.run_id }}
           path: |
             /tmp/fixi-monolith.log
+            /tmp/fixi-monolith-platform-bootstrap.log
             /tmp/fixi-monolith-production-startup.log
           if-no-files-found: warn
           retention-days: 7

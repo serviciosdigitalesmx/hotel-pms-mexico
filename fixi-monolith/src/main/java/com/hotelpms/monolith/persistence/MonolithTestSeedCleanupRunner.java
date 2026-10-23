@@ -46,6 +46,9 @@ public class MonolithTestSeedCleanupRunner implements ApplicationRunner {
           "DELETE FROM tenant_invitation WHERE created_by = ?",
           account.id());
       jdbcTemplate.update(
+          "DELETE FROM platform_admin_grant WHERE user_id = ?",
+          account.id());
+      jdbcTemplate.update(
           "DELETE FROM user_account WHERE id = ? AND username = ?",
           account.id(),
           account.username());

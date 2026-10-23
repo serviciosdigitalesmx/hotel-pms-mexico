@@ -22,6 +22,9 @@
     "src/components/theme-provider.tsx",
     "src/hooks/use-theme.ts",
     "src/contexts/sidebar-context.tsx",
-    "src/lib/utils.ts"
+    "src/lib/utils.ts",
+    "src/setupTests.ts",
+    "src/platform/PlatformConsole.tsx",
+    "src/platform/PlatformConsole.test.tsx"
   ]
 }
