@@ -139,9 +139,6 @@ resilience4j:
         failureRateThreshold: 50
         waitDurationInOpenState: 10s
         permittedNumberOfCallsInHalfOpenState: 2
-      billingService:
-        ignoreExceptions:
-          - feign.FeignException$FeignClientException
       aiProvider:
         registerHealthIndicator: true
         slidingWindowType: COUNT_BASED

@@ -103,7 +103,7 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     final boolean platformPath = startsWithPath(path, "/api/v1/auth/platform");
     final boolean platformGrant =
         "SUPER_ADMIN".equals(identity.platformRole())
-            && platformAdminGrants.existsByUser_UsernameAndActiveTrue(identity.username());
+            && platformAdminGrants.hasActiveGrantForUsername(identity.username());
     if (platformPath && !platformGrant) {
       response.sendError(HttpServletResponse.SC_FORBIDDEN);
       return;
