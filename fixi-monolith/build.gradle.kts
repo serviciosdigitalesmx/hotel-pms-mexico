@@ -26,6 +26,7 @@ graalvmNative {
             } else {
                 buildArgs.add("-O2")
             }
+            buildArgs.add("-R:MaxHeapSize=384m")
             buildArgs.add("-J-Xmx16g")
             buildArgs.add("--parallelism=${System.getenv("NATIVE_IMAGE_PARALLELISM") ?: "2"}")
             buildArgs.add("-H:DeadlockWatchdogInterval=60")
