@@ -117,14 +117,49 @@ jobs:
           done
           if [[ "$ready" != 1 ]]; then
             echo 'Monolith did not become healthy within 10 minutes.'
-            cat /tmp/fixi-monolith.log
+            sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith.log
             exit 1
           fi
+          if grep -Eqi 'Using generated security password' /tmp/fixi-monolith.log; then
+            echo 'Spring Security generated a default development credential during startup.'
+            exit 1
+          fi
+          echo 'No Spring Security generated development credential was emitted.'
           if ! jq -e '.status == "UP" and .components.db.status == "UP" and .components.redis.status == "UP"' /tmp/fixi-health.json; then
             echo 'Monolith health response did not report all required components UP:'
             cat /tmp/fixi-health.json
             exit 1
           fi
+
+          invalid_login_status="$(curl --silent --show-error --output /tmp/fixi-invalid-login.json --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
+            --data '{"username":"user","password":"invalid-default-user-probe"}')"
+          if [[ "$invalid_login_status" != 401 ]]; then
+            echo "Invalid/default-user login returned HTTP $invalid_login_status (expected 401)."
+            exit 1
+          fi
+
+          unauthenticated_status="$(curl --silent --show-error --output /tmp/fixi-no-jwt.json --write-out '%{http_code}' \
+            'http://127.0.0.1:8080/api/v1/customers?page=0&size=1')"
+          if [[ "$unauthenticated_status" != 401 ]]; then
+            echo "Protected endpoint without JWT returned HTTP $unauthenticated_status (expected 401)."
+            exit 1
+          fi
+
+          basic_auth_status="$(curl --silent --show-error --output /tmp/fixi-basic-auth.json --write-out '%{http_code}' \
+            --user 'user:invalid-basic-auth-probe' 'http://127.0.0.1:8080/api/v1/customers?page=0&size=1')"
+          if [[ "$basic_auth_status" != 401 ]]; then
+            echo "Basic Auth probe returned HTTP $basic_auth_status (expected 401)."
+            exit 1
+          fi
+
+          form_login_status="$(curl --silent --show-error --output /tmp/fixi-form-login.html --write-out '%{http_code}' \
+            http://127.0.0.1:8080/login)"
+          if [[ "$form_login_status" != 404 ]]; then
+            echo "Default form-login route returned HTTP $form_login_status (expected 404)."
+            exit 1
+          fi
+          echo 'Invalid login, unauthenticated access, Basic Auth, and default form-login probes were rejected.'
 
           login_status="$(curl --silent --show-error --output /tmp/fixi-login.json --dump-header /tmp/fixi-login.headers --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
@@ -132,7 +167,7 @@ jobs:
           if [[ "$login_status" != 200 ]]; then
             echo "Auth login returned HTTP $login_status"
             cat /tmp/fixi-login.json
-            cat /tmp/fixi-monolith.log
+            sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith.log
             exit 1
           fi
           token="$(sed -n 's/^[Ss]et-[Cc]ookie: jwt=\([^;]*\).*/\1/p' /tmp/fixi-login.headers | tr -d '\r' | head -n 1)"
@@ -152,7 +187,7 @@ jobs:
           }
 
           check_get 'Auth current-user API' '/api/v1/auth/me' /tmp/fixi-me.json
-          check_get 'Customer/guest API' '/api/v1/guests?page=0&size=1' /tmp/fixi-guests.json
+          check_get 'Fixi customers API' '/api/v1/customers?page=0&size=1' /tmp/fixi-customers.json
           check_get 'Fixi service-orders API' '/api/v1/service-orders?page=0&size=1' /tmp/fixi-orders.json
           check_get 'Inventory products API' '/api/v1/inventory/products' /tmp/fixi-products.json
           check_get 'Billing invoices API' '/api/v1/invoices?page=0&size=1' /tmp/fixi-invoices.json
@@ -176,14 +211,18 @@ jobs:
             fi
             if ! kill -0 "$app_pid" 2>/dev/null; then
               echo 'Monolith exited during production seed-cleanup startup.'
-              cat /tmp/fixi-monolith-production-startup.log
+              sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith-production-startup.log
               exit 1
             fi
             sleep 5
           done
           if [[ "$ready" != 1 ]]; then
             echo 'Monolith did not become ready after production seed cleanup.'
-            cat /tmp/fixi-monolith-production-startup.log
+            sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith-production-startup.log
+            exit 1
+          fi
+          if grep -Eqi 'Using generated security password' /tmp/fixi-monolith-production-startup.log; then
+            echo 'Spring Security generated a default development credential in production seed-cleanup mode.'
             exit 1
           fi
           for seeded_username in "$ADMIN_USERNAME" admin; do
@@ -193,12 +232,24 @@ jobs:
             if [[ "$production_login_status" != 401 ]]; then
               echo "A seeded test account remained usable in production mode (HTTP $production_login_status)."
               cat /tmp/fixi-production-login.json
-              cat /tmp/fixi-monolith-production-startup.log
+              sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' /tmp/fixi-monolith-production-startup.log
               exit 1
             fi
           done
 
           echo 'Health, DB migrations, authenticated module smoke, and production test-seed removal passed.'
+
+      - name: Redact generated Spring credentials from startup diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in /tmp/fixi-monolith.log /tmp/fixi-monolith-production-startup.log; do
+            if [[ -f "$file" ]]; then
+              sed -E 's/(Using generated security password: ).*/\1[REDACTED]/' "$file" > "${file}.redacted"
+              mv "${file}.redacted" "$file"
+            fi
+          done
 
       - name: Upload startup logs on failure
         if: failure()

@@ -3,6 +3,7 @@ package com.hotelpms.monolith;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 /** Single JVM entry point that reuses Fixi's bounded-context modules. */
 @SpringBootConfiguration
-@EnableAutoConfiguration
+@EnableAutoConfiguration(exclude = UserDetailsServiceAutoConfiguration.class)
 @ImportRuntimeHints(FixiMonolithNativeRuntimeHints.class)
 @ComponentScan(
     basePackages = "com.hotelpms",
