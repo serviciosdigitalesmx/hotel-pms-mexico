@@ -29,7 +29,7 @@ const WHATSAPP_ITEM: SettingsHubItem = {
 };
 
 const PLATFORM_ITEM: SettingsHubItem = {
-  to: '/platform/hotels', icon: 'domain_add', titleKey: 'platform_hotels', descKey: 'platform_intro',
+  to: '/platform', icon: 'domain_add', titleKey: 'platform_hotels', descKey: 'platform_intro',
 };
 
 // BUG-11 (docs/LIVE_E2E_AUDIT_2026-07.md): both routes existed and worked,
@@ -68,16 +68,19 @@ export const Settings = () => {
   const { t } = useTranslation('settings');
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.user?.role);
-  const hotelId = useAuthStore((s) => s.user?.hotelId);
+  const platformRole = useAuthStore((s) => s.user?.platformRole);
   const isAdminOrOwner = role === 'ADMIN' || role === 'OWNER';
-  const isPlatform = role === 'ADMIN' && hotelId === '00000000-0000-0000-0000-000000000001';
+  const isPlatform = platformRole === 'SUPER_ADMIN';
 
   const handleBack = useCallback(() => navigate(-1), [navigate]);
 
   const items = useMemo(
-    () => (isAdminOrOwner
-      ? [...SETTINGS_ITEMS, HOTEL_PROFILE_ITEM, ADMIN_USERS_ITEM, SYSTEM_ITEM, WHATSAPP_ITEM, ...(isPlatform ? [PLATFORM_ITEM] : [])]
-      : SETTINGS_ITEMS),
+    () => [
+      ...(isAdminOrOwner
+        ? [...SETTINGS_ITEMS, HOTEL_PROFILE_ITEM, ADMIN_USERS_ITEM, SYSTEM_ITEM, WHATSAPP_ITEM]
+        : SETTINGS_ITEMS),
+      ...(isPlatform ? [PLATFORM_ITEM] : []),
+    ],
     [isAdminOrOwner, isPlatform]
   );
 

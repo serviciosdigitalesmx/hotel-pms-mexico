@@ -107,8 +107,23 @@ public class JwtService {
       final UUID branchId,
       final int tokenVersion,
       final boolean mustChangePassword) {
+    return generateToken(username, role, hotelId, branchId, tokenVersion, mustChangePassword, false);
+  }
+
+  /** Generates an access token carrying a platform authority only for a server-granted account. */
+  public String generateToken(
+      final String username,
+      final Role role,
+      final UUID hotelId,
+      final UUID branchId,
+      final int tokenVersion,
+      final boolean mustChangePassword,
+      final boolean superAdmin) {
     final Map<String, Object> claims = new HashMap<>();
     claims.put("role", role.name());
+    if (superAdmin) {
+      claims.put("platformRole", "SUPER_ADMIN");
+    }
     claims.put(CLAIM_HOTEL_ID, hotelId.toString());
     if (branchId != null) {
       claims.put(CLAIM_BRANCH_ID, branchId.toString());
@@ -161,8 +176,24 @@ public class JwtService {
       final UUID branchId,
       final int tokenVersion,
       final boolean mustChangePassword) {
+    return generateRefreshToken(
+        username, role, hotelId, branchId, tokenVersion, mustChangePassword, false);
+  }
+
+  /** Generates a refresh token; callers must resolve the platform grant from persistence. */
+  public String generateRefreshToken(
+      final String username,
+      final Role role,
+      final UUID hotelId,
+      final UUID branchId,
+      final int tokenVersion,
+      final boolean mustChangePassword,
+      final boolean superAdmin) {
     final Map<String, Object> claims = new HashMap<>();
     claims.put("role", role.name());
+    if (superAdmin) {
+      claims.put("platformRole", "SUPER_ADMIN");
+    }
     claims.put(CLAIM_HOTEL_ID, hotelId.toString());
     if (branchId != null) {
       claims.put(CLAIM_BRANCH_ID, branchId.toString());
@@ -257,6 +288,11 @@ public class JwtService {
   public UUID extractBranchId(final String token) {
     final String raw = extractClaim(token, c -> c.get(CLAIM_BRANCH_ID, String.class));
     return raw == null ? null : UUID.fromString(raw);
+  }
+
+  /** Returns the optional server-issued platform authority claim. */
+  public String extractPlatformRole(final String token) {
+    return extractClaim(token, claims -> claims.get("platformRole", String.class));
   }
 
   /**

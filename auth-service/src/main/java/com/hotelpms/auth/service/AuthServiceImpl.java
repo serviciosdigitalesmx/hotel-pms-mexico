@@ -8,6 +8,8 @@ import com.hotelpms.auth.dto.LoginRequest;
 import com.hotelpms.auth.exception.AccountLockedException;
 import com.hotelpms.auth.exception.BadCredentialsException;
 import com.hotelpms.auth.repository.UserAccountRepository;
+import com.hotelpms.auth.repository.PlatformAdminGrantRepository;
+import com.hotelpms.auth.repository.HotelRegistryRepository;
 import io.jsonwebtoken.JwtException;
 import java.time.Duration;
 import java.time.Instant;
@@ -44,6 +46,8 @@ public class AuthServiceImpl implements AuthService {
   private final RefreshTokenService refreshTokenService;
   private final LoginAttemptService loginAttemptService;
   private final BranchAccessService branchAccessService;
+  private final PlatformAdminGrantRepository platformAdminGrants;
+  private final HotelRegistryRepository hotelRegistry;
 
   /**
    * Lazily-memoized throwaway hash (Finding #9, security-report.md) — computed once against {@link
@@ -74,7 +78,8 @@ public class AuthServiceImpl implements AuthService {
             tenantId,
             branchId,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     final String refresh =
         jwtService.generateRefreshToken(
             username,
@@ -82,7 +87,8 @@ public class AuthServiceImpl implements AuthService {
             tenantId,
             branchId,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     return new AuthResponse(access, refresh, user.isMustChangePassword());
   }
 
@@ -153,6 +159,12 @@ public class AuthServiceImpl implements AuthService {
       throw new BadCredentialsException(INVALID_CREDENTIALS);
     }
 
+    if (hotelRegistry.findById(user.getHotelId())
+        .map(tenant -> "SUSPENDED".equalsIgnoreCase(tenant.getStatus()))
+        .orElse(false) && !hasPlatformGrant(user)) {
+      throw new BadCredentialsException(INVALID_CREDENTIALS);
+    }
+
     loginAttemptService.reset(user.getUsername(), clientIp);
 
     // Lazy rehash: upgrade stored hash to current cost factor if needed (T-AUTH-03)
@@ -177,15 +189,19 @@ public class AuthServiceImpl implements AuthService {
             user.getUsername(),
             user.getRole(),
             user.getHotelId(),
+            null,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     final String refreshToken =
         jwtService.generateRefreshToken(
             user.getUsername(),
             user.getRole(),
             user.getHotelId(),
+            null,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     return new AuthResponse(accessToken, refreshToken, user.isMustChangePassword());
   }
 
@@ -219,6 +235,12 @@ public class AuthServiceImpl implements AuthService {
                   return new BadCredentialsException(INVALID_REFRESH_TOKEN);
                 });
 
+    if (hotelRegistry.findById(user.getHotelId())
+        .map(tenant -> "SUSPENDED".equalsIgnoreCase(tenant.getStatus()))
+        .orElse(false) && !hasPlatformGrant(user)) {
+      throw new BadCredentialsException(INVALID_REFRESH_TOKEN);
+    }
+
     // Token-version check (T-AUTH-04 residuo): reject tokens issued before a password change.
     // storedTv = -1 means the Redis key is absent (user logged in before this feature was
     // deployed) → skip the check for graceful migration.
@@ -246,15 +268,19 @@ public class AuthServiceImpl implements AuthService {
             username,
             user.getRole(),
             user.getHotelId(),
+            null,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     final String newRefreshToken =
         jwtService.generateRefreshToken(
             username,
             user.getRole(),
             user.getHotelId(),
+            null,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     return new AuthResponse(newAccessToken, newRefreshToken, user.isMustChangePassword());
   }
 
@@ -315,15 +341,19 @@ public class AuthServiceImpl implements AuthService {
             username,
             user.getRole(),
             user.getHotelId(),
+            null,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     final String refreshToken =
         jwtService.generateRefreshToken(
             username,
             user.getRole(),
             user.getHotelId(),
+            null,
             user.getTokenVersion(),
-            user.isMustChangePassword());
+            user.isMustChangePassword(),
+            hasPlatformGrant(user));
     return new AuthResponse(accessToken, refreshToken, false);
   }
 
@@ -363,5 +393,9 @@ public class AuthServiceImpl implements AuthService {
       dummyPasswordHash = hash;
     }
     return hash;
+  }
+
+  private boolean hasPlatformGrant(final UserAccount user) {
+    return platformAdminGrants.existsByUser_IdAndActiveTrue(user.getId());
   }
 }

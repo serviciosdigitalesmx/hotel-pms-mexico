@@ -58,6 +58,12 @@ notification:
 fixi:
   public-url: ${FIXI_PUBLIC_URL:http://localhost}
   mail-from: ${FIXI_MAIL_FROM:no-reply@fixi.local}
+  platform:
+    console:
+      enabled: true
+    bootstrap:
+      enabled: ${FIXI_PLATFORM_BOOTSTRAP_ENABLED:false}
+      username: ${FIXI_PLATFORM_BOOTSTRAP_USERNAME:}
 
 security:
   secrets:

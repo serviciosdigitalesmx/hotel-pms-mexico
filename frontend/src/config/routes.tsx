@@ -20,6 +20,7 @@ import { TeamUserEditor } from '@/fixi/team-user-editor'
 import { OperationalAlertsPage } from '@/fixi/operational-alerts'
 import { CustomerDetailAccessPage } from '@/fixi/customer-detail-access'
 import { AccountProfilePage } from '@/fixi/account-profile'
+import { PlatformAuditPage, PlatformDashboardPage, PlatformPlansPage, PlatformShell, PlatformSubscriptionsPage, PlatformTenantDetailPage, PlatformTenantsPage, PlatformUsersPage } from '@/platform/PlatformConsole'
 export interface RouteConfig { path:string; element:ReactNode; children?:RouteConfig[] }
 const secure=(element:ReactNode,roles?:string[],capabilities?:string[])=><Protected roles={roles} capabilities={capabilities}>{element}</Protected>
 export const routes:RouteConfig[]=[
@@ -42,5 +43,15 @@ export const routes:RouteConfig[]=[
   {path:'/reports/finance',element:secure(<FixiFinancialReportingPage/>,['ADMIN','OWNER'],['FINANCE_READ'])},
   {path:'/orders/unassigned',element:secure(<OrdersPage title="Por asignar" unassignedOnly/>,undefined,['ORDERS_READ'])},
   {path:'/orders/pending-payment',element:secure(<OrdersPage title="Pendientes de pago" paymentPendingOnly/>,undefined,['ORDERS_READ'])},
+  {path:'/platform',element:secure(<PlatformShell/>),children:[
+    {path:'',element:<PlatformDashboardPage/>},
+    {path:'tenants',element:<PlatformTenantsPage/>},
+    {path:'tenants/:tenantId',element:<PlatformTenantDetailPage/>},
+    {path:'users',element:<PlatformUsersPage/>},
+    {path:'plans',element:<PlatformPlansPage/>},
+    {path:'subscriptions',element:<PlatformSubscriptionsPage/>},
+    {path:'audit',element:<PlatformAuditPage/>},
+    {path:'hotels',element:<Navigate to="/platform/tenants" replace/>},
+  ]},
   {path:'*',element:<Navigate to="/" replace/>},
 ]

@@ -1,6 +1,8 @@
 package com.hotelpms.monolith.security;
 
 import com.hotelpms.auth.service.JwtService;
+import com.hotelpms.auth.repository.HotelRegistryRepository;
+import com.hotelpms.auth.repository.PlatformAdminGrantRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -44,9 +46,16 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
       Set.of("/api/v1/room-types", "/api/v1/rate-calendar");
 
   private final JwtService jwtService;
+  private final PlatformAdminGrantRepository platformAdminGrants;
+  private final HotelRegistryRepository hotelRegistry;
 
-  public MonolithJwtAuthenticationFilter(final JwtService jwtService) {
+  public MonolithJwtAuthenticationFilter(
+      final JwtService jwtService,
+      final PlatformAdminGrantRepository platformAdminGrants,
+      final HotelRegistryRepository hotelRegistry) {
     this.jwtService = jwtService;
+    this.platformAdminGrants = platformAdminGrants;
+    this.hotelRegistry = hotelRegistry;
   }
 
   @Override
@@ -91,16 +100,34 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
       response.sendError(HttpServletResponse.SC_FORBIDDEN, "PASSWORD_CHANGE_REQUIRED");
       return;
     }
-    if (!isRoleAllowed(identity.role(), path, request.getMethod())) {
+    final boolean platformPath = startsWithPath(path, "/api/v1/auth/platform");
+    final boolean platformGrant =
+        "SUPER_ADMIN".equals(identity.platformRole())
+            && platformAdminGrants.existsByUser_UsernameAndActiveTrue(identity.username());
+    if (platformPath && !platformGrant) {
+      response.sendError(HttpServletResponse.SC_FORBIDDEN);
+      return;
+    }
+    if (!platformPath
+        && hotelRegistry.findById(java.util.UUID.fromString(identity.tenantId()))
+            .map(tenant -> "SUSPENDED".equalsIgnoreCase(tenant.getStatus()))
+            .orElse(false)) {
+      response.sendError(HttpServletResponse.SC_FORBIDDEN, "TENANT_SUSPENDED");
+      return;
+    }
+    if (!isRoleAllowed(identity.role(), identity.platformRole(), path, request.getMethod())) {
       response.sendError(HttpServletResponse.SC_FORBIDDEN);
       return;
     }
 
+    final java.util.List<SimpleGrantedAuthority> authorities =
+        new java.util.ArrayList<>(List.of(new SimpleGrantedAuthority("ROLE_" + identity.role())));
+    if (platformGrant) {
+      authorities.add(new SimpleGrantedAuthority("PLATFORM_SUPER_ADMIN"));
+    }
     final var authentication =
         new UsernamePasswordAuthenticationToken(
-            identity.username(),
-            null,
-            List.of(new SimpleGrantedAuthority("ROLE_" + identity.role())));
+            identity.username(), null, authorities);
     // Existing service code reads tenant identity from Authentication.details.
     authentication.setDetails(identity.tenantId());
     SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -124,6 +151,7 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
       throw new JwtException("INVALID_ACCESS_TOKEN");
     }
     final String role = jwtService.extractClaim(token, claims -> claims.get("role", String.class));
+    final String platformRole = jwtService.extractPlatformRole(token);
     final java.util.UUID tenantUuid = jwtService.extractHotelId(token);
     if (tenantUuid == null) {
       throw new JwtException("TOKEN_TENANT_REQUIRED");
@@ -137,11 +165,17 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
         || !StringUtils.hasText(tenantId)) {
       throw new JwtException("INVALID_ACCESS_TOKEN_CLAIMS");
     }
-    return new AuthenticatedIdentity(username, role, tenantId, branchId, mustChangePassword);
+    return new AuthenticatedIdentity(
+        username, role, platformRole, tenantId, branchId, mustChangePassword);
   }
 
   private record AuthenticatedIdentity(
-      String username, String role, String tenantId, String branchId, boolean mustChangePassword) {}
+      String username,
+      String role,
+      String platformRole,
+      String tenantId,
+      String branchId,
+      boolean mustChangePassword) {}
 
   /** Recreates identity headers formerly injected by the trusted API Gateway. */
   private static HttpServletRequest withTrustedIdentity(
@@ -259,9 +293,9 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
   }
 
   private static boolean isRoleAllowed(
-      final String role, final String path, final String methodName) {
+      final String role, final String platformRole, final String path, final String methodName) {
     if (startsWithPath(path, "/api/v1/auth/platform")) {
-      return "ADMIN".equals(role);
+      return "SUPER_ADMIN".equals(platformRole);
     }
     // The Gateway applies its authentication/RBAC filter only to these auth-service route
     // groups. Other auth routes deliberately rely on their own token-aware controller/service

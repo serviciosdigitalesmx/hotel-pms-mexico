@@ -302,6 +302,10 @@ public class AuthController {
       meBody.put("sub", username);
       meBody.put("username", username);
       meBody.put("role", role);
+      final String platformRole = jwtService.extractPlatformRole(token);
+      if (platformRole != null) {
+        meBody.put("platformRole", platformRole);
+      }
       meBody.put("hotelId", jwtService.extractHotelId(token).toString());
       final UUID branchId = jwtService.extractBranchId(token);
       if (branchId != null) {

@@ -7,6 +7,7 @@ export interface LoginRequest {
 
 export interface UserPayload {
   hotelId?: string;
+  platformRole?: 'SUPER_ADMIN';
   sub: string;
   username: string;
   role: Role;
