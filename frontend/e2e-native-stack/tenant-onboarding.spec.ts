@@ -153,7 +153,13 @@ test('Super Admin console uses live platform APIs and tenant owners cannot enter
   const ownerContext = await browser.newContext({ baseURL });
   try {
     const platform = new PmsApi(await platformContext.newPage());
-    await platform.login(otherCredentials());
+    const platformCredentials = otherCredentials();
+    // The preceding tenant-isolation scenario completes the required first-login
+    // password change for this shared synthetic platform account.
+    await platform.login({
+      ...platformCredentials,
+      password: platformCredentials.newPassword ?? platformCredentials.password,
+    });
 
     const page = platform.page;
     await page.goto(`${baseURL}/platform`);
