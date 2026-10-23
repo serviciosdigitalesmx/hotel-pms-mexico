@@ -269,6 +269,16 @@ jobs:
             echo 'Explicit persisted bootstrap did not issue the server-validated SUPER_ADMIN claim.'
             exit 1
           fi
+          echo 'Explicit bootstrap login and persisted SUPER_ADMIN claim verified.'
+
+          assert_json() {
+            local label="$1"
+            shift
+            if ! jq -e "$@" >/dev/null; then
+              echo "Platform smoke JSON assertion failed: $label."
+              return 1
+            fi
+          }
 
           platform_get() {
             local path="$1" output="$2" status
@@ -293,21 +303,25 @@ jobs:
           }
 
           platform_get '/api/v1/auth/platform/dashboard' /tmp/fixi-platform-dashboard.json
-          jq -e '.tenantsTotal > 0 and .usersTotal > 0 and .ownersTotal > 0' /tmp/fixi-platform-dashboard.json >/dev/null
+          assert_json 'dashboard totals' '.tenantsTotal > 0 and .usersTotal > 0 and .ownersTotal > 0' \
+            /tmp/fixi-platform-dashboard.json
           platform_get '/api/v1/auth/platform/tenants?page=0&size=10' /tmp/fixi-platform-tenants.json
           platform_get '/api/v1/auth/platform/hotels' /tmp/fixi-platform-hotels.json
           platform_get '/api/v1/auth/platform/plans' /tmp/fixi-platform-plans.json
           platform_get '/api/v1/auth/platform/users?page=0&size=10' /tmp/fixi-platform-users.json
           platform_get '/api/v1/auth/platform/audit?page=0&size=50' /tmp/fixi-platform-bootstrap-audit.json
-          jq -e '[.content[].action] | index("SUPER_ADMIN_BOOTSTRAPPED") != null' \
-            /tmp/fixi-platform-bootstrap-audit.json >/dev/null
-          jq -e '[.content[].metadataJson | test("password|token|cookie|secret"; "i")] | any | not' \
-            /tmp/fixi-platform-bootstrap-audit.json >/dev/null
+          assert_json 'bootstrap audit event' \
+            '[.content[].action] | index("SUPER_ADMIN_BOOTSTRAPPED") != null' \
+            /tmp/fixi-platform-bootstrap-audit.json
+          assert_json 'bootstrap audit metadata redaction' \
+            '[.content[].metadataJson | test("password|token|cookie|secret"; "i")] | any | not' \
+            /tmp/fixi-platform-bootstrap-audit.json
           if jq -e '[.content[] | has("password") or has("passwordHash") or has("token") or has("refreshToken") or has("tokenVersion")] | any' \
             /tmp/fixi-platform-users.json >/dev/null; then
             echo 'Global user directory exposed authentication-sensitive fields.'
             exit 1
           fi
+          echo 'Platform dashboard, directories, audit, and safe user fields verified.'
 
           run_tag="${GITHUB_RUN_ID:-local}"
           tenant_slug="fixi-ci-$run_tag"
@@ -320,19 +334,30 @@ jobs:
             --arg password "$temporary_owner_password" \
             '{name:$name,slug:$slug,ownerUsername:$username,ownerEmail:$email,initialPassword:$password}')"
           platform_mutate POST '/api/v1/auth/platform/hotels' "$create_body" 201 /tmp/fixi-platform-created-tenant.json
-          tenant_id="$(jq -er '.id' /tmp/fixi-platform-created-tenant.json)"
-          jq -e --arg slug "$tenant_slug" '.slug == $slug' /tmp/fixi-platform-created-tenant.json >/dev/null
+          if ! tenant_id="$(jq -er '.id' /tmp/fixi-platform-created-tenant.json)"; then
+            echo 'Tenant creation response did not contain an id.'
+            exit 1
+          fi
+          assert_json 'created tenant slug' --arg slug "$tenant_slug" \
+            '.slug == $slug' /tmp/fixi-platform-created-tenant.json
           platform_get "/api/v1/auth/platform/tenants/$tenant_id" /tmp/fixi-platform-tenant-detail.json
           platform_get "/api/v1/auth/platform/tenants?search=$tenant_slug&page=0&size=10" /tmp/fixi-platform-tenant-search.json
-          jq -e --arg id "$tenant_id" '[.content[].id] | index($id) != null' /tmp/fixi-platform-tenant-search.json >/dev/null
+          assert_json 'tenant search result' --arg id "$tenant_id" \
+            '[.content[].id] | index($id) != null' /tmp/fixi-platform-tenant-search.json
 
           plan_body='{"planKey":"qa-validation-plan"}'
           platform_mutate PUT "/api/v1/auth/platform/tenants/$tenant_id/plan" "$plan_body" 200 /tmp/fixi-platform-plan-assigned.json
-          jq -e '.planKey == "qa-validation-plan" and .planActive == true' /tmp/fixi-platform-plan-assigned.json >/dev/null
+          assert_json 'assigned tenant plan' \
+            '.planKey == "qa-validation-plan" and .planActive == true' \
+            /tmp/fixi-platform-plan-assigned.json
           platform_get "/api/v1/auth/platform/tenants/$tenant_id/subscriptions?page=0&size=10" /tmp/fixi-platform-tenant-subscriptions.json
-          jq -e '[.content[].planKey] | index("qa-validation-plan") != null' /tmp/fixi-platform-tenant-subscriptions.json >/dev/null
+          assert_json 'tenant plan history' \
+            '[.content[].planKey] | index("qa-validation-plan") != null' \
+            /tmp/fixi-platform-tenant-subscriptions.json
           platform_get '/api/v1/auth/platform/subscriptions?page=0&size=20' /tmp/fixi-platform-subscriptions.json
-          jq -e --arg id "$tenant_id" '[.content[].tenantId] | index($id) != null' /tmp/fixi-platform-subscriptions.json >/dev/null
+          assert_json 'global subscription history' --arg id "$tenant_id" \
+            '[.content[].tenantId] | index($id) != null' /tmp/fixi-platform-subscriptions.json
+          echo 'Tenant creation, search, plan assignment, and subscription history verified.'
 
           owner_login_status="$(curl --silent --show-error --output /tmp/fixi-platform-owner-login.json --dump-header /tmp/fixi-platform-owner-login.headers --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
@@ -359,7 +384,7 @@ jobs:
 
           suspend_body='{"status":"SUSPENDED"}'
           platform_mutate PATCH "/api/v1/auth/platform/tenants/$tenant_id/status" "$suspend_body" 200 /tmp/fixi-platform-suspended.json
-          jq -e '.status == "SUSPENDED"' /tmp/fixi-platform-suspended.json >/dev/null
+          assert_json 'tenant suspension state' '.status == "SUSPENDED"' /tmp/fixi-platform-suspended.json
           suspended_login_status="$(curl --silent --show-error --output /tmp/fixi-platform-suspended-login.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
             --data "$(jq -nc --arg u "$owner_username" --arg p "$owner_password" '{username:$u,password:$p}')")"
@@ -381,11 +406,12 @@ jobs:
             exit 1
           fi
           platform_get "/api/v1/auth/platform/tenants/$tenant_id" /tmp/fixi-platform-suspended-admin-read.json
-          jq -e '.status == "SUSPENDED"' /tmp/fixi-platform-suspended-admin-read.json >/dev/null
+          assert_json 'suspended tenant remains persisted' \
+            '.status == "SUSPENDED"' /tmp/fixi-platform-suspended-admin-read.json
 
           activate_body='{"status":"ACTIVE"}'
           platform_mutate PATCH "/api/v1/auth/platform/tenants/$tenant_id/status" "$activate_body" 200 /tmp/fixi-platform-reactivated.json
-          jq -e '.status == "ACTIVE"' /tmp/fixi-platform-reactivated.json >/dev/null
+          assert_json 'tenant reactivation state' '.status == "ACTIVE"' /tmp/fixi-platform-reactivated.json
           reactivated_login_status="$(curl --silent --show-error --output /tmp/fixi-platform-reactivated-login.json --dump-header /tmp/fixi-platform-reactivated-login.headers --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
             --data "$(jq -nc --arg u "$owner_username" --arg p "$owner_password" '{username:$u,password:$p}')")"
@@ -405,13 +431,18 @@ jobs:
           fi
 
           platform_get "/api/v1/auth/platform/users?search=$owner_username&page=0&size=10" /tmp/fixi-platform-owner-directory.json
-          jq -e --arg username "$owner_username" '[.content[].username] | index($username) != null' /tmp/fixi-platform-owner-directory.json >/dev/null
+          assert_json 'tenant owner appears in global user directory' \
+            --arg username "$owner_username" '[.content[].username] | index($username) != null' \
+            /tmp/fixi-platform-owner-directory.json
           platform_get "/api/v1/auth/platform/audit?tenantId=$tenant_id&page=0&size=50" /tmp/fixi-platform-audit.json
           for action in TENANT_CREATED TENANT_PLAN_ASSIGNED TENANT_SUSPENDED TENANT_REACTIVATED; do
-            jq -e --arg action "$action" '[.content[].action] | index($action) != null' /tmp/fixi-platform-audit.json >/dev/null
+            assert_json "audit action $action" --arg action "$action" \
+              '[.content[].action] | index($action) != null' /tmp/fixi-platform-audit.json
           done
-          jq -e '[.content[].metadataJson | test("password|token|cookie|secret"; "i")] | any | not' \
-            /tmp/fixi-platform-audit.json >/dev/null
+          assert_json 'tenant lifecycle audit metadata redaction' \
+            '[.content[].metadataJson | test("password|token|cookie|secret"; "i")] | any | not' \
+            /tmp/fixi-platform-audit.json
+          echo 'Owner first-login, suspension/reactivation, and tenant audit flows verified.'
 
           # Reboot into the production seed-cleanup mode and prove that the fixed
           # E2E logins and their explicit bootstrap grants cannot authenticate.

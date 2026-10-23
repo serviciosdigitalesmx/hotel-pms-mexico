@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -29,11 +30,14 @@ class MonolithEdgeHeadersFilterTest {
     final MockHttpServletResponse response = new MockHttpServletResponse();
     final List<String> observed = new ArrayList<>();
     final FilterChain chain = (wrappedRequest, wrappedResponse) -> {
-      observed.add(wrappedRequest.getHeader("X-Correlation-ID"));
-      observed.add(wrappedRequest.getHeader("X-Client-IP"));
-      observed.add(String.join(",", java.util.Collections.list(wrappedRequest.getHeaders("X-Correlation-ID"))));
-      observed.add(String.join(",", java.util.Collections.list(wrappedRequest.getHeaders("X-Client-IP"))));
-      observed.add(String.join(",", java.util.Collections.list(wrappedRequest.getHeaderNames())));
+      final jakarta.servlet.http.HttpServletRequest httpRequest = asHttpRequest(wrappedRequest);
+      observed.add(httpRequest.getHeader("X-Correlation-ID"));
+      observed.add(httpRequest.getHeader("X-Client-IP"));
+      observed.add(
+          String.join(",", java.util.Collections.list(httpRequest.getHeaders("X-Correlation-ID"))));
+      observed.add(
+          String.join(",", java.util.Collections.list(httpRequest.getHeaders("X-Client-IP"))));
+      observed.add(String.join(",", java.util.Collections.list(httpRequest.getHeaderNames())));
       observed.add(MDC.get("correlationId"));
     };
 
@@ -66,8 +70,9 @@ class MonolithEdgeHeadersFilterTest {
     final MockHttpServletResponse response = new MockHttpServletResponse();
     final List<String> observed = new ArrayList<>();
     final FilterChain chain = (wrappedRequest, wrappedResponse) -> {
-      observed.add(wrappedRequest.getHeader("X-Correlation-ID"));
-      observed.add(wrappedRequest.getHeader("X-Client-IP"));
+      final jakarta.servlet.http.HttpServletRequest httpRequest = asHttpRequest(wrappedRequest);
+      observed.add(httpRequest.getHeader("X-Correlation-ID"));
+      observed.add(httpRequest.getHeader("X-Client-IP"));
     };
 
     filter.doFilter(request, response, chain);
@@ -110,8 +115,14 @@ class MonolithEdgeHeadersFilterTest {
     filter.doFilter(
         request,
         new MockHttpServletResponse(),
-        (wrappedRequest, wrappedResponse) -> clientIp.add(wrappedRequest.getHeader("X-Client-IP")));
+        (wrappedRequest, wrappedResponse) ->
+            clientIp.add(asHttpRequest(wrappedRequest).getHeader("X-Client-IP")));
     return clientIp.getFirst();
+  }
+
+  private static jakarta.servlet.http.HttpServletRequest asHttpRequest(
+      final ServletRequest request) {
+    return (jakarta.servlet.http.HttpServletRequest) request;
   }
 
   private static MockHttpServletRequest request(final String path) {

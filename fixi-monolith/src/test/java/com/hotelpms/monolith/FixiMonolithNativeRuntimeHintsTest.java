@@ -20,6 +20,6 @@ class FixiMonolithNativeRuntimeHintsTest {
             .forResource("db/monolith-migrations/V24__platform_super_admin_console.sql")
             .test(hints));
     assertTrue(RuntimeHintsPredicates.resource().forResource("fonts/DejaVuSans.ttf").test(hints));
-    assertTrue(RuntimeHintsPredicates.reflection().forType(UUID[].class).test(hints));
+    assertTrue(RuntimeHintsPredicates.reflection().onType(UUID[].class).test(hints));
   }
 }
