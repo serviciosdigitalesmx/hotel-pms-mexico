@@ -35,6 +35,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class SaasIdentityServiceTest {
 
   private static final String OWNER_EMAIL = "owner@example.com";
+  private static final String BOOTSTRAP_PASSWORD = "StrongPass1";
+  private static final String VERIFY_EMAIL_PURPOSE = "VERIFY_EMAIL";
+  private static final String PLATFORM_USERNAME = "platform-operator";
+  private static final String PLATFORM_EMAIL = "operator@example.com";
 
   @Mock private HotelRegistryRepository hotels;
   @Mock private UserAccountRepository users;
@@ -60,13 +64,13 @@ class SaasIdentityServiceTest {
             "Fixi Owner",
             " OWNER@EXAMPLE.COM ",
             null,
-            "StrongPass1",
+            BOOTSTRAP_PASSWORD,
             "Reparación Ñandú",
             null,
             "Sucursal Centro");
     when(users.existsByEmailIncludingInactive(OWNER_EMAIL)).thenReturn(false);
     when(hotels.existsBySlug("reparacion-nandu")).thenReturn(false);
-    when(passwords.encode("StrongPass1")).thenReturn("encoded-password");
+    when(passwords.encode(BOOTSTRAP_PASSWORD)).thenReturn("encoded-password");
     when(hotels.save(any(HotelRegistry.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     when(users.save(any(UserAccount.class)))
@@ -94,16 +98,16 @@ class SaasIdentityServiceTest {
     assertThat(ownerCaptor.getValue().isActive()).isFalse();
     verify(tokens).save(tokenCaptor.capture());
     assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(ownerId);
-    assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo("VERIFY_EMAIL");
+    assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo(VERIFY_EMAIL_PURPOSE);
     verify(mail).verification(org.mockito.ArgumentMatchers.eq(OWNER_EMAIL), any());
   }
 
   @Test
   void platformBootstrapCreatesInactiveTenantlessIdentityAndSendsVerification() {
     final UUID platformUserId = UUID.randomUUID();
-    when(users.existsByUsernameIncludingInactive("platform-operator")).thenReturn(false);
-    when(users.existsByEmailIncludingInactive("operator@example.com")).thenReturn(false);
-    when(passwords.encode("StrongPass1")).thenReturn("encoded-password");
+    when(users.existsByUsernameIncludingInactive(PLATFORM_USERNAME)).thenReturn(false);
+    when(users.existsByEmailIncludingInactive(PLATFORM_EMAIL)).thenReturn(false);
+    when(passwords.encode(BOOTSTRAP_PASSWORD)).thenReturn("encoded-password");
     when(users.save(any(UserAccount.class)))
         .thenAnswer(
             invocation -> {
@@ -115,20 +119,20 @@ class SaasIdentityServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     service.createPlatformBootstrapIdentity(
-        "platform-operator", " OPERATOR@EXAMPLE.COM ", "Platform Operator", "StrongPass1");
+        PLATFORM_USERNAME, " OPERATOR@EXAMPLE.COM ", "Platform Operator", BOOTSTRAP_PASSWORD);
 
     verify(users).save(ownerCaptor.capture());
     final UserAccount platformUser = ownerCaptor.getValue();
-    assertThat(platformUser.getUsername()).isEqualTo("platform-operator");
-    assertThat(platformUser.getEmail()).isEqualTo("operator@example.com");
+    assertThat(platformUser.getUsername()).isEqualTo(PLATFORM_USERNAME);
+    assertThat(platformUser.getEmail()).isEqualTo(PLATFORM_EMAIL);
     assertThat(platformUser.getHotelId()).isNull();
     assertThat(platformUser.getRole()).isEqualTo(com.hotelpms.auth.domain.Role.GUEST);
     assertThat(platformUser.isActive()).isFalse();
     assertThat(platformUser.isEmailVerified()).isFalse();
     verify(tokens).save(tokenCaptor.capture());
     assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(platformUserId);
-    assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo("VERIFY_EMAIL");
-    verify(mail).verification(org.mockito.ArgumentMatchers.eq("operator@example.com"), any());
+    assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo(VERIFY_EMAIL_PURPOSE);
+    verify(mail).verification(org.mockito.ArgumentMatchers.eq(PLATFORM_EMAIL), any());
   }
 
   @Test
@@ -137,19 +141,21 @@ class SaasIdentityServiceTest {
     final AccountToken verification =
         AccountToken.builder()
             .userId(platformUserId)
-            .purpose("VERIFY_EMAIL")
+            .purpose(VERIFY_EMAIL_PURPOSE)
             .expiresAt(LocalDateTime.now().plusHours(1))
             .createdAt(LocalDateTime.now())
             .build();
     final UserAccount platformUser =
         UserAccount.builder()
             .id(platformUserId)
-            .username("platform-operator")
+            .username(PLATFORM_USERNAME)
             .hotelId(null)
             .active(false)
             .emailVerified(false)
             .build();
-    when(tokens.findByTokenHashAndPurpose(any(), org.mockito.ArgumentMatchers.eq("VERIFY_EMAIL")))
+    when(
+            tokens.findByTokenHashAndPurpose(
+                any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
         .thenReturn(java.util.Optional.of(verification));
     when(tokens.save(any(AccountToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(users.findByIdIncludingInactive(platformUserId)).thenReturn(java.util.Optional.of(platformUser));

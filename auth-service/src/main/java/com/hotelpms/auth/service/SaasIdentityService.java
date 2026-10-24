@@ -43,6 +43,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /** Handles self-service tenant identity, onboarding, and invitation workflows. */
 @Service
@@ -51,6 +52,10 @@ public class SaasIdentityService {
   private static final String VERIFY = "VERIFY_EMAIL";
   private static final String RESET = "RESET_PASSWORD";
   private static final String TOKEN_INVALID = "TOKEN_INVALID";
+  private static final int MAX_PLATFORM_USERNAME_LENGTH = 50;
+  private static final int MAX_PLATFORM_EMAIL_LENGTH = 100;
+  private static final int MAX_PLATFORM_FULL_NAME_LENGTH = 160;
+  private static final int MIN_PLATFORM_PASSWORD_LENGTH = 6;
   private static final int TOKEN_EXPIRY_HOURS = 24;
   private static final int MAX_SLUG_LENGTH = 80;
   private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -189,11 +194,11 @@ public class SaasIdentityService {
     final String normalizedUsername = username.trim();
     final String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
     if (!normalizedEmail.contains("@")
-        || normalizedUsername.length() > 50
-        || normalizedEmail.length() > 100
-        || fullName.trim().isEmpty()
-        || fullName.trim().length() > 160
-        || password.length() < 6
+        || normalizedUsername.length() > MAX_PLATFORM_USERNAME_LENGTH
+        || normalizedEmail.length() > MAX_PLATFORM_EMAIL_LENGTH
+        || !StringUtils.hasText(fullName)
+        || fullName.trim().length() > MAX_PLATFORM_FULL_NAME_LENGTH
+        || password.length() < MIN_PLATFORM_PASSWORD_LENGTH
         || password.chars().noneMatch(Character::isUpperCase)) {
       throw new IllegalArgumentException("Platform bootstrap identity configuration is invalid.");
     }
