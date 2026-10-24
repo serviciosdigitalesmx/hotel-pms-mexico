@@ -102,7 +102,7 @@ class MonolithJwtAuthenticationFilterTest {
 
     assertEquals(200, response.getStatus());
     assertNotNull(chain.getRequest());
-    assertNull(chain.getRequest().getHeader("X-Auth-Hotel"));
+    assertNull(((MockHttpServletRequest) chain.getRequest()).getHeader("X-Auth-Hotel"));
     assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
         .anyMatch(authority -> "PLATFORM_SUPER_ADMIN".equals(authority.getAuthority())));
   }
