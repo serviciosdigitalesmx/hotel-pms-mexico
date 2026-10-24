@@ -61,8 +61,8 @@ test('Super Admin uses the real monolith platform console; tenant admin is denie
   await tenantPage.getByTestId('login-submit').click();
   await expect(tenantPage).toHaveURL(/\/change-password$/);
   await tenantPage.getByLabel('Contraseña actual o temporal').fill(tenantAdmin.password);
-  await tenantPage.getByLabel('Nueva contraseña').fill(tenantAdmin.newPassword);
-  await tenantPage.getByLabel('Confirma tu contraseña').fill(tenantAdmin.newPassword);
+  await tenantPage.getByLabel('Nueva contraseña', { exact: true }).fill(tenantAdmin.newPassword);
+  await tenantPage.getByLabel('Confirma la nueva contraseña', { exact: true }).fill(tenantAdmin.newPassword);
   await tenantPage.getByRole('button', { name: 'Actualizar contraseña' }).click();
   await expect(tenantPage.getByRole('heading', { name: 'Dashboard Fixi' })).toBeVisible();
 
