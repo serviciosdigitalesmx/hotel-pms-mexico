@@ -4,15 +4,20 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vitest/config"
 
 // https://vite.dev/config/
+const apiProxy = {
+  '/api': {
+    target: process.env.FIXI_API_PROXY_TARGET || 'http://localhost:8080',
+    changeOrigin: true,
+  },
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    proxy: {
-      '/api': {
-        target: process.env.FIXI_API_PROXY_TARGET || 'http://localhost:8080',
-        changeOrigin: true,
-      },
-    },
+    proxy: apiProxy,
+  },
+  preview: {
+    proxy: apiProxy,
   },
   resolve: {
     alias: {

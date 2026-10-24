@@ -12,7 +12,13 @@ const tenantAdmin = {
 
 test('Super Admin uses the real monolith platform console; tenant admin is denied', async ({ browser, page }) => {
   const runtimeErrors: string[] = [];
+  const dashboardStatuses: number[] = [];
   page.on('pageerror', error => runtimeErrors.push(error.message));
+  page.on('response', response => {
+    if (response.url().includes('/api/v1/auth/platform/dashboard')) {
+      dashboardStatuses.push(response.status());
+    }
+  });
 
   await page.goto('/login');
   await page.getByLabel('Correo o usuario').fill(platformAdmin.username);
@@ -24,6 +30,8 @@ test('Super Admin uses the real monolith platform console; tenant admin is denie
   await expect(page.getByText('Consola Super Admin')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Resumen de plataforma' })).toBeVisible();
   await expect(page.getByText('Talleres registrados')).toBeVisible();
+  await expect.poll(() => dashboardStatuses.length).toBeGreaterThanOrEqual(2);
+  expect(dashboardStatuses.every(status => status === 200), 'platform dashboard requests should succeed').toBe(true);
 
   const sections = [
     { link: 'Talleres', heading: 'Talleres', api: '/api/v1/auth/platform/tenants' },
@@ -33,6 +41,8 @@ test('Super Admin uses the real monolith platform console; tenant admin is denie
   ];
 
   for (const section of sections) {
+    // Respect the actual platform endpoint token-bucket refill between user navigations.
+    await page.waitForTimeout(650);
     const response = page.waitForResponse(result =>
       result.url().includes(section.api) && result.request().method() === 'GET');
     await page.getByRole('link', { name: section.link, exact: true }).click();
