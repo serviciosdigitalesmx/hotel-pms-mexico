@@ -14,6 +14,7 @@ import com.hotelpms.auth.repository.HotelRegistryRepository;
 import com.hotelpms.auth.repository.PlatformAdminGrantRepository;
 import com.hotelpms.auth.service.JwtService;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -102,7 +103,7 @@ class MonolithJwtAuthenticationFilterTest {
 
     assertEquals(200, response.getStatus());
     assertNotNull(chain.getRequest());
-    assertNull(((MockHttpServletRequest) chain.getRequest()).getHeader("X-Auth-Hotel"));
+    assertNull(((HttpServletRequest) chain.getRequest()).getHeader("X-Auth-Hotel"));
     assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
         .anyMatch(authority -> "PLATFORM_SUPER_ADMIN".equals(authority.getAuthority())));
   }
