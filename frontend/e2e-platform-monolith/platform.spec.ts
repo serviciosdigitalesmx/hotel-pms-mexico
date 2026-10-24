@@ -69,7 +69,7 @@ test('Super Admin uses the real monolith platform console; tenant admin is denie
   await tenantPage.goto('/platform');
   const deniedResponse = tenantPage.waitForResponse(result =>
     result.url().includes('/api/v1/auth/platform/dashboard') && result.request().method() === 'GET');
-  await expect(tenantPage.getByText('Esta cuenta no tiene autoridad SUPER_ADMIN.')).toBeVisible();
+  await expect(tenantPage.getByRole('alert')).toContainText('HTTP 403');
   expect((await deniedResponse).status(), 'tenant administrator must be rejected by the backend').toBe(403);
 
   expect(runtimeErrors, 'Super Admin browser should have no uncaught runtime errors').toEqual([]);
