@@ -2,6 +2,7 @@ package com.hotelpms.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,27 +36,30 @@ class PlatformAdminBootstrapRunnerTest {
   @Mock private PlatformAdminGrantRepository grants;
   @Mock private UserAccountRepository users;
   @Mock private PlatformAuditEventRepository auditEvents;
+  @Mock private SaasIdentityService identities;
 
   private PlatformAdminBootstrapRunner runner;
 
   @BeforeEach
   void setUp() {
-    runner = new PlatformAdminBootstrapRunner(grants, users, auditEvents);
+    runner = new PlatformAdminBootstrapRunner(grants, users, auditEvents, identities);
     ReflectionTestUtils.setField(runner, "username", BOOTSTRAP_USERNAME);
   }
 
   @Test
-  void grantsOnlyExistingActiveVerifiedAccountAndPersistsSafeAudit() {
+  void grantsOnlyActiveVerifiedAccountAndPersistsSafeAudit() {
     final UUID tenantId = UUID.randomUUID();
-    final UserAccount account = UserAccount.builder()
-        .id(UUID.randomUUID())
-        .username(BOOTSTRAP_USERNAME)
-        .hotelId(tenantId)
-        .active(true)
-        .emailVerified(true)
-        .build();
-    when(grants.countByActiveTrue()).thenReturn(0L);
-    when(users.findByUsername(BOOTSTRAP_USERNAME)).thenReturn(Optional.of(account));
+    final UserAccount account =
+        UserAccount.builder()
+            .id(UUID.randomUUID())
+            .username(BOOTSTRAP_USERNAME)
+            .hotelId(tenantId)
+            .active(true)
+            .emailVerified(true)
+            .build();
+    when(grants.count()).thenReturn(0L);
+    when(users.findByUsernameIncludingInactive(BOOTSTRAP_USERNAME))
+        .thenReturn(Optional.of(account));
 
     runBootstrap();
 
@@ -76,20 +80,46 @@ class PlatformAdminBootstrapRunnerTest {
   }
 
   @Test
-  void existingActiveGrantMakesBootstrapIdempotent() {
-    when(grants.countByActiveTrue()).thenReturn(1L);
+  void grantsVerifiedTenantlessPlatformIdentityWithoutTenantAuditTarget() {
+    final UserAccount account =
+        UserAccount.builder()
+            .id(UUID.randomUUID())
+            .username(BOOTSTRAP_USERNAME)
+            .hotelId(null)
+            .active(true)
+            .emailVerified(true)
+            .build();
+    when(grants.count()).thenReturn(0L);
+    when(users.findByUsernameIncludingInactive(BOOTSTRAP_USERNAME))
+        .thenReturn(Optional.of(account));
 
     runBootstrap();
 
-    verify(users, never()).findByUsername(BOOTSTRAP_USERNAME);
+    final ArgumentCaptor<PlatformAdminGrant> grantCaptor =
+        ArgumentCaptor.forClass(PlatformAdminGrant.class);
+    verify(grants).save(grantCaptor.capture());
+    assertEquals(account, grantCaptor.getValue().getUser());
+    final ArgumentCaptor<PlatformAuditEvent> auditCaptor =
+        ArgumentCaptor.forClass(PlatformAuditEvent.class);
+    verify(auditEvents).save(auditCaptor.capture());
+    assertNull(auditCaptor.getValue().getTargetTenantId());
+  }
+
+  @Test
+  void existingActiveGrantMakesBootstrapIdempotent() {
+    when(grants.count()).thenReturn(1L);
+
+    runBootstrap();
+
+    verify(users, never()).findByUsernameIncludingInactive(BOOTSTRAP_USERNAME);
     verify(grants, never()).save(any(PlatformAdminGrant.class));
     verify(auditEvents, never()).save(any(PlatformAuditEvent.class));
   }
 
   @Test
   void rejectsMissingAccountAndDoesNotCreateGrant() {
-    when(grants.countByActiveTrue()).thenReturn(0L);
-    when(users.findByUsername(BOOTSTRAP_USERNAME)).thenReturn(Optional.empty());
+    when(grants.count()).thenReturn(0L);
+    when(users.findByUsernameIncludingInactive(BOOTSTRAP_USERNAME)).thenReturn(Optional.empty());
 
     assertThrows(
         IllegalStateException.class,
@@ -102,49 +132,67 @@ class PlatformAdminBootstrapRunnerTest {
   @Test
   void rejectsBlankConfiguredUsernameBeforeLookingUpAnAccount() {
     ReflectionTestUtils.setField(runner, "username", " ");
-    when(grants.countByActiveTrue()).thenReturn(0L);
+    when(grants.count()).thenReturn(0L);
 
     assertThrows(
         IllegalStateException.class,
         () -> runner.run(new DefaultApplicationArguments(new String[0])));
 
-    verify(users, never()).findByUsername(any(String.class));
+    verify(users, never()).findByUsernameIncludingInactive(any(String.class));
     verify(grants, never()).save(any(PlatformAdminGrant.class));
     verify(auditEvents, never()).save(any(PlatformAuditEvent.class));
   }
 
   @Test
-  void rejectsInactiveAccountAndDoesNotCreateGrant() {
-    final UserAccount account = UserAccount.builder()
-        .username(BOOTSTRAP_USERNAME)
-        .active(false)
-        .emailVerified(true)
-        .build();
-    when(grants.countByActiveTrue()).thenReturn(0L);
-    when(users.findByUsername(BOOTSTRAP_USERNAME)).thenReturn(Optional.of(account));
+  void waitsForInactiveAccountToCompleteEmailVerification() {
+    final UserAccount account =
+        UserAccount.builder()
+            .username(BOOTSTRAP_USERNAME)
+            .active(false)
+            .emailVerified(true)
+            .build();
+    when(grants.count()).thenReturn(0L);
+    when(users.findByUsernameIncludingInactive(BOOTSTRAP_USERNAME))
+        .thenReturn(Optional.of(account));
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> runner.run(new DefaultApplicationArguments(new String[0])));
+    runBootstrap();
 
     verify(grants, never()).save(any(PlatformAdminGrant.class));
     verify(auditEvents, never()).save(any(PlatformAuditEvent.class));
   }
 
   @Test
-  void rejectsUnverifiedAccountAndDoesNotCreateGrant() {
-    final UserAccount account = UserAccount.builder()
-        .username(BOOTSTRAP_USERNAME)
-        .active(true)
-        .emailVerified(false)
-        .build();
-    when(grants.countByActiveTrue()).thenReturn(0L);
-    when(users.findByUsername(BOOTSTRAP_USERNAME)).thenReturn(Optional.of(account));
+  void waitsForUnverifiedAccountBeforeCreatingGrant() {
+    final UserAccount account =
+        UserAccount.builder()
+            .username(BOOTSTRAP_USERNAME)
+            .active(true)
+            .emailVerified(false)
+            .build();
+    when(grants.count()).thenReturn(0L);
+    when(users.findByUsernameIncludingInactive(BOOTSTRAP_USERNAME))
+        .thenReturn(Optional.of(account));
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> runner.run(new DefaultApplicationArguments(new String[0])));
+    runBootstrap();
 
+    verify(grants, never()).save(any(PlatformAdminGrant.class));
+    verify(auditEvents, never()).save(any(PlatformAuditEvent.class));
+  }
+
+  @Test
+  void provisionsTenantlessIdentityAndWaitsForEmailVerification() {
+    ReflectionTestUtils.setField(runner, "email", "operator@example.com");
+    ReflectionTestUtils.setField(runner, "fullName", "Platform Operator");
+    ReflectionTestUtils.setField(runner, "password", "CI-only-secret");
+    when(grants.count()).thenReturn(0L);
+    when(users.findByUsernameIncludingInactive(BOOTSTRAP_USERNAME))
+        .thenReturn(Optional.empty());
+
+    runBootstrap();
+
+    verify(identities)
+        .createPlatformBootstrapIdentity(
+            BOOTSTRAP_USERNAME, "operator@example.com", "Platform Operator", "CI-only-secret");
     verify(grants, never()).save(any(PlatformAdminGrant.class));
     verify(auditEvents, never()).save(any(PlatformAuditEvent.class));
   }

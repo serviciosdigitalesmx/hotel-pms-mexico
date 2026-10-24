@@ -24,7 +24,7 @@ class PlatformAdminMigrationCompatibilityTest {
   private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
   @Test
-  void v24PreservesExistingPlanHistoryAndCreatesNoSuperAdminGrants() {
+  void platformMigrationsPreservePlanHistoryAllowTenantlessAccountsAndCreateNoGrants() {
     final JdbcTemplate jdbc = jdbc();
     flyway(MigrationVersion.fromVersion("23")).migrate();
     insertLegacyTenantAndPlan(jdbc, ACTIVE_TENANT, "legacy-active", true);
@@ -42,11 +42,19 @@ class PlatformAdminMigrationCompatibilityTest {
             + " AND status = 'ENDED' AND ends_at IS NOT NULL",
         Integer.class, INACTIVE_TENANT, "legacy-inactive"));
     assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM platform_admin_grant", Integer.class));
+    assertEquals("YES", jdbc.queryForObject(
+        "SELECT is_nullable FROM information_schema.columns"
+            + " WHERE table_schema = 'public' AND table_name = 'user_account'"
+            + " AND column_name = 'hotel_id'",
+        String.class));
     assertNotNull(jdbc.queryForObject(
         "SELECT indexname FROM pg_indexes WHERE indexname = 'uq_platform_subscription_active_tenant'",
         String.class));
     assertEquals(1, jdbc.queryForObject(
         "SELECT count(*) FROM flyway_history_auth_service WHERE version = '24' AND success",
+        Integer.class));
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM flyway_history_auth_service WHERE version = '25' AND success",
         Integer.class));
   }
 

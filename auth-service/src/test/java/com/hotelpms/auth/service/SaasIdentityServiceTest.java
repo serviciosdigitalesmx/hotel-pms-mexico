@@ -2,6 +2,8 @@ package com.hotelpms.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +20,7 @@ import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
 import com.hotelpms.auth.repository.TenantInvitationRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.auth.repository.UserBranchMembershipRepository;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -93,5 +96,69 @@ class SaasIdentityServiceTest {
     assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(ownerId);
     assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo("VERIFY_EMAIL");
     verify(mail).verification(org.mockito.ArgumentMatchers.eq(OWNER_EMAIL), any());
+  }
+
+  @Test
+  void platformBootstrapCreatesInactiveTenantlessIdentityAndSendsVerification() {
+    final UUID platformUserId = UUID.randomUUID();
+    when(users.existsByUsernameIncludingInactive("platform-operator")).thenReturn(false);
+    when(users.existsByEmailIncludingInactive("operator@example.com")).thenReturn(false);
+    when(passwords.encode("StrongPass1")).thenReturn("encoded-password");
+    when(users.save(any(UserAccount.class)))
+        .thenAnswer(
+            invocation -> {
+              final UserAccount saved = invocation.getArgument(0);
+              saved.setId(platformUserId);
+              return saved;
+            });
+    when(tokens.save(any(AccountToken.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.createPlatformBootstrapIdentity(
+        "platform-operator", " OPERATOR@EXAMPLE.COM ", "Platform Operator", "StrongPass1");
+
+    verify(users).save(ownerCaptor.capture());
+    final UserAccount platformUser = ownerCaptor.getValue();
+    assertThat(platformUser.getUsername()).isEqualTo("platform-operator");
+    assertThat(platformUser.getEmail()).isEqualTo("operator@example.com");
+    assertThat(platformUser.getHotelId()).isNull();
+    assertThat(platformUser.getRole()).isEqualTo(com.hotelpms.auth.domain.Role.GUEST);
+    assertThat(platformUser.isActive()).isFalse();
+    assertThat(platformUser.isEmailVerified()).isFalse();
+    verify(tokens).save(tokenCaptor.capture());
+    assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(platformUserId);
+    assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo("VERIFY_EMAIL");
+    verify(mail).verification(org.mockito.ArgumentMatchers.eq("operator@example.com"), any());
+  }
+
+  @Test
+  void verificationActivatesTenantlessIdentityWithoutLookingUpATenant() {
+    final UUID platformUserId = UUID.randomUUID();
+    final AccountToken verification =
+        AccountToken.builder()
+            .userId(platformUserId)
+            .purpose("VERIFY_EMAIL")
+            .expiresAt(LocalDateTime.now().plusHours(1))
+            .createdAt(LocalDateTime.now())
+            .build();
+    final UserAccount platformUser =
+        UserAccount.builder()
+            .id(platformUserId)
+            .username("platform-operator")
+            .hotelId(null)
+            .active(false)
+            .emailVerified(false)
+            .build();
+    when(tokens.findByTokenHashAndPurpose(any(), org.mockito.ArgumentMatchers.eq("VERIFY_EMAIL")))
+        .thenReturn(java.util.Optional.of(verification));
+    when(tokens.save(any(AccountToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(users.findByIdIncludingInactive(platformUserId)).thenReturn(java.util.Optional.of(platformUser));
+
+    service.verify("opaque-verification-token");
+
+    assertThat(platformUser.isActive()).isTrue();
+    assertThat(platformUser.isEmailVerified()).isTrue();
+    verify(users).save(platformUser);
+    verify(hotels, never()).findById(isNull());
   }
 }

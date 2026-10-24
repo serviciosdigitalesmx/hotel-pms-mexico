@@ -139,6 +139,40 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void tenantlessAccountCanLoginOnlyWithPersistedPlatformGrant() {
+        testUser.setId(UUID.randomUUID());
+        testUser.setHotelId(null);
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+        when(platformAdminGrants.hasActiveGrantForUserId(testUser.getId())).thenReturn(true);
+        when(jwtService.generateToken(
+                TEST_USER, Role.GUEST, null, null, TEST_TOKEN_VERSION, false, true))
+                .thenReturn(MOCK_TOKEN);
+        when(jwtService.generateRefreshToken(
+                TEST_USER, Role.GUEST, null, null, TEST_TOKEN_VERSION, false, true))
+                .thenReturn(MOCK_REFRESH_TOKEN);
+
+        final AuthResponse response = authService.login(loginRequest, TEST_IP);
+
+        assertEquals(MOCK_TOKEN, response.token());
+        assertEquals(MOCK_REFRESH_TOKEN, response.refreshToken());
+        verify(platformAdminGrants).hasActiveGrantForUserId(testUser.getId());
+    }
+
+    @Test
+    void tenantlessAccountWithoutPersistedPlatformGrantCannotLogin() {
+        testUser.setId(UUID.randomUUID());
+        testUser.setHotelId(null);
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+        when(platformAdminGrants.hasActiveGrantForUserId(testUser.getId())).thenReturn(false);
+
+        assertThrows(
+                BadCredentialsException.class,
+                () -> authService.login(loginRequest, TEST_IP));
+    }
+
+    @Test
     void loginPropagatesMustChangePasswordIntoJwtClaims() {
         final UserAccount userWithTempPassword = UserAccount.builder()
                 .username(TEST_USER)

@@ -108,7 +108,13 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
       response.sendError(HttpServletResponse.SC_FORBIDDEN);
       return;
     }
+    if (identity.tenantId() == null
+        && (!platformGrant || (!platformPath && !isPlatformSelfServicePath(path)))) {
+      response.sendError(HttpServletResponse.SC_FORBIDDEN);
+      return;
+    }
     if (!platformPath
+        && identity.tenantId() != null
         && hotelRegistry.findById(java.util.UUID.fromString(identity.tenantId()))
             .map(tenant -> "SUSPENDED".equalsIgnoreCase(tenant.getStatus()))
             .orElse(false)) {
@@ -153,16 +159,11 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     final String role = jwtService.extractClaim(token, claims -> claims.get("role", String.class));
     final String platformRole = jwtService.extractPlatformRole(token);
     final java.util.UUID tenantUuid = jwtService.extractHotelId(token);
-    if (tenantUuid == null) {
-      throw new JwtException("TOKEN_TENANT_REQUIRED");
-    }
-    final String tenantId = tenantUuid.toString();
+    final String tenantId = tenantUuid == null ? null : tenantUuid.toString();
     final java.util.UUID branchUuid = jwtService.extractBranchId(token);
     final String branchId = branchUuid == null ? null : branchUuid.toString();
     final boolean mustChangePassword = jwtService.extractMustChangePassword(token);
-    if (!StringUtils.hasText(username)
-        || !StringUtils.hasText(role)
-        || !StringUtils.hasText(tenantId)) {
+    if (!StringUtils.hasText(username) || !StringUtils.hasText(role)) {
       throw new JwtException("INVALID_ACCESS_TOKEN_CLAIMS");
     }
     return new AuthenticatedIdentity(
@@ -188,7 +189,9 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     final Map<String, String> identityHeaders = new LinkedHashMap<>();
     identityHeaders.put("x-auth-user", username);
     identityHeaders.put("x-auth-role", role);
-    identityHeaders.put("x-auth-hotel", tenantId);
+    if (tenantId != null) {
+      identityHeaders.put("x-auth-hotel", tenantId);
+    }
     if (branchId != null) {
       identityHeaders.put("x-auth-branch", branchId);
     }
@@ -290,6 +293,10 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
         || path.equals("/api/v1/auth/me")
         || path.equals("/api/v1/auth/logout")
         || path.equals("/api/v1/auth/refresh");
+  }
+
+  private static boolean isPlatformSelfServicePath(final String path) {
+    return path.equals("/api/v1/auth/me") || path.equals("/api/v1/auth/change-password");
   }
 
   private static boolean isRoleAllowed(

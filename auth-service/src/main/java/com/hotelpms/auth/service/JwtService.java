@@ -137,7 +137,9 @@ public class JwtService {
     if (superAdmin) {
       claims.put(CLAIM_PLATFORM_ROLE, "SUPER_ADMIN");
     }
-    claims.put(CLAIM_HOTEL_ID, hotelId.toString());
+    if (hotelId != null) {
+      claims.put(CLAIM_HOTEL_ID, hotelId.toString());
+    }
     if (branchId != null) {
       claims.put(CLAIM_BRANCH_ID, branchId.toString());
     }
@@ -219,7 +221,9 @@ public class JwtService {
     if (superAdmin) {
       claims.put(CLAIM_PLATFORM_ROLE, "SUPER_ADMIN");
     }
-    claims.put(CLAIM_HOTEL_ID, hotelId.toString());
+    if (hotelId != null) {
+      claims.put(CLAIM_HOTEL_ID, hotelId.toString());
+    }
     if (branchId != null) {
       claims.put(CLAIM_BRANCH_ID, branchId.toString());
     }

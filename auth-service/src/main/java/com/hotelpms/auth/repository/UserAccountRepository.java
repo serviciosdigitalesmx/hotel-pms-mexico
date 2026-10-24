@@ -32,6 +32,16 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
   Optional<UserAccount> findByUsername(String username);
 
   /**
+   * Resolves a configured bootstrap login even while its account is inactive.
+   *
+   * @param username globally unique login name
+   * @return matching account, active or inactive
+   */
+  @TenantScopeExempt(reason = "One-time platform bootstrap resolves its configured login globally")
+  @Query(value = "SELECT * FROM user_account WHERE username = :username", nativeQuery = true)
+  Optional<UserAccount> findByUsernameIncludingInactive(@Param("username") String username);
+
+  /**
    * Looks up an account by normalized email before authentication.
    *
    * @param email email address to find

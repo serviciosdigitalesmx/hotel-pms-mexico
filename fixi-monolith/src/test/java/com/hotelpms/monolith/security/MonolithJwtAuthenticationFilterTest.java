@@ -93,6 +93,34 @@ class MonolithJwtAuthenticationFilterTest {
   }
 
   @Test
+  void tenantlessGrantedPlatformIdentityCanUseConsoleWithoutTenantHeader()
+      throws ServletException, IOException {
+    when(grants.hasActiveGrantForUsername(USERNAME)).thenReturn(true);
+    final MockFilterChain chain = new MockFilterChain();
+
+    final MockHttpServletResponse response = invoke(tenantlessPlatformToken(), chain);
+
+    assertEquals(200, response.getStatus());
+    assertNotNull(chain.getRequest());
+    assertNull(chain.getRequest().getHeader("X-Auth-Hotel"));
+    assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+        .anyMatch(authority -> "PLATFORM_SUPER_ADMIN".equals(authority.getAuthority())));
+  }
+
+  @Test
+  void tenantlessPlatformIdentityCannotAccessTenantBusinessRoutes()
+      throws ServletException, IOException {
+    when(grants.hasActiveGrantForUsername(USERNAME)).thenReturn(true);
+    final MockFilterChain chain = new MockFilterChain();
+
+    final MockHttpServletResponse response =
+        invoke(tenantlessPlatformToken(), chain, "/api/v1/customers");
+
+    assertEquals(403, response.getStatus());
+    assertNull(chain.getRequest());
+  }
+
+  @Test
   void existingTenantAccessTokenIsBlockedAfterSuspension() throws ServletException, IOException {
     final HotelRegistry tenant = new HotelRegistry();
     tenant.setStatus("SUSPENDED");
@@ -111,6 +139,10 @@ class MonolithJwtAuthenticationFilterTest {
 
   private String tenantToken() {
     return jwt.generateToken(USERNAME, Role.ADMIN, TENANT_ID, null, 0, false, false);
+  }
+
+  private String tenantlessPlatformToken() {
+    return jwt.generateToken(USERNAME, Role.GUEST, null, null, 0, false, true);
   }
 
   private MockHttpServletResponse invoke(final String token, final MockFilterChain chain)

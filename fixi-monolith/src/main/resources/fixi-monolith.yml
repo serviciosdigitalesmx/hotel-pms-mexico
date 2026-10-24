@@ -67,6 +67,9 @@ fixi:
     bootstrap:
       enabled: ${FIXI_PLATFORM_BOOTSTRAP_ENABLED:false}
       username: ${FIXI_PLATFORM_BOOTSTRAP_USERNAME:}
+      email: ${FIXI_PLATFORM_BOOTSTRAP_EMAIL:}
+      full-name: ${FIXI_PLATFORM_BOOTSTRAP_FULL_NAME:}
+      password: ${FIXI_PLATFORM_BOOTSTRAP_PASSWORD:}
 
 security:
   secrets:

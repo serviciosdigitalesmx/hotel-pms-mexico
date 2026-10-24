@@ -62,7 +62,7 @@ public class UserAccount {
   @Column(nullable = false)
   private Role role;
 
-  @Column(nullable = false)
+  @Column(nullable = true)
   private UUID hotelId;
 
   @Builder.Default

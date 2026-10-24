@@ -159,9 +159,13 @@ public class AuthServiceImpl implements AuthService {
       throw new BadCredentialsException(INVALID_CREDENTIALS);
     }
 
-    if (hotelRegistry.findById(user.getHotelId())
+    final boolean platformGrant = hasPlatformGrant(user);
+    if (user.getHotelId() == null && !platformGrant) {
+      throw new BadCredentialsException(INVALID_CREDENTIALS);
+    }
+    if (user.getHotelId() != null && hotelRegistry.findById(user.getHotelId())
         .map(tenant -> "SUSPENDED".equalsIgnoreCase(tenant.getStatus()))
-        .orElse(false) && !hasPlatformGrant(user)) {
+        .orElse(false) && !platformGrant) {
       throw new BadCredentialsException(INVALID_CREDENTIALS);
     }
 
@@ -192,7 +196,7 @@ public class AuthServiceImpl implements AuthService {
             null,
             user.getTokenVersion(),
             user.isMustChangePassword(),
-            hasPlatformGrant(user));
+            platformGrant);
     final String refreshToken =
         jwtService.generateRefreshToken(
             user.getUsername(),
@@ -201,7 +205,7 @@ public class AuthServiceImpl implements AuthService {
             null,
             user.getTokenVersion(),
             user.isMustChangePassword(),
-            hasPlatformGrant(user));
+            platformGrant);
     return new AuthResponse(accessToken, refreshToken, user.isMustChangePassword());
   }
 
@@ -235,9 +239,13 @@ public class AuthServiceImpl implements AuthService {
                   return new BadCredentialsException(INVALID_REFRESH_TOKEN);
                 });
 
-    if (hotelRegistry.findById(user.getHotelId())
+    final boolean platformGrant = hasPlatformGrant(user);
+    if (user.getHotelId() == null && !platformGrant) {
+      throw new BadCredentialsException(INVALID_REFRESH_TOKEN);
+    }
+    if (user.getHotelId() != null && hotelRegistry.findById(user.getHotelId())
         .map(tenant -> "SUSPENDED".equalsIgnoreCase(tenant.getStatus()))
-        .orElse(false) && !hasPlatformGrant(user)) {
+        .orElse(false) && !platformGrant) {
       throw new BadCredentialsException(INVALID_REFRESH_TOKEN);
     }
 
@@ -271,7 +279,7 @@ public class AuthServiceImpl implements AuthService {
             null,
             user.getTokenVersion(),
             user.isMustChangePassword(),
-            hasPlatformGrant(user));
+            platformGrant);
     final String newRefreshToken =
         jwtService.generateRefreshToken(
             username,
@@ -280,7 +288,7 @@ public class AuthServiceImpl implements AuthService {
             null,
             user.getTokenVersion(),
             user.isMustChangePassword(),
-            hasPlatformGrant(user));
+            platformGrant);
     return new AuthResponse(newAccessToken, newRefreshToken, user.isMustChangePassword());
   }
 

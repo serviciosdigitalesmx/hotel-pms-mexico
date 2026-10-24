@@ -172,6 +172,52 @@ public class SaasIdentityService {
   }
 
   /**
+   * Creates the isolated, tenantless identity used only by the operator-enabled platform bootstrap.
+   * The account remains inactive until the normal one-time email verification flow is completed.
+   *
+   * @param username globally unique platform login
+   * @param email verified contact address
+   * @param fullName operator display name
+   * @param password operator-provided initial password
+   */
+  @Transactional
+  public void createPlatformBootstrapIdentity(
+      final String username,
+      final String email,
+      final String fullName,
+      final String password) {
+    final String normalizedUsername = username.trim();
+    final String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+    if (!normalizedEmail.contains("@")
+        || normalizedUsername.length() > 50
+        || normalizedEmail.length() > 100
+        || fullName.trim().isEmpty()
+        || fullName.trim().length() > 160
+        || password.length() < 6
+        || password.chars().noneMatch(Character::isUpperCase)) {
+      throw new IllegalArgumentException("Platform bootstrap identity configuration is invalid.");
+    }
+    if (users.existsByUsernameIncludingInactive(normalizedUsername)
+        || users.existsByEmailIncludingInactive(normalizedEmail)) {
+      throw new DuplicateResourceException("PLATFORM_BOOTSTRAP_IDENTITY_ALREADY_EXISTS");
+    }
+    final UserAccount account =
+        users.save(
+            UserAccount.builder()
+                .username(normalizedUsername)
+                .email(normalizedEmail)
+                .fullName(fullName.trim())
+                .passwordHash(passwords.encode(password))
+                .role(Role.GUEST)
+                .hotelId(null)
+                .active(false)
+                .emailVerified(false)
+                .mustChangePassword(false)
+                .build());
+    mail.verification(account.getEmail(), issue(account.getId(), VERIFY, TOKEN_EXPIRY_HOURS));
+  }
+
+  /**
    * Verifies a signup token and activates its owner account.
    *
    * @param rawToken single-use verification token
@@ -186,9 +232,11 @@ public class SaasIdentityService {
     user.setEmailVerified(true);
     user.setActive(true);
     users.save(user);
-    final HotelRegistry tenant = hotels.findById(user.getHotelId()).orElseThrow();
-    tenant.setStatus("ONBOARDING");
-    hotels.save(tenant);
+    if (user.getHotelId() != null) {
+      final HotelRegistry tenant = hotels.findById(user.getHotelId()).orElseThrow();
+      tenant.setStatus("ONBOARDING");
+      hotels.save(tenant);
+    }
   }
 
   /**

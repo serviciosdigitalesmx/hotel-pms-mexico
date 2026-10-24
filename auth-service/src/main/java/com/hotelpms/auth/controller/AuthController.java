@@ -306,29 +306,34 @@ public class AuthController {
       if (platformRole != null) {
         meBody.put("platformRole", platformRole);
       }
-      meBody.put("hotelId", jwtService.extractHotelId(token).toString());
+      final UUID tenantId = jwtService.extractHotelId(token);
+      if (tenantId != null) {
+        meBody.put("hotelId", tenantId.toString());
+      }
       final UUID branchId = jwtService.extractBranchId(token);
       if (branchId != null) {
         meBody.put("branchId", branchId.toString());
       }
       meBody.put("mustChangePassword", mustChange);
-      hotelRepository
-          .findById(jwtService.extractHotelId(token))
-          .ifPresent(
-              tenant -> {
-                meBody.put("tenantId", tenant.getId().toString());
-                meBody.put("businessName", tenant.getName());
-                meBody.put("tenantStatus", tenant.getStatus());
-                meBody.put("onboardingCompleted", tenant.isOnboardingCompleted());
-              });
-      industryProfiles
-          .findById(jwtService.extractHotelId(token))
-          .ifPresent(
-              profile -> {
-                meBody.put("industryKey", profile.getIndustryKey());
-                meBody.put("enabledModulesJson", profile.getEnabledModulesJson());
-                meBody.put("formsLabelsJson", profile.getFormsLabelsJson());
-              });
+      if (tenantId != null) {
+        hotelRepository
+            .findById(tenantId)
+            .ifPresent(
+                tenant -> {
+                  meBody.put("tenantId", tenant.getId().toString());
+                  meBody.put("businessName", tenant.getName());
+                  meBody.put("tenantStatus", tenant.getStatus());
+                  meBody.put("onboardingCompleted", tenant.isOnboardingCompleted());
+                });
+        industryProfiles
+            .findById(tenantId)
+            .ifPresent(
+                profile -> {
+                  meBody.put("industryKey", profile.getIndustryKey());
+                  meBody.put("enabledModulesJson", profile.getEnabledModulesJson());
+                  meBody.put("formsLabelsJson", profile.getFormsLabelsJson());
+                });
+      }
       return ResponseEntity.ok(meBody);
     } catch (final JwtException | IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-/** One-time, operator-enabled grant for an existing verified Fixi login. */
+/** One-time, operator-enabled provisioning or grant for the platform operator identity. */
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "fixi.platform.bootstrap.enabled", havingValue = "true")
@@ -25,30 +25,52 @@ public class PlatformAdminBootstrapRunner implements ApplicationRunner {
   private final PlatformAdminGrantRepository grants;
   private final UserAccountRepository users;
   private final PlatformAuditEventRepository auditEvents;
+  private final SaasIdentityService identities;
 
   @Value("${fixi.platform.bootstrap.username:}")
   private String username;
 
+  @Value("${fixi.platform.bootstrap.email:}")
+  private String email;
+
+  @Value("${fixi.platform.bootstrap.full-name:}")
+  private String fullName;
+
+  @Value("${fixi.platform.bootstrap.password:}")
+  private String password;
+
   /**
-   * Grants the configured existing account once, only when bootstrap is explicitly enabled.
+   * Provisions an isolated identity for verification, then grants it after verification.
    *
    * @param args Spring application arguments
-   * @implSpec Keep this operation idempotent and require an active, verified account.
+   * @implSpec Keep this operation one-time; only an active, verified account receives the grant.
    */
   @Override
   @Transactional
   public void run(final ApplicationArguments args) {
-    if (grants.countByActiveTrue() > 0) {
+    if (grants.count() > 0) {
       return;
     }
     if (!StringUtils.hasText(username)) {
-      throw new IllegalStateException("Platform bootstrap requires an existing username.");
+      throw new IllegalStateException("Platform bootstrap requires a configured username.");
     }
-    final var account = users.findByUsername(username.trim())
-        .filter(user -> user.isActive() && user.isEmailVerified())
-        .orElseThrow(() -> new IllegalStateException("Bootstrap account must exist and be active."));
+    final var configuredUsername = username.trim();
+    final var account = users.findByUsernameIncludingInactive(configuredUsername);
+    if (account.isEmpty()) {
+      if (!StringUtils.hasText(email)
+          || !StringUtils.hasText(fullName)
+          || !StringUtils.hasText(password)) {
+        throw new IllegalStateException(
+            "Platform bootstrap needs an existing verified account or complete identity settings.");
+      }
+      identities.createPlatformBootstrapIdentity(configuredUsername, email, fullName, password);
+      return;
+    }
+    if (!account.get().isActive() || !account.get().isEmailVerified()) {
+      return;
+    }
     final PlatformAdminGrant grant = new PlatformAdminGrant();
-    grant.setUser(account);
+    grant.setUser(account.get());
     grant.setPlatformRole(PlatformRole.SUPER_ADMIN);
     grant.setActive(true);
     grant.setGrantedAt(Instant.now());
@@ -59,7 +81,7 @@ public class PlatformAdminBootstrapRunner implements ApplicationRunner {
     event.setId(UUID.randomUUID());
     event.setActorUsername("SYSTEM_BOOTSTRAP");
     event.setAction("SUPER_ADMIN_BOOTSTRAPPED");
-    event.setTargetTenantId(account.getHotelId());
+    event.setTargetTenantId(account.get().getHotelId());
     event.setOccurredAt(Instant.now());
     event.setMetadataJson("{\"platformRole\":\"SUPER_ADMIN\"}");
     auditEvents.save(event);
