@@ -131,6 +131,30 @@ jobs:
             exit 1
           fi
 
+          verification_page_status="$(curl --silent --show-error --output /tmp/fixi-verify-page.html --dump-header /tmp/fixi-verify-page.headers --write-out '%{http_code}' \
+            'http://127.0.0.1:8080/verify-email?token=ci-non-secret-probe')"
+          if [[ "$verification_page_status" != 200 ]] \
+            || ! grep -qi '^content-type: text/html' /tmp/fixi-verify-page.headers \
+            || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-verify-page.headers \
+            || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-verify-page.headers \
+            || ! grep -q 'Confirmar correo' /tmp/fixi-verify-page.html \
+            || ! grep -q '/api/v1/auth/public/verify-email?token=' /tmp/fixi-verify-page.html \
+            || grep -q 'ci-non-secret-probe' /tmp/fixi-verify-page.html; then
+            echo 'Public email verification landing page did not meet its response/security contract.'
+            cat /tmp/fixi-verify-page.headers
+            exit 1
+          fi
+          echo 'Public verification link renders a no-store confirmation page and does not echo or auto-consume the token.'
+
+          invalid_verification_status="$(curl --silent --show-error --output /tmp/fixi-invalid-verification.json --write-out '%{http_code}' \
+            -X POST 'http://127.0.0.1:8080/api/v1/auth/public/verify-email?token=ci-invalid-token-probe')"
+          if [[ "$invalid_verification_status" != 404 ]]; then
+            echo "Invalid public verification token returned HTTP $invalid_verification_status (expected 404, not an auth/CSRF denial)."
+            cat /tmp/fixi-invalid-verification.json
+            exit 1
+          fi
+          echo 'Canonical verification POST is publicly reachable and rejects an invalid token.'
+
           invalid_login_status="$(curl --silent --show-error --output /tmp/fixi-invalid-login.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
             --data '{"username":"user","password":"invalid-default-user-probe"}')"

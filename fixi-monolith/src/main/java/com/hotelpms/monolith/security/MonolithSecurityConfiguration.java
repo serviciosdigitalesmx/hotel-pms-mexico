@@ -88,6 +88,8 @@ public class MonolithSecurityConfiguration {
                 authorization
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/verify-email")
+                    .permitAll()
                     .requestMatchers(
                         "/api/v1/auth/login",
                         "/api/v1/auth/register",
