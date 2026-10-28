@@ -270,6 +270,8 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
   private static boolean isPublicPath(final String path) {
     return PUBLIC_EXACT_PATHS.contains(path)
         || path.equals("/verify-email")
+        || path.equals("/accept-invitation")
+        || path.equals("/reset-password")
         || path.equals("/actuator")
         || path.startsWith("/actuator/")
         || MonolithWebhookPath.isWhatsAppWebhook(path)
@@ -368,6 +370,8 @@ public class MonolithJwtAuthenticationFilter extends OncePerRequestFilter {
     }
     return MonolithWebhookPath.isWhatsAppWebhook(path)
         || path.equals("/verify-email")
+        || path.equals("/accept-invitation")
+        || path.equals("/reset-password")
         || path.startsWith("/api/v1/auth/")
         || path.equals("/api/v1/auth")
         || startsWithPath(path, "/api/v1/guests")

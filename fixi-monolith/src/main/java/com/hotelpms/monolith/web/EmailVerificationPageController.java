@@ -58,6 +58,7 @@ public class EmailVerificationPageController {
             <main>
               <h1>Verifica tu correo de Fixi</h1>
               <p id="verification-status">Confirma que quieres activar tu cuenta.</p>
+              <p>Si no encuentras el correo, revisa las carpetas de Spam o correo no deseado.</p>
               <button id="verify-button" type="button">Confirmar correo</button>
             </main>
             <script nonce="%s">
@@ -80,7 +81,7 @@ public class EmailVerificationPageController {
                       { method: 'POST', cache: 'no-store', credentials: 'omit' }
                     );
                     if (!response.ok) throw new Error('verification_failed');
-                    status.textContent = 'Correo verificado. Tu cuenta ya está activa.';
+                    status.textContent = 'Correo verificado. Tu cuenta ya está activa. Regresa a la aplicación Fixi para iniciar sesión y completar el registro del taller.';
                     button.hidden = true;
                   } catch {
                     status.textContent = 'El enlace no es válido o ya expiró. Solicita uno nuevo.';

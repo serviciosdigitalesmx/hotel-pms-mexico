@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import * as api from './api'
+import { EmailDeliveryNotice } from './email-delivery-notice'
 
 export function AccountProfilePage() {
   const [profile, setProfile] = useState<api.AccountProfile>()
@@ -14,6 +15,7 @@ export function AccountProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -27,10 +29,12 @@ export function AccountProfilePage() {
   }, [])
 
   async function save(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    event.preventDefault(); setSaving(true); setError(''); setMessage(''); setVerificationEmailSent(false)
     try {
+      const emailChanged = email.trim().toLowerCase() !== profile?.email.trim().toLowerCase()
       const updated = await api.updateAccountProfile({ fullName: fullName.trim(), email: email.trim() })
       setProfile(updated); setFullName(updated.fullName); setEmail(updated.email)
+      setVerificationEmailSent(emailChanged && !updated.emailVerified)
       setMessage(updated.emailVerified ? 'Datos de la cuenta guardados.' : 'Nombre guardado. Revisa el nuevo correo para verificar la dirección; el correo anterior ya no recibirá notificaciones.')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudieron guardar los datos') }
     finally { setSaving(false) }
@@ -44,7 +48,7 @@ export function AccountProfilePage() {
         {profile&&<p className="text-xs text-muted-foreground">Usuario para iniciar sesión: {profile.username}</p>}
         <Button disabled={saving||!fullName.trim()||!email.trim()}>{saving?'Guardando…':'Guardar'}</Button>
       </form>}
-      {message&&<p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}{error&&<p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
+      {message&&<p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}{verificationEmailSent&&<div className="mt-3"><EmailDeliveryNotice/></div>}{error&&<p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
     </CardContent></Card></div>
   </BaseLayout>
 }

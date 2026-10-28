@@ -90,6 +90,10 @@ public class MonolithSecurityConfiguration {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/verify-email")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/accept-invitation")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/reset-password")
+                    .permitAll()
                     .requestMatchers(
                         "/api/v1/auth/login",
                         "/api/v1/auth/register",

@@ -138,6 +138,7 @@ jobs:
             || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-verify-page.headers \
             || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-verify-page.headers \
             || ! grep -q 'Confirmar correo' /tmp/fixi-verify-page.html \
+            || ! grep -q 'Spam o correo no deseado' /tmp/fixi-verify-page.html \
             || ! grep -q '/api/v1/auth/public/verify-email?token=' /tmp/fixi-verify-page.html \
             || grep -q 'ci-non-secret-probe' /tmp/fixi-verify-page.html; then
             echo 'Public email verification landing page did not meet its response/security contract.'
@@ -145,6 +146,50 @@ jobs:
             exit 1
           fi
           echo 'Public verification link renders a no-store confirmation page and does not echo or auto-consume the token.'
+
+          invitation_page_status="$(curl --silent --show-error --output /tmp/fixi-invitation-page.html --dump-header /tmp/fixi-invitation-page.headers --write-out '%{http_code}' \
+            'http://127.0.0.1:8080/accept-invitation?token=ci-non-secret-invitation-probe')"
+          if [[ "$invitation_page_status" != 200 ]] \
+            || ! grep -qi '^content-type: text/html' /tmp/fixi-invitation-page.headers \
+            || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-invitation-page.headers \
+            || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-invitation-page.headers \
+            || ! grep -q 'Crear contraseña y aceptar invitación' /tmp/fixi-invitation-page.html \
+            || ! grep -q 'Spam o correo no deseado' /tmp/fixi-invitation-page.html \
+            || ! grep -q '/api/v1/auth/public/invitations/accept' /tmp/fixi-invitation-page.html \
+            || grep -q 'href="/login"' /tmp/fixi-invitation-page.html \
+            || grep -q 'ci-non-secret-invitation-probe' /tmp/fixi-invitation-page.html; then
+            echo 'Public invitation acceptance page did not meet its response/security contract.'
+            cat /tmp/fixi-invitation-page.headers
+            exit 1
+          fi
+          echo 'Public invitation link renders a no-store password setup page and does not echo or auto-consume the token.'
+
+          reset_page_status="$(curl --silent --show-error --output /tmp/fixi-reset-page.html --dump-header /tmp/fixi-reset-page.headers --write-out '%{http_code}' \
+            'http://127.0.0.1:8080/reset-password?token=ci-non-secret-reset-probe')"
+          if [[ "$reset_page_status" != 200 ]] \
+            || ! grep -qi '^content-type: text/html' /tmp/fixi-reset-page.headers \
+            || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-reset-page.headers \
+            || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-reset-page.headers \
+            || ! grep -q 'Guardar contraseña' /tmp/fixi-reset-page.html \
+            || ! grep -q 'Spam o correo no deseado' /tmp/fixi-reset-page.html \
+            || ! grep -Fq 'pattern="(?=.*[A-Z]).{6,}"' /tmp/fixi-reset-page.html \
+            || ! grep -q '/api/v1/auth/public/reset-password' /tmp/fixi-reset-page.html \
+            || grep -q 'href="/login"' /tmp/fixi-reset-page.html \
+            || grep -q 'ci-non-secret-reset-probe' /tmp/fixi-reset-page.html; then
+            echo 'Public password-reset page did not meet its response/security contract.'
+            cat /tmp/fixi-reset-page.headers
+            exit 1
+          fi
+          echo 'Password-reset link renders a no-store page, keeps the token out of HTML, and requires a user action.'
+
+          invalid_invitation_status="$(curl --silent --show-error --output /tmp/fixi-invalid-invitation.json --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -d '{"token":"ci-invalid-invitation-probe","fullName":"Smoke User","username":"smoke-user","password":"SmokePassword123"}' \
+            'http://127.0.0.1:8080/api/v1/auth/public/invitations/accept')"
+          if [[ "$invalid_invitation_status" != 404 ]]; then
+            echo "Invalid public invitation token returned HTTP $invalid_invitation_status (expected 404, not an auth/CSRF denial)."
+            cat /tmp/fixi-invalid-invitation.json
+            exit 1
+          fi
 
           invalid_verification_status="$(curl --silent --show-error --output /tmp/fixi-invalid-verification.json --write-out '%{http_code}' \
             -X POST 'http://127.0.0.1:8080/api/v1/auth/public/verify-email?token=ci-invalid-token-probe')"
@@ -154,6 +199,16 @@ jobs:
             exit 1
           fi
           echo 'Canonical verification POST is publicly reachable and rejects an invalid token.'
+
+          invalid_reset_status="$(curl --silent --show-error --output /tmp/fixi-invalid-reset.json --write-out '%{http_code}' \
+            -H 'Content-Type: application/json' -d '{"token":"ci-invalid-reset-probe","password":"SmokePassword123"}' \
+            'http://127.0.0.1:8080/api/v1/auth/public/reset-password')"
+          if [[ "$invalid_reset_status" != 404 ]]; then
+            echo "Invalid public password-reset token returned HTTP $invalid_reset_status (expected 404, not an auth/CSRF denial)."
+            cat /tmp/fixi-invalid-reset.json
+            exit 1
+          fi
+          echo 'Canonical password-reset POST is publicly reachable and rejects an invalid token.'
 
           invalid_login_status="$(curl --silent --show-error --output /tmp/fixi-invalid-login.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/v1/auth/login \
