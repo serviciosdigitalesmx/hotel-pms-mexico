@@ -6,6 +6,7 @@ import com.hotelpms.auth.dto.InvitationRequest;
 import com.hotelpms.auth.dto.OnboardingRequest;
 import com.hotelpms.auth.dto.PublicResetPasswordRequest;
 import com.hotelpms.auth.dto.SignupRequest;
+import com.hotelpms.auth.service.AccountVerificationResult;
 import com.hotelpms.auth.service.JwtService;
 import com.hotelpms.auth.service.SaasIdentityService;
 import jakarta.validation.Valid;
@@ -52,9 +53,12 @@ public class SaasIdentityController {
    * @param token account verification token
    */
   @PostMapping("/public/verify-email")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void verify(@RequestParam final String token) {
-    service.verify(token);
+  public ResponseEntity<Map<String, String>> verify(@RequestParam final String token) {
+    final AccountVerificationResult result = service.verify(token);
+    if (result == AccountVerificationResult.ALREADY_VERIFIED) {
+      return ResponseEntity.ok(Map.of("status", "ALREADY_VERIFIED"));
+    }
+    return ResponseEntity.noContent().build();
   }
 
   /**

@@ -37,70 +37,93 @@ public class PasswordResetPageController {
         "Content-Security-Policy",
         "default-src 'none'; script-src 'nonce-"
             + nonce
+            + "'; style-src 'nonce-"
+            + nonce
             + "'; connect-src 'self'; base-uri 'none'; form-action 'none'; "
             + "frame-ancestors 'none'; object-src 'none'");
     return ResponseEntity.ok().headers(headers).body(page(nonce));
   }
 
   private static String page(final String nonce) {
-    return """
-        <!doctype html>
-        <html lang="es">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Restablecer contraseña | Fixi</title>
-          </head>
-          <body>
-            <main>
-              <h1>Restablece tu contraseña de Fixi</h1>
-              <p id="reset-status">Elige una contraseña nueva para tu cuenta.</p>
-              <p>Si no encuentras el correo de recuperación, revisa Spam o correo no deseado.</p>
-              <form id="reset-form">
-                <label>Nueva contraseña <input name="password" type="password" autocomplete="new-password" minlength="6" pattern="(?=.*[A-Z]).{6,}" required></label>
-                <p>Usa al menos 6 caracteres y una mayúscula.</p>
-                <button id="reset-button" type="submit">Guardar contraseña</button>
-              </form>
-            </main>
-            <script nonce="%s">
-              (() => {
-                const status = document.getElementById('reset-status');
-                const form = document.getElementById('reset-form');
-                const button = document.getElementById('reset-button');
-                const token = new URLSearchParams(window.location.search).get('token') || '';
-                window.history.replaceState(null, document.title, window.location.pathname);
-                if (!token) {
-                  status.textContent = 'El enlace no es válido o ya expiró. Solicita otro desde Fixi.';
+    final String content =
+        """
+        <p class="eyebrow">Seguridad de cuenta</p>
+        <h1>Restablece tu contraseña</h1>
+        <p class="lead">Crea una contraseña nueva para volver a entrar a tu cuenta Fixi.</p>
+        <div id="reset-status" class="status" data-state="info" role="status" aria-live="polite">
+          Elige una contraseña nueva para tu cuenta.
+        </div>
+        <p class="helper">Si no encuentras el correo, revisa Spam o correo no deseado.</p>
+        <form id="reset-form">
+          <label for="reset-password">Nueva contraseña</label>
+          <input id="reset-password" name="password" type="password" autocomplete="new-password"
+                 minlength="6" pattern="(?=.*[A-Z]).{6,}" required>
+          <p class="helper">Usa al menos 6 caracteres y una mayúscula.</p>
+          <button id="reset-button" class="primary" type="submit">Guardar contraseña</button>
+        </form>
+        <a id="forgot-link" class="login-link" href="https://app.serviciosdigitalesmx.online/forgot-password" hidden>
+          Solicitar otro enlace
+        </a>
+        <a id="login-link" class="login-link" href="https://app.serviciosdigitalesmx.online/login" hidden>
+          Ir a iniciar sesión en Fixi
+        </a>
+        <script nonce="{{nonce}}">
+          (() => {
+            const status = document.getElementById('reset-status');
+            const form = document.getElementById('reset-form');
+            const button = document.getElementById('reset-button');
+            const forgotLink = document.getElementById('forgot-link');
+            const loginLink = document.getElementById('login-link');
+            let token = new URLSearchParams(window.location.search).get('token') || '';
+            window.history.replaceState(null, document.title, window.location.pathname);
+            if (!token) {
+              status.dataset.state = 'error';
+              status.textContent = 'El enlace no contiene un código válido. Solicita uno nuevo desde Fixi.';
+              form.hidden = true;
+              forgotLink.hidden = false;
+              return;
+            }
+            form.addEventListener('submit', async (event) => {
+              event.preventDefault();
+              if (!form.reportValidity()) return;
+              button.disabled = true;
+              status.dataset.state = 'loading';
+              status.textContent = 'Actualizando tu contraseña…';
+              const password = new FormData(form).get('password');
+              try {
+                const response = await fetch('/api/v1/auth/public/reset-password', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  cache: 'no-store',
+                  credentials: 'omit',
+                  body: JSON.stringify({ token, password })
+                });
+                if (response.status === 404 || response.status === 410) {
+                  token = '';
                   form.hidden = true;
+                  forgotLink.hidden = false;
+                  status.dataset.state = 'error';
+                  status.textContent = 'El enlace no es válido o venció. Solicita uno nuevo desde Fixi.';
                   return;
                 }
-                form.addEventListener('submit', async (event) => {
-                  event.preventDefault();
-                  if (!form.reportValidity()) return;
-                  button.disabled = true;
-                  status.textContent = 'Actualizando contraseña…';
-                  const password = new FormData(form).get('password');
-                  try {
-                    const response = await fetch('/api/v1/auth/public/reset-password', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      cache: 'no-store',
-                      credentials: 'omit',
-                      body: JSON.stringify({ token, password })
-                    });
-                    if (!response.ok) throw new Error('reset_failed');
-                    form.reset();
-                    form.hidden = true;
-                    status.textContent = 'Contraseña actualizada. Regresa a la aplicación Fixi para iniciar sesión.';
-                  } catch {
-                    status.textContent = 'No se pudo actualizar. El enlace podría haber vencido o la contraseña no cumplir los requisitos.';
-                    button.disabled = false;
-                  }
-                });
-              })();
-            </script>
-          </body>
-        </html>
-        """.formatted(nonce);
+                if (!response.ok) throw new Error('reset_failed');
+                token = '';
+                form.reset();
+                form.hidden = true;
+                status.dataset.state = 'success';
+                status.textContent = 'Contraseña actualizada correctamente. Ya puedes iniciar sesión en Fixi.';
+                loginLink.hidden = false;
+              } catch {
+                status.dataset.state = 'error';
+                status.textContent =
+                  'No se pudo actualizar. El enlace pudo vencer o la contraseña no cumple los '
+                  + 'requisitos.';
+                button.disabled = false;
+              }
+            });
+          })();
+        </script>
+        """.replace("{{nonce}}", nonce);
+    return FixiEmailPageLayout.render("Restablecer contraseña", content, nonce);
   }
 }

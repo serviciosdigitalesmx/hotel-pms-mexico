@@ -85,6 +85,29 @@ class MonolithEdgeHeadersFilterTest {
   }
 
   @Test
+  void leavesNonceProtectedAccountPagesWithOnlyTheirPageSpecificPolicy() throws Exception {
+    final MonolithEdgeHeadersFilter filter = new MonolithEdgeHeadersFilter(false);
+    for (final String path :
+        List.of("/verify-email", "/reset-password", "/accept-invitation")) {
+      final MockHttpServletResponse response = new MockHttpServletResponse();
+      filter.doFilter(
+          request(path),
+          response,
+          (wrappedRequest, wrappedResponse) ->
+              ((jakarta.servlet.http.HttpServletResponse) wrappedResponse)
+                  .setHeader(
+                      "Content-Security-Policy",
+                      "default-src 'none'; script-src 'nonce-test'; style-src 'nonce-test'; connect-src 'self'"));
+
+      assertEquals(
+          List.of(
+              "default-src 'none'; script-src 'nonce-test'; style-src 'nonce-test'; connect-src 'self'"),
+          response.getHeaders("Content-Security-Policy"),
+          path);
+    }
+  }
+
+  @Test
   void trustsOnlyNumericRealIpWhenProxyTrustIsEnabledAndFallsBackOnInvalidInput() throws Exception {
     final MonolithEdgeHeadersFilter filter = new MonolithEdgeHeadersFilter(true);
     final MockHttpServletRequest request = request("/api/v1/customers");

@@ -1,6 +1,7 @@
 package com.hotelpms.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -12,6 +13,7 @@ import com.hotelpms.auth.domain.HotelRegistry;
 import com.hotelpms.auth.domain.TenantBranch;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.SignupRequest;
+import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.AccountTokenRepository;
 import com.hotelpms.auth.repository.HotelRegistryRepository;
 import com.hotelpms.auth.repository.TenantBranchRepository;
@@ -30,6 +32,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class SaasIdentityServiceTest {
@@ -157,14 +160,144 @@ class SaasIdentityServiceTest {
             tokens.findByTokenHashAndPurpose(
                 any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
         .thenReturn(java.util.Optional.of(verification));
-    when(tokens.save(any(AccountToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(
+            tokens.consumeIfAvailable(
+                any(),
+                org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE),
+                any()))
+        .thenReturn(1);
     when(users.findByIdIncludingInactive(platformUserId)).thenReturn(java.util.Optional.of(platformUser));
 
-    service.verify("opaque-verification-token");
+    final AccountVerificationResult result = service.verify("opaque-verification-token");
 
+    assertThat(result).isEqualTo(AccountVerificationResult.VERIFIED);
     assertThat(platformUser.isActive()).isTrue();
     assertThat(platformUser.isEmailVerified()).isTrue();
     verify(users).save(platformUser);
     verify(hotels, never()).findById(isNull());
+  }
+
+  @Test
+  void invalidVerificationTokenIsRejectedWithoutChangingTheAccount() {
+    when(
+            tokens.findByTokenHashAndPurpose(
+                any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
+        .thenReturn(java.util.Optional.empty());
+
+    assertThatThrownBy(() -> service.verify("unknown-verification-token"))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessage("TOKEN_INVALID");
+    verify(users, never()).save(any(UserAccount.class));
+  }
+
+  @Test
+  void expiredVerificationTokenReturnsGoneWithoutActivatingTheAccount() {
+    final UUID userId = UUID.randomUUID();
+    final AccountToken expired =
+        verificationToken(userId, LocalDateTime.now().minusMinutes(1), null);
+    final UserAccount user = unverifiedUser(userId);
+    when(
+            tokens.findByTokenHashAndPurpose(
+                any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
+        .thenReturn(java.util.Optional.of(expired));
+    when(users.findByIdIncludingInactive(userId)).thenReturn(java.util.Optional.of(user));
+
+    assertThatThrownBy(() -> service.verify("expired-verification-token"))
+        .isInstanceOf(ResponseStatusException.class)
+        .satisfies(
+            exception ->
+                assertThat(((ResponseStatusException) exception).getStatusCode().value())
+                    .isEqualTo(410));
+
+    assertThat(user.isActive()).isFalse();
+    assertThat(user.isEmailVerified()).isFalse();
+    verify(tokens, never()).consumeIfAvailable(any(), any(), any());
+    verify(users, never()).save(any(UserAccount.class));
+  }
+
+  @Test
+  void consumedVerificationTokenForVerifiedAccountReturnsAlreadyVerified() {
+    final UUID userId = UUID.randomUUID();
+    final AccountToken consumed =
+        verificationToken(userId, LocalDateTime.now().plusHours(1), LocalDateTime.now().minusMinutes(1));
+    final UserAccount user =
+        UserAccount.builder().id(userId).active(true).emailVerified(true).build();
+    when(
+            tokens.findByTokenHashAndPurpose(
+                any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
+        .thenReturn(java.util.Optional.of(consumed));
+    when(users.findByIdIncludingInactive(userId)).thenReturn(java.util.Optional.of(user));
+
+    assertThat(service.verify("already-used-verification-token"))
+        .isEqualTo(AccountVerificationResult.ALREADY_VERIFIED);
+    verify(tokens, never()).consumeIfAvailable(any(), any(), any());
+    verify(users, never()).save(any(UserAccount.class));
+  }
+
+  @Test
+  void consumedTokenForUnverifiedAccountRemainsInvalid() {
+    final UUID userId = UUID.randomUUID();
+    final AccountToken consumed =
+        verificationToken(userId, LocalDateTime.now().plusHours(1), LocalDateTime.now().minusMinutes(1));
+    final UserAccount user = unverifiedUser(userId);
+    when(
+            tokens.findByTokenHashAndPurpose(
+                any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
+        .thenReturn(java.util.Optional.of(consumed));
+    when(users.findByIdIncludingInactive(userId)).thenReturn(java.util.Optional.of(user));
+
+    assertThatThrownBy(() -> service.verify("used-verification-token"))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessage("TOKEN_INVALID");
+    verify(users, never()).save(any(UserAccount.class));
+  }
+
+  @Test
+  void concurrentSecondVerificationRecognizesTheCommittedVerification() {
+    final UUID userId = UUID.randomUUID();
+    final AccountToken available = verificationToken(userId, LocalDateTime.now().plusHours(1), null);
+    final AccountToken consumed =
+        verificationToken(userId, LocalDateTime.now().plusHours(1), LocalDateTime.now());
+    when(
+            tokens.findByTokenHashAndPurpose(
+                any(), org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE)))
+        .thenReturn(java.util.Optional.of(available), java.util.Optional.of(consumed));
+    when(users.findByIdIncludingInactive(userId))
+        .thenReturn(
+            java.util.Optional.of(unverifiedUser(userId)),
+            java.util.Optional.of(
+                UserAccount.builder().id(userId).active(true).emailVerified(true).build()));
+    when(
+            tokens.consumeIfAvailable(
+                any(),
+                org.mockito.ArgumentMatchers.eq(VERIFY_EMAIL_PURPOSE),
+                any()))
+        .thenReturn(0);
+
+    assertThat(service.verify("concurrent-verification-token"))
+        .isEqualTo(AccountVerificationResult.ALREADY_VERIFIED);
+    verify(users, never()).save(any(UserAccount.class));
+  }
+
+  private static AccountToken verificationToken(
+      final UUID userId, final LocalDateTime expiresAt, final LocalDateTime consumedAt) {
+    return AccountToken.builder()
+        .userId(userId)
+        .purpose(VERIFY_EMAIL_PURPOSE)
+        .tokenHash("unit-test-token-digest")
+        .expiresAt(expiresAt)
+        .consumedAt(consumedAt)
+        .createdAt(LocalDateTime.now())
+        .build();
+  }
+
+  private static UserAccount unverifiedUser(final UUID userId) {
+    return UserAccount.builder()
+        .id(userId)
+        .username("pending-user")
+        .email("pending@example.com")
+        .active(false)
+        .emailVerified(false)
+        .build();
   }
 }

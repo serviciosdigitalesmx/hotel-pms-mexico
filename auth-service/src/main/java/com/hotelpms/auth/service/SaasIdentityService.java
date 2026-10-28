@@ -39,11 +39,13 @@ import java.util.HexFormat;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Handles self-service tenant identity, onboarding, and invitation workflows. */
 @Service
@@ -228,12 +230,50 @@ public class SaasIdentityService {
    * @param rawToken single-use verification token
    */
   @Transactional
-  public void verify(final String rawToken) {
-    final AccountToken token = consume(rawToken, VERIFY);
+  public AccountVerificationResult verify(final String rawToken) {
+    final String tokenHash = hash(rawToken);
+    final AccountToken token =
+        tokens
+            .findByTokenHashAndPurpose(tokenHash, VERIFY)
+            .orElseThrow(() -> new NotFoundException(TOKEN_INVALID));
     final UserAccount user =
         users
             .findByIdIncludingInactive(token.getUserId())
             .orElseThrow(() -> new NotFoundException(TOKEN_INVALID));
+    final LocalDateTime now = LocalDateTime.now();
+
+    if (token.getConsumedAt() != null) {
+      if (user.isEmailVerified()) {
+        return AccountVerificationResult.ALREADY_VERIFIED;
+      }
+      throw new NotFoundException(TOKEN_INVALID);
+    }
+    if (!token.getExpiresAt().isAfter(now)) {
+      if (user.isEmailVerified()) {
+        return AccountVerificationResult.ALREADY_VERIFIED;
+      }
+      throw new ResponseStatusException(HttpStatus.GONE, "VERIFICATION_TOKEN_EXPIRED");
+    }
+    if (tokens.consumeIfAvailable(tokenHash, VERIFY, now) != 1) {
+      final AccountToken current =
+          tokens
+              .findByTokenHashAndPurpose(tokenHash, VERIFY)
+              .orElseThrow(() -> new NotFoundException(TOKEN_INVALID));
+      final UserAccount refreshedUser =
+          users
+              .findByIdIncludingInactive(token.getUserId())
+              .orElseThrow(() -> new NotFoundException(TOKEN_INVALID));
+      if (current.getConsumedAt() != null && refreshedUser.isEmailVerified()) {
+        return AccountVerificationResult.ALREADY_VERIFIED;
+      }
+      if (!current.getExpiresAt().isAfter(LocalDateTime.now())) {
+        throw new ResponseStatusException(HttpStatus.GONE, "VERIFICATION_TOKEN_EXPIRED");
+      }
+      throw new NotFoundException(TOKEN_INVALID);
+    }
+    if (user.isEmailVerified()) {
+      return AccountVerificationResult.ALREADY_VERIFIED;
+    }
     user.setEmailVerified(true);
     user.setActive(true);
     users.save(user);
@@ -242,6 +282,7 @@ public class SaasIdentityService {
       tenant.setStatus("ONBOARDING");
       hotels.save(tenant);
     }
+    return AccountVerificationResult.VERIFIED;
   }
 
   /**

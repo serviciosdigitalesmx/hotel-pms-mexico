@@ -44,7 +44,9 @@ public final class MonolithEdgeHeadersFilter extends OncePerRequestFilter {
     response.setHeader("X-Frame-Options", "DENY");
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+    if (!usesPageSpecificContentSecurityPolicy(request.getRequestURI())) {
+      response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+    }
     final String previousCorrelationId = MDC.get("correlationId");
     MDC.put("correlationId", correlationId);
     try {
@@ -56,6 +58,12 @@ public final class MonolithEdgeHeadersFilter extends OncePerRequestFilter {
         MDC.put("correlationId", previousCorrelationId);
       }
     }
+  }
+
+  private static boolean usesPageSpecificContentSecurityPolicy(final String path) {
+    return "/verify-email".equals(path)
+        || "/reset-password".equals(path)
+        || "/accept-invitation".equals(path);
   }
 
   private HttpServletRequest withTrustedHeaders(

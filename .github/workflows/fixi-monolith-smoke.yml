@@ -182,6 +182,25 @@ jobs:
           fi
           echo 'Password-reset link renders a no-store page, keeps the token out of HTML, and requires a user action.'
 
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          for name in ("verify", "invitation", "reset"):
+              headers = Path(f"/tmp/fixi-{name}-page.headers").read_text()
+              html = Path(f"/tmp/fixi-{name}-page.html").read_text()
+              policies = re.findall(r"^content-security-policy:\s*(.+)$", headers, re.I | re.M)
+              assert len(policies) == 1, f"{name}: expected exactly one CSP header"
+              script_nonces = re.findall(r"<script nonce=\"([^\"]+)\"", html)
+              style_nonces = re.findall(r"<style nonce=\"([^\"]+)\"", html)
+              assert len(script_nonces) == 1 and len(style_nonces) == 1, f"{name}: missing nonce"
+              policy = policies[0]
+              assert f"script-src 'nonce-{script_nonces[0]}'" in policy, f"{name}: script blocked by CSP"
+              assert f"style-src 'nonce-{style_nonces[0]}'" in policy, f"{name}: styles blocked by CSP"
+              assert script_nonces[0] == style_nonces[0], f"{name}: page nonce mismatch"
+          print("Account email pages have one matching nonce-based CSP; inline scripts and styles are permitted.")
+          PY
+
           invalid_invitation_status="$(curl --silent --show-error --output /tmp/fixi-invalid-invitation.json --write-out '%{http_code}' \
             -H 'Content-Type: application/json' -d '{"token":"ci-invalid-invitation-probe","fullName":"Smoke User","username":"smoke-user","password":"SmokePassword123"}' \
             'http://127.0.0.1:8080/api/v1/auth/public/invitations/accept')"
