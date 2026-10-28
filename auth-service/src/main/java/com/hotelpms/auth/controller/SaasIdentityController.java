@@ -51,6 +51,7 @@ public class SaasIdentityController {
    * Verifies an account using its one-time token.
    *
    * @param token account verification token
+   * @return no content when newly verified, or an already-verified status when previously consumed
    */
   @PostMapping("/public/verify-email")
   public ResponseEntity<Map<String, String>> verify(@RequestParam final String token) {

@@ -31,6 +31,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -207,7 +208,7 @@ class SaasIdentityServiceTest {
         .satisfies(
             exception ->
                 assertThat(((ResponseStatusException) exception).getStatusCode().value())
-                    .isEqualTo(410));
+                    .isEqualTo(HttpStatus.GONE.value()));
 
     assertThat(user.isActive()).isFalse();
     assertThat(user.isEmailVerified()).isFalse();

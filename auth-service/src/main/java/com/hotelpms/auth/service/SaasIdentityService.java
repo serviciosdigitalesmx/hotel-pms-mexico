@@ -228,6 +228,7 @@ public class SaasIdentityService {
    * Verifies a signup token and activates its owner account.
    *
    * @param rawToken single-use verification token
+   * @return whether this request verified the account or found it already verified
    */
   @Transactional
   public AccountVerificationResult verify(final String rawToken) {
