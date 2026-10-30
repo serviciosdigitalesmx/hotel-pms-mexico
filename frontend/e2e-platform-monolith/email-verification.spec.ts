@@ -5,7 +5,7 @@ const monolithUrl = 'http://localhost:8080';
 const mailpitUrl = 'http://127.0.0.1:8025';
 
 test('a real signup verification email activates the account through the confirmation page', async ({ page, request }) => {
-  const suffix = randomUUID();
+  const suffix = randomUUID().replaceAll('-', '').slice(0, 16);
   const email = `verify-${suffix}@example.test`;
   const password = 'VerificationE2e123';
   const pageErrors: string[] = [];
