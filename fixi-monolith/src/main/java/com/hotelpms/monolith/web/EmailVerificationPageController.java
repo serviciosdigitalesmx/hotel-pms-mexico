@@ -93,43 +93,50 @@ public class EmailVerificationPageController {
               button.disabled = true;
               status.dataset.state = 'loading';
               status.textContent = 'Estamos verificando tu correo…';
+              let response;
               try {
-                const response = await fetch(
+                response = await fetch(
                   '/api/v1/auth/public/verify-email?token=' + encodeURIComponent(token),
                   { method: 'POST', cache: 'no-store', credentials: 'omit' }
                 );
-                if (response.status === 410) {
-                  token = '';
-                  showResend('El enlace venció. Solicita que Fixi te envíe uno nuevo.');
-                  return;
-                }
-                if (response.status === 404) {
-                  token = '';
-                  showResend('El enlace no es válido. Puedes solicitar un nuevo correo de verificación.');
-                  return;
-                }
-                if (response.status === 200) {
-                  const result = await response.json();
-                  if (result.status === 'ALREADY_VERIFIED') {
-                    token = '';
-                    status.dataset.state = 'success';
-                    status.textContent = 'Este correo ya estaba verificado. Puedes iniciar sesión en Fixi.';
-                    button.hidden = true;
-                    loginLink.hidden = false;
-                    return;
-                  }
-                }
-                if (response.status !== 204) throw new Error('verification_failed');
-                token = '';
-                status.dataset.state = 'success';
-                status.textContent = 'Correo verificado. Tu cuenta quedó activada y ya puedes iniciar sesión en Fixi.';
-                button.hidden = true;
-                loginLink.hidden = false;
               } catch {
                 status.dataset.state = 'error';
                 status.textContent = 'No pudimos conectar con Fixi. Comprueba tu conexión e inténtalo de nuevo.';
                 button.disabled = false;
+                return;
               }
+              if (response.status === 410) {
+                token = '';
+                showResend('El enlace venció. Solicita que Fixi te envíe uno nuevo.');
+                return;
+              }
+              if (response.status === 404) {
+                token = '';
+                showResend('El enlace no es válido. Puedes solicitar un nuevo correo de verificación.');
+                return;
+              }
+              if (response.status === 200) {
+                const result = await response.json().catch(() => null);
+                if (result?.status === 'ALREADY_VERIFIED') {
+                  token = '';
+                  status.dataset.state = 'success';
+                  status.textContent = 'Este correo ya estaba verificado. Puedes iniciar sesión en Fixi.';
+                  button.hidden = true;
+                  loginLink.hidden = false;
+                  return;
+                }
+              }
+              if (response.status !== 204) {
+                status.dataset.state = 'error';
+                status.textContent = 'Fixi recibió la solicitud, pero no pudo verificar el enlace. Inténtalo de nuevo más tarde.';
+                button.disabled = false;
+                return;
+              }
+              token = '';
+              status.dataset.state = 'success';
+              status.textContent = 'Correo verificado. Tu cuenta quedó activada y ya puedes iniciar sesión en Fixi.';
+              button.hidden = true;
+              loginLink.hidden = false;
             });
 
             resendForm.addEventListener('submit', async (event) => {
