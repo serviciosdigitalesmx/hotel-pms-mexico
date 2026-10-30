@@ -56,7 +56,6 @@ public class EmailVerificationPageController {
         <div id="verification-status" class="status" data-state="info" role="status" aria-live="polite">
           Pulsa el botón para confirmar tu dirección de correo.
         </div>
-        <p class="helper">Si no encuentras los correos de Fixi, revisa Spam o correo no deseado.</p>
         <button id="verify-button" class="primary" type="button">Confirmar correo</button>
         <form id="resend-form" hidden>
           <label for="resend-email">Correo de tu cuenta</label>
@@ -158,8 +157,8 @@ public class EmailVerificationPageController {
                 if (response.status !== 202) throw new Error('resend_failed');
                 resendStatus.dataset.state = 'success';
                 resendStatus.textContent =
-                  'Si existe una cuenta pendiente para ese correo, Fixi enviará un nuevo enlace. '
-                  + 'Revisa también Spam o correo no deseado.';
+                  'Si existe una cuenta pendiente para ese correo, te enviaremos un nuevo correo de verificación. '
+                  + 'Revisa tu bandeja de entrada y, si no aparece, Spam o correo no deseado.';
                 resendForm.reset();
               } catch {
                 resendStatus.dataset.state = 'error';

@@ -15,6 +15,6 @@ describe('Fixi application entry', () => {
   it('reminds people to check spam when Fixi sends an email', () => {
     render(<EmailDeliveryNotice />);
 
-    expect(screen.getByRole('note')).toHaveTextContent(/revisa también Spam o correo no deseado/i);
+    expect(screen.getByRole('note')).toHaveTextContent(/bandeja de entrada.*Spam o correo no deseado/i);
   });
 });

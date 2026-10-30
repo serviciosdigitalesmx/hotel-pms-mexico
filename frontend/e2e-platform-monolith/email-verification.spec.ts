@@ -63,6 +63,7 @@ test('a real signup verification email activates the account through the confirm
 
   await page.goto(`${monolithUrl}/verify-email?token=${encodeURIComponent(verificationToken!)}`);
   await expect(page.getByRole('heading', { name: 'Confirma tu correo' })).toBeVisible();
+  await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page).toHaveURL(`${monolithUrl}/verify-email`);
   const verification = page.waitForResponse(response => {
     const url = new URL(response.url());
@@ -78,6 +79,7 @@ test('a real signup verification email activates the account through the confirm
   }]);
   await expect(page.getByRole('status').first())
     .toContainText('Correo verificado. Tu cuenta quedó activada');
+  await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Ir a iniciar sesión en Fixi' })).toBeVisible();
 
   const login = await request.post(`${monolithUrl}/api/v1/auth/login`, {
@@ -101,7 +103,7 @@ test('email verification requires an explicit click and reports an invalid link'
   await page.goto(`${monolithUrl}/verify-email?token=ci-invalid-email-verification-probe`);
   await expect(page.getByRole('heading', { name: 'Confirma tu correo' })).toBeVisible();
   await expect(page.getByText('FIXI', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Spam o correo no deseado/)).toBeVisible();
+  await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page).toHaveURL(`${monolithUrl}/verify-email`);
   expect(verificationRequests, 'opening the email link must not consume the token').toHaveLength(0);
 
@@ -111,6 +113,7 @@ test('email verification requires an explicit click and reports an invalid link'
   await page.getByRole('button', { name: 'Confirmar correo' }).click();
   expect((await verification).status()).toBe(404);
   await expect(page.getByRole('status').first()).toContainText('El enlace no es válido');
+  await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Enviar un nuevo enlace' })).toBeVisible();
 
   const resend = page.waitForResponse(response =>
@@ -119,7 +122,7 @@ test('email verification requires an explicit click and reports an invalid link'
   await page.getByLabel('Correo de tu cuenta').fill('verification-probe@example.invalid');
   await page.getByRole('button', { name: 'Enviar un nuevo enlace' }).click();
   expect((await resend).status()).toBe(202);
-  await expect(page.getByText(/revisa también Spam o correo no deseado/i)).toBeVisible();
+  await expect(page.getByText(/Revisa tu bandeja de entrada.*Spam o correo no deseado/i)).toBeVisible();
   expect(pageErrors, 'verification page scripts should run without browser errors').toEqual([]);
 });
 
@@ -130,6 +133,7 @@ test('password reset and invitation pages render and submit through public APIs'
   await page.goto(`${monolithUrl}/reset-password?token=ci-invalid-reset-page-probe`);
   await expect(page.getByRole('heading', { name: 'Restablece tu contraseña' })).toBeVisible();
   await expect(page.getByText('FIXI', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   const resetResponse = page.waitForResponse(response =>
     response.url().includes('/api/v1/auth/public/reset-password')
     && response.request().method() === 'POST');
@@ -142,6 +146,7 @@ test('password reset and invitation pages render and submit through public APIs'
   await page.goto(`${monolithUrl}/accept-invitation?token=ci-invalid-invitation-page-probe`);
   await expect(page.getByRole('heading', { name: 'Únete a Fixi' })).toBeVisible();
   await expect(page.getByText('FIXI', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   const invitationResponse = page.waitForResponse(response =>
     response.url().includes('/api/v1/auth/public/invitations/accept')
     && response.request().method() === 'POST');

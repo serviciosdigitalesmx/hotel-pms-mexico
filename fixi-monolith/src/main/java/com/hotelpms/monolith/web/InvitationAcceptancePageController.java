@@ -52,7 +52,6 @@ public class InvitationAcceptancePageController {
         <p id="invitation-status" class="status" data-state="info" role="status" aria-live="polite">
           Crea tu usuario y contraseña para aceptar la invitación.
         </p>
-        <p class="helper">Si no encuentras el correo, revisa Spam o correo no deseado.</p>
         <form id="invitation-form">
           <label for="invite-full-name">Nombre completo</label>
           <input id="invite-full-name" name="fullName" autocomplete="name" maxlength="160" required>

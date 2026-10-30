@@ -53,7 +53,6 @@ public class PasswordResetPageController {
         <div id="reset-status" class="status" data-state="info" role="status" aria-live="polite">
           Elige una contraseña nueva para tu cuenta.
         </div>
-        <p class="helper">Si no encuentras el correo, revisa Spam o correo no deseado.</p>
         <form id="reset-form">
           <label for="reset-password">Nueva contraseña</label>
           <input id="reset-password" name="password" type="password" autocomplete="new-password"
