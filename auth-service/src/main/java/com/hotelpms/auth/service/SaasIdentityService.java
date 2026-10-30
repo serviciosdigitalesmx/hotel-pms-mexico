@@ -275,9 +275,9 @@ public class SaasIdentityService {
     if (user.isEmailVerified()) {
       return AccountVerificationResult.ALREADY_VERIFIED;
     }
-    user.setEmailVerified(true);
-    user.setActive(true);
-    users.save(user);
+    if (users.activateAfterEmailVerification(user.getId()) != 1) {
+      throw new NotFoundException(TOKEN_INVALID);
+    }
     if (user.getHotelId() != null) {
       final HotelRegistry tenant = hotels.findById(user.getHotelId()).orElseThrow();
       tenant.setStatus("ONBOARDING");

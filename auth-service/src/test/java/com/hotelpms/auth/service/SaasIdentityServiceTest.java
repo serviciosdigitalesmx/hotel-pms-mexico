@@ -168,13 +168,13 @@ class SaasIdentityServiceTest {
                 any()))
         .thenReturn(1);
     when(users.findByIdIncludingInactive(platformUserId)).thenReturn(java.util.Optional.of(platformUser));
+    when(users.activateAfterEmailVerification(platformUserId)).thenReturn(1);
 
     final AccountVerificationResult result = service.verify("opaque-verification-token");
 
     assertThat(result).isEqualTo(AccountVerificationResult.VERIFIED);
-    assertThat(platformUser.isActive()).isTrue();
-    assertThat(platformUser.isEmailVerified()).isTrue();
-    verify(users).save(platformUser);
+    verify(users).activateAfterEmailVerification(platformUserId);
+    verify(users, never()).save(any(UserAccount.class));
     verify(hotels, never()).findById(isNull());
   }
 

@@ -194,6 +194,24 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
   Optional<UserAccount> findByIdIncludingInactive(@Param("id") UUID id);
 
   /**
+   * Activates an account after its single-use email token has been consumed.
+   *
+   * <p>This must bypass {@link UserAccount}'s active-row SQL restriction: the account being
+   * verified is intentionally inactive until this transition succeeds.
+   *
+   * @param id account identifier resolved from the verification token
+   * @return number of accounts updated
+   */
+  @TenantScopeExempt(reason = "Opaque single-use email verification activates its own account")
+  @Modifying
+  @Query(
+      value =
+          "UPDATE user_account SET email_verified = true, active = true, "
+              + "updated_at = CURRENT_TIMESTAMP WHERE id = :id",
+      nativeQuery = true)
+  int activateAfterEmailVerification(@Param("id") UUID id);
+
+  /**
    * Resolves an unverified account even when it is inactive.
    *
    * @param email account email address
