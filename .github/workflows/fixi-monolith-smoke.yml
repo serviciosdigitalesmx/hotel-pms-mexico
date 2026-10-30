@@ -138,7 +138,7 @@ jobs:
             || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-verify-page.headers \
             || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-verify-page.headers \
             || ! grep -q 'Confirmar correo' /tmp/fixi-verify-page.html \
-            || ! grep -q 'Spam o correo no deseado' /tmp/fixi-verify-page.html \
+            || grep -q 'Spam o correo no deseado' /tmp/fixi-verify-page.html \
             || ! grep -q '/api/v1/auth/public/verify-email?token=' /tmp/fixi-verify-page.html \
             || grep -q 'ci-non-secret-probe' /tmp/fixi-verify-page.html; then
             echo 'Public email verification landing page did not meet its response/security contract.'
@@ -154,7 +154,7 @@ jobs:
             || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-invitation-page.headers \
             || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-invitation-page.headers \
             || ! grep -q 'Crear contraseña y aceptar invitación' /tmp/fixi-invitation-page.html \
-            || ! grep -q 'Spam o correo no deseado' /tmp/fixi-invitation-page.html \
+            || grep -q 'Spam o correo no deseado' /tmp/fixi-invitation-page.html \
             || ! grep -q '/api/v1/auth/public/invitations/accept' /tmp/fixi-invitation-page.html \
             || grep -q 'href="/login"' /tmp/fixi-invitation-page.html \
             || grep -q 'ci-non-secret-invitation-probe' /tmp/fixi-invitation-page.html; then
@@ -171,7 +171,7 @@ jobs:
             || ! grep -Eqi '^cache-control:.*no-store' /tmp/fixi-reset-page.headers \
             || ! grep -Eqi '^referrer-policy: no-referrer' /tmp/fixi-reset-page.headers \
             || ! grep -q 'Guardar contraseña' /tmp/fixi-reset-page.html \
-            || ! grep -q 'Spam o correo no deseado' /tmp/fixi-reset-page.html \
+            || grep -q 'Spam o correo no deseado' /tmp/fixi-reset-page.html \
             || ! grep -Fq 'pattern="(?=.*[A-Z]).{6,}"' /tmp/fixi-reset-page.html \
             || ! grep -q '/api/v1/auth/public/reset-password' /tmp/fixi-reset-page.html \
             || grep -q 'href="/login"' /tmp/fixi-reset-page.html \
