@@ -37,7 +37,7 @@ public final class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer
   private final FixiAssignedOrderAccess access;
 
   @Override
-  public final void addInterceptors(final InterceptorRegistry registry) {
+  public void addInterceptors(final InterceptorRegistry registry) {
     registry.addInterceptor(new HandlerInterceptor() {
       @Override
       public boolean preHandle(
@@ -80,7 +80,7 @@ public final class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer
     });
   }
 
-  final UUID orderIdFor(final String uri, final UUID tenantId) {
+  UUID orderIdFor(final String uri, final UUID tenantId) {
     final String[] parts = uri.split("/");
     try {
       if (uri.startsWith("/api/v1/service-orders/")
