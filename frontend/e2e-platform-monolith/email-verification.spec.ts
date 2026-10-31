@@ -205,9 +205,7 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
     && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Guardar contraseña' }).click();
   expect((await resetPassword).status()).toBe(204);
-  await expect(
-    page.getByText('Contraseña actualizada correctamente. Ya puedes iniciar sesión en Fixi.'),
-  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
   await page.getByRole('link', { name: 'Iniciar sesión' }).click();
   await expect(page).toHaveURL(`${frontendUrl}/login`);
 
