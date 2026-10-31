@@ -2,6 +2,7 @@ package com.hotelpms.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.hotelpms.auth.domain.UserAccount;
@@ -114,9 +115,8 @@ class CapabilityServiceTest {
                 TenantIndustryProfile.builder().industryKey("ELECTRONICS_REPAIR").build()));
         when(capabilities.findByTenantIdAndCapabilityKey(tenant, ORDERS_READ))
                 .thenReturn(Optional.of(new TenantCapability()));
-        when(userGrants.findByTenantIdAndUserIdAndBranchIdIsNullAndCapabilityKey(
+        lenient().when(userGrants.findByTenantIdAndUserIdAndBranchIdIsNullAndCapabilityKey(
                 tenant, userId, ORDERS_READ)).thenReturn(Optional.of(grant));
-
         assertFalse(service.isEnabled(TEST_USERNAME, tenant, ORDERS_READ));
     }
 
