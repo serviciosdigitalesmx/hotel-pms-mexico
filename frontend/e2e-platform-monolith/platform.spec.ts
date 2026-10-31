@@ -24,7 +24,8 @@ test('Super Admin uses the real monolith platform console; tenant admin is denie
   await page.getByLabel('Correo o usuario').fill(platformAdmin.username);
   await page.getByLabel('Contraseña').fill(platformAdmin.password);
   await page.getByTestId('login-submit').click();
-  await expect(page.getByRole('heading', { name: 'Dashboard Fixi' })).toBeVisible();
+  await expect(page).toHaveURL(/\/platform\/?$/);
+  await expect(page.getByRole('heading', { name: 'Resumen de plataforma' })).toBeVisible();
 
   await page.goto('/platform');
   await expect(page.getByText('Consola Super Admin')).toBeVisible();
