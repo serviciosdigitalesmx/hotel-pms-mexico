@@ -71,7 +71,7 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
   ).toBeTruthy();
 
   await page.goto(verificationLink!);
-  await expect(page.getByRole('heading', { name: 'Verificación de correo' })).toBeVisible();
+  await expect(page.getByText('Verificación de correo', { exact: true })).toBeVisible();
   await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page).toHaveURL(verificationLink!);
   const verification = page.waitForResponse(response => {
