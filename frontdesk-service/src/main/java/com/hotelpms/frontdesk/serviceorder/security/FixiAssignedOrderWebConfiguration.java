@@ -94,12 +94,12 @@ public final class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer
   static boolean isOrderScopedPath(final String uri) {
     return uri.startsWith("/api/v1/service-orders/")
         || uri.startsWith("/api/v1/documents/order/")
-        || (uri.startsWith("/api/v1/documents/") && uri.endsWith("/content"))
+        || uri.startsWith("/api/v1/documents/") && uri.endsWith("/content")
         || uri.startsWith("/api/v1/inventory/reservations/order/")
-        || (uri.startsWith("/api/v1/inventory/reservations/") && uri.endsWith("/release"))
+        || uri.startsWith("/api/v1/inventory/reservations/") && uri.endsWith("/release")
         || uri.startsWith("/api/v1/inventory/pos/orders/")
         || uri.startsWith("/api/v1/warranty-claims/service-order/")
-        || (uri.startsWith("/api/v1/warranty-claims/") && uri.endsWith("/close"));
+        || uri.startsWith("/api/v1/warranty-claims/") && uri.endsWith("/close");
   }
 
   UUID orderIdFor(final String uri, final UUID tenantId) {
