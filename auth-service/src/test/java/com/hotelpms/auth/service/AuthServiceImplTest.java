@@ -139,6 +139,75 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void loginSuccessByCaseInsensitiveTrimmedEmail() {
+        final String emailIdentifier = "  TEST@EXAMPLE.COM  ";
+        when(userRepository.findByUsername(emailIdentifier)).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase("TEST@EXAMPLE.COM"))
+                .thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+        stubTenantTokenPair(false, MOCK_TOKEN, MOCK_REFRESH_TOKEN);
+
+        final AuthResponse response = authService.login(
+                new LoginRequest(emailIdentifier, RAW_PASSWORD), TEST_IP);
+
+        assertEquals(MOCK_TOKEN, response.token());
+        assertEquals(MOCK_REFRESH_TOKEN, response.refreshToken());
+        verify(userRepository).findByEmailIgnoreCase("TEST@EXAMPLE.COM");
+        verify(loginAttemptService).reset(TEST_USER, TEST_IP);
+    }
+
+    @Test
+    void loginByEmailUsesCanonicalUsernameForFailedAttemptLockout() {
+        when(userRepository.findByUsername(TEST_EMAIL)).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase(TEST_EMAIL)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(WRONG_PASSWORD, HASHED_PASSWORD)).thenReturn(false);
+        when(loginAttemptService.recordFailure(TEST_USER, TEST_IP))
+                .thenReturn(new LoginAttemptResult(1, null));
+
+        assertThrows(
+                BadCredentialsException.class,
+                () -> authService.login(new LoginRequest(TEST_EMAIL, WRONG_PASSWORD), TEST_IP));
+
+        verify(loginAttemptService).recordFailure(TEST_USER, TEST_IP);
+    }
+
+    @Test
+    void loginByEmailHonorsExistingLockoutForCanonicalUsername() {
+        when(userRepository.findByUsername(TEST_EMAIL)).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase(TEST_EMAIL)).thenReturn(Optional.of(testUser));
+        when(loginAttemptService.getLockedUntil(TEST_USER, TEST_IP))
+                .thenReturn(Optional.of(Instant.now().plus(Duration.ofMinutes(10))));
+
+        assertThrows(
+                AccountLockedException.class,
+                () -> authService.login(new LoginRequest(TEST_EMAIL, RAW_PASSWORD), TEST_IP));
+
+        verify(loginAttemptService, never()).recordFailure(anyString(), anyString());
+    }
+
+    @Test
+    void loginRejectsInactiveAccountEvenWhenRepositoryReturnsIt() {
+        testUser.setActive(false);
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+
+        assertThrows(BadCredentialsException.class, () -> authService.login(loginRequest, TEST_IP));
+
+        verify(loginAttemptService, never()).reset(anyString(), anyString());
+    }
+
+    @Test
+    void loginRejectsUnverifiedEmailWithoutRevealingAccountState() {
+        testUser.setEmailVerified(false);
+        when(userRepository.findByUsername(TEST_USER)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+
+        assertThrows(BadCredentialsException.class, () -> authService.login(loginRequest, TEST_IP));
+
+        verify(loginAttemptService, never()).reset(anyString(), anyString());
+    }
+
+    @Test
     void tenantlessAccountCanLoginOnlyWithPersistedPlatformGrant() {
         testUser.setId(UUID.randomUUID());
         testUser.setHotelId(null);
@@ -153,6 +222,29 @@ class AuthServiceImplTest {
                 .thenReturn(MOCK_REFRESH_TOKEN);
 
         final AuthResponse response = authService.login(loginRequest, TEST_IP);
+
+        assertEquals(MOCK_TOKEN, response.token());
+        assertEquals(MOCK_REFRESH_TOKEN, response.refreshToken());
+        verify(platformAdminGrants).hasActiveGrantForUserId(testUser.getId());
+    }
+
+    @Test
+    void tenantlessSuperAdminCanLoginByEmailAndRetainsPlatformClaim() {
+        testUser.setId(UUID.randomUUID());
+        testUser.setHotelId(null);
+        when(userRepository.findByUsername(TEST_EMAIL)).thenReturn(Optional.empty());
+        when(userRepository.findByEmailIgnoreCase(TEST_EMAIL)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(RAW_PASSWORD, HASHED_PASSWORD)).thenReturn(true);
+        when(platformAdminGrants.hasActiveGrantForUserId(testUser.getId())).thenReturn(true);
+        when(jwtService.generateToken(
+                TEST_USER, Role.GUEST, null, null, TEST_TOKEN_VERSION, false, true))
+                .thenReturn(MOCK_TOKEN);
+        when(jwtService.generateRefreshToken(
+                TEST_USER, Role.GUEST, null, null, TEST_TOKEN_VERSION, false, true))
+                .thenReturn(MOCK_REFRESH_TOKEN);
+
+        final AuthResponse response = authService.login(
+                new LoginRequest(TEST_EMAIL, RAW_PASSWORD), TEST_IP);
 
         assertEquals(MOCK_TOKEN, response.token());
         assertEquals(MOCK_REFRESH_TOKEN, response.refreshToken());

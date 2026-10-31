@@ -109,7 +109,11 @@ public class AuthServiceImpl implements AuthService {
   @Override
   @Transactional(noRollbackFor = {BadCredentialsException.class, AccountLockedException.class})
   public AuthResponse login(final LoginRequest request, final String clientIp) {
-    final Optional<UserAccount> maybeUser = userRepository.findByUsername(request.username());
+    final String identifier = request.username();
+    Optional<UserAccount> maybeUser = userRepository.findByUsername(identifier);
+    if (maybeUser.isEmpty()) {
+      maybeUser = userRepository.findByEmailIgnoreCase(identifier.trim());
+    }
     final UserAccount user = maybeUser.orElse(null);
 
     // Constant-time defense (Finding #9, plus the locked-vs-wrong-password
@@ -156,6 +160,12 @@ public class AuthServiceImpl implements AuthService {
             clientIp,
             result.attempts());
       }
+      throw new BadCredentialsException(INVALID_CREDENTIALS);
+    }
+
+    // Email is a login identifier only while the account is active and its current email is
+    // verified. Keep the public failure indistinguishable from invalid credentials.
+    if (!user.isActive() || !user.isEmailVerified()) {
       throw new BadCredentialsException(INVALID_CREDENTIALS);
     }
 

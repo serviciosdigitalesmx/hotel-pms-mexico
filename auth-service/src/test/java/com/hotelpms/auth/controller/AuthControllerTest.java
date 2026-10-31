@@ -201,6 +201,23 @@ class AuthControllerTest {
     }
 
     @Test
+    void shouldGetMePreserveTenantlessSuperAdminPlatformRole() throws Exception {
+        when(jwtService.extractUsername(TEST_TOKEN)).thenReturn(TEST_USERNAME);
+        when(jwtService.extractClaim(eq(TEST_TOKEN), any())).thenReturn("GUEST");
+        when(jwtService.extractPlatformRole(TEST_TOKEN)).thenReturn("SUPER_ADMIN");
+        when(jwtService.isTokenValid(TEST_TOKEN)).thenReturn(true);
+        when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get(BASE_URL + PATH_ME)
+                        .cookie(new Cookie(COOKIE_JWT, TEST_TOKEN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(TEST_USERNAME))
+                .andExpect(jsonPath("$.role").value("GUEST"))
+                .andExpect(jsonPath("$.platformRole").value("SUPER_ADMIN"))
+                .andExpect(jsonPath("$.hotelId").doesNotExist());
+    }
+
+    @Test
     void shouldGetMeReturn401WhenNoCookie() throws Exception {
         mockMvc.perform(get(BASE_URL + PATH_ME))
                 .andExpect(status().isUnauthorized());
