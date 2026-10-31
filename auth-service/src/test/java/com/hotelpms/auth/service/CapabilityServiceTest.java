@@ -11,6 +11,7 @@ import com.hotelpms.auth.domain.TenantBranch;
 import com.hotelpms.auth.domain.TenantCapability;
 import com.hotelpms.auth.domain.TenantIndustryProfile;
 import com.hotelpms.auth.dto.UpdateUserCapabilityGrantRequest;
+import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.TenantCapabilityRepository;
 import com.hotelpms.auth.repository.TenantBranchRepository;
 import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
@@ -134,6 +135,19 @@ class CapabilityServiceTest {
                 .thenReturn(false);
 
         assertThrows(AccessDeniedException.class,
+                () -> service.isEnabled(TEST_USERNAME, tenant, branchId, ORDERS_READ));
+    }
+
+    @Test
+    void missingBranchInAnotherTenantIsHiddenAsNotFound() {
+        final UUID tenant = UUID.randomUUID();
+        final UUID branchId = UUID.randomUUID();
+        final UserAccount owner = UserAccount.builder()
+                .id(UUID.randomUUID()).username(TEST_USERNAME).hotelId(tenant).role(Role.OWNER).build();
+        when(users.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(owner));
+        when(branches.findByIdAndHotelId(branchId, tenant)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
                 () -> service.isEnabled(TEST_USERNAME, tenant, branchId, ORDERS_READ));
     }
 
