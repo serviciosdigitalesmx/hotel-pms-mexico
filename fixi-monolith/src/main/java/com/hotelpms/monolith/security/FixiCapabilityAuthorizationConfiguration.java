@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Locale;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,14 +17,28 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /** Applies effective Fixi capabilities to business API routes in the consolidated monolith. */
 @Configuration(proxyBeanMethods = false)
-@RequiredArgsConstructor
 public class FixiCapabilityAuthorizationConfiguration implements WebMvcConfigurer {
   private final CapabilityService capabilities;
   private final TenantIndustryProfileRepository industryProfiles;
 
+  public FixiCapabilityAuthorizationConfiguration(
+      final CapabilityService capabilities,
+      final TenantIndustryProfileRepository industryProfiles) {
+    this.capabilities = capabilities;
+    this.industryProfiles = industryProfiles;
+  }
+
   @Override
   public void addInterceptors(final InterceptorRegistry registry) {
-    registry.addInterceptor(this::authorizeFixiCapability).addPathPatterns("/api/v1/**");
+    registry.addInterceptor(new HandlerInterceptor() {
+      @Override
+      public boolean preHandle(
+          final HttpServletRequest request,
+          final HttpServletResponse response,
+          final Object handler) throws Exception {
+        return authorizeFixiCapability(request, response, handler);
+      }
+    }).addPathPatterns("/api/v1/**");
   }
 
   private boolean authorizeFixiCapability(
