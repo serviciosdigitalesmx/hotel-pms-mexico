@@ -1,5 +1,6 @@
 package com.hotelpms.monolith.web;
 
+import com.hotelpms.auth.service.FixiFrontendUrls;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -15,6 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class EmailVerificationPageController {
 
   private static final SecureRandom NONCE_RANDOM = new SecureRandom();
+  private final FixiFrontendUrls frontendUrls;
+
+  public EmailVerificationPageController(final FixiFrontendUrls frontendUrls) {
+    this.frontendUrls = frontendUrls;
+  }
 
   /**
    * Displays a confirmation page without consuming the token on GET. Email security scanners
@@ -63,7 +69,7 @@ public class EmailVerificationPageController {
           <button id="resend-button" class="secondary" type="submit">Enviar un nuevo enlace</button>
         </form>
         <p id="resend-status" class="status" data-state="info" role="status" aria-live="polite" hidden></p>
-        <a id="login-link" class="login-link" href="https://app.serviciosdigitalesmx.online/login" hidden>
+        <a id="login-link" class="login-link" href="{{frontendLoginUrl}}" hidden>
           Ir a iniciar sesión en Fixi
         </a>
         <script nonce="{{nonce}}">
@@ -169,6 +175,6 @@ public class EmailVerificationPageController {
           })();
         </script>
         """.replace("{{nonce}}", nonce);
-    return FixiEmailPageLayout.render("Verificar correo", content, nonce);
+    return FixiEmailPageLayout.render("Verificar correo", content, nonce, frontendUrls);
   }
 }

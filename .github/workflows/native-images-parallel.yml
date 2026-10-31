@@ -284,6 +284,7 @@ jobs:
       FIXI_RELEASE_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       FIXI_PUBLIC_HOST: fixi.localhost
       FIXI_PUBLIC_URL: https://fixi.localhost:8443
+      FIXI_FRONTEND_URL: https://fixi.localhost:8443
       POSTGRES_PASSWORD: ci-only-postgres
       REDIS_PASSWORD: ci-only-redis
       CONFIG_SERVER_PASSWORD: ci-only-config

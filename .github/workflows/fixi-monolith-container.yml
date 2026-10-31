@@ -202,6 +202,7 @@ jobs:
           cat > "$env_file" <<EOF
           FIXI_IMAGE=${IMAGE}
           FIXI_PUBLIC_HOST=localhost
+          FIXI_FRONTEND_URL=https://localhost
           GW_CORS_ALLOWED_ORIGINS=https://localhost
           POSTGRES_ADMIN_PASSWORD=$(openssl rand -hex 32)
           DATABASE_PASSWORD=$(openssl rand -hex 32)

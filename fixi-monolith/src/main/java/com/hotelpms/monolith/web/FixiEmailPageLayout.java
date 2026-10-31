@@ -1,6 +1,10 @@
 package com.hotelpms.monolith.web;
 
-/** Shared, self-contained visual shell for account emails opened on the monolith API host. */
+import com.hotelpms.auth.service.FixiFrontendUrls;
+import java.nio.charset.StandardCharsets;
+import org.springframework.web.util.HtmlUtils;
+
+/** Shared, self-contained visual shell for public account pages served by the backend. */
 final class FixiEmailPageLayout {
 
   private static final String SHELL =
@@ -149,7 +153,7 @@ final class FixiEmailPageLayout {
         </head>
         <body>
           <main class="shell">
-            <a class="brand" href="https://app.serviciosdigitalesmx.online/login"
+            <a class="brand" href="{{frontendLoginUrl}}"
                aria-label="Fixi, iniciar sesión">
               <span class="brand-mark" aria-hidden="true">F</span><span>FIXI</span>
             </a>
@@ -165,9 +169,19 @@ final class FixiEmailPageLayout {
 
   private FixiEmailPageLayout() {}
 
-  static String render(final String title, final String content, final String nonce) {
+  static String render(
+      final String title,
+      final String content,
+      final String nonce,
+      final FixiFrontendUrls frontendUrls) {
     return SHELL.replace("{{title}}", title)
         .replace("{{content}}", content)
-        .replace("{{nonce}}", nonce);
+        .replace("{{nonce}}", nonce)
+        .replace("{{frontendLoginUrl}}", htmlAttribute(frontendUrls.login()))
+        .replace("{{frontendForgotPasswordUrl}}", htmlAttribute(frontendUrls.forgotPassword()));
+  }
+
+  private static String htmlAttribute(final String value) {
+    return HtmlUtils.htmlEscape(value, StandardCharsets.UTF_8.name());
   }
 }

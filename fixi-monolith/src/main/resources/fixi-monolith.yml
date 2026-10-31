@@ -63,6 +63,7 @@ fixi:
     assigned-orders:
       enabled: true
   public-url: ${FIXI_PUBLIC_URL:http://localhost}
+  frontend-url: ${FIXI_FRONTEND_URL:${FIXI_PUBLIC_URL:http://localhost}}
   mail-from: ${FIXI_MAIL_FROM:no-reply@fixi.local}
   platform:
     console:

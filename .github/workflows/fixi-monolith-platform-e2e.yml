@@ -120,6 +120,7 @@ jobs:
           TENANT_PASSWORD: password
           TENANT_NEW_PASSWORD: FixiTenant123
           GW_CORS_ALLOWED_ORIGINS: http://localhost:5173
+          FIXI_FRONTEND_URL: http://localhost:5173
           FIXI_PLATFORM_BOOTSTRAP_ENABLED: 'true'
           FIXI_PLATFORM_BOOTSTRAP_USERNAME: e2e-live-other-hotel-admin
           FIXI_BOOTSTRAP_REMOVE_TEST_USERS_ON_STARTUP: 'false'

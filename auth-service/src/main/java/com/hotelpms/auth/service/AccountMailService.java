@@ -9,22 +9,22 @@ import org.springframework.stereotype.Service;
 @Service
 public class AccountMailService {
   private final JavaMailSender sender;
-  private final String publicUrl;
+  private final FixiFrontendUrls frontendUrls;
   private final String from;
 
   /**
    * Creates the mail service with the configured sender and public URL.
    *
    * @param sender configured mail transport
-   * @param publicUrl browser-accessible Fixi base URL
+   * @param frontendUrls canonical browser-accessible Fixi frontend URLs
    * @param from sender address used in account messages
    */
   public AccountMailService(
       final JavaMailSender sender,
-      @Value("${fixi.public-url:http://localhost}") final String publicUrl,
+      final FixiFrontendUrls frontendUrls,
       @Value("${fixi.mail-from:no-reply@fixi.local}") final String from) {
     this.sender = sender;
-    this.publicUrl = publicUrl;
+    this.frontendUrls = frontendUrls;
     this.from = from;
   }
 
@@ -35,7 +35,7 @@ public class AccountMailService {
    * @param token one-time verification token
    */
   public void verification(final String email, final String token) {
-    send(email, "Verifica tu cuenta Fixi", publicUrl + "/verify-email?token=" + token);
+    send(email, "Verifica tu cuenta Fixi", frontendUrls.pageWithToken("/verify-email", token));
   }
 
   /**
@@ -45,7 +45,7 @@ public class AccountMailService {
    * @param token one-time reset token
    */
   public void reset(final String email, final String token) {
-    send(email, "Restablece tu contraseña Fixi", publicUrl + "/reset-password?token=" + token);
+    send(email, "Restablece tu contraseña Fixi", frontendUrls.pageWithToken("/reset-password", token));
   }
 
   /**
@@ -55,7 +55,7 @@ public class AccountMailService {
    * @param token one-time invitation token
    */
   public void invitation(final String email, final String token) {
-    send(email, "Te invitaron a Fixi", publicUrl + "/accept-invitation?token=" + token);
+    send(email, "Te invitaron a Fixi", frontendUrls.pageWithToken("/accept-invitation", token));
   }
 
   private void send(final String to, final String subject, final String link) {

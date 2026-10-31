@@ -110,6 +110,28 @@ class SaasIdentityServiceTest {
   }
 
   @Test
+  void resendVerificationUsesTheSameCanonicalAccountMailFlow() {
+    final UUID ownerId = UUID.randomUUID();
+    final UserAccount owner =
+        UserAccount.builder()
+            .id(ownerId)
+            .email(OWNER_EMAIL)
+            .emailVerified(false)
+            .build();
+    when(users.findByEmailIncludingInactive(OWNER_EMAIL))
+        .thenReturn(java.util.Optional.of(owner));
+    when(tokens.save(any(AccountToken.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.resendVerification(OWNER_EMAIL);
+
+    verify(tokens).save(tokenCaptor.capture());
+    assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo(VERIFY_EMAIL_PURPOSE);
+    assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(ownerId);
+    verify(mail).verification(org.mockito.ArgumentMatchers.eq(OWNER_EMAIL), any());
+  }
+
+  @Test
   void fixiInvitationRejectsHistoricalPmsRolesBeforeCreatingInvitation() {
     final UUID tenantId = UUID.randomUUID();
     when(industryProfiles.findById(tenantId)).thenReturn(java.util.Optional.of(

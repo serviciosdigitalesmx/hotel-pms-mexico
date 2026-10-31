@@ -1,5 +1,6 @@
 package com.hotelpms.monolith.web;
 
+import com.hotelpms.auth.service.FixiFrontendUrls;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -15,6 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class InvitationAcceptancePageController {
 
   private static final SecureRandom NONCE_RANDOM = new SecureRandom();
+  private final FixiFrontendUrls frontendUrls;
+
+  public InvitationAcceptancePageController(final FixiFrontendUrls frontendUrls) {
+    this.frontendUrls = frontendUrls;
+  }
 
   /**
    * Renders the password-creation form without consuming the invitation token on GET.
@@ -64,7 +70,7 @@ public class InvitationAcceptancePageController {
             Después podrás iniciar sesión con tu usuario o correo y esta contraseña.</p>
           <button id="accept-button" class="primary" type="submit">Crear contraseña y aceptar invitación</button>
         </form>
-        <a id="login-link" class="login-link" href="https://app.serviciosdigitalesmx.online/login" hidden>
+        <a id="login-link" class="login-link" href="{{frontendLoginUrl}}" hidden>
           Ir a iniciar sesión en Fixi
         </a>
         <script nonce="{{nonce}}">
@@ -123,6 +129,6 @@ public class InvitationAcceptancePageController {
           })();
         </script>
         """.replace("{{nonce}}", nonce);
-    return FixiEmailPageLayout.render("Aceptar invitación", content, nonce);
+    return FixiEmailPageLayout.render("Aceptar invitación", content, nonce, frontendUrls);
   }
 }

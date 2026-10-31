@@ -90,6 +90,7 @@ services:
       INTERNAL_HMAC_SECRET: ${INTERNAL_HMAC_SECRET:?Set INTERNAL_HMAC_SECRET}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       FIXI_PUBLIC_URL: ${FIXI_PUBLIC_URL:?Set FIXI_PUBLIC_URL including the externally used port when nonstandard}
+      FIXI_FRONTEND_URL: ${FIXI_FRONTEND_URL:?Set FIXI_FRONTEND_URL to the official Fixi frontend origin}
     networks: !override [backend-network, db-network, gateway-network]
 
   guest-service:

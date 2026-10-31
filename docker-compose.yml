@@ -419,6 +419,7 @@ services:
       - SMTP_HOST=${SMTP_HOST:-fixi-mail}
       - SMTP_PORT=${SMTP_PORT:-1025}
       - FIXI_PUBLIC_URL=${FIXI_PUBLIC_URL:-http://localhost}
+      - FIXI_FRONTEND_URL=${FIXI_FRONTEND_URL:-${FIXI_PUBLIC_URL:-http://localhost}}
       - JAVA_TOOL_OPTIONS=-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError
     depends_on:
       postgres:

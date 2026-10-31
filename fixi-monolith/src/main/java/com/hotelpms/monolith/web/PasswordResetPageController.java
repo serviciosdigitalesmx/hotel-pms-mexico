@@ -1,5 +1,6 @@
 package com.hotelpms.monolith.web;
 
+import com.hotelpms.auth.service.FixiFrontendUrls;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -15,6 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PasswordResetPageController {
 
   private static final SecureRandom NONCE_RANDOM = new SecureRandom();
+  private final FixiFrontendUrls frontendUrls;
+
+  public PasswordResetPageController(final FixiFrontendUrls frontendUrls) {
+    this.frontendUrls = frontendUrls;
+  }
 
   /**
    * Displays a reset form without consuming the token on GET, so email scanners cannot use it.
@@ -60,10 +66,10 @@ public class PasswordResetPageController {
           <p class="helper">Usa al menos 6 caracteres y una mayúscula.</p>
           <button id="reset-button" class="primary" type="submit">Guardar contraseña</button>
         </form>
-        <a id="forgot-link" class="login-link" href="https://app.serviciosdigitalesmx.online/forgot-password" hidden>
+        <a id="forgot-link" class="login-link" href="{{frontendForgotPasswordUrl}}" hidden>
           Solicitar otro enlace
         </a>
-        <a id="login-link" class="login-link" href="https://app.serviciosdigitalesmx.online/login" hidden>
+        <a id="login-link" class="login-link" href="{{frontendLoginUrl}}" hidden>
           Ir a iniciar sesión en Fixi
         </a>
         <script nonce="{{nonce}}">
@@ -123,6 +129,6 @@ public class PasswordResetPageController {
           })();
         </script>
         """.replace("{{nonce}}", nonce);
-    return FixiEmailPageLayout.render("Restablecer contraseña", content, nonce);
+    return FixiEmailPageLayout.render("Restablecer contraseña", content, nonce, frontendUrls);
   }
 }
