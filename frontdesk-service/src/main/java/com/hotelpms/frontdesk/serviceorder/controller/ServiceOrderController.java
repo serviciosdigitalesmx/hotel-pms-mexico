@@ -36,6 +36,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Tenant-scoped API for service orders, quotations, payments, and delivery. */
@@ -102,9 +103,9 @@ public class ServiceOrderController {
     public ResponseEntity<ServiceOrder> create(@Valid @RequestBody final ServiceOrderRequest r) {
         final var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (assignedOrderScopeEnabled && !isTenantAdministrator(authentication)) {
-            final java.util.List<UUID> permittedBranches = currentBranchIds();
-            if (r.branchId() == null || permittedBranches == null
-                    || !permittedBranches.contains(r.branchId())) {
+            final Optional<List<UUID>> permittedBranches = currentBranchIds();
+            if (r.branchId() == null || permittedBranches.isEmpty()
+                    || !permittedBranches.orElseThrow().contains(r.branchId())) {
                 throw new org.springframework.security.access.AccessDeniedException(
                         "BRANCH_ACCESS_DENIED");
             }
@@ -421,23 +422,23 @@ public class ServiceOrderController {
         return orderAccess.technicianId(authentication.getName(), hotel());
     }
 
-    private java.util.List<UUID> currentBranchIds() {
+    private Optional<List<UUID>> currentBranchIds() {
         if (!assignedOrderScopeEnabled) {
-            return null;
+            return Optional.empty();
         }
         final var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || isTenantAdministrator(authentication)) {
-            return null;
+            return Optional.empty();
         }
         final Object selected = org.springframework.web.context.request.RequestContextHolder
                 .getRequestAttributes() instanceof org.springframework.web.context.request.ServletRequestAttributes attributes
                 ? attributes.getRequest().getAttribute("fixi.authenticatedBranchId") : null;
         if (selected != null) {
             final UUID branchId = UUID.fromString(selected.toString());
-            return orderAccess.canAccessBranch(authentication.getName(), hotel(), branchId)
-                    ? java.util.List.of(branchId) : java.util.List.of();
+            return Optional.of(orderAccess.canAccessBranch(authentication.getName(), hotel(), branchId)
+                    ? List.of(branchId) : List.of());
         }
-        return orderAccess.branchIds(authentication.getName(), hotel());
+        return Optional.of(orderAccess.branchIds(authentication.getName(), hotel()));
     }
 
     private boolean isTenantAdministrator(

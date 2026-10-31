@@ -18,7 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 /** Removes financial fields from Fixi order responses for technician principals. */
 @ControllerAdvice
 @ConditionalOnProperty(name = "fixi.authorization.assigned-orders.enabled", havingValue = "true")
-public class FixiTechnicianOrderResponseAdvice implements ResponseBodyAdvice<Object> {
+public final class FixiTechnicianOrderResponseAdvice implements ResponseBodyAdvice<Object> {
   @Override
   public boolean supports(
       final MethodParameter returnType,

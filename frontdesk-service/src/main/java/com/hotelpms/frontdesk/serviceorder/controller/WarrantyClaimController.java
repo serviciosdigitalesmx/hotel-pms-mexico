@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Type domain type. */
@@ -92,25 +93,31 @@ public class WarrantyClaimController {
                         SecurityContextHolder.getContext().getAuthentication().getDetails()));
     }
 
-    private java.util.List<UUID> branchIds() {
-        if (!branchScopeEnabled) return null;
+    private Optional<List<UUID>> branchIds() {
+        if (!branchScopeEnabled) {
+            return Optional.empty();
+        }
         final var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
-                        || "ROLE_ADMIN".equals(authority.getAuthority()))) return null;
+                        || "ROLE_ADMIN".equals(authority.getAuthority()))) {
+            return Optional.empty();
+        }
         final Object selected = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
                 instanceof org.springframework.web.context.request.ServletRequestAttributes attributes
                 ? attributes.getRequest().getAttribute("fixi.authenticatedBranchId") : null;
         if (selected != null) {
             final UUID branchId = UUID.fromString(selected.toString());
-            return orderAccess.canAccessBranch(authentication.getName(), hotel(), branchId)
-                    ? java.util.List.of(branchId) : java.util.List.of();
+            return Optional.of(orderAccess.canAccessBranch(authentication.getName(), hotel(), branchId)
+                    ? List.of(branchId) : List.of());
         }
-        return orderAccess.branchIds(authentication.getName(), hotel());
+        return Optional.of(orderAccess.branchIds(authentication.getName(), hotel()));
     }
 
     private void requireOrderBranchAccess(final UUID orderId) {
-        if (!branchScopeEnabled) return;
+        if (!branchScopeEnabled) {
+            return;
+        }
         final var authentication = SecurityContextHolder.getContext().getAuthentication();
         final Object selected = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes()
                 instanceof org.springframework.web.context.request.ServletRequestAttributes attributes

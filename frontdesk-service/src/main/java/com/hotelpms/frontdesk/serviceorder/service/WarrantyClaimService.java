@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Type domain type. */
@@ -115,13 +116,23 @@ public class WarrantyClaimService {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotel, customer);
     }
 
+    /**
+     * Lists a customer's claims in the user's authorized branch scope.
+     *
+     * @param hotel tenant identifier
+     * @param customer customer identifier
+     * @param branchIds authorized branch identifiers; empty optional means tenant scope
+     * @return matching tenant-owned warranty claims
+     * @implSpec Overrides must preserve tenant ownership and branch authorization.
+     */
     @Transactional(readOnly = true)
     public List<WarrantyClaim> listForBranches(
-            final UUID hotel, final UUID customer, final java.util.Collection<UUID> branchIds) {
-        return branchIds == null
+            final UUID hotel, final UUID customer, final Optional<List<UUID>> branchIds) {
+        return branchIds.isEmpty()
                 ? list(hotel, customer)
-                : branchIds.isEmpty() ? List.of()
-                : repository.findAllByTenantCustomerAndBranches(hotel, customer, branchIds);
+                : branchIds.orElseThrow().isEmpty() ? List.of()
+                : repository.findAllByTenantCustomerAndBranches(
+                        hotel, customer, branchIds.orElseThrow());
     }
 
     /**

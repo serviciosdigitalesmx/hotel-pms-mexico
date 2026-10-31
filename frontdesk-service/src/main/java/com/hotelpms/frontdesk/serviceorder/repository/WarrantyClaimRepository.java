@@ -32,6 +32,14 @@ public interface WarrantyClaimRepository extends JpaRepository<WarrantyClaim, UU
     List<WarrantyClaim> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId);
 
+    /**
+     * Lists the tenant customer's warranty claims attached to authorized branches.
+     *
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @param branchIds authorized branch identifiers
+     * @return matching tenant-owned claims
+     */
     @Query(value = "select w.* from warranty_claims w join service_orders o "
             + "on o.id = w.service_order_id and o.hotel_id = w.hotel_id "
             + "where w.hotel_id = :hotelId and w.customer_id = :customerId "

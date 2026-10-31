@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -493,6 +494,15 @@ public class ServiceOrderService {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotelId, customerId);
     }
 
+    /**
+     * Lists a customer's orders, optionally restricted to one assigned technician.
+     *
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @param assignedUserId optional authenticated technician user identifier
+     * @return matching tenant-owned orders
+     * @implSpec Overrides must preserve tenant ownership and assignment checks.
+     */
     @Transactional(readOnly = true)
     public List<ServiceOrder> list(
             final UUID hotelId, final UUID customerId, final UUID assignedUserId) {
@@ -500,16 +510,6 @@ public class ServiceOrderService {
                 ? list(hotelId, customerId)
                 : repository.findAllByHotelIdAndCustomerIdAndAssignedUserIdOrderByCreatedAtDesc(
                         hotelId, customerId, assignedUserId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ServiceOrder> listForBranches(
-            final UUID hotelId, final UUID customerId, final java.util.Collection<UUID> branchIds) {
-        return branchIds == null
-                ? list(hotelId, customerId)
-                : branchIds.isEmpty() ? List.of()
-                : repository.findAllByHotelIdAndCustomerIdAndBranchIdInOrderByCreatedAtDesc(
-                        hotelId, customerId, branchIds);
     }
 
     /**
@@ -524,21 +524,20 @@ public class ServiceOrderService {
         return repository.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
     }
 
+    /**
+     * Lists tenant orders, optionally restricted to one assigned technician.
+     *
+     * @param hotelId tenant identifier
+     * @param assignedUserId optional authenticated technician user identifier
+     * @return matching tenant-owned orders
+     * @implSpec Overrides must preserve tenant ownership and assignment checks.
+     */
     @Transactional(readOnly = true)
     public List<ServiceOrder> listAll(final UUID hotelId, final UUID assignedUserId) {
         return assignedUserId == null
                 ? listAll(hotelId)
                 : repository.findAllByHotelIdAndAssignedUserIdOrderByCreatedAtDesc(
                         hotelId, assignedUserId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ServiceOrder> listAllForBranches(
-            final UUID hotelId, final java.util.Collection<UUID> branchIds) {
-        return branchIds == null
-                ? listAll(hotelId)
-                : branchIds.isEmpty() ? List.of()
-                : repository.findAllByHotelIdAndBranchIdInOrderByCreatedAtDesc(hotelId, branchIds);
     }
 
     /**
@@ -554,6 +553,15 @@ public class ServiceOrderService {
         return repository.findAllByHotelId(hotelId, pageable);
     }
 
+    /**
+     * Returns a tenant-scoped page of repair orders assigned to one technician.
+     *
+     * @param hotelId tenant identifier
+     * @param assignedUserId technician user identifier, or {@code null} for tenant scope
+     * @param pageable page request
+     * @return requested order page
+     * @implSpec Overrides must preserve tenant ownership and assignment checks.
+     */
     @Transactional(readOnly = true)
     public Page<ServiceOrder> listAll(
             final UUID hotelId, final UUID assignedUserId, final Pageable pageable) {
@@ -562,13 +570,60 @@ public class ServiceOrderService {
                 : repository.findAllByHotelIdAndAssignedUserId(hotelId, assignedUserId, pageable);
     }
 
+    /**
+     * Lists a customer's orders, optionally restricted to the user's authorized branches.
+     *
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @param branchIds authorized branch identifiers; empty optional means tenant scope
+     * @return matching tenant-owned orders
+     * @implSpec Overrides must preserve tenant ownership and branch authorization.
+     */
+    @Transactional(readOnly = true)
+    public List<ServiceOrder> listForBranches(
+            final UUID hotelId, final UUID customerId, final Optional<List<UUID>> branchIds) {
+        return branchIds.isEmpty()
+                ? list(hotelId, customerId)
+                : branchIds.orElseThrow().isEmpty() ? List.of()
+                : repository.findAllByHotelIdAndCustomerIdAndBranchIdInOrderByCreatedAtDesc(
+                        hotelId, customerId, branchIds.orElseThrow());
+    }
+
+    /**
+     * Lists orders within the user's authorized branch scope.
+     *
+     * @param hotelId tenant identifier
+     * @param branchIds authorized branch identifiers; empty optional means tenant scope
+     * @return matching tenant-owned orders
+     * @implSpec Overrides must preserve tenant ownership and branch authorization.
+     */
+    @Transactional(readOnly = true)
+    public List<ServiceOrder> listAllForBranches(
+            final UUID hotelId, final Optional<List<UUID>> branchIds) {
+        return branchIds.isEmpty()
+                ? listAll(hotelId)
+                : branchIds.orElseThrow().isEmpty() ? List.of()
+                : repository.findAllByHotelIdAndBranchIdInOrderByCreatedAtDesc(
+                        hotelId, branchIds.orElseThrow());
+    }
+
+    /**
+     * Lists paged orders within the user's authorized branch scope.
+     *
+     * @param hotelId tenant identifier
+     * @param branchIds authorized branch identifiers; empty optional means tenant scope
+     * @param pageable requested page and ordering
+     * @return matching tenant-owned order page
+     * @implSpec Overrides must preserve tenant ownership and branch authorization.
+     */
     @Transactional(readOnly = true)
     public Page<ServiceOrder> listAllForBranches(
-            final UUID hotelId, final java.util.Collection<UUID> branchIds, final Pageable pageable) {
-        return branchIds == null
+            final UUID hotelId, final Optional<List<UUID>> branchIds, final Pageable pageable) {
+        return branchIds.isEmpty()
                 ? listAll(hotelId, pageable)
-                : branchIds.isEmpty() ? org.springframework.data.domain.Page.empty(pageable)
-                : repository.findAllByHotelIdAndBranchIdIn(hotelId, branchIds, pageable);
+                : branchIds.orElseThrow().isEmpty() ? Page.empty(pageable)
+                : repository.findAllByHotelIdAndBranchIdIn(
+                        hotelId, branchIds.orElseThrow(), pageable);
     }
 
     /**
@@ -585,6 +640,15 @@ public class ServiceOrderService {
         return customerOrderCounts(hotelId, customerIds, null);
     }
 
+    /**
+     * Counts customer orders in a tenant, optionally scoped to one technician.
+     *
+     * @param hotelId tenant identifier
+     * @param customerIds customer identifiers
+     * @param assignedUserId optional authenticated technician user identifier
+     * @return counts for matching tenant-owned orders
+     * @implSpec Overrides must preserve tenant ownership and assignment checks.
+     */
     @Transactional(readOnly = true)
     public List<CustomerOrderCount> customerOrderCounts(
             final UUID hotelId, final List<UUID> customerIds, final UUID assignedUserId) {
@@ -601,18 +665,28 @@ public class ServiceOrderService {
                 .toList();
     }
 
+    /**
+     * Counts customer orders within the user's authorized branch scope.
+     *
+     * @param hotelId tenant identifier
+     * @param customerIds customer identifiers
+     * @param branchIds authorized branch identifiers; empty optional means tenant scope
+     * @return counts for matching orders
+     * @implSpec Overrides must preserve tenant ownership and branch authorization.
+     */
     @Transactional(readOnly = true)
     public List<CustomerOrderCount> customerOrderCountsForBranches(
             final UUID hotelId, final List<UUID> customerIds,
-            final java.util.Collection<UUID> branchIds) {
-        if (branchIds == null) {
+            final Optional<List<UUID>> branchIds) {
+        if (branchIds.isEmpty()) {
             return customerOrderCounts(hotelId, customerIds);
         }
-        if (branchIds.isEmpty() || customerIds == null || customerIds.isEmpty()) {
+        final List<UUID> authorizedBranchIds = branchIds.orElseThrow();
+        if (authorizedBranchIds.isEmpty() || customerIds == null || customerIds.isEmpty()) {
             return List.of();
         }
         return repository.countOrdersForCustomersInBranches(
-                        hotelId, branchIds, customerIds.stream().distinct().toList()).stream()
+                        hotelId, authorizedBranchIds, customerIds.stream().distinct().toList()).stream()
                 .map(row -> new CustomerOrderCount((UUID) row[0], ((Number) row[1]).longValue()))
                 .toList();
     }

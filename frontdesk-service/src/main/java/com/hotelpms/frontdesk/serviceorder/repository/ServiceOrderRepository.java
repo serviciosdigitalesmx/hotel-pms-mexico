@@ -19,12 +19,14 @@ import java.util.UUID;
 
 /** Tenant-scoped repair order persistence, locks, and operational reporting. */
 public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID> {
+    String HOTEL_ID_PARAM = "hotelId";
+
     /**
-     * Executes the operation.
+     * Finds an order only when it belongs to the tenant.
      *
-     * @param id parameter.
-     * @param hotelId parameter.
-     * @return operation result.
+     * @param id order identifier
+     * @param hotelId tenant identifier
+     * @return the order only when it belongs to the tenant
      */
     Optional<ServiceOrder> findByIdAndHotelId(UUID id, UUID hotelId);
 
@@ -38,19 +40,33 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from ServiceOrder o where o.id = :id and o.hotelId = :hotelId")
     Optional<ServiceOrder> findForUpdateByIdAndHotelId(
-            @Param("id") UUID id, @Param("hotelId") UUID hotelId);
+            @Param("id") UUID id, @Param(HOTEL_ID_PARAM) UUID hotelId);
 
     /**
-     * Executes the operation.
+     * Lists all repair orders belonging to the tenant, newest first.
      *
-     * @param hotelId parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @return tenant-owned orders
      */
     List<ServiceOrder> findAllByHotelIdOrderByCreatedAtDesc(UUID hotelId);
 
+    /**
+     * Lists tenant orders assigned to a specific technician, newest first.
+     *
+     * @param hotelId tenant identifier
+     * @param assignedUserId technician user identifier
+     * @return orders assigned to that user within the tenant
+     */
     List<ServiceOrder> findAllByHotelIdAndAssignedUserIdOrderByCreatedAtDesc(
             UUID hotelId, UUID assignedUserId);
 
+    /**
+     * Lists tenant orders belonging to any of the specified branches, newest first.
+     *
+     * @param hotelId tenant identifier
+     * @param branchIds authorized branch identifiers
+     * @return orders from those branches within the tenant
+     */
     List<ServiceOrder> findAllByHotelIdAndBranchIdInOrderByCreatedAtDesc(
             UUID hotelId, Collection<UUID> branchIds);
 
@@ -63,9 +79,25 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      */
     Page<ServiceOrder> findAllByHotelId(UUID hotelId, Pageable pageable);
 
+    /**
+     * Lists tenant orders assigned to a technician in page form.
+     *
+     * @param hotelId tenant identifier
+     * @param assignedUserId technician user identifier
+     * @param pageable requested page and ordering
+     * @return tenant-owned orders assigned to that user
+     */
     Page<ServiceOrder> findAllByHotelIdAndAssignedUserId(
             UUID hotelId, UUID assignedUserId, Pageable pageable);
 
+    /**
+     * Lists tenant orders from authorized branches in page form.
+     *
+     * @param hotelId tenant identifier
+     * @param branchIds authorized branch identifiers
+     * @param pageable requested page and ordering
+     * @return tenant-owned orders from those branches
+     */
     Page<ServiceOrder> findAllByHotelIdAndBranchIdIn(
             UUID hotelId, Collection<UUID> branchIds, Pageable pageable);
 
@@ -90,18 +122,34 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ServiceOrder> findOverdueOrders(@Param("now") LocalDateTime now);
 
     /**
-     * Executes the operation.
+     * Lists tenant orders for a customer, newest first.
      *
-     * @param hotelId parameter.
-     * @param customerId parameter.
-     * @return operation result.
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @return matching tenant-owned orders
      */
     List<ServiceOrder> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId);
 
+    /**
+     * Lists a customer's tenant orders assigned to a technician, newest first.
+     *
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @param assignedUserId technician user identifier
+     * @return matching orders assigned to that user
+     */
     List<ServiceOrder> findAllByHotelIdAndCustomerIdAndAssignedUserIdOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId, UUID assignedUserId);
 
+    /**
+     * Lists a customer's tenant orders restricted to authorized branches, newest first.
+     *
+     * @param hotelId tenant identifier
+     * @param customerId customer identifier
+     * @param branchIds authorized branch identifiers
+     * @return matching orders in those branches
+     */
     List<ServiceOrder> findAllByHotelIdAndCustomerIdAndBranchIdInOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId, Collection<UUID> branchIds);
 
@@ -117,24 +165,40 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
                 + " where serviceOrder.hotelId = :hotelId and serviceOrder.customerId in"
                 + " :customerIds group by serviceOrder.customerId")
     List<Object[]> countOrdersForCustomers(
-            @Param("hotelId") UUID hotelId, @Param("customerIds") Collection<UUID> customerIds);
+            @Param(HOTEL_ID_PARAM) UUID hotelId, @Param("customerIds") Collection<UUID> customerIds);
 
+    /**
+     * Counts tenant orders assigned to a technician, grouped by customer.
+     *
+     * @param hotelId tenant identifier
+     * @param assignedUserId technician user identifier
+     * @param customerIds customer identifiers to count
+     * @return rows containing customer identifiers and assigned order counts
+     */
     @Query(
             "select serviceOrder.customerId, count(serviceOrder.id) from ServiceOrder serviceOrder"
                 + " where serviceOrder.hotelId = :hotelId and serviceOrder.assignedUserId ="
                 + " :assignedUserId and serviceOrder.customerId in :customerIds group by"
                 + " serviceOrder.customerId")
     List<Object[]> countOrdersForCustomersAssignedTo(
-            @Param("hotelId") UUID hotelId,
+            @Param(HOTEL_ID_PARAM) UUID hotelId,
             @Param("assignedUserId") UUID assignedUserId,
             @Param("customerIds") Collection<UUID> customerIds);
 
+    /**
+     * Counts tenant orders in authorized branches, grouped by customer.
+     *
+     * @param hotelId tenant identifier
+     * @param branchIds authorized branch identifiers
+     * @param customerIds customer identifiers to count
+     * @return rows containing customer identifiers and branch-scoped order counts
+     */
     @Query(
             "select serviceOrder.customerId, count(serviceOrder.id) from ServiceOrder serviceOrder"
                 + " where serviceOrder.hotelId = :hotelId and serviceOrder.branchId in :branchIds"
                 + " and serviceOrder.customerId in :customerIds group by serviceOrder.customerId")
     List<Object[]> countOrdersForCustomersInBranches(
-            @Param("hotelId") UUID hotelId,
+            @Param(HOTEL_ID_PARAM) UUID hotelId,
             @Param("branchIds") Collection<UUID> branchIds,
             @Param("customerIds") Collection<UUID> customerIds);
 }

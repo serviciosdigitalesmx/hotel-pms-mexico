@@ -1,5 +1,6 @@
 package com.hotelpms.frontdesk.serviceorder.security;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -10,10 +11,17 @@ import org.springframework.stereotype.Component;
 /** Resolves Fixi technician identity and assignment strictly from authenticated server context. */
 @Component
 @RequiredArgsConstructor
-public class FixiAssignedOrderAccess {
+public final class FixiAssignedOrderAccess {
   private final JdbcTemplate jdbc;
 
-  /** Resolves the active technician's database identity from the authenticated username/tenant. */
+  /**
+   * Resolves the active technician's database identity from the authenticated username and tenant.
+   *
+   * @param username authenticated username
+   * @param tenantId authenticated tenant identifier
+   * @return the single active technician identifier
+   * @throws AccessDeniedException if the identity is absent or ambiguous
+   */
   public UUID technicianId(final String username, final UUID tenantId) {
     final List<UUID> ids = jdbc.query(
         "select id from user_account where username = ? and hotel_id = ? and active = true and role = 'TECHNICIAN'",
@@ -24,7 +32,13 @@ public class FixiAssignedOrderAccess {
     return ids.getFirst();
   }
 
-  /** Returns the authenticated user's branch memberships from the server-side identity. */
+  /**
+   * Returns active branch memberships for the authenticated user in the tenant.
+   *
+   * @param username authenticated username
+   * @param tenantId authenticated tenant identifier
+   * @return active branch identifiers
+   */
   public List<UUID> branchIds(final String username, final UUID tenantId) {
     return jdbc.query(
         "select m.branch_id from user_branch_membership m join user_account u on u.id = m.user_id "
@@ -33,7 +47,14 @@ public class FixiAssignedOrderAccess {
         (rs, row) -> rs.getObject("branch_id", UUID.class), username, tenantId);
   }
 
-  /** Checks whether a non-administrator has membership in a tenant branch. */
+  /**
+   * Checks whether the authenticated user may access a branch in the tenant.
+   *
+   * @param username authenticated username
+   * @param tenantId authenticated tenant identifier
+   * @param branchId requested branch identifier
+   * @return whether the user belongs to the tenant and may access the branch
+   */
   public boolean canAccessBranch(final String username, final UUID tenantId, final UUID branchId) {
     if (username == null || tenantId == null || branchId == null) {
       return false;
@@ -48,21 +69,36 @@ public class FixiAssignedOrderAccess {
     return !rows.isEmpty() && rows.getFirst();
   }
 
-  /** Checks assignment without revealing whether a different tenant's or user's order exists. */
+  /**
+   * Checks order access without revealing whether another tenant's or user's order exists.
+   *
+   * @param username authenticated username
+   * @param tenantId authenticated tenant identifier
+   * @param orderId requested order identifier
+   * @return whether the authenticated user may access the order
+   */
   public boolean canAccessOrder(
       final String username, final UUID tenantId, final UUID orderId) {
     return canAccessOrder(username, tenantId, orderId, null);
   }
 
-  /** Checks tenant, branch membership, optional selected-branch context, and technician assignment. */
+  /**
+   * Checks tenant, branch membership, selected branch context, and technician assignment.
+   *
+   * @param username authenticated username
+   * @param tenantId authenticated tenant identifier
+   * @param orderId requested order identifier
+   * @param selectedBranchId optional server-validated branch context
+   * @return whether the authenticated user may access the order
+   */
   public boolean canAccessOrder(
       final String username, final UUID tenantId, final UUID orderId, final UUID selectedBranchId) {
     if (username == null || tenantId == null || orderId == null) {
       return false;
     }
     final String branchClause = selectedBranchId == null ? "" : " and o.branch_id = ?";
-    final java.util.List<Object> arguments = new java.util.ArrayList<>(
-        java.util.List.of(username, tenantId, orderId, tenantId));
+    final List<Object> arguments = new ArrayList<>(
+        List.of(username, tenantId, orderId, tenantId));
     if (selectedBranchId != null) {
       arguments.add(selectedBranchId);
     }
@@ -79,7 +115,13 @@ public class FixiAssignedOrderAccess {
     return !rows.isEmpty() && rows.getFirst();
   }
 
-  /** Resolves an evidence record's parent order within the tenant, or returns no match. */
+  /**
+   * Resolves an evidence record's parent order within the tenant.
+   *
+   * @param tenantId authenticated tenant identifier
+   * @param evidenceId evidence identifier
+   * @return parent order identifier, or {@code null} when no tenant-owned evidence matches
+   */
   public UUID evidenceOrderId(final UUID tenantId, final UUID evidenceId) {
     final List<UUID> ids = jdbc.query(
         "select service_order_id from document_evidence where id = ? and hotel_id = ?",
@@ -87,7 +129,13 @@ public class FixiAssignedOrderAccess {
     return ids.isEmpty() ? null : ids.getFirst();
   }
 
-  /** Resolves a tenant-owned warranty claim to the order whose assignment governs access. */
+  /**
+   * Resolves a tenant-owned warranty claim's parent order for assignment checks.
+   *
+   * @param tenantId authenticated tenant identifier
+   * @param claimId warranty claim identifier
+   * @return parent order identifier, or {@code null} when no tenant-owned claim matches
+   */
   public UUID warrantyOrderId(final UUID tenantId, final UUID claimId) {
     final List<UUID> ids = jdbc.query(
         "select service_order_id from warranty_claims where id = ? and hotel_id = ?",
