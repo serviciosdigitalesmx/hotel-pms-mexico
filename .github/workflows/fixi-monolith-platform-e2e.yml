@@ -131,8 +131,8 @@ jobs:
           jar="$(find fixi-monolith/build/libs -maxdepth 1 -name 'fixi-monolith-*.jar' ! -name '*-plain.jar' -print -quit)"
           test -n "$jar"
           LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG \
-          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET_DISPATCHERSERVLET=DEBUG \
-          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET_MVC_METHOD_ANNOTATION_REQUESTMAPPINGHANDLERMAPPING=TRACE \
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET=DEBUG \
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET_MVC_METHOD_ANNOTATION=TRACE \
             java -jar "$jar" > /tmp/fixi-monolith-platform-e2e.log 2>&1 &
           app_pid=$!
           frontend_pid=''
