@@ -130,7 +130,10 @@ jobs:
           export JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
           jar="$(find fixi-monolith/build/libs -maxdepth 1 -name 'fixi-monolith-*.jar' ! -name '*-plain.jar' -print -quit)"
           test -n "$jar"
-          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG java -jar "$jar" > /tmp/fixi-monolith-platform-e2e.log 2>&1 &
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG \
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET_DISPATCHERSERVLET=DEBUG \
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET_MVC_METHOD_ANNOTATION_REQUESTMAPPINGHANDLERMAPPING=TRACE \
+            java -jar "$jar" > /tmp/fixi-monolith-platform-e2e.log 2>&1 &
           app_pid=$!
           frontend_pid=''
           cleanup() {
