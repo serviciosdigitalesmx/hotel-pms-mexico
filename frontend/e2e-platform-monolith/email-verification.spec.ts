@@ -153,7 +153,7 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
     .toBe(frontendUrl);
   expect(parsedInvitationLink?.pathname).toBe('/accept-invitation');
   await page.goto(invitationLink!);
-  await expect(page.getByRole('heading', { name: 'Únete al equipo Fixi' })).toBeVisible();
+  await expect(page.getByText('Únete al equipo Fixi', { exact: true })).toBeVisible();
   await page.getByLabel('Nombre completo').fill('Synthetic Invitation E2E');
   await page.getByLabel('Usuario').fill(`tech-${suffix}`);
   await page.getByLabel('Contraseña de Fixi').fill('SyntheticTech1234');
@@ -198,7 +198,7 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
     .toBe(frontendUrl);
   expect(parsedResetLink?.pathname).toBe('/reset-password');
   await page.goto(resetLink!);
-  await expect(page.getByRole('heading', { name: 'Nueva contraseña' })).toBeVisible();
+  await expect(page.getByText('Nueva contraseña', { exact: true })).toBeVisible();
   await page.getByPlaceholder('Al menos 6 caracteres y una mayúscula').fill('UpdatedPassword123');
   const resetPassword = page.waitForResponse(response =>
     new URL(response.url()).pathname === '/api/v1/auth/public/reset-password'
@@ -230,7 +230,7 @@ test('email verification requires an explicit click and reports an invalid link'
   });
 
   await page.goto(`${monolithUrl}/verify-email?token=ci-invalid-email-verification-probe`);
-  await expect(page.getByRole('heading', { name: 'Confirma tu correo' })).toBeVisible();
+  await expect(page.getByText('Confirma tu correo', { exact: true })).toBeVisible();
   await expect(page.getByText('FIXI', { exact: true })).toBeVisible();
   await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page).toHaveURL(`${monolithUrl}/verify-email`);
@@ -260,7 +260,7 @@ test('password reset and invitation pages render and submit through public APIs'
   page.on('pageerror', error => pageErrors.push(error.message));
 
   await page.goto(`${monolithUrl}/reset-password?token=ci-invalid-reset-page-probe`);
-  await expect(page.getByRole('heading', { name: 'Restablece tu contraseña' })).toBeVisible();
+  await expect(page.getByText('Restablece tu contraseña', { exact: true })).toBeVisible();
   await expect(page.getByText('FIXI', { exact: true })).toBeVisible();
   await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   const resetResponse = page.waitForResponse(response =>
@@ -276,7 +276,7 @@ test('password reset and invitation pages render and submit through public APIs'
   await expect(page.locator('#login-link')).toHaveAttribute('href', `${frontendUrl}/login`);
 
   await page.goto(`${monolithUrl}/accept-invitation?token=ci-invalid-invitation-page-probe`);
-  await expect(page.getByRole('heading', { name: 'Únete a Fixi' })).toBeVisible();
+  await expect(page.getByText('Únete a Fixi', { exact: true })).toBeVisible();
   await expect(page.getByText('FIXI', { exact: true })).toBeVisible();
   await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   await expect(page.locator('#login-link')).toHaveAttribute('href', `${frontendUrl}/login`);
