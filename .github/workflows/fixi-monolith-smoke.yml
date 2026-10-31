@@ -94,7 +94,7 @@ jobs:
           (echo > /dev/tcp/127.0.0.1/1025) >/dev/null 2>&1
           jar="$(find fixi-monolith/build/libs -maxdepth 1 -name 'fixi-monolith-*.jar' ! -name '*-plain.jar' -print -quit)"
           test -n "$jar"
-          java -jar "$jar" > /tmp/fixi-monolith.log 2>&1 &
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=DEBUG java -jar "$jar" > /tmp/fixi-monolith.log 2>&1 &
           app_pid=$!
           cleanup() {
             kill "$app_pid" 2>/dev/null || true
