@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.servlet.HandlerInterceptor;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -19,36 +21,45 @@ public class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(final InterceptorRegistry registry) {
-    registry.addInterceptor((HandlerInterceptor) (request, response, handler) -> {
-      final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-      if (authentication == null || authentication.getAuthorities().stream()
-          .noneMatch(authority -> authority.getAuthority().startsWith("ROLE_"))) {
+    registry.addInterceptor(new HandlerInterceptor() {
+      @Override
+      public boolean preHandle(
+          final HttpServletRequest request,
+          final HttpServletResponse response,
+          final Object handler) throws Exception {
+        final Authentication authentication =
+            SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities().stream()
+            .noneMatch(authority -> authority.getAuthority().startsWith("ROLE_"))) {
+          return true;
+        }
+        final UUID tenantId;
+        try {
+          tenantId = UUID.fromString(String.valueOf(authentication.getDetails()));
+        } catch (final IllegalArgumentException | NullPointerException invalidTenant) {
+          response.sendError(404);
+          return false;
+        }
+        final UUID orderId = orderIdFor(request.getRequestURI(), tenantId);
+        if (orderId == null) {
+          return true;
+        }
+        final Object selectedBranch = request.getAttribute("fixi.authenticatedBranchId");
+        final UUID selectedBranchId;
+        try {
+          selectedBranchId = selectedBranch == null
+              ? null : UUID.fromString(selectedBranch.toString());
+        } catch (final IllegalArgumentException invalidBranch) {
+          response.sendError(404);
+          return false;
+        }
+        if (!access.canAccessOrder(
+            authentication.getName(), tenantId, orderId, selectedBranchId)) {
+          response.sendError(404);
+          return false;
+        }
         return true;
       }
-      final UUID tenantId;
-      try {
-        tenantId = UUID.fromString(String.valueOf(authentication.getDetails()));
-      } catch (final IllegalArgumentException invalidTenant) {
-        response.sendError(404);
-        return false;
-      }
-      final UUID orderId = orderIdFor(request.getRequestURI(), tenantId);
-      if (orderId == null) {
-        return true;
-      }
-      final Object selectedBranch = request.getAttribute("fixi.authenticatedBranchId");
-      final UUID selectedBranchId;
-      try {
-        selectedBranchId = selectedBranch == null ? null : UUID.fromString(selectedBranch.toString());
-      } catch (final IllegalArgumentException invalidBranch) {
-        response.sendError(404);
-        return false;
-      }
-      if (!access.canAccessOrder(authentication.getName(), tenantId, orderId, selectedBranchId)) {
-        response.sendError(404);
-        return false;
-      }
-      return true;
     });
   }
 
