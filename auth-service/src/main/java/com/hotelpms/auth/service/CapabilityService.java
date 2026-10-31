@@ -18,9 +18,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Evaluates tenant capabilities while enforcing tenant ownership. */
 @Service
@@ -102,7 +104,7 @@ public class CapabilityService {
       final var branch =
           branches
               .findByIdAndHotelId(branchId, actualTenant)
-              .orElseThrow(() -> new AccessDeniedException(BRANCH_ACCESS_DENIED));
+              .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
       if (!branch.isActive()) {
         throw new AccessDeniedException(BRANCH_ACCESS_DENIED);
       }

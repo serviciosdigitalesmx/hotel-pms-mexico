@@ -36,7 +36,7 @@ public class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer {
         final UUID tenantId;
         try {
           tenantId = UUID.fromString(String.valueOf(authentication.getDetails()));
-        } catch (final IllegalArgumentException | NullPointerException invalidTenant) {
+        } catch (final IllegalArgumentException invalidTenant) {
           response.sendError(404);
           return false;
         }
