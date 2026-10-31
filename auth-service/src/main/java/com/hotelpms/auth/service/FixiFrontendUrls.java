@@ -56,9 +56,9 @@ public final class FixiFrontendUrls {
   public String pageWithToken(final String path, final String token) {
     return UriComponentsBuilder.fromUriString(baseUrl)
         .path(normalizePath(path))
-        .queryParam("token", token)
-        .build()
+        .queryParam("token", "{token}")
         .encode()
+        .buildAndExpand(token)
         .toUriString();
   }
 
