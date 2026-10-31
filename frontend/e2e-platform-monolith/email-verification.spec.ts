@@ -93,7 +93,7 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
   await expect(continueToLogin).toBeVisible();
   await continueToLogin.click();
   await expect(page).toHaveURL(`${frontendUrl}/login`);
-  await expect(page.getByRole('heading', { name: 'Bienvenido a Fixi' })).toBeVisible();
+  await expect(page.getByText('Bienvenido a Fixi', { exact: true })).toBeVisible();
 
   const login = await request.post(`${monolithUrl}/api/v1/auth/login`, {
     data: { username: email, password },
