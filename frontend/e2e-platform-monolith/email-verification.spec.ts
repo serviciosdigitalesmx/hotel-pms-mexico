@@ -160,9 +160,9 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
   const acceptInvitation = page.waitForResponse(response =>
     new URL(response.url()).pathname === '/api/v1/auth/public/invitations/accept'
     && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Crear contraseña y aceptar invitación' }).click();
+  await page.getByRole('button', { name: 'Aceptar invitación' }).click();
   expect((await acceptInvitation).status()).toBe(204);
-  await expect(page.getByRole('status')).toContainText('Invitación aceptada');
+  await expect(page.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
   await page.getByRole('link', { name: 'Iniciar sesión' }).click();
   await expect(page).toHaveURL(`${frontendUrl}/login`);
 
