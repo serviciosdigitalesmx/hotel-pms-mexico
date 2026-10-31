@@ -68,9 +68,12 @@ test('Super Admin uses the real monolith platform console; tenant admin is denie
   await expect(tenantPage.getByRole('heading', { name: 'Dashboard Fixi' })).toBeVisible();
 
   await tenantPage.goto('/platform');
+  await expect(tenantPage.getByRole('heading', { name: 'Acceso no autorizado' })).toBeVisible();
   const deniedResponse = tenantPage.waitForResponse(result =>
     result.url().includes('/api/v1/auth/platform/dashboard') && result.request().method() === 'GET');
-  await expect(tenantPage.getByRole('alert')).toContainText('HTTP 403');
+  await tenantPage.evaluate(async () => {
+    await fetch('/api/v1/auth/platform/dashboard', { credentials: 'include' });
+  });
   expect((await deniedResponse).status(), 'tenant administrator must be rejected by the backend').toBe(403);
 
   expect(runtimeErrors, 'Super Admin browser should have no uncaught runtime errors').toEqual([]);
