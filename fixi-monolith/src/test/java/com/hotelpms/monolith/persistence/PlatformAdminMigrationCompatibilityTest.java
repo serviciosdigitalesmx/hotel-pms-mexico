@@ -1,7 +1,9 @@
 package com.hotelpms.monolith.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
@@ -56,6 +58,16 @@ class PlatformAdminMigrationCompatibilityTest {
     assertEquals(1, jdbc.queryForObject(
         "SELECT count(*) FROM flyway_history_auth_service WHERE version = '25' AND success",
         Integer.class));
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM flyway_history_auth_service WHERE version = '26' AND success",
+        Integer.class));
+    final String roleConstraint = jdbc.queryForObject(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint"
+            + " WHERE conname = 'chk_user_account_role'",
+        String.class);
+    assertTrue(roleConstraint.contains("TECHNICIAN"));
+    assertTrue(roleConstraint.contains("MANAGER"));
+    assertFalse(roleConstraint.contains("SUPER_ADMIN"));
   }
 
   private static JdbcTemplate jdbc() {
