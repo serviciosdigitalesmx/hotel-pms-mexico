@@ -53,7 +53,7 @@ public class EmailVerificationPageController {
     return ResponseEntity.ok().headers(headers).body(html);
   }
 
-  private static String verificationPage(final String nonce) {
+  private String verificationPage(final String nonce) {
     final String content =
         """
         <p class="eyebrow">Activación de cuenta</p>

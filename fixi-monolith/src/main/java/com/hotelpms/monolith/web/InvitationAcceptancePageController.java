@@ -50,7 +50,7 @@ public class InvitationAcceptancePageController {
     return ResponseEntity.ok().headers(headers).body(page(nonce));
   }
 
-  private static String page(final String nonce) {
+  private String page(final String nonce) {
     final String content =
         """
         <p class="eyebrow">Invitación de taller</p>
