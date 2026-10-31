@@ -11,6 +11,7 @@ vi.mock('./api', () => ({
 
 describe('Fixi direct-route authorization', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(api.currentUser).mockResolvedValue({
       username: 'tech', role: 'TECHNICIAN', hotelId: 'tenant-a', mustChangePassword: false,
     })

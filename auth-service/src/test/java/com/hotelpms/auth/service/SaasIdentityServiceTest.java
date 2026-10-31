@@ -147,7 +147,7 @@ class SaasIdentityServiceTest {
     assertThat(platformUser.getUsername()).isEqualTo(PLATFORM_USERNAME);
     assertThat(platformUser.getEmail()).isEqualTo(PLATFORM_EMAIL);
     assertThat(platformUser.getHotelId()).isNull();
-    assertThat(platformUser.getRole()).isEqualTo(com.hotelpms.auth.domain.Role.GUEST);
+    assertThat(platformUser.getRole()).isEqualTo(Role.GUEST);
     assertThat(platformUser.isActive()).isFalse();
     assertThat(platformUser.isEmailVerified()).isFalse();
     verify(tokens).save(tokenCaptor.capture());

@@ -131,7 +131,10 @@ class BranchControllerTest {
 
         mockMvc.perform(get(BASE_URL)
                         .header(HEADER_HOTEL, HOTEL_ID.toString())
-                        .with(req -> { req.setUserPrincipal(auth); return req; }))
+                        .with(req -> {
+                            req.setUserPrincipal(auth);
+                            return req;
+                        }))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(BRANCH_ID.toString()));
 

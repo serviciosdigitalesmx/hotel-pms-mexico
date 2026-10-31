@@ -42,8 +42,10 @@ class FixiAssignedOrderAccessTest {
     final FixiAssignedOrderWebConfiguration configuration =
         new FixiAssignedOrderWebConfiguration(new FixiAssignedOrderAccess(jdbc));
     final UUID orderId = UUID.randomUUID();
+    final UUID productId = UUID.randomUUID();
     assertThat(configuration.orderIdFor(
-        "/api/v1/inventory/reservations/" + orderId + "/release", UUID.randomUUID()))
+        "/api/v1/inventory/reservations/" + orderId + "/" + productId + "/release",
+        UUID.randomUUID()))
         .isEqualTo(orderId);
   }
 }

@@ -80,8 +80,8 @@ public class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer {
       if (uri.startsWith("/api/v1/inventory/reservations/order/") && parts.length == 7) {
         return UUID.fromString(parts[6]);
       }
-      if (uri.startsWith("/api/v1/inventory/reservations/") && parts.length == 7
-          && "release".equals(parts[6])) {
+      if (uri.startsWith("/api/v1/inventory/reservations/") && parts.length == 8
+          && "release".equals(parts[7])) {
         return UUID.fromString(parts[5]);
       }
       if (uri.startsWith("/api/v1/inventory/pos/orders/") && parts.length == 8

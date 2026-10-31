@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CapabilityService {
+  private static final String BRANCH_ACCESS_DENIED = "Branch access denied";
   private final TenantCapabilityRepository capabilities;
   private final UserAccountRepository users;
   private final UserCapabilityGrantRepository userGrants;
@@ -33,7 +34,12 @@ public class CapabilityService {
   private final TenantIndustryProfileRepository industryProfiles;
   private final UserBranchMembershipRepository branchMemberships;
 
-  /** Whether the supplied tenant uses Fixi's workshop capability model. */
+  /**
+   * Determines whether a tenant uses Fixi's workshop capability model.
+   *
+   * @param tenantId tenant identifier
+   * @return whether the Fixi industry profile is configured
+   */
   @Transactional(readOnly = true)
   public boolean isFixiTenant(final UUID tenantId) {
     return industryProfiles.findById(tenantId)
@@ -42,7 +48,13 @@ public class CapabilityService {
         .isPresent();
   }
 
-  /** Whether the authenticated user is an OWNER/ADMIN of this exact tenant. */
+  /**
+   * Determines whether the authenticated user is an OWNER/ADMIN of this exact tenant.
+   *
+   * @param username authenticated username
+   * @param tenantId tenant identifier
+   * @return whether the user administers this tenant
+   */
   @Transactional(readOnly = true)
   public boolean isTenantAdministrator(final String username, final UUID tenantId) {
     return users.findByUsername(username)
@@ -90,15 +102,15 @@ public class CapabilityService {
       final var branch =
           branches
               .findByIdAndHotelId(branchId, actualTenant)
-              .orElseThrow(() -> new AccessDeniedException("Branch access denied"));
+              .orElseThrow(() -> new AccessDeniedException(BRANCH_ACCESS_DENIED));
       if (!branch.isActive()) {
-        throw new AccessDeniedException("Branch access denied");
+        throw new AccessDeniedException(BRANCH_ACCESS_DENIED);
       }
       if (!"OWNER".equals(user.getRole().name())
           && !"ADMIN".equals(user.getRole().name())
           && !branchMemberships.existsByUserIdAndBranchIdAndHotelId(
               user.getId(), branchId, actualTenant)) {
-        throw new AccessDeniedException("Branch access denied");
+        throw new AccessDeniedException(BRANCH_ACCESS_DENIED);
       }
     }
     final UUID userId = user.getId();
@@ -129,11 +141,8 @@ public class CapabilityService {
     if (grant.isPresent()) {
       return grant.get().isEnabled();
     }
-    if (fixiTenant) {
-      return capability != null
-          && FixiRoleCapabilities.forRole(user.getRole().name()).contains(capability);
-    }
-    return true;
+    return !fixiTenant
+        || FixiRoleCapabilities.forRole(user.getRole().name()).contains(capability);
   }
 
   /**

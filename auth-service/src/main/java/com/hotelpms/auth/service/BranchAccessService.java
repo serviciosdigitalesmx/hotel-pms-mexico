@@ -80,7 +80,13 @@ public interface BranchAccessService {
    */
   List<TenantBranchResponse> listBranchesForUser(UUID userId, UUID hotelId);
 
-  /** Lists active branch details available to a user by their authenticated username. */
+  /**
+   * Lists active branches where the user has a persisted membership.
+   *
+   * @param username authenticated username
+   * @param hotelId tenant identifier
+   * @return active branches assigned to that user
+   */
   List<TenantBranchResponse> listBranchesForUser(String username, UUID hotelId);
 
   /**

@@ -28,6 +28,8 @@ import org.springframework.security.access.AccessDeniedException;
 @ExtendWith(MockitoExtension.class)
 class CapabilityServiceTest {
     private static final String TEST_USERNAME = "alice";
+    private static final String ORDERS_READ = "ORDERS_READ";
+    private static final String FINANCE_READ = "FINANCE_READ";
 
     @Mock private TenantCapabilityRepository capabilities;
     @Mock private UserAccountRepository users;
@@ -89,14 +91,14 @@ class CapabilityServiceTest {
         when(users.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(technician));
         when(industryProfiles.findById(tenant)).thenReturn(Optional.of(
                 TenantIndustryProfile.builder().industryKey("ELECTRONICS_REPAIR").build()));
-        when(capabilities.findByTenantIdAndCapabilityKey(tenant, "ORDERS_READ"))
-                .thenReturn(Optional.of(enabled(tenant, "ORDERS_READ")));
-        when(capabilities.findByTenantIdAndCapabilityKey(tenant, "FINANCE_READ"))
-                .thenReturn(Optional.of(enabled(tenant, "FINANCE_READ")));
+        when(capabilities.findByTenantIdAndCapabilityKey(tenant, ORDERS_READ))
+                .thenReturn(Optional.of(enabled(tenant, ORDERS_READ)));
+        when(capabilities.findByTenantIdAndCapabilityKey(tenant, FINANCE_READ))
+                .thenReturn(Optional.of(enabled(tenant, FINANCE_READ)));
 
         org.junit.jupiter.api.Assertions.assertTrue(
-                service.isEnabled(TEST_USERNAME, tenant, "ORDERS_READ"));
-        assertFalse(service.isEnabled(TEST_USERNAME, tenant, "FINANCE_READ"));
+                service.isEnabled(TEST_USERNAME, tenant, ORDERS_READ));
+        assertFalse(service.isEnabled(TEST_USERNAME, tenant, FINANCE_READ));
     }
 
     @Test
@@ -110,12 +112,12 @@ class CapabilityServiceTest {
         when(users.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(technician));
         when(industryProfiles.findById(tenant)).thenReturn(Optional.of(
                 TenantIndustryProfile.builder().industryKey("ELECTRONICS_REPAIR").build()));
-        when(capabilities.findByTenantIdAndCapabilityKey(tenant, "ORDERS_READ"))
+        when(capabilities.findByTenantIdAndCapabilityKey(tenant, ORDERS_READ))
                 .thenReturn(Optional.of(new TenantCapability()));
         when(userGrants.findByTenantIdAndUserIdAndBranchIdIsNullAndCapabilityKey(
-                tenant, userId, "ORDERS_READ")).thenReturn(Optional.of(grant));
+                tenant, userId, ORDERS_READ)).thenReturn(Optional.of(grant));
 
-        assertFalse(service.isEnabled(TEST_USERNAME, tenant, "ORDERS_READ"));
+        assertFalse(service.isEnabled(TEST_USERNAME, tenant, ORDERS_READ));
     }
 
     @Test
@@ -132,7 +134,7 @@ class CapabilityServiceTest {
                 .thenReturn(false);
 
         assertThrows(AccessDeniedException.class,
-                () -> service.isEnabled(TEST_USERNAME, tenant, branchId, "ORDERS_READ"));
+                () -> service.isEnabled(TEST_USERNAME, tenant, branchId, ORDERS_READ));
     }
 
     private TenantCapability enabled(final UUID tenant, final String key) {
