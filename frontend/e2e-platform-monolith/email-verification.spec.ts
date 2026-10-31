@@ -154,9 +154,9 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
   expect(parsedInvitationLink?.pathname).toBe('/accept-invitation');
   await page.goto(invitationLink!);
   await expect(page.getByText('Únete al equipo Fixi', { exact: true })).toBeVisible();
-  await page.getByLabel('Nombre completo').fill('Synthetic Invitation E2E');
-  await page.getByLabel('Usuario').fill(`tech-${suffix}`);
-  await page.getByLabel('Contraseña de Fixi').fill('SyntheticTech1234');
+  await page.getByPlaceholder('Nombre completo').fill('Synthetic Invitation E2E');
+  await page.getByPlaceholder('Usuario').fill(`tech-${suffix}`);
+  await page.getByPlaceholder('Crea tu contraseña de Fixi (12+ caracteres)').fill('SyntheticTech1234');
   const acceptInvitation = page.waitForResponse(response =>
     new URL(response.url()).pathname === '/api/v1/auth/public/invitations/accept'
     && response.request().method() === 'POST');
