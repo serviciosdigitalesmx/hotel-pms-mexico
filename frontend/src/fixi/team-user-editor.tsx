@@ -14,6 +14,8 @@ export function TeamUserEditor() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const selectableRoles = ['MANAGER', 'RECEPTIONIST', 'TECHNICIAN']
+  const currentRoleIsLegacy = !!userId && !selectableRoles.includes(draft.role)
   useEffect(() => {
     let active = true
     api.listUsers().then(rows => { if (active) setUsers(rows) })
@@ -44,7 +46,8 @@ export function TeamUserEditor() {
       </select>
       <Input required type="email" maxLength={254} aria-label="Correo del usuario" placeholder="Correo" disabled={!userId} value={draft.email} onChange={event => setDraft({ ...draft, email: event.target.value })}/>
       <select aria-label="Rol del usuario" className={field} disabled={!userId} value={draft.role} onChange={event => setDraft({ ...draft, role: event.target.value })}>
-        <option>MANAGER</option><option>RECEPTIONIST</option><option>TECHNICIAN</option><option>KITCHEN</option><option>HOUSEKEEPER</option><option>GUEST</option>
+        {currentRoleIsLegacy && <option value={draft.role} disabled>{draft.role} · rol histórico (no asignable)</option>}
+        {selectableRoles.map(role => <option key={role} value={role}>{role}</option>)}
       </select>
       <Button disabled={saving || !userId}>{saving ? 'Guardando…' : 'Guardar perfil'}</Button>
     </form>

@@ -27,6 +27,7 @@ import com.hotelpms.auth.repository.TenantInvitationRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.auth.repository.UserBranchMembershipRepository;
 import com.hotelpms.internalauth.contracts.Capability;
+import com.hotelpms.internalauth.contracts.FixiRoleCapabilities;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -346,6 +347,7 @@ public class SaasIdentityService {
     if (request.role() == Role.OWNER || request.role() == Role.ADMIN) {
       throw new AccessDeniedException("PRIVILEGED_ROLE_NOT_INVITABLE");
     }
+    requireFixiEmployeeRole(tenantId, request.role());
     final UserAccount actor =
         users
             .findByUsername(username)
@@ -385,6 +387,7 @@ public class SaasIdentityService {
             .findByTokenHash(hash(request.token()))
             .filter(item -> item.getAcceptedAt() == null && item.getExpiresAt().isAfter(now))
             .orElseThrow(() -> new NotFoundException("INVITATION_INVALID"));
+    requireFixiEmployeeRole(invitation.getHotelId(), invitation.getRole());
     if (users.existsByEmailIncludingInactive(invitation.getEmail())
         || users.existsByUsernameIncludingInactive(request.username())) {
       throw new DuplicateResourceException("ACCOUNT_ALREADY_EXISTS");
@@ -412,6 +415,16 @@ public class SaasIdentityService {
     }
     invitation.setAcceptedAt(now);
     invitations.save(invitation);
+  }
+
+  private void requireFixiEmployeeRole(final UUID tenantId, final Role role) {
+    final boolean fixiTenant = industryProfiles.findById(tenantId)
+        .map(TenantIndustryProfile::getIndustryKey)
+        .filter("ELECTRONICS_REPAIR"::equalsIgnoreCase)
+        .isPresent();
+    if (fixiTenant && !FixiRoleCapabilities.isEmployeeRole(role.name())) {
+      throw new AccessDeniedException("ROLE_NOT_ASSIGNABLE_FOR_FIXI");
+    }
   }
 
   /**

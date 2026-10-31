@@ -115,6 +115,15 @@ public class WarrantyClaimService {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotel, customer);
     }
 
+    @Transactional(readOnly = true)
+    public List<WarrantyClaim> listForBranches(
+            final UUID hotel, final UUID customer, final java.util.Collection<UUID> branchIds) {
+        return branchIds == null
+                ? list(hotel, customer)
+                : branchIds.isEmpty() ? List.of()
+                : repository.findAllByTenantCustomerAndBranches(hotel, customer, branchIds);
+    }
+
     /**
      * Lists warranty claims after confirming the repair order belongs to the tenant.
      *

@@ -3,6 +3,7 @@ package com.hotelpms.frontdesk.serviceorder.controller;
 import com.hotelpms.frontdesk.serviceorder.domain.DocumentEvidence;
 import com.hotelpms.frontdesk.serviceorder.dto.DocumentEvidenceRequest;
 import com.hotelpms.frontdesk.serviceorder.service.DocumentEvidenceService;
+import com.hotelpms.frontdesk.serviceorder.security.FixiAssignedOrderAccess;
 
 import jakarta.validation.Valid;
 
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +35,9 @@ import java.util.UUID;
 @RequestMapping("/api/v1/documents")
 public class DocumentEvidenceController {
     private final DocumentEvidenceService service;
+    private final FixiAssignedOrderAccess orderAccess;
+    @Value("${fixi.authorization.assigned-orders.enabled:false}")
+    private boolean assignedOrderScopeEnabled;
 
     /**
      * Converts stored evidence into a response without exposing inline data URLs.
@@ -65,6 +70,7 @@ public class DocumentEvidenceController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','RECEPTIONIST','TECHNICIAN')")
     public ResponseEntity<EvidenceView> add(@Valid @RequestBody final DocumentEvidenceRequest r) {
+        requireAssignedOrder(r.serviceOrderId());
         return ResponseEntity.status(HttpStatus.CREATED).body(view(service.add(hotel(), r)));
     }
 
@@ -102,6 +108,25 @@ public class DocumentEvidenceController {
         return UUID.fromString(
                 String.valueOf(
                         SecurityContextHolder.getContext().getAuthentication().getDetails()));
+    }
+
+    private void requireAssignedOrder(final UUID orderId) {
+        final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (assignedOrderScopeEnabled && authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> authority.getAuthority().startsWith("ROLE_"))
+                && !orderAccess.canAccessOrder(authentication.getName(), hotel(), orderId,
+                        selectedBranchId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "SERVICE_ORDER_NOT_FOUND");
+        }
+    }
+
+    private UUID selectedBranchId() {
+        final var attributes = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+        final Object selected = attributes instanceof org.springframework.web.context.request.ServletRequestAttributes servlet
+                ? servlet.getRequest().getAttribute("fixi.authenticatedBranchId") : null;
+        return selected == null ? null : UUID.fromString(selected.toString());
     }
 
     /**

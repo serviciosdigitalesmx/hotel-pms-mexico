@@ -1,12 +1,14 @@
 package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.domain.Role;
+import com.hotelpms.auth.domain.TenantIndustryProfile;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.UserAccountRepository;
+import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +52,9 @@ class UserManagementServiceImplTest {
 
     @Mock
     private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private TenantIndustryProfileRepository industryProfiles;
 
     @InjectMocks
     private UserManagementServiceImpl userManagementService;
@@ -138,6 +143,19 @@ class UserManagementServiceImplTest {
 
         assertThrows(DuplicateResourceException.class,
                 () -> userManagementService.createUser(HOTEL_ID, request));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void fixiEmployeeCreationRejectsHistoricalPmsAndPlatformRoles() {
+        when(industryProfiles.findById(HOTEL_ID)).thenReturn(Optional.of(
+                TenantIndustryProfile.builder().industryKey("ELECTRONICS_REPAIR").build()));
+
+        for (final Role rejected : List.of(Role.KITCHEN, Role.HOUSEKEEPER, Role.GUEST, Role.OWNER, Role.ADMIN)) {
+            final CreateUserRequest request = new CreateUserRequest(USERNAME, PASSWORD, EMAIL, rejected);
+            assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                    () -> userManagementService.createUser(HOTEL_ID, request));
+        }
         verify(userRepository, never()).save(any());
     }
 

@@ -31,6 +31,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -118,6 +119,24 @@ class BranchControllerTest {
                             return req;
                         }))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void fixiEmployeeBranchListIsLimitedToMemberships() throws Exception {
+        final TenantBranchResponse assigned = new TenantBranchResponse(
+                BRANCH_ID, HOTEL_ID, MAIN, true, LocalDateTime.now());
+        when(capabilityService.isFixiTenant(HOTEL_ID)).thenReturn(true);
+        when(capabilityService.isTenantAdministrator(USERNAME, HOTEL_ID)).thenReturn(false);
+        when(branchAccessService.listBranchesForUser(USERNAME, HOTEL_ID)).thenReturn(List.of(assigned));
+
+        mockMvc.perform(get(BASE_URL)
+                        .header(HEADER_HOTEL, HOTEL_ID.toString())
+                        .with(req -> { req.setUserPrincipal(auth); return req; }))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(BRANCH_ID.toString()));
+
+        verify(branchAccessService).listBranchesForUser(USERNAME, HOTEL_ID);
+        verify(branchAccessService, never()).listBranches(HOTEL_ID);
     }
 
     @Test

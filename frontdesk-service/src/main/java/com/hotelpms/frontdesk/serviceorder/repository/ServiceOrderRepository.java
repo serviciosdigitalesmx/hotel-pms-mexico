@@ -48,6 +48,12 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      */
     List<ServiceOrder> findAllByHotelIdOrderByCreatedAtDesc(UUID hotelId);
 
+    List<ServiceOrder> findAllByHotelIdAndAssignedUserIdOrderByCreatedAtDesc(
+            UUID hotelId, UUID assignedUserId);
+
+    List<ServiceOrder> findAllByHotelIdAndBranchIdInOrderByCreatedAtDesc(
+            UUID hotelId, Collection<UUID> branchIds);
+
     /**
      * Lists a tenant's repair orders in a requested page.
      *
@@ -56,6 +62,12 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      * @return page of tenant-owned orders
      */
     Page<ServiceOrder> findAllByHotelId(UUID hotelId, Pageable pageable);
+
+    Page<ServiceOrder> findAllByHotelIdAndAssignedUserId(
+            UUID hotelId, UUID assignedUserId, Pageable pageable);
+
+    Page<ServiceOrder> findAllByHotelIdAndBranchIdIn(
+            UUID hotelId, Collection<UUID> branchIds, Pageable pageable);
 
     /**
      * Finds orders due for notification that have not been completed or cancelled.
@@ -87,6 +99,12 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ServiceOrder> findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(
             UUID hotelId, UUID customerId);
 
+    List<ServiceOrder> findAllByHotelIdAndCustomerIdAndAssignedUserIdOrderByCreatedAtDesc(
+            UUID hotelId, UUID customerId, UUID assignedUserId);
+
+    List<ServiceOrder> findAllByHotelIdAndCustomerIdAndBranchIdInOrderByCreatedAtDesc(
+            UUID hotelId, UUID customerId, Collection<UUID> branchIds);
+
     /**
      * Counts tenant-owned orders grouped by each requested customer.
      *
@@ -100,4 +118,23 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
                 + " :customerIds group by serviceOrder.customerId")
     List<Object[]> countOrdersForCustomers(
             @Param("hotelId") UUID hotelId, @Param("customerIds") Collection<UUID> customerIds);
+
+    @Query(
+            "select serviceOrder.customerId, count(serviceOrder.id) from ServiceOrder serviceOrder"
+                + " where serviceOrder.hotelId = :hotelId and serviceOrder.assignedUserId ="
+                + " :assignedUserId and serviceOrder.customerId in :customerIds group by"
+                + " serviceOrder.customerId")
+    List<Object[]> countOrdersForCustomersAssignedTo(
+            @Param("hotelId") UUID hotelId,
+            @Param("assignedUserId") UUID assignedUserId,
+            @Param("customerIds") Collection<UUID> customerIds);
+
+    @Query(
+            "select serviceOrder.customerId, count(serviceOrder.id) from ServiceOrder serviceOrder"
+                + " where serviceOrder.hotelId = :hotelId and serviceOrder.branchId in :branchIds"
+                + " and serviceOrder.customerId in :customerIds group by serviceOrder.customerId")
+    List<Object[]> countOrdersForCustomersInBranches(
+            @Param("hotelId") UUID hotelId,
+            @Param("branchIds") Collection<UUID> branchIds,
+            @Param("customerIds") Collection<UUID> customerIds);
 }

@@ -172,6 +172,16 @@ public class BranchAccessServiceImpl implements BranchAccessService {
         .toList();
   }
 
+  /** {@inheritDoc} */
+  @Override
+  @Transactional(readOnly = true)
+  public List<TenantBranchResponse> listBranchesForUser(final String username, final UUID hotelId) {
+    final UserAccount user = userAccountRepository.findByUsername(username)
+        .filter(account -> hotelId.equals(account.getHotelId()))
+        .orElseThrow(() -> new AccessDeniedException("BRANCH_ACCESS_DENIED"));
+    return listBranchesForUser(user.getId(), hotelId);
+  }
+
   /**
    * Removes branch membership while preserving tenant-owned account history.
    *

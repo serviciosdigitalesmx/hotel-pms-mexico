@@ -1,6 +1,7 @@
 package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.domain.HotelRegistry;
+import com.hotelpms.auth.domain.TenantIndustryProfile;
 import com.hotelpms.auth.domain.Role;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.dto.CreateHotelRequest;
@@ -8,6 +9,7 @@ import com.hotelpms.auth.dto.HotelSummary;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.repository.HotelRegistryRepository;
 import com.hotelpms.auth.repository.TenantCapabilityRepository;
+import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.internalauth.contracts.Capability;
 import java.time.LocalDateTime;
@@ -26,6 +28,7 @@ public class HotelOnboardingService {
   private final UserAccountRepository users;
   private final TenantCapabilityRepository capabilities;
   private final PasswordEncoder passwords;
+  private final TenantIndustryProfileRepository industryProfiles;
 
   /**
    * Lists all registered hotels for a platform-authorized caller.
@@ -74,6 +77,18 @@ public class HotelOnboardingService {
                   return setting;
                 })
             .toList());
+    final LocalDateTime now = LocalDateTime.now();
+    industryProfiles.save(
+        TenantIndustryProfile.builder()
+            .tenantId(hotel.getId())
+            .industryKey("ELECTRONICS_REPAIR")
+            .enabledModulesJson(
+                "[\"customers\",\"devices\",\"serviceOrders\",\"inventory\",\"whatsapp\",\"ai\"]")
+            .dynamicFieldsJson("{}")
+            .formsLabelsJson("{\"customer\":\"Cliente\",\"device\":\"Equipo\"}")
+            .catalogsTemplatesJson("{}")
+            .updatedAt(now)
+            .build());
 
     users.save(
         UserAccount.builder()

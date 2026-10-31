@@ -53,6 +53,10 @@ public class BranchController {
       @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
       @NonNull final Authentication auth) {
     capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_READ);
+    if (capabilityService.isFixiTenant(hotelId)
+        && !capabilityService.isTenantAdministrator(auth.getName(), hotelId)) {
+      return ResponseEntity.ok(branchAccessService.listBranchesForUser(auth.getName(), hotelId));
+    }
     return ResponseEntity.ok(branchAccessService.listBranches(hotelId));
   }
 
@@ -69,7 +73,7 @@ public class BranchController {
       @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
       @NonNull @PathVariable final UUID branchId,
       @NonNull final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_READ);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_READ);
     return ResponseEntity.ok(branchAccessService.listBranchMembers(hotelId, branchId));
   }
 
@@ -88,7 +92,7 @@ public class BranchController {
       @NonNull @PathVariable final UUID branchId,
       @NonNull @PathVariable final UUID userId,
       @NonNull final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_MANAGE);
     branchAccessService.assignUserToBranch(hotelId, userId, branchId);
   }
 
@@ -107,7 +111,7 @@ public class BranchController {
       @NonNull @PathVariable final UUID branchId,
       @NonNull @PathVariable final UUID userId,
       @NonNull final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_MANAGE);
     branchAccessService.removeUserFromBranch(hotelId, userId, branchId);
   }
 
@@ -142,7 +146,7 @@ public class BranchController {
       @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
       @NonNull @PathVariable final UUID branchId,
       @NonNull final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_READ);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_READ);
     return ResponseEntity.ok(toResponse(branchAccessService.getBranchForTenant(hotelId, branchId)));
   }
 
@@ -161,7 +165,7 @@ public class BranchController {
       @PathVariable final UUID branchId,
       @Valid @RequestBody final com.hotelpms.auth.dto.UpdateBranchRequest request,
       final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_MANAGE);
     return ResponseEntity.ok(branchAccessService.updateBranch(hotelId, branchId, request));
   }
 
@@ -180,7 +184,7 @@ public class BranchController {
       @PathVariable final UUID branchId,
       @RequestParam final boolean value,
       final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_MANAGE);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_MANAGE);
     branchAccessService.setBranchActive(hotelId, branchId, value);
   }
 
@@ -198,7 +202,7 @@ public class BranchController {
       @NonNull @RequestHeader(HEADER_HOTEL) final UUID hotelId,
       @NonNull @PathVariable final UUID branchId,
       @NonNull final Authentication auth) {
-    capabilityService.requireCapability(auth.getName(), hotelId, Capability.BRANCHES_READ);
+    capabilityService.requireCapability(auth.getName(), hotelId, branchId, Capability.BRANCHES_READ);
     return ResponseEntity.ok(toResponse(branchAccessService.getBranchForTenant(hotelId, branchId)));
   }
 

@@ -11,7 +11,10 @@ import static org.mockito.Mockito.when;
 import com.hotelpms.auth.domain.AccountToken;
 import com.hotelpms.auth.domain.HotelRegistry;
 import com.hotelpms.auth.domain.TenantBranch;
+import com.hotelpms.auth.domain.TenantIndustryProfile;
 import com.hotelpms.auth.domain.UserAccount;
+import com.hotelpms.auth.domain.Role;
+import com.hotelpms.auth.dto.InvitationRequest;
 import com.hotelpms.auth.dto.SignupRequest;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.AccountTokenRepository;
@@ -104,6 +107,20 @@ class SaasIdentityServiceTest {
     assertThat(tokenCaptor.getValue().getUserId()).isEqualTo(ownerId);
     assertThat(tokenCaptor.getValue().getPurpose()).isEqualTo(VERIFY_EMAIL_PURPOSE);
     verify(mail).verification(org.mockito.ArgumentMatchers.eq(OWNER_EMAIL), any());
+  }
+
+  @Test
+  void fixiInvitationRejectsHistoricalPmsRolesBeforeCreatingInvitation() {
+    final UUID tenantId = UUID.randomUUID();
+    when(industryProfiles.findById(tenantId)).thenReturn(java.util.Optional.of(
+        TenantIndustryProfile.builder().industryKey("ELECTRONICS_REPAIR").build()));
+
+    assertThatThrownBy(() -> service.invite(
+        tenantId, "owner", new InvitationRequest("employee@example.test", Role.KITCHEN, null)))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+        .hasMessage("ROLE_NOT_ASSIGNABLE_FOR_FIXI");
+    verify(invitations, never()).save(any());
+    verify(mail, never()).invitation(any(), any());
   }
 
   @Test

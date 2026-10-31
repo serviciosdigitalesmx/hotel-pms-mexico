@@ -59,6 +59,9 @@ notification:
   from-name: ${NOTIFICATION_FROM_NAME:Fixi}
 
 fixi:
+  authorization:
+    assigned-orders:
+      enabled: true
   public-url: ${FIXI_PUBLIC_URL:http://localhost}
   mail-from: ${FIXI_MAIL_FROM:no-reply@fixi.local}
   platform:

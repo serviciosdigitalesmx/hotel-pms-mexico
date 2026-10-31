@@ -493,6 +493,25 @@ public class ServiceOrderService {
         return repository.findAllByHotelIdAndCustomerIdOrderByCreatedAtDesc(hotelId, customerId);
     }
 
+    @Transactional(readOnly = true)
+    public List<ServiceOrder> list(
+            final UUID hotelId, final UUID customerId, final UUID assignedUserId) {
+        return assignedUserId == null
+                ? list(hotelId, customerId)
+                : repository.findAllByHotelIdAndCustomerIdAndAssignedUserIdOrderByCreatedAtDesc(
+                        hotelId, customerId, assignedUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceOrder> listForBranches(
+            final UUID hotelId, final UUID customerId, final java.util.Collection<UUID> branchIds) {
+        return branchIds == null
+                ? list(hotelId, customerId)
+                : branchIds.isEmpty() ? List.of()
+                : repository.findAllByHotelIdAndCustomerIdAndBranchIdInOrderByCreatedAtDesc(
+                        hotelId, customerId, branchIds);
+    }
+
     /**
      * Lists all tenant orders, newest first.
      *
@@ -503,6 +522,23 @@ public class ServiceOrderService {
     @Transactional(readOnly = true)
     public List<ServiceOrder> listAll(final UUID hotelId) {
         return repository.findAllByHotelIdOrderByCreatedAtDesc(hotelId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceOrder> listAll(final UUID hotelId, final UUID assignedUserId) {
+        return assignedUserId == null
+                ? listAll(hotelId)
+                : repository.findAllByHotelIdAndAssignedUserIdOrderByCreatedAtDesc(
+                        hotelId, assignedUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceOrder> listAllForBranches(
+            final UUID hotelId, final java.util.Collection<UUID> branchIds) {
+        return branchIds == null
+                ? listAll(hotelId)
+                : branchIds.isEmpty() ? List.of()
+                : repository.findAllByHotelIdAndBranchIdInOrderByCreatedAtDesc(hotelId, branchIds);
     }
 
     /**
@@ -518,6 +554,23 @@ public class ServiceOrderService {
         return repository.findAllByHotelId(hotelId, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ServiceOrder> listAll(
+            final UUID hotelId, final UUID assignedUserId, final Pageable pageable) {
+        return assignedUserId == null
+                ? listAll(hotelId, pageable)
+                : repository.findAllByHotelIdAndAssignedUserId(hotelId, assignedUserId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ServiceOrder> listAllForBranches(
+            final UUID hotelId, final java.util.Collection<UUID> branchIds, final Pageable pageable) {
+        return branchIds == null
+                ? listAll(hotelId, pageable)
+                : branchIds.isEmpty() ? org.springframework.data.domain.Page.empty(pageable)
+                : repository.findAllByHotelIdAndBranchIdIn(hotelId, branchIds, pageable);
+    }
+
     /**
      * Counts tenant-scoped orders for each distinct customer identifier supplied.
      *
@@ -529,12 +582,37 @@ public class ServiceOrderService {
     @Transactional(readOnly = true)
     public List<CustomerOrderCount> customerOrderCounts(
             final UUID hotelId, final List<UUID> customerIds) {
+        return customerOrderCounts(hotelId, customerIds, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerOrderCount> customerOrderCounts(
+            final UUID hotelId, final List<UUID> customerIds, final UUID assignedUserId) {
         if (customerIds == null || customerIds.isEmpty()) {
             return List.of();
         }
-        return repository
-                .countOrdersForCustomers(hotelId, customerIds.stream().distinct().toList())
+        final List<Object[]> counts = assignedUserId == null
+                ? repository.countOrdersForCustomers(hotelId, customerIds.stream().distinct().toList())
+                : repository.countOrdersForCustomersAssignedTo(
+                        hotelId, assignedUserId, customerIds.stream().distinct().toList());
+        return counts
                 .stream()
+                .map(row -> new CustomerOrderCount((UUID) row[0], ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerOrderCount> customerOrderCountsForBranches(
+            final UUID hotelId, final List<UUID> customerIds,
+            final java.util.Collection<UUID> branchIds) {
+        if (branchIds == null) {
+            return customerOrderCounts(hotelId, customerIds);
+        }
+        if (branchIds.isEmpty() || customerIds == null || customerIds.isEmpty()) {
+            return List.of();
+        }
+        return repository.countOrdersForCustomersInBranches(
+                        hotelId, branchIds, customerIds.stream().distinct().toList()).stream()
                 .map(row -> new CustomerOrderCount((UUID) row[0], ((Number) row[1]).longValue()))
                 .toList();
     }

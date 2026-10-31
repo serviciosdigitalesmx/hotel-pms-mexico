@@ -7,6 +7,7 @@ import com.hotelpms.auth.dto.CreateHotelRequest;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.repository.HotelRegistryRepository;
 import com.hotelpms.auth.repository.TenantCapabilityRepository;
+import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +35,7 @@ class HotelOnboardingServiceTest {
 
     @Mock private HotelRegistryRepository hotels;
     @Mock private TenantCapabilityRepository capabilities;
+    @Mock private TenantIndustryProfileRepository industryProfiles;
     @Mock private UserAccountRepository users;
     @Mock private PasswordEncoder passwords;
     @InjectMocks private HotelOnboardingService onboarding;
@@ -47,6 +49,7 @@ class HotelOnboardingServiceTest {
         verify(hotels).save(hotelCaptor.capture());
         verify(users).save(ownerCaptor.capture());
         verify(capabilities).saveAll(any());
+        verify(industryProfiles).save(any());
         assertEquals(HOTEL_SLUG, result.slug());
         assertEquals(result.id(), ownerCaptor.getValue().getHotelId());
         assertNotEquals(UUID.fromString("00000000-0000-0000-0000-000000000001"), result.id());

@@ -80,6 +80,9 @@ public interface BranchAccessService {
    */
   List<TenantBranchResponse> listBranchesForUser(UUID userId, UUID hotelId);
 
+  /** Lists active branch details available to a user by their authenticated username. */
+  List<TenantBranchResponse> listBranchesForUser(String username, UUID hotelId);
+
   /**
    * Assigns an employee to a tenant branch.
    *

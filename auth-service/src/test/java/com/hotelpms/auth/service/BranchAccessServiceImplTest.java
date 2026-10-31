@@ -95,6 +95,24 @@ class BranchAccessServiceImplTest {
     }
 
     @Test
+    void listingBranchesByUsernameReturnsOnlyBranchesWithMembership() {
+        final TenantBranch branchB = TenantBranch.builder()
+                .id(BRANCH_B).hotelId(HOTEL_A).name(NORTH).active(true)
+                .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        when(userAccountRepository.findByUsername(USERNAME)).thenReturn(Optional.of(user));
+        when(membershipRepository.findAllByUserIdAndHotelId(USER_ID, HOTEL_A))
+                .thenReturn(List.of(UserBranchMembership.builder()
+                        .userId(USER_ID).hotelId(HOTEL_A).branchId(BRANCH_A).build()));
+        when(branchRepository.findAllByHotelIdAndActiveTrueOrderByNameAsc(HOTEL_A))
+                .thenReturn(List.of(branchA, branchB));
+
+        final List<TenantBranchResponse> result =
+                branchAccessService.listBranchesForUser(USERNAME, HOTEL_A);
+
+        assertThat(result).extracting(TenantBranchResponse::id).containsExactly(BRANCH_A);
+    }
+
+    @Test
     void assertUserCanSelectBranchDeniesWhenUserIsNotMember() {
         when(branchRepository.findByIdAndHotelId(BRANCH_A, HOTEL_A)).thenReturn(Optional.of(branchA));
         when(membershipRepository.existsByUserIdAndBranchIdAndHotelId(USER_ID, BRANCH_A, HOTEL_A))

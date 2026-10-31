@@ -3,13 +3,17 @@ package com.hotelpms.auth.service;
 import com.hotelpms.auth.domain.TenantCapability;
 import com.hotelpms.auth.domain.UserAccount;
 import com.hotelpms.auth.domain.UserCapabilityGrant;
+import com.hotelpms.auth.domain.TenantIndustryProfile;
 import com.hotelpms.auth.dto.UpdateUserCapabilityGrantRequest;
 import com.hotelpms.auth.dto.UserCapabilityGrantResponse;
 import com.hotelpms.auth.repository.TenantBranchRepository;
+import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
+import com.hotelpms.auth.repository.UserBranchMembershipRepository;
 import com.hotelpms.auth.repository.TenantCapabilityRepository;
 import com.hotelpms.auth.repository.UserAccountRepository;
 import com.hotelpms.auth.repository.UserCapabilityGrantRepository;
 import com.hotelpms.internalauth.contracts.Capability;
+import com.hotelpms.internalauth.contracts.FixiRoleCapabilities;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +30,26 @@ public class CapabilityService {
   private final UserAccountRepository users;
   private final UserCapabilityGrantRepository userGrants;
   private final TenantBranchRepository branches;
+  private final TenantIndustryProfileRepository industryProfiles;
+  private final UserBranchMembershipRepository branchMemberships;
+
+  /** Whether the supplied tenant uses Fixi's workshop capability model. */
+  @Transactional(readOnly = true)
+  public boolean isFixiTenant(final UUID tenantId) {
+    return industryProfiles.findById(tenantId)
+        .map(TenantIndustryProfile::getIndustryKey)
+        .filter("ELECTRONICS_REPAIR"::equalsIgnoreCase)
+        .isPresent();
+  }
+
+  /** Whether the authenticated user is an OWNER/ADMIN of this exact tenant. */
+  @Transactional(readOnly = true)
+  public boolean isTenantAdministrator(final String username, final UUID tenantId) {
+    return users.findByUsername(username)
+        .filter(user -> tenantId.equals(user.getHotelId()))
+        .map(user -> "OWNER".equals(user.getRole().name()) || "ADMIN".equals(user.getRole().name()))
+        .orElse(false);
+  }
 
   /**
    * Checks a capability only after verifying the authenticated user's tenant.
@@ -54,12 +78,12 @@ public class CapabilityService {
   @Transactional(readOnly = true)
   public boolean isEnabled(
       final String username, final UUID requestedTenant, final UUID branchId, final String key) {
-    final UUID actualTenant =
+    final UserAccount user =
         users
             .findByUsername(username)
-            .orElseThrow(() -> new AccessDeniedException("Authenticated user not found"))
-            .getHotelId();
-    if (!actualTenant.equals(requestedTenant)) {
+            .orElseThrow(() -> new AccessDeniedException("Authenticated user not found"));
+    final UUID actualTenant = user.getHotelId();
+    if (actualTenant == null || !actualTenant.equals(requestedTenant)) {
       throw new AccessDeniedException("Tenant access denied");
     }
     if (branchId != null) {
@@ -70,8 +94,32 @@ public class CapabilityService {
       if (!branch.isActive()) {
         throw new AccessDeniedException("Branch access denied");
       }
+      if (!"OWNER".equals(user.getRole().name())
+          && !"ADMIN".equals(user.getRole().name())
+          && !branchMemberships.existsByUserIdAndBranchIdAndHotelId(
+              user.getId(), branchId, actualTenant)) {
+        throw new AccessDeniedException("Branch access denied");
+      }
     }
-    final UUID userId = users.findByUsername(username).orElseThrow().getId();
+    final UUID userId = user.getId();
+    final Capability capability = Capability.fromCode(key).orElse(null);
+    final boolean fixiTenant = isFixiTenant(actualTenant);
+    if (fixiTenant
+        && (capability == null
+            || !FixiRoleCapabilities.isWorkshopRole(user.getRole().name())
+            || !FixiRoleCapabilities.isFixiCapability(capability))) {
+      return false;
+    }
+    // Tenant capability rows are the persisted module/entitlement gate. An individual
+    // override can specialize a role, but may never bypass a disabled tenant capability.
+    final boolean tenantEnabled =
+        capabilities
+            .findByTenantIdAndCapabilityKey(actualTenant, key)
+            .map(TenantCapability::isEnabled)
+            .orElse(false);
+    if (!tenantEnabled) {
+      return false;
+    }
     final var grant =
         branchId == null
             ? userGrants.findByTenantIdAndUserIdAndBranchIdIsNullAndCapabilityKey(
@@ -81,10 +129,11 @@ public class CapabilityService {
     if (grant.isPresent()) {
       return grant.get().isEnabled();
     }
-    return capabilities
-        .findByTenantIdAndCapabilityKey(actualTenant, key)
-        .map(TenantCapability::isEnabled)
-        .orElse(false);
+    if (fixiTenant) {
+      return capability != null
+          && FixiRoleCapabilities.forRole(user.getRole().name()).contains(capability);
+    }
+    return true;
   }
 
   /**
@@ -141,6 +190,14 @@ public class CapabilityService {
         Capability.fromCode(request.capabilityKey())
             .orElseThrow(() -> new IllegalArgumentException("UNKNOWN_CAPABILITY"))
             .name();
+    if (industryProfiles.findById(tenantId)
+        .map(TenantIndustryProfile::getIndustryKey)
+        .filter("ELECTRONICS_REPAIR"::equalsIgnoreCase)
+        .isPresent()
+        && (!FixiRoleCapabilities.isWorkshopRole(user.getRole().name())
+            || !FixiRoleCapabilities.isFixiCapability(Capability.valueOf(key)))) {
+      throw new AccessDeniedException("CAPABILITY_NOT_AVAILABLE_FOR_FIXI");
+    }
     if (request.branchId() != null
         && branches.findByIdAndHotelId(request.branchId(), tenantId).isEmpty()) {
       throw new AccessDeniedException("BRANCH_TENANT_MISMATCH");

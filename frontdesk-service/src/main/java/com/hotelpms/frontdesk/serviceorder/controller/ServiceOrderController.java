@@ -11,6 +11,7 @@ import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderPaymentUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderRequest;
 import com.hotelpms.frontdesk.serviceorder.dto.ServiceOrderUpdateRequest;
 import com.hotelpms.frontdesk.serviceorder.service.ServiceOrderService;
+import com.hotelpms.frontdesk.serviceorder.security.FixiAssignedOrderAccess;
 
 import jakarta.validation.Valid;
 
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -48,6 +50,9 @@ public class ServiceOrderController {
     private static final int INTERNAL_NOTE_MAX_LENGTH = 2000;
 
     private final ServiceOrderService service;
+    private final FixiAssignedOrderAccess orderAccess;
+    @Value("${fixi.authorization.assigned-orders.enabled:false}")
+    private boolean assignedOrderScopeEnabled;
 
     /**
      * Reads the configured workflow for one tenant-scoped order.
@@ -96,6 +101,14 @@ public class ServiceOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST')")
     public ResponseEntity<ServiceOrder> create(@Valid @RequestBody final ServiceOrderRequest r) {
         final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (assignedOrderScopeEnabled && !isTenantAdministrator(authentication)) {
+            final java.util.List<UUID> permittedBranches = currentBranchIds();
+            if (r.branchId() == null || permittedBranches == null
+                    || !permittedBranches.contains(r.branchId())) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "BRANCH_ACCESS_DENIED");
+            }
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.create(hotel(), r, authentication.getName()));
     }
@@ -125,14 +138,20 @@ public class ServiceOrderController {
             @RequestParam(required = false) final Integer page,
             @RequestParam(required = false) final Integer size) {
         if (page == null && size == null) {
-            return ResponseEntity.ok(service.listAll(hotel()));
+            final UUID technicianId = currentTechnicianId();
+            return ResponseEntity.ok(technicianId != null
+                    ? service.listAll(hotel(), technicianId)
+                    : service.listAllForBranches(hotel(), currentBranchIds()));
         }
         final int safePage = Math.max(0, page == null ? 0 : page);
         final int safeSize =
                 Math.min(MAX_PAGE_SIZE, Math.max(1, size == null ? DEFAULT_PAGE_SIZE : size));
         final Pageable pageable =
                 PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return ResponseEntity.ok(service.listAll(hotel(), pageable));
+        final UUID technicianId = currentTechnicianId();
+        return ResponseEntity.ok(technicianId != null
+                ? service.listAll(hotel(), technicianId, pageable)
+                : service.listAllForBranches(hotel(), currentBranchIds(), pageable));
     }
 
     /**
@@ -144,7 +163,10 @@ public class ServiceOrderController {
     @GetMapping("/customer/{customerId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'RECEPTIONIST', 'TECHNICIAN')")
     public List<ServiceOrder> list(@PathVariable final UUID customerId) {
-        return service.list(hotel(), customerId);
+        final UUID technicianId = currentTechnicianId();
+        return technicianId != null
+                ? service.list(hotel(), customerId, technicianId)
+                : service.listForBranches(hotel(), customerId, currentBranchIds());
     }
 
     /**
@@ -158,7 +180,10 @@ public class ServiceOrderController {
     @PreAuthorize(SERVICE_TEAM_ROLES)
     public List<ServiceOrderService.CustomerOrderCount> customerOrderCounts(
             @RequestParam final List<UUID> customerIds) {
-        return service.customerOrderCounts(hotel(), customerIds);
+        final UUID technicianId = currentTechnicianId();
+        return technicianId != null
+                ? service.customerOrderCounts(hotel(), customerIds, technicianId)
+                : service.customerOrderCountsForBranches(hotel(), customerIds, currentBranchIds());
     }
 
     /**
@@ -172,6 +197,19 @@ public class ServiceOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'MANAGER', 'TECHNICIAN')")
     public ServiceOrder update(
             @PathVariable final UUID id, @Valid @RequestBody final ServiceOrderUpdateRequest r) {
+        final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (isTechnician(authentication)) {
+            final UUID actorId = currentTechnicianId();
+            final ServiceOrder current = service.get(hotel(), id);
+            if (!actorId.equals(current.getAssignedUserId())
+                    || !actorId.equals(r.assignedUserId())
+                    || !java.util.Objects.equals(current.getPriority(), r.priority())
+                    || !java.util.Objects.equals(current.getPromisedAt(), r.promisedAt())
+                    || Boolean.TRUE.equals(r.clearPromisedAt())) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "TECHNICIAN_ORDER_FIELDS_RESTRICTED");
+            }
+        }
         return service.update(
                 hotel(),
                 id,
@@ -251,6 +289,16 @@ public class ServiceOrderController {
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
     public RepairTest addTest(
             @PathVariable final UUID id, @Valid @RequestBody final RepairTestRequest r) {
+        if (isTechnician(SecurityContextHolder.getContext().getAuthentication())) {
+            final UUID technicianId = currentTechnicianId();
+            if (r.technicianId() != null && !technicianId.equals(r.technicianId())) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "TECHNICIAN_ID_MISMATCH");
+            }
+            return service.addTest(
+                    hotel(), id,
+                    new RepairTestRequest(r.testName(), r.passed(), r.notes(), technicianId));
+        }
         return service.addTest(hotel(), id, r);
     }
 
@@ -359,6 +407,51 @@ public class ServiceOrderController {
         return UUID.fromString(
                 String.valueOf(
                         SecurityContextHolder.getContext().getAuthentication().getDetails()));
+    }
+
+    private UUID currentTechnicianId() {
+        if (!assignedOrderScopeEnabled) {
+            return null;
+        }
+        final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities().stream()
+                .noneMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()))) {
+            return null;
+        }
+        return orderAccess.technicianId(authentication.getName(), hotel());
+    }
+
+    private java.util.List<UUID> currentBranchIds() {
+        if (!assignedOrderScopeEnabled) {
+            return null;
+        }
+        final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || isTenantAdministrator(authentication)) {
+            return null;
+        }
+        final Object selected = org.springframework.web.context.request.RequestContextHolder
+                .getRequestAttributes() instanceof org.springframework.web.context.request.ServletRequestAttributes attributes
+                ? attributes.getRequest().getAttribute("fixi.authenticatedBranchId") : null;
+        if (selected != null) {
+            final UUID branchId = UUID.fromString(selected.toString());
+            return orderAccess.canAccessBranch(authentication.getName(), hotel(), branchId)
+                    ? java.util.List.of(branchId) : java.util.List.of();
+        }
+        return orderAccess.branchIds(authentication.getName(), hotel());
+    }
+
+    private boolean isTenantAdministrator(
+            final org.springframework.security.core.Authentication authentication) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
+                        || "ROLE_ADMIN".equals(authority.getAuthority()));
+    }
+
+    private boolean isTechnician(
+            final org.springframework.security.core.Authentication authentication) {
+        return assignedOrderScopeEnabled && authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()));
     }
 
     /**

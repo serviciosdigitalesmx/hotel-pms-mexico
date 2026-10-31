@@ -3,6 +3,7 @@ package com.hotelpms.frontdesk.serviceorder.controller;
 import com.hotelpms.frontdesk.serviceorder.domain.TimeEntry;
 import com.hotelpms.frontdesk.serviceorder.dto.TimeEntryRequest;
 import com.hotelpms.frontdesk.serviceorder.service.TimeEntryService;
+import com.hotelpms.frontdesk.serviceorder.security.FixiAssignedOrderAccess;
 
 import jakarta.validation.Valid;
 
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +28,9 @@ import java.util.UUID;
 @RequestMapping("/api/v1/service-orders")
 public class TimeEntryController {
     private final TimeEntryService service;
+    private final FixiAssignedOrderAccess orderAccess;
+    @Value("${fixi.authorization.assigned-orders.enabled:false}")
+    private boolean assignedOrderScopeEnabled;
 
     /**
      * Adds time to a service order.
@@ -38,6 +43,16 @@ public class TimeEntryController {
     @PreAuthorize("hasAnyRole('ADMIN','OWNER','MANAGER','TECHNICIAN')")
     public TimeEntry add(
             @PathVariable final UUID order, @Valid @RequestBody final TimeEntryRequest r) {
+        final var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (assignedOrderScopeEnabled && authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_TECHNICIAN".equals(authority.getAuthority()))) {
+            final UUID technicianId = orderAccess.technicianId(authentication.getName(), hotel());
+            if (!technicianId.equals(r.userId())) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "TECHNICIAN_ID_MISMATCH");
+            }
+        }
         return service.add(hotel(), order, r);
     }
 

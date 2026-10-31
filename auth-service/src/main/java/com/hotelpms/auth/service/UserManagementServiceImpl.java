@@ -1,12 +1,15 @@
 package com.hotelpms.auth.service;
 
 import com.hotelpms.auth.domain.UserAccount;
+import com.hotelpms.auth.domain.TenantIndustryProfile;
 import com.hotelpms.auth.dto.CreateUserRequest;
 import com.hotelpms.auth.dto.UpdateManagedUserRequest;
 import com.hotelpms.auth.dto.UserResponse;
 import com.hotelpms.auth.exception.DuplicateResourceException;
 import com.hotelpms.auth.exception.NotFoundException;
 import com.hotelpms.auth.repository.UserAccountRepository;
+import com.hotelpms.auth.repository.TenantIndustryProfileRepository;
+import com.hotelpms.internalauth.contracts.FixiRoleCapabilities;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +32,7 @@ public class UserManagementServiceImpl implements UserManagementService {
   private final UserAccountRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final RefreshTokenService refreshTokenService;
+  private final TenantIndustryProfileRepository industryProfiles;
 
   /** {@inheritDoc} */
   @Override
@@ -43,6 +47,7 @@ public class UserManagementServiceImpl implements UserManagementService {
   @Override
   @Transactional
   public UserResponse createUser(final UUID hotelId, final CreateUserRequest request) {
+    requireSelectableRole(hotelId, request.role());
     if (request.role() == com.hotelpms.auth.domain.Role.ADMIN
         || request.role() == com.hotelpms.auth.domain.Role.OWNER) {
       throw new org.springframework.security.access.AccessDeniedException(
@@ -87,6 +92,7 @@ public class UserManagementServiceImpl implements UserManagementService {
   @Transactional
   public UserResponse updateUser(
       final UUID hotelId, final UUID userId, final UpdateManagedUserRequest request) {
+    requireSelectableRole(hotelId, request.role());
     if (request.role() == com.hotelpms.auth.domain.Role.ADMIN
         || request.role() == com.hotelpms.auth.domain.Role.OWNER) {
       throw new org.springframework.security.access.AccessDeniedException(
@@ -208,5 +214,16 @@ public class UserManagementServiceImpl implements UserManagementService {
         u.isActive(),
         u.isMustChangePassword(),
         u.getCreatedAt());
+  }
+
+  private void requireSelectableRole(final UUID hotelId, final com.hotelpms.auth.domain.Role role) {
+    final boolean fixiTenant = industryProfiles.findById(hotelId)
+        .map(TenantIndustryProfile::getIndustryKey)
+        .filter("ELECTRONICS_REPAIR"::equalsIgnoreCase)
+        .isPresent();
+    if (fixiTenant && !FixiRoleCapabilities.isEmployeeRole(role.name())) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "ROLE_NOT_ASSIGNABLE_FOR_FIXI");
+    }
   }
 }
