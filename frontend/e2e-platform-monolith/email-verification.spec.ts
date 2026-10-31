@@ -86,8 +86,8 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
     path: '/api/v1/auth/public/verify-email',
     hasBody: false,
   }]);
-  await expect(page.getByRole('status').first())
-    .toContainText('Correo verificado. Tu cuenta quedó activada');
+  await expect(page.getByText('Correo verificado. Ya puedes iniciar sesión.', { exact: true }))
+    .toBeVisible();
   await expect(page.getByText(/Spam o correo no deseado/i)).toHaveCount(0);
   const continueToLogin = page.getByRole('link', { name: 'Continuar' });
   await expect(continueToLogin).toBeVisible();
