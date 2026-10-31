@@ -13,6 +13,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -47,5 +50,33 @@ class FixiAssignedOrderAccessTest {
         "/api/v1/inventory/reservations/" + orderId + "/" + productId + "/release",
         UUID.randomUUID()))
         .isEqualTo(orderId);
+  }
+
+  @Test
+  void anonymousAuthorityIsNotTreatedAsAnAuthenticatedTenantRole() {
+    final AnonymousAuthenticationToken anonymous =
+        new AnonymousAuthenticationToken(
+            "test-key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
+
+    assertThat(FixiAssignedOrderWebConfiguration.hasAuthenticatedRole(anonymous)).isFalse();
+  }
+
+  @Test
+  void authenticatedWorkshopRoleStillEnablesOrderAssignmentChecks() {
+    final var technician = new UsernamePasswordAuthenticationToken(
+        "tech-a", null, List.of(new SimpleGrantedAuthority("ROLE_TECHNICIAN")));
+
+    assertThat(FixiAssignedOrderWebConfiguration.hasAuthenticatedRole(technician)).isTrue();
+  }
+
+  @Test
+  void publicAndPlatformPathsAreOutsideTheAssignedOrderInterceptorScope() {
+    assertThat(FixiAssignedOrderWebConfiguration.isOrderScopedPath("/verify-email")).isFalse();
+    assertThat(FixiAssignedOrderWebConfiguration.isOrderScopedPath(
+        "/api/v1/auth/platform/dashboard"))
+        .isFalse();
+    assertThat(FixiAssignedOrderWebConfiguration.isOrderScopedPath(
+        "/api/v1/service-orders/" + UUID.randomUUID()))
+        .isTrue();
   }
 }

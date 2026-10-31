@@ -6,6 +6,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -44,10 +45,12 @@ public final class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer
           final HttpServletRequest request,
           final HttpServletResponse response,
           final Object handler) throws Exception {
+        if (!isOrderScopedPath(request.getRequestURI())) {
+          return true;
+        }
         final Authentication authentication =
             SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getAuthorities().stream()
-            .noneMatch(authority -> authority.getAuthority().startsWith("ROLE_"))) {
+        if (!hasAuthenticatedRole(authentication)) {
           return true;
         }
         final UUID tenantId;
@@ -71,13 +74,32 @@ public final class FixiAssignedOrderWebConfiguration implements WebMvcConfigurer
           return false;
         }
         if (!access.canAccessOrder(
-            authentication.getName(), tenantId, orderId, selectedBranchId)) {
+                authentication.getName(), tenantId, orderId, selectedBranchId)) {
           response.sendError(HTTP_NOT_FOUND);
           return false;
         }
         return true;
       }
     });
+  }
+
+  static boolean hasAuthenticatedRole(final Authentication authentication) {
+    return authentication != null
+        && authentication.isAuthenticated()
+        && !(authentication instanceof AnonymousAuthenticationToken)
+        && authentication.getAuthorities().stream()
+            .anyMatch(authority -> authority.getAuthority().startsWith("ROLE_"));
+  }
+
+  static boolean isOrderScopedPath(final String uri) {
+    return uri.startsWith("/api/v1/service-orders/")
+        || uri.startsWith("/api/v1/documents/order/")
+        || (uri.startsWith("/api/v1/documents/") && uri.endsWith("/content"))
+        || uri.startsWith("/api/v1/inventory/reservations/order/")
+        || (uri.startsWith("/api/v1/inventory/reservations/") && uri.endsWith("/release"))
+        || uri.startsWith("/api/v1/inventory/pos/orders/")
+        || uri.startsWith("/api/v1/warranty-claims/service-order/")
+        || (uri.startsWith("/api/v1/warranty-claims/") && uri.endsWith("/close"));
   }
 
   UUID orderIdFor(final String uri, final UUID tenantId) {
