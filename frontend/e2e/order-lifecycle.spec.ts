@@ -14,9 +14,9 @@ test('an order goes from reception to delivery: quote, QA, payment and warranty'
 
   // Starting the repair without an approved quote is blocked and leads to the quote tab.
   await page.getByRole('button', { name: /En reparación/ }).click()
-  await expect(page.getByRole('tab', { name: /^Presupuestos/, selected: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /^Cotizaciones/, selected: true })).toBeVisible()
 
-  await page.getByRole('button', { name: '+ Armar presupuesto' }).click()
+  await page.getByRole('button', { name: '+ Armar cotización' }).click()
   await page.getByLabel('Precio unit.').first().fill('25000')
   await page.getByRole('button', { name: 'Guardar borrador' }).click()
   await expect(page.getByText('Versión 1')).toBeVisible()

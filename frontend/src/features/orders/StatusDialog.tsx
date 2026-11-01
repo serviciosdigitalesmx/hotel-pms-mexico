@@ -52,7 +52,7 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
           {result.outboxItemId ? (
             <Alert tone="green">El mensaje quedó en cola y se envía automáticamente al cliente.</Alert>
           ) : result.suggestedMessage ? (
-            <Alert tone="slate">No se envió automáticamente. Podés mandarlo por WhatsApp con un clic.</Alert>
+            <Alert tone="slate">No se envió automáticamente. Puedes mandarlo por WhatsApp con un clic.</Alert>
           ) : null}
           {result.suggestedMessage ? <pre className="whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-slate-700">{result.suggestedMessage}</pre> : null}
           {result.whatsAppUrl ? (
@@ -89,7 +89,7 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
         {blocker ? <Alert tone="amber">{blocker}</Alert> : null}
         {unpaid ? (
           <Alert tone="rose" title={`Saldo pendiente: ${money(order.balanceDue, order.currency)}`}>
-            Registrá el pago antes de entregar.
+            Registra el pago antes de entregar.
             {role === 'Admin' ? (
               <Checkbox className="mt-2" label="Entregar igual (queda registrado en auditoría)" checked={force} onChange={(e) => setForce(e.target.checked)} />
             ) : (
@@ -106,7 +106,7 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
           </Field>
         ) : null}
-        <Checkbox label="Avisar al cliente" description="Usa la plantilla del estado. Si no hay proveedor configurado, te damos el link de WhatsApp." checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+        <Checkbox label="Avisar al cliente" description="Usa la plantilla del estado. Si no hay proveedor configurado, te damos el enlace de WhatsApp." checked={notify} onChange={(e) => setNotify(e.target.checked)} />
         {notify ? (
           <Field label="Canal">
             <Select value={channel} onChange={(e) => setChannel(e.target.value as NotificationChannel | '')}>

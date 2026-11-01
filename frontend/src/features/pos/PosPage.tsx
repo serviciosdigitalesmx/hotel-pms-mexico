@@ -176,19 +176,19 @@ export function PosPage() {
 
         {cashClosed && requireCash ? (
           <Alert tone="amber" title="La caja está cerrada">
-            Abrila para poder cobrar. <Link to="/cash" className="font-medium underline">Abrir caja</Link>
+            Ábrela para poder cobrar. <Link to="/cash" className="font-medium underline">Abrir caja</Link>
           </Alert>
         ) : null}
 
         <Card>
           <div className="flex gap-2">
-            <SearchInput inputRef={searchRef} value={q} onChange={setQ} onEnter={() => void onEnter()} placeholder="Escaneá o buscá por nombre, SKU o código de barras…" className="flex-1" autoFocus />
+            <SearchInput inputRef={searchRef} value={q} onChange={setQ} onEnter={() => void onEnter()} placeholder="Escanea o busca por nombre, SKU o código de barras…" className="flex-1" autoFocus />
             {cameraScanSupported() ? (
               <Button onClick={() => setScanning(true)} aria-label="Escanear con la cámara">
                 📷
               </Button>
             ) : null}
-            <Button onClick={() => setFreeItem(true)}>+ Ítem libre</Button>
+            <Button onClick={() => setFreeItem(true)}>+ Producto libre</Button>
           </div>
           {categories.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -224,7 +224,7 @@ export function PosPage() {
               </span>
             </button>
           ))}
-          {catalog.isSuccess && visible.length === 0 ? <p className="col-span-full py-8 text-center text-sm text-slate-500">No hay productos a la venta con ese criterio. Marcá ítems como “vendible” en Inventario.</p> : null}
+          {catalog.isSuccess && visible.length === 0 ? <p className="col-span-full py-8 text-center text-sm text-slate-500">No hay productos a la venta con ese criterio. Marca productos como “vendible” en Inventario.</p> : null}
         </div>
 
         {held.length > 0 ? (
@@ -233,7 +233,7 @@ export function PosPage() {
               {held.map((h) => (
                 <li key={h.id} className="flex items-center justify-between py-2">
                   <span>
-                    {h.label} · {h.lines.length} ítem{h.lines.length === 1 ? '' : 's'} · {money(cartTotals(h.lines, h.discount).total)}
+                    {h.label} · {h.lines.length} producto{h.lines.length === 1 ? '' : 's'} · {money(cartTotals(h.lines, h.discount).total)}
                     <span className="ml-2 text-xs text-slate-400">{relative(h.createdAt)}</span>
                   </span>
                   <span className="flex gap-1">
@@ -279,7 +279,7 @@ export function PosPage() {
           </div>
 
           <ul className="max-h-[45vh] divide-y divide-slate-100 overflow-y-auto" aria-label="Carrito">
-            {lines.length === 0 ? <li className="px-4 py-10 text-center text-sm text-slate-500">Escaneá un producto o tocá una tarjeta para agregarlo.</li> : null}
+            {lines.length === 0 ? <li className="px-4 py-10 text-center text-sm text-slate-500">Escanea un producto o toca una tarjeta para agregarlo.</li> : null}
             {lines.map((l) => (
               <li key={l.key} className="px-4 py-3 text-sm">
                 <div className="flex items-start justify-between gap-2">
@@ -445,7 +445,7 @@ function FreeItemDialog({ onClose, onAdd }: { onClose: () => void; onAdd: (name:
       open
       size="sm"
       onClose={onClose}
-      title="Ítem libre"
+      title="Producto libre"
       description="Servicios u otros cobros que no están en el inventario (no mueven stock)."
       footer={
         <>
@@ -579,10 +579,10 @@ function CheckoutDialog({ lines, customerId, globalDiscount, total, blockedByCas
             </div>
           )}
         </div>
-        {invalidChange ? <Alert tone="rose">Solo el efectivo puede dar vuelto: bajá el monto de los otros medios.</Alert> : null}
+        {invalidChange ? <Alert tone="rose">Solo el efectivo puede dar vuelto: baja el monto de los otros medios.</Alert> : null}
         {needsCash ? (
           <Alert tone="amber">
-            La caja está cerrada. <Link to="/cash" className="font-medium underline">Abrila</Link> para registrar el cobro.
+            La caja está cerrada. <Link to="/cash" className="font-medium underline">Ábrela</Link> para registrar el cobro.
           </Alert>
         ) : null}
         <Field label="Nota (opcional)">

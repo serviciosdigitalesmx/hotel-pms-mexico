@@ -173,8 +173,8 @@ export function toProblem(err: unknown): ProblemDetails {
   const e = err as AxiosError<ProblemDetails>
   const data = e?.response?.data
   if (data && typeof data === 'object' && ('title' in data || 'detail' in data || 'errors' in data)) return { ...data, status: e.response?.status }
-  if (e?.response?.status === 429) return { status: 429, title: 'Demasiadas solicitudes', detail: 'Esperá un momento y volvé a intentar.' }
-  if (e?.code === 'ERR_NETWORK') return { title: 'Sin conexión', detail: 'No se pudo conectar con el servidor. Revisá tu conexión.' }
+  if (e?.response?.status === 429) return { status: 429, title: 'Demasiadas solicitudes', detail: 'Espera un momento e inténtalo de nuevo.' }
+  if (e?.code === 'ERR_NETWORK') return { title: 'Sin conexión', detail: 'No se pudo conectar con el servidor. Revisa tu conexión.' }
   return { title: 'Error inesperado', detail: e?.message, status: e?.response?.status }
 }
 

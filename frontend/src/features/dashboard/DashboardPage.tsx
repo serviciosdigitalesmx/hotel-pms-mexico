@@ -45,7 +45,7 @@ export function DashboardPage() {
 
       {can('sales') && !s.cashSessionOpen ? (
         <Alert tone="amber" title="La caja está cerrada">
-          Abrila para registrar cobros en efectivo. <Link to="/cash" className="font-medium underline">Ir a Caja</Link>
+          Ábrela para registrar cobros en efectivo. <Link to="/cash" className="font-medium underline">Ir a Caja</Link>
         </Alert>
       ) : null}
       {s.missingRates && s.missingRates.length > 0 ? (
@@ -59,7 +59,7 @@ export function DashboardPage() {
         <Stat label="Listas para retirar" value={s.readyOrders} hint={s.readyNotPickedUp > 0 ? `${s.readyNotPickedUp} hace más de 7 días` : undefined} tone={s.readyNotPickedUp > 0 ? 'warn' : 'good'} onClick={() => navigate('/orders?status=Ready')} />
         <Stat label="Atrasadas" value={s.overdueOrders} hint="Pasaron la fecha prometida" tone={s.overdueOrders > 0 ? 'bad' : 'default'} onClick={() => navigate('/orders?onlyOverdue=true')} />
         <Stat label="Estancadas" value={s.staleOrders} hint="Sin cambios de estado hace días" tone={s.staleOrders > 0 ? 'warn' : 'default'} onClick={() => navigate('/orders/board')} />
-        <Stat label="Presupuestos sin respuesta" value={s.quotesPendingDecision} tone={s.quotesPendingDecision > 0 ? 'warn' : 'default'} onClick={() => navigate('/orders?status=Diagnosing')} />
+        <Stat label="Cotizaciones sin respuesta" value={s.quotesPendingDecision} tone={s.quotesPendingDecision > 0 ? 'warn' : 'default'} onClick={() => navigate('/orders?status=Diagnosing')} />
         {user?.role === 'Tech' ? <Stat label="Asignadas a mí" value={s.myOpenOrders} onClick={() => navigate('/orders?mine=true&onlyOpen=true')} /> : null}
         <Stat label="Stock bajo" value={s.lowStockItems} tone={s.lowStockItems > 0 ? 'warn' : 'default'} onClick={() => navigate('/inventory?lowStock=true')} />
         {can('sales') || can('reports') ? (
@@ -101,7 +101,7 @@ export function DashboardPage() {
             {mine.isLoading ? (
               <Loading />
             ) : (mine.data?.items.length ?? 0) === 0 ? (
-              <EmptyState title="No tenés órdenes asignadas" />
+              <EmptyState title="No tienes órdenes asignadas" />
             ) : (
               <Table>
                 <thead>

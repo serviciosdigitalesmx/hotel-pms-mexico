@@ -89,7 +89,7 @@ function InvoicesTab() {
           </div>
         ) : items.length === 0 ? (
           <div className="p-4">
-            <EmptyState title="Todavía no hay comprobantes" description="Configurá ARCA en Configuración → Integraciones para facturar electrónicamente." />
+            <EmptyState title="Todavía no hay comprobantes" description="Configura ARCA en Configuración → Integraciones para facturar electrónicamente." />
           </div>
         ) : (
           <>
@@ -168,7 +168,7 @@ function InvoicesTab() {
       <ConfirmDialog
         open={!!crediting}
         title={`¿Emitir nota de crédito por ${crediting?.code ?? ''}?`}
-        message={`Anula fiscalmente la factura por ${money(crediting?.total ?? 0, 'ARS')}. No devuelve dinero: registrá la devolución en la orden o venta.`}
+        message={`Anula fiscalmente la factura por ${money(crediting?.total ?? 0, 'ARS')}. No devuelve dinero: registra la devolución en la orden o venta.`}
         confirmLabel="Emitir nota de crédito"
         danger
         loading={credit.isPending}
@@ -211,7 +211,7 @@ function RatesTab() {
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       {role === 'Admin' ? (
-        <Card title="Cargar cotización USD → ARS">
+        <Card title="Cargar tipo de cambio USD → ARS">
           <form
             className="space-y-3"
             onSubmit={(e) => {
@@ -222,7 +222,7 @@ function RatesTab() {
             <Field label="Fecha">
               <Input type="date" value={dateValue} max={todayIso()} onChange={(e) => setDateValue(e.target.value)} />
             </Field>
-            <Field label="Cotización (1 USD en ARS)">
+            <Field label="Tipo de cambio (1 USD en ARS)">
               <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="1.250,00" />
             </Field>
             <Field label="Tipo">

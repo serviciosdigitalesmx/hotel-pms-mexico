@@ -31,28 +31,28 @@ export function TermsPage() {
   return (
     <LegalPage title="Términos del servicio">
       <p>
-        Fixi es un software de gestión para talleres de reparación que se ofrece por suscripción. Al crear una cuenta, aceptás estos términos en nombre
-        propio y del taller que registrás.
+        Fixi es un software de gestión para talleres de reparación que se ofrece por suscripción. Al crear una cuenta, aceptas estos términos en nombre
+        propio y del taller que registras.
       </p>
       <h2>1. Cuenta y uso</h2>
       <p>
-        Sos responsable de la veracidad de los datos cargados, de mantener la confidencialidad de tus contraseñas y de las acciones que realicen los usuarios que
-        invites. No podés usar el servicio para actividades ilícitas ni para enviar comunicaciones no solicitadas.
+        Eres responsable de la veracidad de los datos cargados, de mantener la confidencialidad de tus contraseñas y de las acciones que realicen los usuarios que
+        invites. No puedes usar el servicio para actividades ilícitas ni para enviar comunicaciones no solicitadas.
       </p>
       <h2>2. Prueba gratis, planes y pagos</h2>
       <p>
         Cada cuenta nueva incluye una prueba gratis con todos los módulos y sin tarjeta. Al terminar, la cuenta queda en modo consulta hasta que elijas un plan
-        mensual. En Argentina el abono se cobra en pesos con Mercado Pago. En el resto de los países lo cobra en dólares Paddle.com, que actúa como revendedor
-        autorizado (merchant of record) y agrega los impuestos que correspondan en tu país. El abono se cobra por mes adelantado y podés cancelarlo cuando
+        mensual. En Argentina la suscripción se cobra mensualmente en pesos con Mercado Pago. En el resto de los países lo cobra en dólares Paddle.com, que actúa como revendedor
+        autorizado (merchant of record) y agrega los impuestos que correspondan en tu país. La suscripción se cobra por adelantado cada mes y puedes cancelarla cuando
         quieras desde la sección Suscripción; la cancelación rige al final del período pagado y no se reintegran períodos parciales.
       </p>
       <h2>3. Cambios en el servicio</h2>
       <p>
-        Podemos incorporar, modificar o retirar funciones. Te avisaremos con anticipación cuando un cambio afecte funciones que usás o el precio de tu plan.
+        Podemos incorporar, modificar o retirar funciones. Te avisaremos con anticipación cuando un cambio afecte funciones que usas o el precio de tu plan.
       </p>
       <h2>4. Tus datos</h2>
       <p>
-        Los datos que cargás (clientes, equipos, órdenes, comprobantes) son de tu taller. Los tratamos según la Política de privacidad y podés pedir una copia o
+        Los datos que registras (clientes, equipos, órdenes, comprobantes) son de tu taller. Los tratamos según la Política de privacidad y puedes pedir una copia o
         su eliminación en cualquier momento.
       </p>
       <h2>5. Facturación electrónica</h2>
@@ -67,7 +67,7 @@ export function TermsPage() {
       </p>
       <h2>7. Cambios y contacto</h2>
       <p>
-        Si modificamos estos términos, lo informaremos dentro del servicio. Para consultas, contactanos por <Contact />. Estos términos se rigen por las leyes de
+        Si modificamos estos términos, lo informaremos dentro del servicio. Para consultas, contáctanos por <Contact />. Estos términos se rigen por las leyes de
         la República Argentina, sin perjuicio de los derechos que te otorguen las normas de protección al consumidor de tu país.
       </p>
     </LegalPage>
@@ -83,7 +83,7 @@ export function PrivacyPage() {
       </p>
       <h2>1. Qué datos tratamos</h2>
       <p>
-        Datos de la cuenta (nombre, email, país y datos del taller) y los datos que el taller carga sobre sus clientes, equipos, órdenes, pagos y comprobantes.
+        Datos de la cuenta (nombre, correo electrónico, país y datos del taller) y los datos que el taller carga sobre sus clientes, equipos, órdenes, pagos y comprobantes.
         También registramos datos técnicos de uso, como accesos y errores, para operar y proteger el servicio.
       </p>
       <h2>2. Para qué los usamos</h2>
@@ -98,7 +98,7 @@ export function PrivacyPage() {
       </p>
       <h2>4. Con quién los compartimos</h2>
       <p>
-        Con proveedores necesarios para operar: alojamiento, envío de emails, SMS y WhatsApp, cobro de la suscripción (Mercado Pago en Argentina y Paddle en el
+        Con proveedores necesarios para operar: alojamiento, envío de correos electrónicos, SMS y WhatsApp, cobro de la suscripción (Mercado Pago en Argentina y Paddle en el
         resto de los países) y ARCA para la facturación electrónica. Cada uno recibe solo lo necesario para su función. Algunos de ellos procesan datos fuera de
         tu país, con las garantías que exige la normativa aplicable.
       </p>
@@ -109,8 +109,8 @@ export function PrivacyPage() {
       </p>
       <h2>6. Tus derechos</h2>
       <p>
-        Podés acceder, rectificar, actualizar, exportar o pedir la eliminación de tus datos, u oponerte a su tratamiento, escribiéndonos por <Contact />. En
-        Argentina, la Agencia de Acceso a la Información Pública atiende denuncias sobre el incumplimiento de la Ley 25.326; en la Unión Europea podés reclamar
+        Puedes acceder, rectificar, actualizar, exportar o pedir la eliminación de tus datos, u oponerte a su tratamiento, escribiéndonos por <Contact />. En
+        Argentina, la Agencia de Acceso a la Información Pública atiende denuncias sobre el incumplimiento de la Ley 25.326; en la Unión Europea puedes reclamar
         ante la autoridad de protección de datos de tu país.
       </p>
     </LegalPage>

@@ -17,8 +17,8 @@ export function RequirePermission({ permission, children }: { permission: Permis
   if (!can(permission)) {
     return (
       <div className="mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-900">
-        <p className="font-medium">No tenés permiso para ver esta sección.</p>
-        <p className="mt-1">Pedile acceso a un administrador.</p>
+        <p className="font-medium">No tienes permiso para ver esta sección.</p>
+        <p className="mt-1">Pídele acceso a un administrador.</p>
       </div>
     )
   }

@@ -26,7 +26,7 @@ export function PartsPanel({ order }: { order: RepairOrder }) {
     mutationFn: () =>
       ordersApi.usePart(order.id, { inventoryItemId: item!.id, quantityUsed: qty, unitPrice: charge ? parseAmount(price) : null, unitPriceCurrency: charge ? order.currency : null }),
     onSuccess: () => {
-      toast.success('Repuesto descontado del stock')
+      toast.success('Refacción descontada del inventario')
       setItem(null)
       setQty(1)
       setCharge(false)
@@ -34,13 +34,13 @@ export function PartsPanel({ order }: { order: RepairOrder }) {
       void queryClient.invalidateQueries({ queryKey: ['order', order.id] })
       void queryClient.invalidateQueries({ queryKey: ['inventory'] })
     },
-    onError: (err) => toast.error('No se pudo usar el repuesto', { description: errorMessage(err) }),
+    onError: (err) => toast.error('No se pudo usar la refacción', { description: errorMessage(err) }),
   })
 
   return (
     <div className="space-y-4">
       {canUse ? (
-        <Card title="Usar repuesto del stock">
+        <Card title="Usar refacción del inventario">
           <div className="space-y-3">
             {item ? (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-3 text-sm">
@@ -57,13 +57,13 @@ export function PartsPanel({ order }: { order: RepairOrder }) {
             )}
             {item ? (
               <>
-                {reservedForItem > 0 ? <Alert tone="indigo">Este repuesto está en el presupuesto aprobado ({reservedForItem} reservado): se descuenta de la reserva y no se cobra de nuevo.</Alert> : null}
+                {reservedForItem > 0 ? <Alert tone="indigo">Esta refacción está en la cotización aprobada ({reservedForItem} unidades reservadas): se descuenta de la reserva y no se cobra de nuevo.</Alert> : null}
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Cantidad">
                     <Input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
                   </Field>
                   <div className="flex items-end pb-2 sm:col-span-2">
-                    <Checkbox label="Cobrarlo como extra al cliente" description="Para repuestos que no estaban en el presupuesto aprobado." checked={charge} onChange={(e) => setCharge(e.target.checked)} />
+                    <Checkbox label="Cobrarla como extra al cliente" description="Para refacciones que no estaban incluidas en la cotización aprobada." checked={charge} onChange={(e) => setCharge(e.target.checked)} />
                   </div>
                   {charge ? (
                     <Field label={`Precio unitario (${order.currency})`}>
@@ -73,7 +73,7 @@ export function PartsPanel({ order }: { order: RepairOrder }) {
                 </div>
                 <div className="flex justify-end">
                   <Button variant="primary" loading={use.isPending} disabled={charge && !parseAmount(price)} onClick={() => use.mutate()}>
-                    Descontar del stock
+                    Descontar del inventario
                   </Button>
                 </div>
               </>
@@ -83,7 +83,7 @@ export function PartsPanel({ order }: { order: RepairOrder }) {
       ) : null}
 
       {(reservations.data ?? []).length > 0 ? (
-        <Card title="Reservas del presupuesto aprobado">
+        <Card title="Refacciones reservadas para la cotización aprobada">
           <ul className="space-y-1 text-sm">
             {reservations.data!.map((r) => (
               <li key={r.id} className="flex justify-between">
@@ -97,18 +97,18 @@ export function PartsPanel({ order }: { order: RepairOrder }) {
         </Card>
       ) : null}
 
-      <Card title="Repuestos usados" padded={false}>
+      <Card title="Refacciones utilizadas" padded={false}>
         {parts.isLoading ? (
           <Loading />
         ) : (parts.data ?? []).length === 0 ? (
           <div className="p-4">
-            <EmptyState title="Todavía no se usaron repuestos" />
+            <EmptyState title="Todavía no se usaron refacciones" />
           </div>
         ) : (
           <Table>
             <thead className="bg-slate-50">
               <tr>
-                <Th>Repuesto</Th>
+                <Th>Refacción</Th>
                 <Th align="right">Cant.</Th>
                 <Th align="right">Costo</Th>
                 <Th align="right">Cobrado</Th>

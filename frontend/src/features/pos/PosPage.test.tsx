@@ -146,7 +146,7 @@ describe('PosPage', () => {
     renderPos()
     await user.click(await screen.findByRole('button', { name: /Templado iPhone 13/ }))
     await user.click(screen.getByRole('button', { name: 'En espera' }))
-    expect(screen.getByText(/Escaneá un producto/)).toBeInTheDocument()
+    expect(screen.getByText(/Escanea un producto/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retomar' }))
     expect(screen.getByRole('list', { name: 'Carrito' })).toHaveTextContent('Templado iPhone 13')
   })

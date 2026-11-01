@@ -64,7 +64,7 @@ export function SignupPage() {
   if (config.data && !config.data.signupEnabled) {
     return (
       <AuthCard title="Crear cuenta">
-        <Alert tone="amber">Por ahora el alta de talleres está cerrada. Volvé a intentar en unos días.</Alert>
+        <Alert tone="amber">Por ahora el alta de talleres está cerrada. Vuelve a intentar en unos días.</Alert>
         <p className="mt-4 text-center text-sm">
           <Link to="/login" className="text-brand-700 hover:underline">
             Ya tengo cuenta
@@ -75,7 +75,7 @@ export function SignupPage() {
   }
 
   return (
-    <AuthCard title={`Probá gratis ${trialDays} días`} subtitle="Sin tarjeta. Todos los módulos incluidos.">
+    <AuthCard title={`Prueba gratis ${trialDays} días`} subtitle="Sin tarjeta. Todos los módulos incluidos.">
       <form onSubmit={submit} className="space-y-4" noValidate>
         <Field label="Nombre del taller" error={errors.shopName}>
           <Input value={form.shopName} onChange={(e) => set('shopName', e.target.value)} autoComplete="organization" required autoFocus />
@@ -83,7 +83,7 @@ export function SignupPage() {
         <Field label="Tu nombre" error={errors.ownerName}>
           <Input value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} autoComplete="name" required />
         </Field>
-        <Field label="Email" error={errors.email}>
+        <Field label="Correo electrónico" error={errors.email}>
           <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} autoComplete="email" required />
         </Field>
         <Field label="Contraseña" hint={`Mínimo ${MIN_SIGNUP_PASSWORD_LENGTH} caracteres, con letras y números.`} error={errors.password}>
@@ -125,7 +125,7 @@ export function SignupPage() {
           Crear mi cuenta
         </Button>
         <p className="text-center text-sm text-slate-600">
-          ¿Ya tenés cuenta?{' '}
+          ¿Ya tienes cuenta?{' '}
           <Link to="/login" className="text-brand-700 hover:underline">
             Ingresar
           </Link>
@@ -146,13 +146,13 @@ export function VerifyEmailPage() {
   const { state } = useSession()
 
   return (
-    <AuthCard title="Confirmar email">
+    <AuthCard title="Confirmar correo electrónico">
       {!token || result.isError ? (
-        <Alert tone="rose">{result.error ? errorMessage(result.error) : 'El link es inválido.'} Podés pedir uno nuevo desde el aviso dentro de la app.</Alert>
+        <Alert tone="rose">{result.error ? errorMessage(result.error) : 'El enlace es inválido.'} Puedes pedir uno nuevo desde el aviso dentro de la app.</Alert>
       ) : result.isLoading ? (
         <Loading />
       ) : (
-        <Alert tone="green">¡Listo! Tu email quedó confirmado.</Alert>
+        <Alert tone="green">¡Listo! Tu correo electrónico quedó confirmado.</Alert>
       )}
       <p className="mt-4 text-center text-sm">
         <Link to={state.status === 'authenticated' ? '/' : '/login'} className="text-brand-700 hover:underline">

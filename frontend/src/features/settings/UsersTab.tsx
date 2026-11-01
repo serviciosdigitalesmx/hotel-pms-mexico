@@ -13,8 +13,8 @@ const ROLES: Role[] = ['Admin', 'Tech', 'Reception', 'Cashier']
 
 const ROLE_HELP: Record<Role, string> = {
   Admin: 'Todo, incluida la configuración, usuarios y anulaciones.',
-  Tech: 'Trabaja las órdenes: diagnóstico, presupuesto, repuestos, notas y estados.',
-  Reception: 'Clientes, ingreso y entrega de equipos, presupuestos y cobros.',
+  Tech: 'Trabaja las órdenes: diagnóstico, cotización, refacciones, notas y estados.',
+  Reception: 'Clientes, ingreso y entrega de equipos, cotizaciones y cobros.',
   Cashier: 'Punto de venta, caja, cobros y entrega de equipos.',
 }
 
@@ -54,7 +54,7 @@ export function UsersTab() {
               <tr key={u.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setEditing(u)}>
                 <Td>
                   <span className="font-medium text-slate-800">{u.displayName}</span>
-                  {u.id === me?.id ? <span className="ml-1 text-xs text-slate-400">(vos)</span> : null}
+                  {u.id === me?.id ? <span className="ml-1 text-xs text-slate-400">(tú)</span> : null}
                   <span className="block text-xs text-slate-500">{u.email}</span>
                 </Td>
                 <Td>{ROLE[u.role]}</Td>
@@ -112,7 +112,7 @@ function InviteDialog({ onClose, onDone }: { onClose: () => void; onDone: (link:
       open
       onClose={onClose}
       title="Invitar usuario"
-      description="Se genera un link para que la persona elija su contraseña."
+      description="Se genera un enlace para que la persona elija su contraseña."
       footer={
         <>
           <Button onClick={onClose}>Cancelar</Button>
@@ -126,7 +126,7 @@ function InviteDialog({ onClose, onDone }: { onClose: () => void; onDone: (link:
         <Field label="Nombre" required>
           <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </Field>
-        <Field label="Email" required>
+        <Field label="Correo electrónico" required>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Rol" hint={ROLE_HELP[role]}>
@@ -144,13 +144,13 @@ function InviteDialog({ onClose, onDone }: { onClose: () => void; onDone: (link:
 }
 
 function LinkDialog({ title, link, onClose }: { title: string; link: UserLink; onClose: () => void }) {
-  const text = `Hola ${link.user.displayName}, entrá a este link para crear tu contraseña: ${link.url}`
+  const text = `Hola ${link.user.displayName}, abre este enlace para crear tu contraseña: ${link.url}`
   return (
     <Modal
       open
       onClose={onClose}
       title={title}
-      description={`Vence ${dateTime(link.expiresAtUtc)}. Compartilo solo con esa persona.`}
+      description={`Vence ${dateTime(link.expiresAtUtc)}. Compártelo solo con esa persona.`}
       footer={
         <Button variant="primary" onClick={onClose}>
           Listo
@@ -159,11 +159,11 @@ function LinkDialog({ title, link, onClose }: { title: string; link: UserLink; o
     >
       <div className="space-y-3">
         <div className="flex gap-2">
-          <Input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Link" />
+          <Input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Enlace" />
           <Button
             onClick={() => {
               void navigator.clipboard?.writeText(link.url)
-              toast.success('Link copiado')
+              toast.success('Enlace copiado')
             }}
           >
             Copiar
@@ -174,7 +174,7 @@ function LinkDialog({ title, link, onClose }: { title: string; link: UserLink; o
             Enviar por WhatsApp
           </a>
           <a className="text-sm text-brand-700 underline" href={`mailto:${link.user.email}?subject=${encodeURIComponent('Acceso al sistema del taller')}&body=${encodeURIComponent(text)}`}>
-            Enviar por email
+            Enviar por correo electrónico
           </a>
         </div>
       </div>
@@ -203,7 +203,7 @@ function UserDialog({ user, isMe, onClose, onLink }: { user: UserAdmin; isMe: bo
   const reset = useMutation({
     mutationFn: () => usersApi.resetLink(user.id),
     onSuccess: (l) => onLink(l),
-    onError: (err) => toast.error('No se pudo generar el link', { description: errorMessage(err) }),
+    onError: (err) => toast.error('No se pudo generar el enlace', { description: errorMessage(err) }),
   })
   const grant = useMutation({
     mutationFn: ({ shopId, r }: { shopId: string; r: Role }) => usersApi.grantShop(user.id, shopId, r),
@@ -235,7 +235,7 @@ function UserDialog({ user, isMe, onClose, onLink }: { user: UserAdmin; isMe: bo
       footer={
         <>
           <Button variant="ghost" className="mr-auto" loading={reset.isPending} onClick={() => reset.mutate()}>
-            {user.hasPendingInvitation ? 'Nuevo link de invitación' : 'Link para cambiar contraseña'}
+            {user.hasPendingInvitation ? 'Nuevo enlace de invitación' : 'Enlace para cambiar contraseña'}
           </Button>
           <Button onClick={onClose}>Cancelar</Button>
           <Button variant="primary" loading={save.isPending} disabled={name.trim().length < 2} onClick={() => save.mutate()}>
@@ -260,7 +260,7 @@ function UserDialog({ user, isMe, onClose, onLink }: { user: UserAdmin; isMe: bo
           </Field>
           <Checkbox checked={active} disabled={isMe} onChange={(e) => setActive(e.target.checked)} label="Usuario activo" description="Desactivarlo cierra sus sesiones al instante." />
         </div>
-        {isMe ? <Alert tone="slate">No podés cambiar tu propio rol ni desactivarte.</Alert> : null}
+        {isMe ? <Alert tone="slate">No puedes cambiar tu propio rol ni desactivarte.</Alert> : null}
 
         <div>
           <p className="mb-2 text-sm font-medium text-slate-700">Acceso a sucursales</p>
@@ -404,7 +404,7 @@ function NewBranchDialog({ onClose }: { onClose: () => void }) {
   const create = useMutation({
     mutationFn: () => settingsApi.createBranch({ name: v.name.trim(), phone: v.phone.trim() || null, addressLine: v.addressLine.trim() || null, city: v.city.trim() || null, copyTemplates: v.copyTemplates, copyCatalog: v.copyCatalog }),
     onSuccess: async (b) => {
-      toast.success(`Sucursal ${b.name} creada`, { description: 'Ya podés cambiar a ella desde el selector de arriba.' })
+      toast.success(`Sucursal ${b.name} creada`, { description: 'Ya puedes cambiar a ella desde el selector de arriba.' })
       void queryClient.invalidateQueries({ queryKey: ['branches'] })
       // New branch access is part of the session (shop switcher): refresh it.
       await refreshSession()
@@ -417,7 +417,7 @@ function NewBranchDialog({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       title="Nueva sucursal"
-      description="Hereda la configuración de esta sucursal (moneda, términos, avisos). Vos quedás como administrador."
+      description="Hereda la configuración de esta sucursal (moneda, términos, avisos). Tú quedas como administrador."
       footer={
         <>
           <Button onClick={onClose}>Cancelar</Button>

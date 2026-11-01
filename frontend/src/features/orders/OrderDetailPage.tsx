@@ -45,7 +45,7 @@ export function OrderDetailPage() {
   const regenerate = useMutation({
     mutationFn: () => ordersApi.regenerateToken(id),
     onSuccess: () => {
-      toast.success('Se generó un nuevo link de seguimiento. El anterior dejó de funcionar.')
+      toast.success('Se generó un nuevo enlace de seguimiento. El anterior dejó de funcionar.')
       void queryClient.invalidateQueries({ queryKey: ['order', id] })
     },
   })
@@ -115,7 +115,7 @@ export function OrderDetailPage() {
                   onClick={() => {
                     if (blocker) {
                       toast.warning(blocker)
-                      setParams({ tab: blocker.includes('presupuesto') ? 'quotes' : 'checks' }, { replace: true })
+                      setParams({ tab: blocker.includes('cotización') ? 'quotes' : 'checks' }, { replace: true })
                       return
                     }
                     setTarget(s)
@@ -174,11 +174,11 @@ export function OrderDetailPage() {
               abrir
             </a>
             <Button size="sm" variant="ghost" onClick={() => copy(o.trackingUrl, 'Link')}>
-              Copiar link
+              Copiar enlace
             </Button>
             {can('orders.manage') ? (
               <Button size="sm" variant="ghost" loading={regenerate.isPending} onClick={() => regenerate.mutate()}>
-                Generar link nuevo
+                Generar enlace nuevo
               </Button>
             ) : null}
           </div>
@@ -213,7 +213,7 @@ export function OrderDetailPage() {
             <p className="text-xs text-slate-500">
               Total <Money value={o.totalAmount} currency={o.currency} /> · pagado <Money value={o.paidAmount} currency={o.currency} />
             </p>
-            {!o.hasApprovedQuote && !o.isWarrantyClaim ? <p className="mt-1 text-xs text-amber-700">Sin presupuesto aprobado</p> : null}
+            {!o.hasApprovedQuote && !o.isWarrantyClaim ? <p className="mt-1 text-xs text-amber-700">Sin cotización aprobada</p> : null}
           </Card>
 
           <Card title="Seguridad y firmas">
@@ -263,8 +263,8 @@ export function OrderDetailPage() {
         value={tab}
         onChange={(t) => setParams({ tab: t }, { replace: true })}
         tabs={[
-          { value: 'quotes', label: 'Presupuestos' },
-          { value: 'parts', label: 'Repuestos' },
+          { value: 'quotes', label: 'Cotizaciones' },
+          { value: 'parts', label: 'Refacciones' },
           { value: 'payments', label: 'Pagos' },
           { value: 'checks', label: 'Checklists' },
           { value: 'notes', label: 'Notas' },
@@ -294,7 +294,7 @@ export function OrderDetailPage() {
       <ConfirmDialog
         open={confirmDelete}
         title="Eliminar orden"
-        message="Solo se pueden eliminar órdenes sin pagos, repuestos ni presupuestos. Si ya hubo movimientos, cancelala."
+        message="Solo se pueden eliminar órdenes sin pagos, refacciones ni cotizaciones. Si ya hubo movimientos, cancélala."
         confirmLabel="Eliminar"
         danger
         loading={remove.isPending}
@@ -408,7 +408,7 @@ function EditIssueDialog({ order, onClose }: { order: RepairOrder; onClose: () =
           <Field label="Categoría">
             <Input value={category} onChange={(e) => setCategory(e.target.value)} />
           </Field>
-          <Field label="Garantía (días)" hint="Vacío = presupuesto o sucursal">
+          <Field label="Garantía (días)" hint="Vacío = cotización o sucursal">
             <Input type="number" min={0} value={warrantyDays} onChange={(e) => setWarrantyDays(e.target.value)} />
           </Field>
         </div>

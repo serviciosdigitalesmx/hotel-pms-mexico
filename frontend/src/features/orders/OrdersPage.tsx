@@ -57,7 +57,7 @@ export function OrdersPage() {
     <div>
       <PageHeader
         title="Órdenes de reparación"
-        subtitle="Buscá por número (#123), cliente, teléfono, equipo, IMEI o falla."
+        subtitle="Busca por número (#123), cliente, teléfono, equipo, IMEI o falla."
         actions={
           <>
             <Button onClick={() => navigate('/orders/board')}>Ver tablero</Button>
@@ -136,7 +136,7 @@ export function OrdersPage() {
           </div>
         ) : orders.data!.items.length === 0 ? (
           <div className="p-4">
-            <EmptyState title="No hay órdenes con esos filtros" description="Probá con otra búsqueda o cargá una nueva orden." />
+            <EmptyState title="No hay órdenes con esos filtros" description="Prueba con otra búsqueda o agrega una nueva orden." />
           </div>
         ) : (
           <>

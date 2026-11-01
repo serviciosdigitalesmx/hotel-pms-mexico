@@ -47,7 +47,7 @@ export function ProfilePage() {
       return
     }
     if (next.length < 8 || !/[a-zA-Z]/.test(next) || !/\d/.test(next)) {
-      setErrors({ newPassword: 'Usá al menos 8 caracteres, con letras y números.' })
+      setErrors({ newPassword: 'Usa al menos 8 caracteres, con letras y números.' })
       return
     }
     change.mutate()
@@ -63,7 +63,7 @@ export function ProfilePage() {
           <KeyValue
             items={[
               { label: 'Nombre', value: user.displayName },
-              { label: 'Email', value: user.email },
+              { label: 'Correo electrónico', value: user.email },
               { label: 'Rol', value: ROLE[user.role] },
               { label: 'Sucursal actual', value: user.shopName ?? '—' },
               { label: 'Sucursales con acceso', value: shops.map((s) => `${s.shopName} (${ROLE[s.role]})`).join(', '), hidden: shops.length < 2 },
@@ -79,7 +79,7 @@ export function ProfilePage() {
             <Field label="Nueva contraseña" error={errors.newPassword} hint="Mínimo 8 caracteres, con letras y números. Una frase fácil de recordar es más segura que una palabra rara.">
               <Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
             </Field>
-            <Field label="Repetí la nueva contraseña" error={errors.confirm}>
+            <Field label="Repite la nueva contraseña" error={errors.confirm}>
               <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             </Field>
             <div className="flex justify-end">
@@ -92,7 +92,7 @@ export function ProfilePage() {
 
         <Card title="Seguridad">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <p className="text-slate-600">¿Usaste el sistema en una computadora compartida o perdiste el celular? Cerrá todas tus sesiones abiertas.</p>
+            <p className="text-slate-600">¿Usaste el sistema en una computadora compartida o perdiste el celular? Cierra todas tus sesiones abiertas.</p>
             <Button variant="danger" onClick={() => setAskLogoutAll(true)}>
               Cerrar sesión en todos lados
             </Button>

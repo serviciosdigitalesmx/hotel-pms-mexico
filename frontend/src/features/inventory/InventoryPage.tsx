@@ -63,7 +63,7 @@ export function InventoryPage() {
     <div>
       <PageHeader
         title="Inventario"
-        subtitle="Repuestos y productos: stock disponible, reservado para órdenes y precios de venta."
+        subtitle="Refacciones y productos: stock disponible, reservado para órdenes y precios de venta."
         actions={
           canManage ? (
             <>
@@ -72,7 +72,7 @@ export function InventoryPage() {
               </Button>
               <Button onClick={() => setImporting(true)}>Importar</Button>
               <Button variant="primary" onClick={() => setEditing('new')}>
-                + Nuevo ítem
+                + Nuevo producto
               </Button>
             </>
           ) : null
@@ -107,9 +107,9 @@ export function InventoryPage() {
         ) : list.length === 0 ? (
           <div className="p-4">
             <EmptyState
-              title={lowStock ? 'No hay ítems con stock bajo' : 'No hay ítems con estos filtros'}
-              description={canManage ? 'Cargá tus repuestos uno por uno o importalos desde Excel/CSV.' : undefined}
-              action={canManage ? <Button onClick={() => setEditing('new')}>+ Nuevo ítem</Button> : undefined}
+              title={lowStock ? 'No hay productos con stock bajo' : 'No hay productos con estos filtros'}
+              description={canManage ? 'Agrega tus refacciones una por una o impórtalas desde Excel/CSV.' : undefined}
+              action={canManage ? <Button onClick={() => setEditing('new')}>+ Nuevo producto</Button> : undefined}
             />
           </div>
         ) : (
@@ -117,7 +117,7 @@ export function InventoryPage() {
             <Table>
               <thead className="bg-slate-50">
                 <tr>
-                  <Th>Ítem</Th>
+                  <Th>Producto</Th>
                   <Th>SKU / código</Th>
                   <Th align="right">Stock</Th>
                   <Th align="right">Reservado</Th>
@@ -189,8 +189,8 @@ function ItemDialog({ item, canManage, onClose }: { item: InventoryItem | null; 
       open
       size="lg"
       onClose={onClose}
-      title={current ? current.name : 'Nuevo ítem'}
-      description={current ? `${current.sku} · stock ${current.quantityOnHand} · disponible ${current.availableQuantity}` : 'Repuesto, accesorio o servicio con código.'}
+      title={current ? current.name : 'Nuevo producto'}
+      description={current ? `${current.sku} · stock ${current.quantityOnHand} · disponible ${current.availableQuantity}` : 'Refacción, accesorio o servicio con código.'}
     >
       {current ? (
         <>
@@ -280,7 +280,7 @@ function ItemForm({ item, readOnly, onSaved }: { item: InventoryItem | null; rea
       return item ? inventoryApi.update(item.id, body) : inventoryApi.create({ ...body, sku: v.sku.trim(), initialQuantity: v.trackStock ? Number(v.initialQuantity) || 0 : 0 })
     },
     onSuccess: () => {
-      toast.success(item ? 'Ítem actualizado' : 'Ítem creado')
+      toast.success(item ? 'Producto actualizado' : 'Producto creado')
       void queryClient.invalidateQueries({ queryKey: ['inventory'] })
       void queryClient.invalidateQueries({ queryKey: ['pos'] })
       onSaved()
@@ -314,7 +314,7 @@ function ItemForm({ item, readOnly, onSaved }: { item: InventoryItem | null; rea
           <Input value={v.category} onChange={(e) => set('category', e.target.value)} placeholder="Pantallas, baterías, accesorios…" />
         </Field>
         <Field label="Código de barras" error={errors.barcode}>
-          <Input value={v.barcode} onChange={(e) => set('barcode', e.target.value)} placeholder="Escaneá el código" />
+          <Input value={v.barcode} onChange={(e) => set('barcode', e.target.value)} placeholder="Escanea el código" />
         </Field>
         <Field label="Ubicación">
           <Input value={v.location} onChange={(e) => set('location', e.target.value)} placeholder="Cajón A3, estante 2…" />
@@ -324,7 +324,7 @@ function ItemForm({ item, readOnly, onSaved }: { item: InventoryItem | null; rea
         </Field>
 
         <div className="sm:col-span-2">
-          <Checkbox checked={v.trackStock} onChange={(e) => set('trackStock', e.target.checked)} label="Controlar stock" description="Desmarcalo para servicios o ítems sin existencia física." />
+          <Checkbox checked={v.trackStock} onChange={(e) => set('trackStock', e.target.checked)} label="Controlar stock" description="Desmárcalo para servicios o productos sin existencia física." />
         </div>
         {v.trackStock ? (
           <>
@@ -373,7 +373,7 @@ function ItemForm({ item, readOnly, onSaved }: { item: InventoryItem | null; rea
       {!readOnly ? (
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
           <Button type="submit" variant="primary" loading={save.isPending} disabled={v.name.trim().length < 2 || (!item && v.sku.trim().length < 2)}>
-            {item ? 'Guardar cambios' : 'Crear ítem'}
+            {item ? 'Guardar cambios' : 'Crear producto'}
           </Button>
         </div>
       ) : null}
@@ -509,7 +509,7 @@ function CompatibilityEditor({ itemId, canManage }: { itemId: string; canManage:
   })
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">Al presupuestar una orden se sugieren primero los repuestos compatibles con el equipo.</p>
+      <p className="text-sm text-slate-600">Al cotizar una orden se sugieren primero las refacciones compatibles con el equipo.</p>
       {canManage ? (
         <form
           className="flex flex-wrap items-end gap-2"

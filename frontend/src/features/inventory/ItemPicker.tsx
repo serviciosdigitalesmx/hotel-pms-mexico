@@ -8,7 +8,7 @@ import { money } from '../../lib/format'
 import { useDebounced } from '../../lib/hooks'
 
 /** Type-ahead over the inventory (name, SKU or barcode). Optional "compatible with" filter by device. */
-export function ItemPicker({ onSelect, placeholder = 'Buscar repuesto por nombre, SKU o código…', brand, model, sellableOnly, autoFocus }: {
+export function ItemPicker({ onSelect, placeholder = 'Buscar refacción por nombre, SKU o código…', brand, model, sellableOnly, autoFocus }: {
   onSelect: (item: InventoryItem) => void
   placeholder?: string
   brand?: string

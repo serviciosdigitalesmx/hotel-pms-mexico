@@ -435,7 +435,7 @@ function RefundSaleDialog({ sale, onClose, onDone }: { sale: Sale; onClose: () =
             </Select>
           </Field>
           <div className="flex items-end pb-2">
-            <Checkbox checked={restock} onChange={(e) => setRestock(e.target.checked)} label="Reingresar al stock" description="Desmarcalo si el producto vuelve fallado." />
+            <Checkbox checked={restock} onChange={(e) => setRestock(e.target.checked)} label="Reingresar al stock" description="Desmárcalo si el producto vuelve fallado." />
           </div>
         </div>
         <Field label="Motivo">
@@ -464,7 +464,7 @@ function VoidSaleDialog({ sale, onClose, onDone }: { sale: Sale; onClose: () => 
       size="sm"
       onClose={onClose}
       title={`Anular ${sale.code}`}
-      description="Devuelve el dinero, repone el stock y deja la venta anulada. Si tiene factura, emití la nota de crédito desde Facturas."
+      description="Devuelve el dinero, repone el stock y deja la venta anulada. Si tiene factura, emite la nota de crédito desde Facturas."
       footer={
         <>
           <Button onClick={onClose}>Cancelar</Button>

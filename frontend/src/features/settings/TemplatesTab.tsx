@@ -9,7 +9,7 @@ import { relative } from '../../lib/format'
 
 const GROUPS: { prefix: string; label: string }[] = [
   { prefix: 'order.status.', label: 'Cambios de estado' },
-  { prefix: 'order.quote.', label: 'Presupuestos' },
+  { prefix: 'order.quote.', label: 'Cotizaciones' },
   { prefix: 'order.', label: 'Órdenes' },
   { prefix: 'msg.', label: 'Atención' },
   { prefix: 'followup.', label: 'Seguimiento' },
@@ -38,7 +38,7 @@ const SAMPLE: Record<string, string> = {
   quote_valid_until: '17/10/2026',
   warranty_days: '90',
   warranty_expires_at: '08/01/2027',
-  cancellation_reason: 'El cliente no aprobó el presupuesto',
+  cancellation_reason: 'El cliente no aprobó la cotización',
   technician_name: 'Juan',
   tracking_url: 'https://taller.ejemplo.com/t/abc123',
   feedback_url: 'https://taller.ejemplo.com/t/abc123?encuesta=1',
@@ -83,7 +83,7 @@ export function TemplatesTab() {
         </Button>
       </div>
       <p className="text-sm text-slate-600">
-        Estos textos se usan en los avisos automáticos y en los mensajes que mandás desde cada orden. Usá variables como <code className="rounded bg-slate-100 px-1 text-xs">{'{{customer_first_name}}'}</code> para personalizarlos.
+        Estos textos se usan en los avisos automáticos y en los mensajes que envías desde cada orden. Usa variables como <code className="rounded bg-slate-100 px-1 text-xs">{'{{customer_first_name}}'}</code> para personalizarlos.
       </p>
       {grouped.length === 0 ? <EmptyState title="Sin plantillas" /> : null}
       {grouped.map((g) => (
@@ -220,7 +220,7 @@ function TemplateEditor({ template, onClose, onSaved }: { template: MessageTempl
         <div className="space-y-4">
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Vista previa (datos de ejemplo)</p>
-            <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-emerald-50 p-3 text-sm text-slate-800 shadow-inner">{render(body) || <span className="text-slate-400">Escribí el mensaje…</span>}</div>
+            <div className="whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-emerald-50 p-3 text-sm text-slate-800 shadow-inner">{render(body) || <span className="text-slate-400">Escribe el mensaje…</span>}</div>
           </div>
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Variables (clic para insertar)</p>

@@ -3,7 +3,7 @@ import type { AdjustmentType, CashMovementType, CloudLockStatus, DocumentType, N
 export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
   Received: { label: 'Recibido', tone: 'slate' },
   Diagnosing: { label: 'En diagnóstico', tone: 'indigo' },
-  WaitingParts: { label: 'Esperando repuesto', tone: 'amber' },
+  WaitingParts: { label: 'Esperando refacción', tone: 'amber' },
   InProgress: { label: 'En reparación', tone: 'blue' },
   Testing: { label: 'En pruebas', tone: 'violet' },
   Ready: { label: 'Listo para retirar', tone: 'emerald' },
@@ -39,7 +39,7 @@ export const ROLE: Record<Role, string> = {
 
 export const CHANNEL: Record<NotificationChannel, string> = {
   WhatsApp: 'WhatsApp',
-  Email: 'Email',
+  Email: 'Correo electrónico',
   Sms: 'SMS',
 }
 
@@ -81,7 +81,7 @@ export const CLOUD_LOCK: Record<CloudLockStatus, string> = {
 
 export const QUOTE_ITEM_KIND: Record<QuoteItemKind, string> = {
   Labor: 'Mano de obra',
-  Part: 'Repuesto',
+  Part: 'Refacción',
   Other: 'Otro',
 }
 

@@ -29,7 +29,7 @@ function load(): Promise<PaddleGlobal> {
       script.onload = () => (window.Paddle ? resolve(window.Paddle) : reject(new Error('Paddle.js no se cargó.')))
       script.onerror = () => {
         loading = null
-        reject(new Error('No se pudo cargar el checkout de Paddle. Revisá la conexión o desactivá el bloqueador de anuncios.'))
+        reject(new Error('No se pudo cargar el checkout de Paddle. Revisa la conexión o desactiva el bloqueador de anuncios.'))
       }
       document.head.appendChild(script)
     })

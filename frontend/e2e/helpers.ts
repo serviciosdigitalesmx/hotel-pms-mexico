@@ -11,7 +11,7 @@ export const USERS = {
 export async function login(page: Page, who: keyof typeof USERS) {
   const user = USERS[who]
   await page.goto('/login')
-  await page.getByLabel('Email').fill(user.email)
+  await page.getByLabel('Correo electrónico').fill(user.email)
   await page.getByLabel('Contraseña').fill(user.password)
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page.getByRole('navigation', { name: 'Principal' }).first()).toBeVisible()

@@ -167,7 +167,7 @@ export function SignaturePad({ onChange, height = 180 }: { onChange: (dataUrl: s
         }}
       />
       <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
-        <span>Firmá con el dedo o el mouse dentro del recuadro.</span>
+        <span>Firma con el dedo o el mouse dentro del recuadro.</span>
         <Button
           size="sm"
           variant="ghost"
@@ -203,7 +203,7 @@ export function CameraScanner({ onDetected, onClose }: { onDetected: (code: stri
 
     async function start() {
       try {
-        if (!window.BarcodeDetector) throw new Error('Este navegador no permite escanear con la cámara. Usá un lector USB o escribí el código.')
+        if (!window.BarcodeDetector) throw new Error('Este navegador no permite escanear con la cámara. Usa un lector USB o escribe el código.')
         const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'] })
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
         if (!videoRef.current) return

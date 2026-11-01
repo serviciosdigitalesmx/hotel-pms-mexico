@@ -17,7 +17,7 @@ export function IntegrationsTab() {
       <MercadoPagoCard status={s} />
       <FiscalCard status={s} />
       <Card title="Servicios del servidor">
-        <p className="mb-3 text-sm text-slate-600">Se configuran en el servidor (variables de entorno). Acá ves si están activos.</p>
+        <p className="mb-3 text-sm text-slate-600">Se configuran en el servidor (variables de entorno). Aquí ves si están activos.</p>
         <ul className="grid gap-2 text-sm sm:grid-cols-2">
           <li className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
             <span>Almacenamiento de fotos</span>
@@ -60,9 +60,9 @@ function MercadoPagoCard({ status }: { status: IntegrationsStatus }) {
     onError: (err) => toast.error('No se pudo guardar', { description: errorMessage(err) }),
   })
   return (
-    <Card title="Mercado Pago · links de pago" actions={<Badge tone={status.mercadoPagoEnabled ? 'green' : 'slate'}>{status.mercadoPagoEnabled ? 'Activo' : 'Inactivo'}</Badge>}>
+    <Card title="Mercado Pago · enlaces de pago" actions={<Badge tone={status.mercadoPagoEnabled ? 'green' : 'slate'}>{status.mercadoPagoEnabled ? 'Activo' : 'Inactivo'}</Badge>}>
       <div className="space-y-3">
-        <p className="text-sm text-slate-600">Genera links de pago para el saldo de una orden. Cuando el cliente paga, el pago se registra solo en la orden.</p>
+        <p className="text-sm text-slate-600">Genera enlaces de pago para el saldo de una orden. Cuando el cliente paga, el pago se registra solo en la orden.</p>
         <Checkbox checked={enabled} onChange={(e) => setEnabled(e.target.checked)} label="Habilitar cobros con Mercado Pago" />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={<span className="flex items-center gap-2">Access token <SecretState configured={status.mercadoPagoAccessTokenConfigured} /></span>} hint="Credenciales de producción de tu cuenta (empieza con APP_USR-). Se guarda cifrado.">
@@ -85,7 +85,7 @@ function MercadoPagoCard({ status }: { status: IntegrationsStatus }) {
             </Button>
           </div>
         </Field>
-        {enabled && !status.mercadoPagoAccessTokenConfigured && !token ? <Alert tone="amber">Cargá el access token para poder generar links.</Alert> : null}
+        {enabled && !status.mercadoPagoAccessTokenConfigured && !token ? <Alert tone="amber">Agrega el access token para poder generar enlaces.</Alert> : null}
         <div className="flex justify-end">
           <Button variant="primary" loading={save.isPending} onClick={() => save.mutate()}>
             Guardar
@@ -124,7 +124,7 @@ function FiscalCard({ status }: { status: IntegrationsStatus }) {
     <Card title="ARCA (ex AFIP) · factura electrónica" actions={<Badge tone={status.fiscalEnabled ? 'green' : 'slate'}>{status.fiscalEnabled ? (status.fiscalEnvironment === 'Produccion' ? 'Producción' : 'Homologación') : 'Inactivo'}</Badge>}>
       <div className="space-y-3">
         <p className="text-sm text-slate-600">
-          Emite facturas A, B o C con CAE según tu condición frente al IVA y la del cliente. Necesitás un certificado digital (.pfx/.p12) asociado al servicio “wsfe” y un punto de venta “Web Services”.
+          Emite facturas A, B o C con CAE según tu condición frente al IVA y la del cliente. Necesitas un certificado digital (.pfx/.p12) asociado al servicio “wsfe” y un punto de venta “Web Services”.
         </p>
         <Checkbox checked={enabled} onChange={(e) => setEnabled(e.target.checked)} label="Habilitar facturación electrónica" />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -144,7 +144,7 @@ function FiscalCard({ status }: { status: IntegrationsStatus }) {
             <Input type="password" autoComplete="off" value={password} disabled={!file} onChange={(e) => setPassword(e.target.value)} />
           </Field>
         </div>
-        {environment === 'Produccion' && enabled ? <Alert tone="amber">En producción los comprobantes tienen validez fiscal. Probá primero en homologación.</Alert> : null}
+        {environment === 'Produccion' && enabled ? <Alert tone="amber">En producción los comprobantes tienen validez fiscal. Prueba primero en homologación.</Alert> : null}
         <div className="flex justify-end">
           <Button variant="primary" loading={save.isPending} onClick={() => save.mutate()}>
             Guardar

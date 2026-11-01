@@ -11,7 +11,7 @@ test('a new shop signs up, gets the trial and picks a plan', async ({ page }) =>
   await page.getByRole('link', { name: 'Probar gratis' }).click()
   await page.getByLabel('Nombre del taller').fill('Taller E2E')
   await page.getByLabel('Tu nombre').fill('Dueño E2E')
-  await page.getByLabel('Email').fill(`dueno${Date.now()}@example.com`)
+  await page.getByLabel('Correo electrónico').fill(`dueno${Date.now()}@example.com`)
   await page.getByLabel('Contraseña').fill('Fixi26')
   await page.getByLabel('País').selectOption('AR')
   await page.getByRole('checkbox').check()
@@ -19,7 +19,7 @@ test('a new shop signs up, gets the trial and picks a plan', async ({ page }) =>
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click()
 
   await expect(page.getByText(/Prueba gratis: te quedan 14 días/)).toBeVisible()
-  await expect(page.getByText(/Confirmá tu email/)).toBeVisible()
+  await expect(page.getByText(/Confirma tu correo electrónico/)).toBeVisible()
   await page.screenshot({ path: 'test-results/inicio-prueba.png', fullPage: true })
 
   await page.getByRole('link', { name: 'Suscripción' }).first().click()
@@ -41,7 +41,7 @@ test('signup explains a short password in the form without sending the request',
   await page.goto('/registro')
   await page.getByLabel('Nombre del taller').fill('Taller E2E')
   await page.getByLabel('Tu nombre').fill('Dueño E2E')
-  await page.getByLabel('Email').fill(`dueno${Date.now()}@example.com`)
+  await page.getByLabel('Correo electrónico').fill(`dueno${Date.now()}@example.com`)
   await page.getByLabel('Contraseña').fill('Ab123')
   await page.getByLabel('País').selectOption('MX')
   await page.getByRole('checkbox').check()

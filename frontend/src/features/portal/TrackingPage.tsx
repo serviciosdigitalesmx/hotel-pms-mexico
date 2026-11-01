@@ -41,7 +41,7 @@ export function TrackingPage() {
       <Shell>
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
           <p className="text-lg font-semibold text-slate-900">{status === 404 ? 'No encontramos esta orden' : 'No pudimos cargar la orden'}</p>
-          <p className="mt-2 text-sm text-slate-600">{status === 404 ? 'Revisá que el link esté completo o pedile uno nuevo al taller.' : errorMessage(q.error)}</p>
+          <p className="mt-2 text-sm text-slate-600">{status === 404 ? 'Revisa que el enlace esté completo o pídele uno nuevo al taller.' : errorMessage(q.error)}</p>
           {status !== 404 ? (
             <Button className="mt-4" onClick={() => void q.refetch()}>
               Reintentar
@@ -67,7 +67,7 @@ export function TrackingPage() {
           </Alert>
         ) : payStatus === 'rejected' || payStatus === 'null' ? (
           <Alert tone="rose" title="El pago no se completó">
-            Podés intentarlo de nuevo.
+            Puedes intentarlo de nuevo.
           </Alert>
         ) : null}
         <StatusCard data={data} />
@@ -192,7 +192,7 @@ function StatusCard({ data }: { data: PublicTracking }) {
       </dl>
       {o.status === 'Ready' ? (
         <Alert tone="green" className="mt-4" title="¡Tu equipo está listo!">
-          {data.shop.pickupHours ? `Podés retirarlo ${data.shop.pickupHours}.` : 'Ya podés pasar a retirarlo.'}
+          {data.shop.pickupHours ? `Puedes retirarlo ${data.shop.pickupHours}.` : 'Ya puedes pasar a retirarlo.'}
           {data.shop.address ? ` Dirección: ${data.shop.address}.` : ''}
         </Alert>
       ) : null}
@@ -227,7 +227,7 @@ function QuoteCard({ token, data }: { token: string; data: PublicTracking }) {
     },
   })
   return (
-    <Section title={`Presupuesto${quote.version > 1 ? ` (versión ${quote.version})` : ''}`}>
+    <Section title={`Cotización${quote.version > 1 ? ` (versión ${quote.version})` : ''}`}>
       <ul className="divide-y divide-slate-100 text-sm">
         {quote.items.map((i, idx) => (
           <li key={idx} className="flex justify-between gap-3 py-2">
@@ -268,7 +268,7 @@ function QuoteCard({ token, data }: { token: string; data: PublicTracking }) {
         <p className={cn('mt-3 rounded-lg px-3 py-2 text-sm font-medium', quote.status === 'Approved' ? 'bg-emerald-50 text-emerald-800' : quote.status === 'Rejected' ? 'bg-rose-50 text-rose-800' : 'bg-slate-50 text-slate-700')}>{quote.statusLabel}</p>
       )}
       <a className="mt-3 inline-block text-sm text-brand-700 underline" href={portalApi.pdfUrl(token, 'quote')} target="_blank" rel="noreferrer">
-        Descargar presupuesto (PDF)
+        Descargar cotización (PDF)
       </a>
 
       {deciding ? (
@@ -276,7 +276,7 @@ function QuoteCard({ token, data }: { token: string; data: PublicTracking }) {
           open
           size="sm"
           onClose={() => setDeciding(null)}
-          title={deciding === 'approve' ? '¿Aprobás el presupuesto?' : '¿Rechazás el presupuesto?'}
+          title={deciding === 'approve' ? '¿Apruebas la cotización?' : '¿Rechazas la cotización?'}
           description={deciding === 'approve' ? `Total ${money(quote.total, quote.currency)}. El taller empieza la reparación.` : 'Te avisamos cuando puedas retirar el equipo.'}
           footer={
             <>
@@ -412,7 +412,7 @@ function ContactCard({ data }: { data: PublicTracking }) {
         <div className="flex flex-wrap gap-2 pt-1">
           {s.whatsAppUrl ? (
             <a href={s.whatsAppUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white">
-              Escribinos por WhatsApp
+              Escríbenos por WhatsApp
             </a>
           ) : null}
           {s.phone ? (

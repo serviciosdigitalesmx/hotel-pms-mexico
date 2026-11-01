@@ -18,7 +18,7 @@ export function SubscriptionBanner() {
       Elegir un plan
     </Link>
   ) : (
-    <span>Pedile a un administrador que elija un plan.</span>
+    <span>Pídele a un administrador que elija un plan.</span>
   )
 
   return (
@@ -26,7 +26,7 @@ export function SubscriptionBanner() {
       {s.status === 'Expired' ? (
         <Alert tone="rose">La prueba gratis o la suscripción terminó y la cuenta está en modo consulta. {plansLink}</Alert>
       ) : s.status === 'PastDue' ? (
-        <Alert tone="amber">No pudimos cobrar el último abono. Revisá el medio de pago para no perder el acceso. {isAdmin ? plansLink : null}</Alert>
+        <Alert tone="amber">No pudimos cobrar el último pago mensual. Revisa el medio de pago para no perder el acceso. {isAdmin ? plansLink : null}</Alert>
       ) : s.status === 'Trialing' ? (
         <Alert tone="blue">
           Prueba gratis: {s.trialDaysLeft === 1 ? 'te queda 1 día' : `te quedan ${s.trialDaysLeft} días`} con todos los módulos. {isAdmin ? plansLink : null}

@@ -80,7 +80,7 @@ export function CustomerForm({ initial, customerId, submitLabel = 'Guardar', onS
         </Alert>
       ) : null}
 
-      <Field label="Email" error={errors.email}>
+      <Field label="Correo electrónico" error={errors.email}>
         <Input type="email" value={v.email ?? ''} onChange={(e) => set('email', e.target.value)} />
       </Field>
 
@@ -146,7 +146,7 @@ export function DeviceForm({ initial, submitLabel = 'Guardar', onSubmit, onCance
   const [saving, setSaving] = useState(false)
   const set = <K extends keyof DeviceInput>(k: K, value: DeviceInput[K]) => setV((prev) => ({ ...prev, [k]: value }))
   const imeiDigits = (v.imei ?? '').replace(/\D/g, '')
-  const imeiError = imeiDigits.length > 0 && !isValidImei(imeiDigits) ? 'El IMEI no es válido (15 dígitos). Marcá *#06# en el equipo para verlo.' : undefined
+  const imeiError = imeiDigits.length > 0 && !isValidImei(imeiDigits) ? 'El IMEI no es válido (15 dígitos). Marca *#06# en el equipo para verlo.' : undefined
 
   async function submit(e: FormEvent) {
     e.preventDefault()

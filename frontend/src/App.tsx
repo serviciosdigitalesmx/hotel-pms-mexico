@@ -93,7 +93,7 @@ function NotFound() {
   return (
     <div className="mx-auto max-w-md py-16 text-center">
       <p className="text-lg font-semibold text-slate-900">No encontramos esta página</p>
-      <p className="mt-1 text-sm text-slate-500">Puede que el link esté mal o que la sección ya no exista.</p>
+      <p className="mt-1 text-sm text-slate-500">Puede que el enlace esté mal o que la sección ya no exista.</p>
       <Link to="/" className="mt-4 inline-block text-sm font-medium text-brand-700 underline">
         Volver al inicio
       </Link>

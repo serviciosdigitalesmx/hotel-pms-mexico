@@ -93,7 +93,7 @@ export function BillingPage() {
         <KeyValue items={summary(s)} />
         {s.status === 'Expired' ? (
           <Alert tone="rose" className="mt-4">
-            Tu cuenta está en modo consulta: podés ver todo, pero para cargar o modificar datos tenés que elegir un plan.
+            Tu cuenta está en modo consulta: puedes ver todo, pero para cargar o modificar datos tienes que elegir un plan.
           </Alert>
         ) : null}
         {s.canManageAtProvider && s.status !== 'Canceled' ? (
@@ -106,11 +106,11 @@ export function BillingPage() {
       </Card>
 
       {s.provider === 'Manual' ? (
-        <Alert tone="green">Tu plan está bonificado. Si necesitás cambiarlo, escribinos.</Alert>
+        <Alert tone="green">Tu plan está bonificado. Si necesitas cambiarlo, escríbenos.</Alert>
       ) : (
         <>
           {!s.checkoutAvailable ? (
-            <Alert tone="amber">El cobro online todavía no está habilitado para tu país. Escribinos y activamos tu plan a mano.</Alert>
+            <Alert tone="amber">El cobro online todavía no está habilitado para tu país. Escríbenos y activamos tu plan a mano.</Alert>
           ) : null}
           <div className="grid gap-4 md:grid-cols-3">
             {s.plans.map((p) => (
@@ -164,7 +164,7 @@ function summary(s: Subscription) {
       value: s.currentPeriodEndsAtUtc ? date(s.currentPeriodEndsAtUtc) : '—',
       hidden: !s.currentPeriodEndsAtUtc || s.provider === 'Manual',
     },
-    { label: 'Abono', value: s.amount != null ? `${money(s.amount, s.currency ?? 'ARS')} por mes` : '—', hidden: s.amount == null },
+    { label: 'Mensualidad', value: s.amount != null ? `${money(s.amount, s.currency ?? 'ARS')} por mes` : '—', hidden: s.amount == null },
     { label: 'Sucursales', value: `${s.branchesUsed} de ${s.maxBranches}` },
   ]
 }
@@ -205,7 +205,7 @@ function PlanOption({
           </li>
         ))}
       </ul>
-      {tooSmall ? <p className="mt-3 text-xs text-amber-700">Tenés más sucursales activas de las que permite este plan.</p> : null}
+      {tooSmall ? <p className="mt-3 text-xs text-amber-700">Tienes más sucursales activas de las que permite este plan.</p> : null}
       <Button className="mt-4" variant={current ? 'default' : 'primary'} disabled={current || tooSmall || disabled} loading={loading} onClick={onChoose}>
         {current ? 'Plan actual' : changing ? 'Cambiar a este plan' : 'Elegir este plan'}
       </Button>

@@ -312,7 +312,7 @@ export function NewOrderPage() {
             <div className="space-y-4">
               <Checkbox label="Enciende al ingresar" checked={powersOn} onChange={(e) => setPowersOn(e.target.checked)} />
               <fieldset>
-                <legend className="mb-2 text-sm font-medium text-slate-700">Funciona correctamente (destildá lo que falla)</legend>
+                <legend className="mb-2 text-sm font-medium text-slate-700">Funciona correctamente (desmarca lo que falla)</legend>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {CHECKS.map((c) => (
                     <Checkbox key={c.key} label={c.label} checked={!!checks[c.key]} onChange={(e) => setChecks((prev) => ({ ...prev, [c.key]: e.target.checked }))} />
@@ -366,7 +366,7 @@ export function NewOrderPage() {
             </div>
           </Card>
 
-          <Checkbox label="Avisarle al cliente que recibimos el equipo (con el link de seguimiento)" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+          <Checkbox label="Avisarle al cliente que recibimos el equipo (con el enlace de seguimiento)" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
           {error ? <Alert tone="rose">{error}</Alert> : null}
           <div className="flex justify-end gap-2">
             <Button onClick={() => navigate(-1)}>Cancelar</Button>
@@ -402,7 +402,7 @@ export function NewOrderPage() {
               </Button>
             </div>
             <p className="text-xs text-slate-500">
-              Link de seguimiento para el cliente:{' '}
+              Enlace de seguimiento para el cliente:{' '}
               <a href={order.trackingUrl} target="_blank" rel="noreferrer" className="break-all text-brand-700 underline">
                 {order.trackingUrl}
               </a>

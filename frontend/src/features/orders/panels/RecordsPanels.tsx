@@ -35,7 +35,7 @@ export function NotesPanel({ order }: { order: RepairOrder }) {
           <div className="space-y-2">
             <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Diagnóstico, avances, lo que hablaste con el cliente…" rows={3} aria-label="Nueva nota" />
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Checkbox label="Visible para el cliente en el link de seguimiento" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
+              <Checkbox label="Visible para el cliente en el enlace de seguimiento" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
               <Button variant="primary" loading={add.isPending} disabled={body.trim().length < 2} onClick={() => add.mutate()}>
                 Agregar nota
               </Button>
@@ -204,7 +204,7 @@ export function MessagesPanel({ order }: { order: RepairOrder }) {
                     if (e.target.value) preview.mutate(e.target.value)
                   }}
                 >
-                  <option value="">Elegí una plantilla…</option>
+                  <option value="">Elige una plantilla…</option>
                   {(templates.data ?? []).map((t) => (
                     <option key={t.id} value={t.key}>
                       {t.title}
@@ -223,7 +223,7 @@ export function MessagesPanel({ order }: { order: RepairOrder }) {
                 </Select>
               </Field>
             </div>
-            <Textarea rows={6} value={body} onChange={(e) => setBody(e.target.value)} aria-label="Texto del mensaje" placeholder="Elegí una plantilla o escribí el mensaje." />
+            <Textarea rows={6} value={body} onChange={(e) => setBody(e.target.value)} aria-label="Texto del mensaje" placeholder="Elige una plantilla o escribe el mensaje." />
             <div className="flex flex-wrap justify-end gap-2">
               {waLink ? (
                 <a
@@ -278,13 +278,13 @@ function reasonLabel(reason?: string | null) {
     case 'customer_opted_out':
       return 'El cliente no acepta mensajes.'
     case 'no_email':
-      return 'El cliente no tiene email.'
+      return 'El cliente no tiene correo electrónico.'
     case 'no_phone':
       return 'El cliente no tiene teléfono válido.'
     case 'duplicate':
       return 'Ese mensaje ya se había enviado.'
     default:
-      return 'Usá el botón de WhatsApp para mandarlo a mano.'
+      return 'Usa el botón de WhatsApp para mandarlo a mano.'
   }
 }
 
@@ -392,7 +392,7 @@ export function ChecklistsPanel({ order }: { order: RepairOrder }) {
           <Loading />
         ) : (
           <div className="space-y-3 text-sm">
-            <p className="text-xs text-slate-500">Probá cada función antes de marcar la orden como lista. Es obligatorio para pasar a “Listo para retirar”.</p>
+            <p className="text-xs text-slate-500">Prueba cada función antes de marcar la orden como lista. Es obligatorio para pasar a “Listo para retirar”.</p>
             <ul className="space-y-1">
               {QA_ITEMS.map((i) => (
                 <li key={i.key} className="flex items-center justify-between gap-2">
@@ -479,7 +479,7 @@ export function SuggestionsPanel({ order }: { order: RepairOrder }) {
             </div>
             {s.ai.items.length > 0 ? (
               <div>
-                <p className="font-medium text-slate-700">Ítems sugeridos</p>
+                <p className="font-medium text-slate-700">Productos sugeridos</p>
                 <ul className="space-y-0.5 text-slate-700">
                   {s.ai.items.map((i) => (
                     <li key={i.description}>
@@ -490,7 +490,7 @@ export function SuggestionsPanel({ order }: { order: RepairOrder }) {
               </div>
             ) : null}
             {s.ai.customerMessage ? <p className="rounded-lg bg-slate-50 p-3 text-slate-700">“{s.ai.customerMessage}”</p> : null}
-            <p className="text-xs text-slate-400">Sugerencia orientativa: verificá siempre con el diagnóstico. No se envían datos del cliente al asistente.</p>
+            <p className="text-xs text-slate-400">Sugerencia orientativa: verifica siempre con el diagnóstico. No se envían datos del cliente al asistente.</p>
           </div>
         </Card>
       ) : null}
@@ -517,7 +517,7 @@ export function SuggestionsPanel({ order }: { order: RepairOrder }) {
         )}
       </Card>
       {s.compatibleParts.length > 0 ? (
-        <Card title="Repuestos compatibles en stock">
+        <Card title="Refacciones compatibles en stock">
           <ul className="space-y-1 text-sm">
             {s.compatibleParts.map((p) => (
               <li key={p.id} className="flex justify-between">

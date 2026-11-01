@@ -300,7 +300,7 @@ function OpenSession({ session, onClosed }: { session: CashSession; onClosed: (s
 
 const MOVEMENT_TEXT: Record<string, { title: string; placeholder: string; categories: string[] }> = {
   Income: { title: 'Registrar ingreso', placeholder: 'Aporte de cambio, cobro varios…', categories: ['Cambio', 'Cobro varios', 'Otro'] },
-  Expense: { title: 'Registrar gasto', placeholder: 'Delivery, limpieza, insumos…', categories: ['Insumos', 'Envíos', 'Limpieza', 'Comida', 'Servicios', 'Repuestos', 'Otro'] },
+  Expense: { title: 'Registrar gasto', placeholder: 'Delivery, limpieza, insumos…', categories: ['Insumos', 'Envíos', 'Limpieza', 'Comida', 'Servicios', 'Refacciones', 'Otro'] },
   Withdrawal: { title: 'Registrar retiro', placeholder: 'Retiro del dueño, depósito bancario…', categories: ['Retiro del dueño', 'Depósito', 'Otro'] },
 }
 
@@ -471,7 +471,7 @@ function CloseDialog({ session, onClose, onClosed }: { session: CashSession; onC
 
           {others.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">Otros medios (controlá contra el posnet / home banking)</p>
+              <p className="text-sm font-medium text-slate-700">Otros medios (compara contra la terminal bancaria o la banca en línea)</p>
               {others.map((l) => {
                 const key = `${l.method}|${l.currency}`
                 const value = parseAmount(declared[key] ?? '')
@@ -496,7 +496,7 @@ function CloseDialog({ session, onClose, onClosed }: { session: CashSession; onC
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
           {difference !== null && Math.abs(difference) >= 0.01 ? (
-            <Alert tone={difference < 0 ? 'rose' : 'amber'}>Hay una diferencia de {money(difference, session.currency)}. Revisá el conteo o explicá el motivo en las notas.</Alert>
+            <Alert tone={difference < 0 ? 'rose' : 'amber'}>Hay una diferencia de {money(difference, session.currency)}. Revisa el conteo o explica el motivo en las notas.</Alert>
           ) : null}
         </div>
       </div>
@@ -572,7 +572,7 @@ function SessionDialog({ id, onClose }: { id: string; onClose: () => void }) {
             </div>
           ) : null}
           <p className="text-xs text-slate-500">
-            ¿Buscás las ventas del turno? <Link className="text-brand-700 underline" to="/sales">Ver ventas</Link>
+            ¿Buscas las ventas del turno? <Link className="text-brand-700 underline" to="/sales">Ver ventas</Link>
           </p>
         </div>
       )}

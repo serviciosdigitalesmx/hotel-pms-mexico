@@ -40,7 +40,7 @@ export function TransfersPage() {
     <div>
       <PageHeader
         title="Transferencias"
-        subtitle="Mové repuestos entre sucursales. El stock sale al enviar y entra cuando la otra sucursal confirma la recepción."
+        subtitle="Mueve refacciones entre sucursales. El stock sale al enviar y entra cuando la otra sucursal confirma la recepción."
         actions={
           <Button variant="primary" disabled={others.length === 0} onClick={() => setCreating(true)}>
             + Nueva transferencia
@@ -49,7 +49,7 @@ export function TransfersPage() {
       />
       {branches.isSuccess && others.length === 0 ? (
         <Alert tone="slate" className="mb-4">
-          Necesitás al menos otra sucursal activa para transferir stock. Un administrador puede crearla en Configuración → Sucursales.
+          Necesitas al menos otra sucursal activa para transferir stock. Un administrador puede crearla en Configuración → Sucursales.
         </Alert>
       ) : null}
 
@@ -82,7 +82,7 @@ export function TransfersPage() {
                 <tr>
                   <Th>Transferencia</Th>
                   <Th>Origen → destino</Th>
-                  <Th>Ítems</Th>
+                  <Th>Productos</Th>
                   <Th>Fecha</Th>
                   <Th>Estado</Th>
                   <Th />
@@ -144,7 +144,7 @@ export function TransfersPage() {
       <ConfirmDialog
         open={!!confirm}
         title={confirm?.action === 'receive' ? `¿Recibir ${confirm.transfer.code}?` : `¿Cancelar ${confirm?.transfer.code ?? ''}?`}
-        message={confirm?.action === 'receive' ? 'Confirmá que llegó todo: los ítems se suman al stock de esta sucursal (se crean si no existen).' : 'Los ítems vuelven al stock de la sucursal de origen.'}
+        message={confirm?.action === 'receive' ? 'Confirma que llegó todo: los productos se suman al stock de esta sucursal (se crean si no existen).' : 'Los productos vuelven al stock de la sucursal de origen.'}
         confirmLabel={confirm?.action === 'receive' ? 'Recibir' : 'Cancelar transferencia'}
         danger={confirm?.action === 'cancel'}
         loading={act.isPending}
@@ -197,7 +197,7 @@ function NewTransferDialog({ branches, onClose }: { branches: { id: string; name
           </Select>
         </Field>
         <ItemPicker
-          placeholder="Agregar ítem a transferir…"
+          placeholder="Agregar producto a transferir…"
           onSelect={(item) => {
             if (!item.trackStock) {
               toast.error(`“${item.name}” no controla stock`)
@@ -210,7 +210,7 @@ function NewTransferDialog({ branches, onClose }: { branches: { id: string; name
           <Table>
             <thead>
               <tr>
-                <Th>Ítem</Th>
+                <Th>Producto</Th>
                 <Th align="right">Disponible</Th>
                 <Th align="right">Enviar</Th>
                 <Th />

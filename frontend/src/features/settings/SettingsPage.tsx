@@ -134,7 +134,7 @@ function SettingsEditor({ settings, section }: { settings: ShopSettings; section
               <Field label="Teléfono / WhatsApp" error={errors.phone}>
                 <Input value={text('phone')} onChange={(e) => set('phone', e.target.value)} />
               </Field>
-              <Field label="Email" error={errors.email}>
+              <Field label="Correo electrónico" error={errors.email}>
                 <Input type="email" value={text('email')} onChange={(e) => set('email', e.target.value)} />
               </Field>
               <Field label="Dirección">
@@ -187,7 +187,7 @@ function SettingsEditor({ settings, section }: { settings: ShopSettings; section
               <Field label="Garantía por defecto (días)" error={errors.defaultWarrantyDays}>
                 <Input type="number" min={0} value={v.defaultWarrantyDays} onChange={(e) => set('defaultWarrantyDays', Number(e.target.value) || 0)} />
               </Field>
-              <Field label="Validez de presupuestos (días)" error={errors.quoteValidityDays}>
+              <Field label="Validez de cotizaciones (días)" error={errors.quoteValidityDays}>
                 <Input type="number" min={1} value={v.quoteValidityDays} onChange={(e) => set('quoteValidityDays', Number(e.target.value) || 1)} />
               </Field>
               <Field label="Orden estancada después de (días)" hint="Se marca en el tablero si no cambia de estado." error={errors.staleOrderDays}>
@@ -203,7 +203,7 @@ function SettingsEditor({ settings, section }: { settings: ShopSettings; section
           </Card>
           <Card title="Avisos al cliente">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Checkbox checked={v.notificationsEnabled} onChange={(e) => set('notificationsEnabled', e.target.checked)} label="Enviar avisos automáticos" description="Cambios de estado, presupuestos y recordatorios." />
+              <Checkbox checked={v.notificationsEnabled} onChange={(e) => set('notificationsEnabled', e.target.checked)} label="Enviar avisos automáticos" description="Cambios de estado, cotizaciones y recordatorios." />
               <Field label="Canal preferido">
                 <Select value={v.defaultNotificationChannel} onChange={(e) => set('defaultNotificationChannel', e.target.value as NotificationChannel)}>
                   {(Object.keys(CHANNEL) as NotificationChannel[]).map((c) => (
@@ -218,7 +218,7 @@ function SettingsEditor({ settings, section }: { settings: ShopSettings; section
               </Field>
               <div className="space-y-3">
                 <Checkbox checked={v.sendFeedbackSurvey} onChange={(e) => set('sendFeedbackSurvey', e.target.checked)} label="Encuesta de satisfacción al entregar" />
-                <Field label="Link de reseñas de Google" hint="A los clientes con 4 o 5 estrellas se les sugiere dejar una reseña." error={errors.googleReviewUrl}>
+                <Field label="Enlace de reseñas de Google" hint="A los clientes con 4 o 5 estrellas se les sugiere dejar una reseña." error={errors.googleReviewUrl}>
                   <Input type="url" value={text('googleReviewUrl')} onChange={(e) => set('googleReviewUrl', e.target.value)} placeholder="https://g.page/r/…" />
                 </Field>
               </div>
@@ -269,7 +269,7 @@ function LogoCard({ settings }: { settings: ShopSettings }) {
           {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo del negocio" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">Sin logo</span>}
         </div>
         <div className="text-sm text-slate-600">
-          <p>Aparece en comprobantes, presupuestos, tickets y en el portal del cliente.</p>
+          <p>Aparece en comprobantes, cotizaciones, tickets y en el portal del cliente.</p>
           <input
             ref={input}
             type="file"

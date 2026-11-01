@@ -16,7 +16,7 @@ const TABS: { value: Report; label: string }[] = [
   { value: 'revenue', label: 'Ingresos' },
   { value: 'margins', label: 'Márgenes' },
   { value: 'repair-times', label: 'Tiempos' },
-  { value: 'quotes', label: 'Presupuestos' },
+  { value: 'quotes', label: 'Cotizaciones' },
   { value: 'top-issues', label: 'Fallas y modelos' },
   { value: 'technicians', label: 'Técnicos' },
   { value: 'warranty', label: 'Garantías' },
@@ -78,7 +78,7 @@ export function ReportsPage() {
     <div>
       <PageHeader
         title="Reportes"
-        subtitle="Montos por moneda y convertidos con la cotización de cada día."
+        subtitle="Montos por moneda y convertidos con el tipo de cambio de cada día."
         actions={
           <Button variant="ghost" onClick={() => void downloadFile(exportPaths.report(tab), `reporte-${tab}.xlsx`, tab === 'inventory' ? undefined : { ...range, groupBy })}>
             Exportar a Excel
@@ -144,7 +144,7 @@ function Result<T>({ q, children }: { q: { isLoading: boolean; isError: boolean;
       {missing.length > 0 ? (
         <Alert tone="amber" title="Faltan cotizaciones">
           No hay cotización cargada para {missing.slice(0, 5).join(', ')}
-          {missing.length > 5 ? ` y ${missing.length - 5} más` : ''}: esos montos no se suman al total convertido. Cargalas en <Link to="/invoices?tab=rates" className="underline">Facturas → Cotizaciones</Link>.
+          {missing.length > 5 ? ` y ${missing.length - 5} más` : ''}: esos montos no se suman al total convertido. Registra esos tipos de cambio en <Link to="/invoices?tab=rates" className="underline">Facturas → Cotizaciones</Link>.
         </Alert>
       ) : null}
       {children(q.data)}
@@ -273,7 +273,7 @@ function MarginsView({ range }: { range: ReportRange }) {
               </Table>
             )}
           </Card>
-          <p className="text-xs text-slate-500">El costo usa el costo de los repuestos al momento de usarlos o venderlos. La mano de obra no tiene costo asignado.</p>
+          <p className="text-xs text-slate-500">El costo usa el costo de las refacciones al momento de usarlas o venderlas. La mano de obra no tiene costo asignado.</p>
         </>
       )}
     </Result>
@@ -314,13 +314,13 @@ function QuotesView({ range }: { range: ReportRange }) {
       {(r) => (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="Presupuestos enviados" value={r.total} />
+            <Stat label="Cotizaciones enviadas" value={r.total} />
             <Stat label="Tasa de aprobación" value={percent(r.approvalRate)} tone={(r.approvalRate ?? 0) >= 0.6 ? 'good' : 'warn'} />
             <Stat label="Ticket promedio aprobado" value={<span className="text-base">{amounts(r.averageApprovedTotal)}</span>} />
           </div>
           <Card title="Resultado">
             <StackedBar
-              title="Resultado de los presupuestos"
+              title="Resultado de las cotizaciones"
               parts={[
                 { label: 'Aprobados', value: r.approved, color: 'bg-emerald-500' },
                 { label: 'Rechazados', value: r.rejected, color: 'bg-rose-500' },
@@ -363,7 +363,7 @@ function TechniciansView({ range }: { range: ReportRange }) {
     <Result q={q}>
       {(r) =>
         r.rows.length === 0 ? (
-          <EmptyState title="Sin órdenes asignadas en el período" description="Asigná técnicos a las órdenes para medir su productividad." />
+          <EmptyState title="Sin órdenes asignadas en el período" description="Asigna técnicos a las órdenes para medir su productividad." />
         ) : (
           <Card padded={false}>
             <Table>
@@ -410,14 +410,14 @@ function WarrantyView({ range }: { range: ReportRange }) {
             <Stat label="Reclamos de garantía" value={r.warrantyClaims} tone={r.warrantyClaims > 0 ? 'warn' : 'default'} />
             <Stat label="Tasa de reingreso" value={percent(r.reentryRate, 1)} tone={(r.reentryRate ?? 0) > 0.05 ? 'bad' : 'good'} />
           </div>
-          <Card title="Repuestos con más reclamos" padded={false}>
+          <Card title="Refacciones con más reclamos" padded={false}>
             {r.byPart.length === 0 ? (
-              <p className="p-4 text-sm text-slate-500">Sin reclamos asociados a repuestos.</p>
+              <p className="p-4 text-sm text-slate-500">Sin reclamos asociados a refacciones.</p>
             ) : (
               <Table>
                 <thead className="bg-slate-50">
                   <tr>
-                    <Th>Repuesto</Th>
+                    <Th>Refacción</Th>
                     <Th align="right">Usos</Th>
                     <Th align="right">Reclamos</Th>
                     <Th align="right">Tasa</Th>
@@ -493,13 +493,13 @@ function InventoryView() {
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <Stat label="Valor del stock (a costo)" value={<span className="text-base">{amounts(r.totalValue)}</span>} tone="good" />
-            <Stat label="Ítems con stock bajo" value={r.lowStockCount} tone={r.lowStockCount > 0 ? 'warn' : 'good'} hint={r.lowStockCount > 0 ? <Link to="/inventory?lowStock=1" className="text-brand-700 underline">Ver y reponer</Link> : undefined} />
+            <Stat label="Productos con stock bajo" value={r.lowStockCount} tone={r.lowStockCount > 0 ? 'warn' : 'good'} hint={r.lowStockCount > 0 ? <Link to="/inventory?lowStock=1" className="text-brand-700 underline">Ver y reponer</Link> : undefined} />
           </div>
           <Card padded={false}>
             <Table>
               <thead className="bg-slate-50">
                 <tr>
-                  <Th>Ítem</Th>
+                  <Th>Producto</Th>
                   <Th>Categoría</Th>
                   <Th align="right">Stock</Th>
                   <Th align="right">Reservado</Th>

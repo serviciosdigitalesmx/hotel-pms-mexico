@@ -46,5 +46,5 @@ test('technicians only see the workshop sections', async ({ page }) => {
   await expect(nav.getByRole('link', { name: 'Punto de venta' })).toHaveCount(0)
 
   await page.goto('/settings')
-  await expect(page.getByText('No tenés permiso para ver esta sección.')).toBeVisible()
+  await expect(page.getByText('No tienes permiso para ver esta sección.')).toBeVisible()
 })

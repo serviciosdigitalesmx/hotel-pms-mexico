@@ -36,7 +36,7 @@ export function CustomersPage() {
     <div>
       <PageHeader
         title="Clientes"
-        subtitle="Buscá por nombre, teléfono en cualquier formato, email, documento o etiqueta."
+        subtitle="Busca por nombre, teléfono en cualquier formato, correo electrónico, documento o etiqueta."
         actions={
           <>
             {can('admin') ? (
@@ -82,7 +82,7 @@ export function CustomersPage() {
                 <tr>
                   <Th>Nombre</Th>
                   <Th>Teléfono</Th>
-                  <Th>Email</Th>
+                  <Th>Correo electrónico</Th>
                   <Th>Etiquetas</Th>
                   <Th>Alta</Th>
                 </tr>
@@ -163,7 +163,7 @@ export function ImportDialog({ kind, onClose }: { kind: 'customers' | 'inventory
 
   const columns =
     kind === 'customers'
-      ? 'nombre, telefono, email, documento, direccion, notas, etiquetas'
+      ? 'nombre, telefono, correo electrónico, documento, direccion, notas, etiquetas'
       : 'sku, nombre, stock, costo, precio, categoria, codigo_barras, stock_minimo'
 
   return (
@@ -199,7 +199,7 @@ export function ImportDialog({ kind, onClose }: { kind: 'customers' | 'inventory
           }}
           className="block w-full text-sm"
         />
-        {kind === 'inventory' ? <Checkbox label="Actualizar los ítems que ya existen (por SKU)" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} /> : null}
+        {kind === 'inventory' ? <Checkbox label="Actualizar los productos que ya existen (por SKU)" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} /> : null}
         {result ? (
           <div className="space-y-2">
             <Alert tone={result.errors.length ? 'amber' : 'green'} title={result.dryRun ? 'Resultado de la validación' : 'Importación terminada'}>
@@ -310,7 +310,7 @@ export function CustomerDetailPage() {
             className="sm:grid-cols-1"
             items={[
               { label: 'Teléfono', value: c.phone },
-              { label: 'Email', value: c.email ?? '—' },
+              { label: 'Correo electrónico', value: c.email ?? '—' },
               { label: 'Documento', value: c.documentType === 'None' ? '—' : `${DOCUMENT_TYPE[c.documentType]} ${c.documentNumber}` },
               { label: 'Condición fiscal', value: TAX_CONDITION[c.taxCondition] },
               { label: 'Dirección', value: c.address ?? '—' },
@@ -457,7 +457,7 @@ export function CustomerDetailPage() {
       <ConfirmDialog
         open={deleting}
         title="Eliminar cliente"
-        message="Solo se pueden eliminar clientes sin órdenes ni ventas. Para unificar registros duplicados usá “Fusionar”."
+        message="Solo se pueden eliminar clientes sin órdenes ni ventas. Para unificar registros duplicados usa “Fusionar”."
         danger
         confirmLabel="Eliminar"
         loading={remove.isPending}

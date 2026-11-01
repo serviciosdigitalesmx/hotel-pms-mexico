@@ -66,7 +66,7 @@ test('every section loads without errors', async ({ page }) => {
   await page.locator('tbody tr').first().click()
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]{36}/)
   await page.waitForLoadState('networkidle')
-  for (const tab of ['Presupuestos', 'Repuestos', 'Pagos', 'Controles', 'Notas', 'Fotos', 'Mensajes', 'Historial', 'Sugerencias']) {
+  for (const tab of ['Cotizaciones', 'Refacciones', 'Pagos', 'Controles', 'Notas', 'Fotos', 'Mensajes', 'Historial', 'Sugerencias']) {
     const t = page.getByRole('tab', { name: new RegExp(`^${tab}`) })
     if (await t.count()) {
       await t.first().click()

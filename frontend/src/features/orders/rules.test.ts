@@ -6,8 +6,8 @@ const order = (o: Partial<RepairOrder>) => ({ status: 'Diagnosing', isWarrantyCl
 
 describe('transitionBlocker', () => {
   it('requires an approved quote to start the repair', () => {
-    expect(transitionBlocker(order({}), 'InProgress')).toMatch(/presupuesto/)
-    expect(transitionBlocker(order({}), 'WaitingParts')).toMatch(/presupuesto/)
+    expect(transitionBlocker(order({}), 'InProgress')).toMatch(/cotización/)
+    expect(transitionBlocker(order({}), 'WaitingParts')).toMatch(/cotización/)
     expect(transitionBlocker(order({ hasApprovedQuote: true }), 'InProgress')).toBeNull()
   })
 

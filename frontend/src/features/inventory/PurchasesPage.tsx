@@ -17,7 +17,7 @@ export function PurchasesPage() {
   const [tab, setTab] = useState<'orders' | 'suppliers'>('orders')
   return (
     <div>
-      <PageHeader title="Compras" subtitle="Pedidos a proveedores y recepción de mercadería (actualiza stock y costo)." />
+      <PageHeader title="Compras" subtitle="Pedidos a proveedores y recepción de mercancía (actualiza stock y costo)." />
       <Tabs
         className="mb-4"
         value={tab}
@@ -69,7 +69,7 @@ function PurchaseOrdersTab() {
           </div>
         ) : (orders.data?.items ?? []).length === 0 ? (
           <div className="p-4">
-            <EmptyState title="No hay órdenes de compra" description="Armá un pedido con los repuestos que necesitás; al recibirlo se suma el stock." action={<Button onClick={() => setEditing('new')}>+ Nueva orden</Button>} />
+            <EmptyState title="No hay órdenes de compra" description="Prepara un pedido con las refacciones que necesitas; al recibirlo se suma el stock." action={<Button onClick={() => setEditing('new')}>+ Nueva orden</Button>} />
           </div>
         ) : (
           <>
@@ -184,7 +184,7 @@ function PurchaseOrderEditor({ order, onClose }: { order: PurchaseOrder | null; 
           <Field label="Proveedor" required controlId={supplierFieldId}>
             <div className="flex gap-2">
               <Select id={supplierFieldId} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-                <option value="">Elegí un proveedor…</option>
+                <option value="">Elige un proveedor…</option>
                 {(suppliers.data?.items ?? []).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -209,9 +209,9 @@ function PurchaseOrderEditor({ order, onClose }: { order: PurchaseOrder | null; 
         </div>
 
         <div>
-          <p className="mb-1 text-sm font-medium text-slate-700">Agregar ítems</p>
+          <p className="mb-1 text-sm font-medium text-slate-700">Agregar productos</p>
           <ItemPicker
-            placeholder="Buscar repuesto para pedir…"
+            placeholder="Buscar refacción para pedir…"
             onSelect={(item) =>
               setLines((ls) =>
                 ls.some((l) => l.inventoryItemId === item.id)
@@ -223,12 +223,12 @@ function PurchaseOrderEditor({ order, onClose }: { order: PurchaseOrder | null; 
         </div>
 
         {lines.length === 0 ? (
-          <EmptyState title="Todavía no agregaste ítems" description="Tip: filtrá el inventario por “stock bajo” para ver qué reponer." />
+          <EmptyState title="Todavía no agregaste productos" description="Tip: filtra el inventario por “stock bajo” para ver qué reponer." />
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Ítem</Th>
+                <Th>Producto</Th>
                 <Th align="right">Cantidad</Th>
                 <Th align="right">Costo unitario</Th>
                 <Th align="right">Subtotal</Th>
@@ -329,7 +329,7 @@ function PurchaseOrderDialog({ id, onClose, onEdit }: { id: string; onClose: () 
             ) : null}
             {open ? (
               <Button variant="primary" onClick={() => setReceiving(true)}>
-                Recibir mercadería
+                Recibir mercancía
               </Button>
             ) : null}
           </>
@@ -346,7 +346,7 @@ function PurchaseOrderDialog({ id, onClose, onEdit }: { id: string; onClose: () 
           <Table>
             <thead>
               <tr>
-                <Th>Ítem</Th>
+                <Th>Producto</Th>
                 <Th align="right">Pedido</Th>
                 <Th align="right">Recibido</Th>
                 <Th align="right">Costo</Th>
@@ -394,7 +394,7 @@ function ReceiveDialog({ po, onClose, onDone }: { po: PurchaseOrder; onClose: ()
   const receive = useMutation({
     mutationFn: () => purchasingApi.receive(po.id, pending.filter((l) => (qty[l.id] ?? 0) > 0).map((l) => ({ lineId: l.id, quantity: qty[l.id]! }))),
     onSuccess: (r) => {
-      toast.success(r.status === 'Received' ? 'Mercadería recibida completa' : 'Recepción parcial registrada', { description: 'El stock y el costo de los ítems se actualizaron.' })
+      toast.success(r.status === 'Received' ? 'Mercancía recibida completa' : 'Recepción parcial registrada', { description: 'El stock y el costo de los productos se actualizaron.' })
       onDone()
     },
     onError: (err) => toast.error('No se pudo registrar la recepción', { description: errorMessage(err) }),
@@ -466,7 +466,7 @@ function SuppliersTab() {
                 <Th>Proveedor</Th>
                 <Th>Contacto</Th>
                 <Th>Teléfono</Th>
-                <Th>Email</Th>
+                <Th>Correo electrónico</Th>
                 <Th>CUIT</Th>
               </tr>
             </thead>
@@ -546,7 +546,7 @@ function SupplierDialog({ supplier, onClose, onSaved }: { supplier: Supplier | n
         <Field label="Teléfono">
           <Input value={v.phone} onChange={(e) => set('phone', e.target.value)} />
         </Field>
-        <Field label="Email">
+        <Field label="Correo electrónico">
           <Input type="email" value={v.email} onChange={(e) => set('email', e.target.value)} />
         </Field>
         <Field label="CUIT">

@@ -60,10 +60,10 @@ export const MODULE_LABEL: Record<string, string> = {
 
 /** What every plan includes, shown above the per-plan extras. */
 export const CORE_FEATURES = [
-  'Órdenes, presupuestos y tablero del taller',
+  'Órdenes, cotizaciones y tablero del taller',
   'Portal del cliente con seguimiento y aprobación',
   'Punto de venta, caja e inventario',
-  'Avisos por WhatsApp, email y SMS',
+  'Avisos por WhatsApp, correo electrónico y SMS',
   'Usuarios ilimitados',
 ]
 

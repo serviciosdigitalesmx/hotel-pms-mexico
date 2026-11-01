@@ -44,14 +44,14 @@ export function QuotesPanel({ order }: { order: RepairOrder }) {
               })
             }
           >
-            {latest ? '+ Nueva versión' : '+ Armar presupuesto'}
+            {latest ? '+ Nueva versión' : '+ Armar cotización'}
           </Button>
-          {order.isWarrantyClaim ? <Badge tone="violet">Reingreso por garantía: sin cargo salvo que se presupueste algo nuevo</Badge> : null}
+          {order.isWarrantyClaim ? <Badge tone="violet">Reingreso por garantía: sin cargo, salvo que se cotice algo nuevo</Badge> : null}
         </div>
       ) : null}
 
       {list.length === 0 ? (
-        <EmptyState title="Todavía no hay presupuestos" description="Armá el presupuesto con mano de obra y repuestos. El cliente puede aprobarlo desde el link de seguimiento." />
+        <EmptyState title="Todavía no hay cotizaciones" description="Prepara la cotización con mano de obra y refacciones. El cliente puede aprobarla desde el enlace de seguimiento." />
       ) : (
         list.map((q) => (
           <Card
@@ -136,7 +136,7 @@ export function QuotesPanel({ order }: { order: RepairOrder }) {
               {q.warrantyDays ? <span>Garantía {q.warrantyDays} días</span> : null}
               {q.decidedAtUtc ? (
                 <span>
-                  Decisión {dateTime(q.decidedAtUtc)} ({q.decisionSource === 'CustomerPortal' ? 'por el cliente desde el link' : 'registrada por el local'}){q.decisionNote ? `: “${q.decisionNote}”` : ''}
+                  Decisión {dateTime(q.decidedAtUtc)} ({q.decisionSource === 'CustomerPortal' ? 'por el cliente desde el enlace' : 'registrada por el taller'}){q.decisionNote ? `: “${q.decisionNote}”` : ''}
                 </span>
               ) : null}
             </div>
@@ -182,7 +182,7 @@ function QuoteEditor({ order, quote, initial, onClose, onSaved }: { order: Repai
       return quote ? ordersApi.updateQuote(order.id, quote.id, body) : ordersApi.createQuote(order.id, body)
     },
     onSuccess: () => {
-      toast.success('Presupuesto guardado')
+      toast.success('Cotización guardada')
       onSaved()
     },
     onError: (err) => setError(errorMessage(err)),
@@ -197,7 +197,7 @@ function QuoteEditor({ order, quote, initial, onClose, onSaved }: { order: Repai
       open
       size="xl"
       onClose={onClose}
-      title={quote ? `Editar presupuesto v${quote.version}` : 'Nuevo presupuesto'}
+      title={quote ? `Editar cotización v${quote.version}` : 'Nueva cotización'}
       description={`${order.code} · ${order.deviceLabel}`}
       footer={
         <>
@@ -235,7 +235,7 @@ function QuoteEditor({ order, quote, initial, onClose, onSaved }: { order: Repai
               </Field>
               <div className="col-span-3 flex items-center justify-end gap-1 sm:col-span-2">
                 {it.inventoryItemId ? <Badge tone="indigo">Stock</Badge> : null}
-                <Button size="sm" variant="ghost" aria-label="Quitar ítem" onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}>
+                <Button size="sm" variant="ghost" aria-label="Quitar producto" onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}>
                   ✕
                 </Button>
               </div>
@@ -245,10 +245,10 @@ function QuoteEditor({ order, quote, initial, onClose, onSaved }: { order: Repai
             <ItemPicker
               brand={brand}
               model={model}
-              placeholder="Agregar repuesto del inventario…"
+              placeholder="Agregar refacción del inventario…"
               onSelect={(i) => setItems((p) => [...p, { kind: 'Part', description: i.name, quantity: 1, unitPrice: i.salePrice ?? 0, priceText: String(i.salePrice ?? '').replace('.', ','), inventoryItemId: i.id }])}
             />
-            <Button onClick={() => setItems((p) => [...p, { kind: 'Labor', description: '', quantity: 1, unitPrice: 0, priceText: '' }])}>+ Ítem libre</Button>
+            <Button onClick={() => setItems((p) => [...p, { kind: 'Labor', description: '', quantity: 1, unitPrice: 0, priceText: '' }])}>+ Producto libre</Button>
           </div>
         </div>
 
@@ -310,7 +310,7 @@ function SendQuoteDialog({ order, quote, onClose, onDone }: { order: RepairOrder
     <Modal
       open
       onClose={result ? onDone : onClose}
-      title={`Enviar presupuesto v${quote.version}`}
+      title={`Enviar cotización v${quote.version}`}
       description={`Total ${money(quote.total, quote.currency)}`}
       footer={
         result ? (
@@ -329,7 +329,7 @@ function SendQuoteDialog({ order, quote, onClose, onDone }: { order: RepairOrder
     >
       {result ? (
         <div className="space-y-3 text-sm">
-          {result.queued ? <Alert tone="green">El mensaje con el link de aprobación quedó en cola.</Alert> : null}
+          {result.queued ? <Alert tone="green">El mensaje con el enlace de aprobación quedó en cola.</Alert> : null}
           {result.warnings.map((w) => (
             <Alert key={w} tone="amber">
               {w}
@@ -347,7 +347,7 @@ function SendQuoteDialog({ order, quote, onClose, onDone }: { order: RepairOrder
           <Field label="Validez (días)" hint="Vacío = la configurada en la sucursal. Vencido, el cliente ya no puede aprobarlo.">
             <Input type="number" min={1} value={validDays} onChange={(e) => setValidDays(e.target.value)} />
           </Field>
-          <Checkbox label="Enviar mensaje al cliente con el link para aprobar o rechazar" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+          <Checkbox label="Enviar mensaje al cliente con el enlace para aprobar o rechazar" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
         </div>
       )}
     </Modal>
@@ -359,7 +359,7 @@ function DecideDialog({ order, quote, approve, onClose, onDone }: { order: Repai
   const decide = useMutation({
     mutationFn: () => (approve ? ordersApi.approveQuote(order.id, quote.id, note || undefined) : ordersApi.rejectQuote(order.id, quote.id, note || undefined)),
     onSuccess: (r) => {
-      toast.success(approve ? 'Presupuesto aprobado' : 'Presupuesto rechazado', r.warnings.length ? { description: r.warnings.join(' ') } : undefined)
+      toast.success(approve ? 'Cotización aprobada' : 'Cotización rechazada', r.warnings.length ? { description: r.warnings.join(' ') } : undefined)
       onDone()
     },
     onError: (err) => toast.error(errorMessage(err)),
@@ -370,7 +370,7 @@ function DecideDialog({ order, quote, approve, onClose, onDone }: { order: Repai
       size="sm"
       onClose={onClose}
       title={approve ? 'Registrar aprobación' : 'Registrar rechazo'}
-      description={approve ? 'El cliente aprobó por teléfono, WhatsApp o en el local.' : 'El cliente no quiere avanzar con la reparación.'}
+      description={approve ? 'El cliente aprobó por teléfono, WhatsApp o en el taller.' : 'El cliente no quiere avanzar con la reparación.'}
       footer={
         <>
           <Button onClick={onClose}>Cancelar</Button>
@@ -384,7 +384,7 @@ function DecideDialog({ order, quote, approve, onClose, onDone }: { order: Repai
         <p>
           Total: <Money value={quote.total} currency={quote.currency} className="font-semibold" />
         </p>
-        {approve ? <p className="text-slate-600">Al aprobar se fija el precio de la orden y se reservan los repuestos del inventario.</p> : null}
+        {approve ? <p className="text-slate-600">Al aprobar se fija el precio de la orden y se reservan las refacciones del inventario.</p> : null}
         <Field label="Nota (opcional)">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={approve ? 'Aprobó por WhatsApp' : 'Le pareció caro'} />
         </Field>

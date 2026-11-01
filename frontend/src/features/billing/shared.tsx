@@ -9,14 +9,14 @@ export const SUBSCRIPTION_KEY = ['billing', 'subscription'] as const
 export function VerifyEmailAlert() {
   const resend = useMutation({
     mutationFn: authApi.resendVerification,
-    onSuccess: () => toast.success('Te enviamos un nuevo link. Revisá también la carpeta de spam.'),
+    onSuccess: () => toast.success('Te enviamos un nuevo enlace. Revisa también la carpeta de spam.'),
     onError: (err) => toast.error(errorMessage(err)),
   })
   return (
     <Alert tone="amber">
-      Confirmá tu email con el link que te enviamos para recibir avisos de pagos y recuperar tu contraseña.{' '}
+      Confirma tu correo electrónico con el enlace que te enviamos para recibir avisos de pagos y recuperar tu contraseña.{' '}
       <button type="button" className="font-medium underline" disabled={resend.isPending} onClick={() => resend.mutate()}>
-        Reenviar link
+        Reenviar enlace
       </button>
     </Alert>
   )

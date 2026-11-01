@@ -36,13 +36,13 @@ export function PaymentsPanel({ order }: { order: RepairOrder }) {
     onSuccess: async (link) => {
       try {
         await navigator.clipboard.writeText(link.url)
-        toast.success('Link de pago copiado', { description: 'Pegalo en WhatsApp o mandá el link de seguimiento: también tiene el botón de pago.' })
+        toast.success('Enlace de pago copiado', { description: 'Pégalo en WhatsApp o envía el enlace de seguimiento: también tiene el botón de pago.' })
       } catch {
-        toast.success('Link de pago creado')
+        toast.success('Enlace de pago creado')
       }
       void queryClient.invalidateQueries({ queryKey: ['order', order.id, 'links'] })
     },
-    onError: (err) => toast.error('No se pudo crear el link', { description: errorMessage(err) }),
+    onError: (err) => toast.error('No se pudo crear el enlace', { description: errorMessage(err) }),
   })
 
   const f = financials.data
@@ -55,7 +55,7 @@ export function PaymentsPanel({ order }: { order: RepairOrder }) {
         actions={
           can('orders.work') && !order.isWarrantyClaim && order.status !== 'Delivered' && !cancelled ? (
             <Button size="sm" variant="ghost" onClick={() => setAgreed(true)}>
-              {f?.hasAgreedPrice ? 'Cambiar precio acordado' : 'Fijar precio sin presupuesto detallado'}
+              {f?.hasAgreedPrice ? 'Cambiar precio acordado' : 'Fijar precio sin cotización detallada'}
             </Button>
           ) : null
         }
@@ -66,8 +66,8 @@ export function PaymentsPanel({ order }: { order: RepairOrder }) {
           <div className="space-y-3">
             <KeyValue
               items={[
-                { label: 'Precio acordado', value: f.hasAgreedPrice ? money(f.agreedPrice, f.currency) : <span className="text-slate-400">Sin presupuesto aprobado</span> },
-                { label: 'Repuestos extra', value: money(f.extraCharges, f.currency), hidden: f.extraCharges === 0 },
+                { label: 'Precio acordado', value: f.hasAgreedPrice ? money(f.agreedPrice, f.currency) : <span className="text-slate-400">Sin cotización aprobada</span> },
+                { label: 'Refacciones extra', value: money(f.extraCharges, f.currency), hidden: f.extraCharges === 0 },
                 { label: 'Total', value: <strong>{money(f.total, f.currency)}</strong> },
                 { label: 'Pagado', value: money(f.paid, f.currency) },
                 { label: 'Saldo', value: <Money value={f.balanceDue} currency={f.currency} colorize className="font-semibold" /> },
@@ -80,7 +80,7 @@ export function PaymentsPanel({ order }: { order: RepairOrder }) {
                 </Button>
                 {f.balanceDue > 0 ? (
                   <Button loading={createLink.isPending} onClick={() => createLink.mutate()}>
-                    Link de pago Mercado Pago
+                    Enlace de pago Mercado Pago
                   </Button>
                 ) : null}
                 <Button onClick={() => setInvoicing(true)} disabled={f.paid <= 0}>
@@ -145,7 +145,7 @@ export function PaymentsPanel({ order }: { order: RepairOrder }) {
       </Card>
 
       {(links.data ?? []).length > 0 ? (
-        <Card title="Links de pago">
+        <Card title="Enlaces de pago">
           <ul className="space-y-2 text-sm">
             {links.data!.map((l) => (
               <li key={l.id} className="flex flex-wrap items-center justify-between gap-2">
@@ -154,8 +154,8 @@ export function PaymentsPanel({ order }: { order: RepairOrder }) {
                   <span className="ml-2 text-xs text-slate-500">vence {dateTime(l.expiresAtUtc)}</span>
                 </span>
                 {l.status === 'Pending' ? (
-                  <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard.writeText(l.url).then(() => toast.success('Link copiado'))}>
-                    Copiar link
+                  <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard.writeText(l.url).then(() => toast.success('Enlace copiado'))}>
+                    Copiar enlace
                   </Button>
                 ) : null}
               </li>
@@ -325,7 +325,7 @@ export function InvoiceDialog({ orderId, saleId, onClose, onDone }: { orderId?: 
       open
       onClose={onClose}
       title="Emitir factura electrónica (ARCA)"
-      description="Si no completás los datos, se usan los del cliente (o consumidor final)."
+      description="Si no completas los datos, se usan los del cliente (o consumidor final)."
       footer={
         <>
           <Button onClick={onClose}>Cancelar</Button>
@@ -383,7 +383,7 @@ function AgreedPriceDialog({ order, current, currency, onClose, onDone }: { orde
       size="sm"
       onClose={onClose}
       title="Precio acordado"
-      description="Para reparaciones simples sin presupuesto detallado. Cuenta como aprobado por el cliente."
+      description="Para reparaciones simples sin cotización detallada. Cuenta como aprobada por el cliente."
       footer={
         <>
           <Button onClick={onClose}>Cancelar</Button>

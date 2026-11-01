@@ -51,7 +51,7 @@ export function PricingPage() {
         <section className="py-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">El sistema para tu servicio técnico</h1>
           <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-            Órdenes, presupuestos, stock, caja y avisos a tus clientes en un solo lugar. Usuarios ilimitados en todos los planes.
+            Órdenes, cotizaciones, stock, caja y avisos a tus clientes en un solo lugar. Usuarios ilimitados en todos los planes.
           </p>
           <p className="mt-2 text-sm font-medium text-brand-700">{plans.data?.trialDays ?? 14} días gratis, sin tarjeta.</p>
           <label className="mt-5 inline-flex items-center gap-2 text-sm text-slate-600">
@@ -95,7 +95,7 @@ export function PricingPage() {
           <p className="mt-4 text-xs text-slate-500">
             {country === 'AR'
               ? 'Precios finales en pesos, cobrados por Mercado Pago cada mes.'
-              : 'Precios en dólares por mes. Paddle cobra el abono y suma los impuestos que correspondan en tu país.'}{' '}
+              : 'Precios en dólares por mes. Paddle cobra el pago mensual y suma los impuestos que correspondan en tu país.'}{' '}
             Cancelás cuando quieras.
           </p>
         </section>

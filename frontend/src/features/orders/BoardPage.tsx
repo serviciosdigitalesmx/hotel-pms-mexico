@@ -55,7 +55,7 @@ export function BoardPage() {
     <div>
       <PageHeader
         title="Tablero del taller"
-        subtitle="Arrastrá una tarjeta para cambiar el estado. Las tarjetas rojas están atrasadas; las ámbar, estancadas."
+        subtitle="Arrastra una tarjeta para cambiar el estado. Las tarjetas rojas están atrasadas; las ámbar, estancadas."
         actions={<Button onClick={() => navigate('/orders')}>Ver lista</Button>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">

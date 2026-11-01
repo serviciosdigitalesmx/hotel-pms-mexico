@@ -11,9 +11,9 @@ describe('API errors', () => {
   })
 
   it('prefers the first validation error', () => {
-    const err = axiosError(400, { title: 'Datos inválidos', errors: { phone: ['El teléfono es obligatorio.'], email: ['Email inválido.'] } })
+    const err = axiosError(400, { title: 'Datos inválidos', errors: { phone: ['El teléfono es obligatorio.'], email: ['Correo electrónico inválido.'] } })
     expect(errorMessage(err)).toBe('El teléfono es obligatorio.')
-    expect(fieldErrors(err)).toEqual({ phone: 'El teléfono es obligatorio.', email: 'Email inválido.' })
+    expect(fieldErrors(err)).toEqual({ phone: 'El teléfono es obligatorio.', email: 'Correo electrónico inválido.' })
   })
 
   it('explains rate limiting and network failures', () => {

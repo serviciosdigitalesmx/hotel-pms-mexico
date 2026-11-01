@@ -60,7 +60,7 @@ export function LoginPage() {
   return (
     <AuthCard title="Ingresar" subtitle="Gestión de servicio técnico">
       <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label="Email">
+        <Field label="Correo electrónico">
           <Input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
         </Field>
         <Field label="Contraseña">
@@ -76,9 +76,9 @@ export function LoginPage() {
           </Link>
         </p>
         <p className="border-t border-slate-100 pt-4 text-center text-sm text-slate-600">
-          ¿Todavía no usás Fixi?{' '}
+          ¿Aún no tienes cuenta en Fixi?{' '}
           <Link to="/registro" className="font-medium text-brand-700 hover:underline">
-            Probalo gratis
+            Pruébalo gratis
           </Link>
         </p>
       </form>
@@ -130,19 +130,19 @@ export function ForgotPasswordPage() {
     <AuthCard title="Recuperar acceso">
       {sent ? (
         <div className="space-y-4 text-sm text-slate-700">
-          <Alert tone="green">Si el email está registrado, te enviamos un link para restablecer la contraseña (vence en 2 horas).</Alert>
-          <p>Si no te llega, pedile a un administrador que genere un link desde Configuración → Usuarios.</p>
+          <Alert tone="green">Si el correo electrónico está registrado, te enviamos un enlace para restablecer la contraseña (vence en 2 horas).</Alert>
+          <p>Si no te llega, pídele a un administrador que genere un enlace desde Configuración → Usuarios.</p>
           <Link to="/login" className="text-brand-700 hover:underline">
             Volver al inicio de sesión
           </Link>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4">
-          <Field label="Email">
+          <Field label="Correo electrónico">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
           </Field>
           <Button type="submit" variant="primary" className="w-full" loading={loading} disabled={!email}>
-            Enviar link
+            Enviar enlace
           </Button>
           <p className="text-center text-sm">
             <Link to="/login" className="text-brand-700 hover:underline">
@@ -213,7 +213,7 @@ export function ResetPasswordPage() {
   return (
     <AuthCard title="Nueva contraseña" subtitle={info.data ? info.data.email : undefined}>
       {!token || info.isError ? (
-        <Alert tone="rose">El link es inválido o venció. Pedí uno nuevo desde “Olvidé mi contraseña”.</Alert>
+        <Alert tone="rose">El enlace es inválido o venció. Pide uno nuevo desde “Olvidé mi contraseña”.</Alert>
       ) : info.isLoading ? (
         <Loading />
       ) : (
@@ -221,7 +221,7 @@ export function ResetPasswordPage() {
           submitLabel="Guardar contraseña"
           onSubmit={async (password) => {
             await authApi.resetPassword(token, password)
-            toast.success('Contraseña actualizada. Ya podés ingresar.')
+            toast.success('Contraseña actualizada. Ya puedes ingresar.')
             navigate('/login')
           }}
         />
@@ -237,7 +237,7 @@ export function AcceptInvitationPage() {
   return (
     <AuthCard title="Bienvenido/a" subtitle={info.data ? `${info.data.shopName} · ${info.data.email}` : undefined}>
       {!token || info.isError ? (
-        <Alert tone="rose">La invitación es inválida o venció. Pedile al administrador que te envíe una nueva.</Alert>
+        <Alert tone="rose">La invitación es inválida o venció. Pídele al administrador que te envíe una nueva.</Alert>
       ) : info.isLoading ? (
         <Loading />
       ) : (
