@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { OrderWorkspaceNavigation } from "@/fixi/order-navigation"
+import { FixiNavigationProvider } from "@/fixi/navigation-context"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SessionIdleLock } from "@/components/session-idle-lock"
@@ -17,13 +19,14 @@ interface BaseLayoutProps {
 
 export function BaseLayout({ children, title, description }: BaseLayoutProps) {
   return (
+    <FixiNavigationProvider>
     <SidebarProvider
       className="fixi-workspace"
       style={
         {
-          "--sidebar-width": "16.5rem",
+          "--sidebar-width": "18rem",
           "--sidebar-width-icon": "3.25rem",
-          "--header-height": "4rem",
+          "--header-height": "4.5rem",
         } as React.CSSProperties
       }
     >
@@ -48,11 +51,13 @@ export function BaseLayout({ children, title, description }: BaseLayoutProps) {
                   </div>
                 </div>
               )}
+              <OrderWorkspaceNavigation />
               {children}
             </div>
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </FixiNavigationProvider>
   )
 }

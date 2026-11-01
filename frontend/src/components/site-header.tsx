@@ -1,6 +1,7 @@
 "use client"
 
 import { useLocation, Link } from "react-router-dom"
+import { useFixiNavigation } from "@/fixi/navigation-context"
 import { Plus, Bell } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
@@ -49,6 +50,10 @@ const routeTitles: Record<string, string> = {
 }
 
 export function SiteHeader() {
+  const { user, capabilities } = useFixiNavigation()
+  const canCreate = capabilities?.has('ORDERS_CREATE') ?? false
+  const canSeeAlerts = ['ORDERS_READ', 'INVENTORY_READ', 'FINANCE_READ'].some(key => capabilities?.has(key))
+  const home = user?.platformRole ? '/platform' : capabilities?.has('REPORTS_READ') ? '/dashboard' : capabilities?.has('ORDERS_READ') ? '/service-orders' : '/settings/account'
   const location = useLocation()
   const pathname = location.pathname
   const currentTitle = routeTitles[pathname] ||
@@ -67,7 +72,7 @@ export function SiteHeader() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link to="/dashboard" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+                <Link to={home} className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
                   Fixi
                 </Link>
               </BreadcrumbLink>
@@ -89,8 +94,7 @@ export function SiteHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Quick Reception Action button */}
-          <Button
+          {canCreate && <Button
             size="sm"
             asChild
             className="hidden md:inline-flex h-8 gap-1.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs shadow-xs hover:bg-primary/90 transition-all active:scale-[0.98]"
@@ -99,10 +103,9 @@ export function SiteHeader() {
               <Plus className="size-3.5" />
               <span>Nueva Orden</span>
             </Link>
-          </Button>
+          </Button>}
 
-          {/* Operational Alerts shortcut */}
-          <Button
+          {canSeeAlerts && <Button
             variant="ghost"
             size="icon"
             asChild
@@ -112,7 +115,7 @@ export function SiteHeader() {
               <Bell className="size-4" />
               <span className="sr-only">Alertas operativas</span>
             </Link>
-          </Button>
+          </Button>}
 
           {/* Theme switcher */}
           <ModeToggle variant="ghost" />

@@ -1,3 +1,5 @@
+import { BarChart3 } from 'lucide-react';
+import { MetricCard } from '@/fixi/tailadmin/metric-card';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
@@ -105,7 +107,7 @@ export function PlatformDashboardPage() {
   ];
   return <Panel title="Resumen de plataforma" subtitle="Indicadores agregados desde registros reales de Fixi.">
     <Notice error={error} />
-    {!data && !error ? <p role="status">Cargando métricas…</p> : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{cards.map(([label, value]) => <article key={label} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-3 text-3xl font-semibold">{value?.toLocaleString('es-MX') ?? '—'}</p></article>)}</div>}
+    {!data && !error ? <p role="status">Cargando métricas…</p> : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{cards.map(([label, value]) => <MetricCard key={label} title={label} value={value?.toLocaleString('es-MX') ?? '—'} icon={<BarChart3/>} />)}</div>}
     <p className="text-xs text-muted-foreground">Las órdenes muestran el total histórico de service_orders. No se presentan ingresos, uso o actividad sin una fuente de datos definida.</p>
   </Panel>;
 }
