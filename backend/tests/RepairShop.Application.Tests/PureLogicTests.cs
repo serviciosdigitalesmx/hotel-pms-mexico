@@ -101,6 +101,7 @@ public class SecurityRulesTests
 {
     [Theory]
     [InlineData("corta1", false)]
+    [InlineData("Clave123", false)]
     [InlineData("sololetrasaaaa", false)]
     [InlineData("12345678901", false)]
     [InlineData("Segura2026", true)]

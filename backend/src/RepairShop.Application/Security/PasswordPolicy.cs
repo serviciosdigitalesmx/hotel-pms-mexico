@@ -4,7 +4,9 @@ namespace RepairShop.Application.Security;
 
 public static class PasswordPolicy
 {
-    public const int MinLength = 8;
+    // Keep aligned with the password hasher's minimum so invalid passwords are
+    // rejected as a normal validation error before hashing begins.
+    public const int MinLength = 10;
 
     public static void Validate(string? password)
     {

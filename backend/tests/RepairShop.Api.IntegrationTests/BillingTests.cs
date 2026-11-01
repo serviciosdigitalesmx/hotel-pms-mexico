@@ -62,6 +62,28 @@ public sealed class BillingTests
     }
 
     [IntegrationFact]
+    public async Task Signup_rejects_an_eight_character_password_as_validation_without_creating_an_account()
+    {
+        var email = $"short{Guid.NewGuid():N}"[..20] + "@example.com";
+        var anon = _factory.CreateClient();
+
+        var res = await anon.PostAsJsonAsync("/api/v1/auth/signup", new
+        {
+            shopName = "Taller de prueba", ownerName = "Usuario de prueba", email,
+            password = "Clave123", country = "MX", acceptTerms = true
+        });
+
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await res.Content.ReadAsStringAsync()).Should().Contain("10 caracteres");
+
+        await using var conn = new NpgsqlConnection(_factory.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand("SELECT count(*) FROM users WHERE \"Email\" = @email", conn);
+        cmd.Parameters.AddWithValue("email", email);
+        (await cmd.ExecuteScalarAsync()).Should().Be(0);
+    }
+
+    [IntegrationFact]
     public async Task The_emailed_link_verifies_the_address()
     {
         var email = $"verify{Guid.NewGuid():N}"[..20] + "@example.com";

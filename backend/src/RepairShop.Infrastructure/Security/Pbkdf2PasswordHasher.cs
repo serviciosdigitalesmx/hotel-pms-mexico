@@ -12,7 +12,7 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
     private const int SaltSize = 16;
     private const int KeySize = 32;
     private const int Iterations = 100_000;
-    private const int MinPasswordLength = 10;
+    private const int MinPasswordLength = PasswordPolicy.MinLength;
 
     public string Hash(string password)
     {

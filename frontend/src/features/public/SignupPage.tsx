@@ -8,6 +8,8 @@ import { Alert, Button, Checkbox, Field, Input, Loading, Select } from '../../co
 import { billingCountry, browserTimeZone, COUNTRIES, detectCountry } from '../../lib/billing'
 import { AuthCard } from '../auth/AuthPages'
 
+const MIN_SIGNUP_PASSWORD_LENGTH = 10
+
 export function SignupPage() {
   const { state, acceptSession } = useSession()
   const navigate = useNavigate()
@@ -74,8 +76,8 @@ export function SignupPage() {
         <Field label="Email" error={errors.email}>
           <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} autoComplete="email" required />
         </Field>
-        <Field label="Contraseña" hint="Mínimo 8 caracteres, con letras y números." error={errors.password}>
-          <Input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" required />
+        <Field label="Contraseña" hint={`Mínimo ${MIN_SIGNUP_PASSWORD_LENGTH} caracteres, con letras y números.`} error={errors.password}>
+          <Input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" minLength={MIN_SIGNUP_PASSWORD_LENGTH} required />
         </Field>
         <Field label="País" error={errors.country}>
           <Select value={form.country} onChange={(e) => set('country', e.target.value)}>
@@ -108,7 +110,7 @@ export function SignupPage() {
           variant="primary"
           className="w-full"
           loading={loading}
-          disabled={!form.shopName || !form.ownerName || !form.email || !form.password || !form.acceptTerms}
+          disabled={!form.shopName || !form.ownerName || !form.email || form.password.length < MIN_SIGNUP_PASSWORD_LENGTH || !form.acceptTerms}
         >
           Crear mi cuenta
         </Button>
