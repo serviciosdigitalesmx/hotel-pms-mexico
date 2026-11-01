@@ -8,7 +8,7 @@ import { Alert, Button, Checkbox, Field, Input, Loading, Select } from '../../co
 import { billingCountry, browserTimeZone, COUNTRIES, detectCountry } from '../../lib/billing'
 import { AuthCard } from '../auth/AuthPages'
 
-const MIN_SIGNUP_PASSWORD_LENGTH = 10
+const MIN_SIGNUP_PASSWORD_LENGTH = 6
 
 export function SignupPage() {
   const { state, acceptSession } = useSession()
@@ -27,6 +27,16 @@ export function SignupPage() {
     e.preventDefault()
     setError(null)
     setErrors({})
+
+    if (form.password.length < MIN_SIGNUP_PASSWORD_LENGTH) {
+      setErrors({ password: `La contraseña debe tener al menos ${MIN_SIGNUP_PASSWORD_LENGTH} caracteres.` })
+      return
+    }
+    if (!/\p{L}/u.test(form.password) || !/\d/.test(form.password)) {
+      setErrors({ password: 'La contraseña debe combinar letras y números.' })
+      return
+    }
+
     setLoading(true)
     try {
       const session = await authApi.signup({
@@ -110,7 +120,7 @@ export function SignupPage() {
           variant="primary"
           className="w-full"
           loading={loading}
-          disabled={!form.shopName || !form.ownerName || !form.email || form.password.length < MIN_SIGNUP_PASSWORD_LENGTH || !form.acceptTerms}
+          disabled={!form.shopName || !form.ownerName || !form.email || !form.acceptTerms}
         >
           Crear mi cuenta
         </Button>

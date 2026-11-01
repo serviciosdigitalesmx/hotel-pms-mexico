@@ -100,8 +100,9 @@ public class MessageRenderingTests
 public class SecurityRulesTests
 {
     [Theory]
-    [InlineData("corta1", false)]
-    [InlineData("Clave123", false)]
+    [InlineData("corta1", true)]
+    [InlineData("Ab123", false)]
+    [InlineData("Abc123", true)]
     [InlineData("sololetrasaaaa", false)]
     [InlineData("12345678901", false)]
     [InlineData("Segura2026", true)]

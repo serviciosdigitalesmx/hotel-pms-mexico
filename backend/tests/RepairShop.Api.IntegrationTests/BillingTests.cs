@@ -62,7 +62,7 @@ public sealed class BillingTests
     }
 
     [IntegrationFact]
-    public async Task Signup_rejects_an_eight_character_password_as_validation_without_creating_an_account()
+    public async Task Signup_rejects_a_five_character_password_as_validation_without_creating_an_account()
     {
         var email = $"short{Guid.NewGuid():N}"[..20] + "@example.com";
         var anon = _factory.CreateClient();
@@ -70,11 +70,11 @@ public sealed class BillingTests
         var res = await anon.PostAsJsonAsync("/api/v1/auth/signup", new
         {
             shopName = "Taller de prueba", ownerName = "Usuario de prueba", email,
-            password = "Clave123", country = "MX", acceptTerms = true
+            password = "Ab123", country = "MX", acceptTerms = true
         });
 
         res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await res.Content.ReadAsStringAsync()).Should().Contain("10 caracteres");
+        (await res.Content.ReadAsStringAsync()).Should().Contain("6 caracteres");
 
         await using var conn = new NpgsqlConnection(_factory.ConnectionString);
         await conn.OpenAsync();
