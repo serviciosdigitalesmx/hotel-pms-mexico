@@ -121,3 +121,44 @@
   .fixi-workspace, .fixi-platform { background: white; color: black; }
   .fixi-workspace [data-slot="card"] { box-shadow: none; break-inside: avoid; }
 }
+
+/* Reception: guided intake with the existing single-submit workflow. */
+.fixi-intake-intro { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin: 0 0 24px; }
+.fixi-intake-intro > span { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); font-size: .65rem; font-weight: 700; letter-spacing: .1em; }
+.fixi-intake-intro > p { color: var(--muted-foreground); font-size: .8rem; }
+.fixi-intake-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: 24px; }
+.fixi-intake-main { display: grid; min-width: 0; gap: 20px; }
+.fixi-intake-section { min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 3px 14px #122b3903; overflow: hidden; }
+.fixi-intake-section-heading { display: flex; gap: 14px; padding: 24px; border-bottom: 1px solid var(--border); }
+.fixi-intake-section-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--background); color: var(--primary); }
+.fixi-intake-section-heading .fixi-eyebrow { font-size: .6rem; margin-bottom: 5px; color: var(--primary); }
+.fixi-intake-section-heading h2 { font-size: 1rem; font-weight: 650; letter-spacing: -.02em; }
+.fixi-intake-section-heading h2 + p { color: var(--muted-foreground); font-size: .775rem; line-height: 1.65; margin-top: 5px; }
+.fixi-intake-fields { display: grid; gap: 16px; padding: 24px; }
+.fixi-intake-fields > label { margin-bottom: -8px; }
+.fixi-intake-fields :is(input:not([type="checkbox"]), select) { min-height: 44px; }
+.fixi-intake-lookup { border: 1px solid color-mix(in oklch, var(--primary) 22%, var(--border)); border-radius: 16px; background: color-mix(in oklch, var(--primary) 4%, var(--card)); padding: 20px 24px; }
+.fixi-intake-lookup-caption { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; color: var(--primary); }
+.fixi-intake-lookup-caption h2 { font-size: .875rem; font-weight: 650; }
+.fixi-intake-lookup-caption p { color: var(--muted-foreground); font-size: .75rem; margin-top: 4px; }
+.fixi-intake-lookup > div:last-child { border: 0; padding: 0; }
+.fixi-intake-summary { position: sticky; top: 88px; border: 1px solid var(--border); background: var(--card); border-radius: 16px; padding: 24px; }
+.fixi-intake-summary-heading { display: flex; gap: 10px; align-items: center; color: var(--primary); font-size: .7rem; font-weight: 600; margin-bottom: 24px; }
+.fixi-intake-summary > h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: -.035em; }
+.fixi-intake-summary > p { font-size: .775rem; color: var(--muted-foreground); line-height: 1.7; margin-top: 8px; }
+.fixi-intake-summary dl { display: grid; gap: 18px; margin-block: 24px; }
+.fixi-intake-summary dt { font-size: .65rem; color: var(--muted-foreground); margin-bottom: 5px; }
+.fixi-intake-summary dd { display: flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 550; overflow-wrap: anywhere; }
+.fixi-intake-summary dd svg { color: var(--success); flex-shrink: 0; }
+.fixi-intake-deposit { border-block: 1px solid var(--border); padding-block: 20px; }
+.fixi-intake-deposit > span { display: block; color: var(--muted-foreground); font-size: .7rem; margin-bottom: 8px; }
+.fixi-intake-deposit strong { font-size: 1.5rem; letter-spacing: -.04em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fixi-intake-deposit small { font-size: .7rem; font-weight: 500; letter-spacing: 0; color: var(--muted-foreground); }
+.fixi-intake-tip { display: flex; align-items: flex-start; gap: 10px; padding-top: 20px; color: var(--muted-foreground); }
+.fixi-intake-tip > svg { flex-shrink: 0; color: var(--primary); }
+.fixi-intake-tip p { font-size: .7rem; line-height: 1.8; }
+.fixi-intake-submit { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 0 8px; }
+.fixi-intake-submit h2 { font-size: .9rem; font-weight: 600; }
+.fixi-intake-submit p { color: var(--muted-foreground); font-size: .75rem; margin-top: 5px; }
+@media (max-width: 1100px) { .fixi-intake-layout { grid-template-columns: minmax(0, 1fr); } .fixi-intake-summary { position: static; } .fixi-intake-summary dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .fixi-intake-section-heading, .fixi-intake-fields, .fixi-intake-lookup, .fixi-intake-summary { padding: 18px; } .fixi-intake-submit { align-items: stretch; flex-direction: column; } .fixi-intake-submit button { width: 100%; } }

@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { ClipboardCheck, UserRound, Smartphone, Settings2, ArrowRight, Search, Check, type LucideIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { BaseLayout } from '@/components/layouts/base-layout'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import * as api from './api'
@@ -10,6 +10,13 @@ import * as api from './api'
 const field = 'w-full rounded-md border bg-background px-3 py-2 text-sm'
 const customerRows = (result: { content: api.Customer[] } | api.Customer[]) => Array.isArray(result) ? result : result.content
 const localDateTime = (value: string) => value ? `${value}:00` : null
+
+function IntakeSection({ number, icon: Icon, title, description, children }: { number: string; icon: LucideIcon; title: string; description: string; children: ReactNode }) {
+  return <section className="fixi-intake-section">
+    <header className="fixi-intake-section-heading"><span className="fixi-intake-section-icon"><Icon size={19} aria-hidden="true" /></span><div><p className="fixi-eyebrow">PASO {number}</p><h2>{title}</h2><p>{description}</p></div></header>
+    <div className="fixi-intake-fields">{children}</div>
+  </section>
+}
 
 export function ReceptionOrderForm() {
   const navigate = useNavigate()
@@ -235,11 +242,16 @@ export function ReceptionOrderForm() {
     } finally { setBusy(false) }
   }
 
-  return <BaseLayout title="Recepción" description="Captura comercial y técnica completa de la orden.">
-    <div className="px-4 lg:px-6"><Card><CardContent className="pt-6">
-      <form onSubmit={submit} className="space-y-4">
+  return <BaseLayout title="Recepción" description="Una buena reparación empieza con una recepción clara.">
+    <div className="px-4 lg:px-6">
+      <div className="fixi-intake-intro"><span><ClipboardCheck size={16} aria-hidden="true" /> NUEVA ORDEN DE SERVICIO</span><p>Identifica al cliente, documenta el equipo y deja listo el siguiente paso.</p></div>
+      <form onSubmit={submit} className="fixi-intake-layout">
+        <div className="fixi-intake-main">
+        <div className="fixi-intake-lookup"><div className="fixi-intake-lookup-caption"><Search size={18} aria-hidden="true" /><div><h2>¿Este equipo ya nos visitó?</h2><p>Localízalo para recuperar a su cliente y su registro.</p></div></div>
         <div className="space-y-2 rounded border p-3"><Label htmlFor="reception-device-search">Localizar por IMEI o número de serie</Label><Input id="reception-device-search" type="search" placeholder="IMEI, serie, marca o modelo" value={deviceSearch} onChange={event => setDeviceSearch(event.target.value)}/>{deviceSearchLoading && <p role="status" className="text-sm text-muted-foreground">Buscando equipo…</p>}{deviceResults.map(device => <button type="button" key={device.id} className="block w-full rounded border p-2 text-left text-sm hover:bg-muted" onClick={() => void selectLocatedDevice(device)}><span className="font-medium">{device.manufacturer} {device.model}</span><span className="block text-muted-foreground">{device.serialNumber || device.imei || device.category} · {device.customerName || device.customerId}</span></button>)}</div>
-        <div className="grid gap-2 md:grid-cols-2">
+        </div>
+        <IntakeSection number="01" icon={UserRound} title="Cliente" description="Busca a una persona registrada o crea su ficha sin salir de la recepción.">
+        <div className="grid gap-3 md:grid-cols-2">
           <Input type="search" aria-label="Buscar cliente" placeholder="Buscar cliente por nombre, teléfono o correo" value={customerSearch} onChange={event => { setCustomerSearch(event.target.value); setCustomerId(''); setDeviceId(''); setError(''); setCustomerNotice('') }}/>
           <select required aria-label="Cliente encontrado" className={field} value={customerId} onChange={event => {setCustomerId(event.target.value);setDeviceId('');setError('')}}>
             <option value="">{customerLoading ? 'Buscando clientes…' : customers.length ? 'Selecciona cliente' : 'Escribe al menos 2 caracteres para buscar'}</option>
@@ -257,7 +269,10 @@ export function ReceptionOrderForm() {
           </div>}
           {customerNotice && <p role="status" className="text-sm text-success">{customerNotice}</p>}
         </div>
-        <select aria-label="Equipo" className={field} value={deviceId} onChange={event => setDeviceId(event.target.value)}>
+        </IntakeSection>
+        <IntakeSection number="02" icon={Smartphone} title="Equipo que recibimos" description="Vincula el dispositivo y conserva su identidad e historial.">
+        <Label htmlFor="intake-device">Equipo del cliente</Label>
+        <select id="intake-device" aria-label="Equipo" className={field} value={deviceId} onChange={event => setDeviceId(event.target.value)}>
           <option value="">Equipo sin registrar</option>
           {devices.map(device => <option key={device.id} value={device.id}>{device.manufacturer} {device.model} · {device.serialNumber || device.imei || device.category}</option>)}
         </select>
@@ -273,23 +288,46 @@ export function ReceptionOrderForm() {
             <Button type="button" className="sm:col-span-2 lg:col-span-3" disabled={deviceSaving || !quickDevice.category.trim()} onClick={() => void createDeviceQuickly()}>{deviceSaving ? 'Registrando equipo…' : 'Registrar y seleccionar equipo'}</Button>
           </div>}
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+        </IntakeSection>
+        <IntakeSection number="03" icon={Settings2} title="Servicio y organización" description="Define dónde se atenderá la orden, su prioridad y la asignación inicial.">
+        <div className="grid gap-4 md:grid-cols-2">
           <label className="grid gap-1 text-sm text-muted-foreground">Sucursal<select required aria-label="Sucursal" className={field} disabled={branchesLoading||!branches.some(branch=>branch.active)} value={branchId} onChange={event => { setBranchId(event.target.value); setAssignedUserId('') }}><option value="">{branchesLoading?'Cargando sucursales…':branches.some(branch=>branch.active)?'Selecciona sucursal':'No hay sucursales activas'}</option>{branches.filter(branch=>branch.active).map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>{!branchesLoading&&!branches.some(branch=>branch.active)&&<span role="alert" className="text-xs text-destructive">Activa o crea una sucursal antes de recibir órdenes.</span>}</label>
-          <select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => { let price: string; try { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(service.basePrice) } catch { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(service.basePrice) } return <option key={service.id} value={service.name}>{service.name} · {price} · {service.estimatedMinutes} min</option> })}</select>
+          <label className="grid gap-1 text-sm text-muted-foreground">Servicio solicitado<select aria-label="Servicio" className={field} value={serviceName} onChange={event => setServiceName(event.target.value)}><option value="">Servicio a cotizar</option>{services.filter(service => service.active).map(service => { let price: string; try { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(service.basePrice) } catch { price = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(service.basePrice) } return <option key={service.id} value={service.name}>{service.name} · {price} · {service.estimatedMinutes} min</option> })}</select></label>
           <label className="grid gap-1 text-sm text-muted-foreground">Responsable técnico<select aria-label="Responsable técnico" className={field} value={assignedUserId} onChange={event => setAssignedUserId(event.target.value)}><option value="">Sin asignar</option>{assignableTechnicians.map(user => <option key={user.id} value={user.id}>{user.username}</option>)}</select>{branchTechniciansLoading&&<span role="status" className="text-xs">Consultando técnicos asignados…</span>}{branchId&&!branchTechniciansLoading&&!assignableTechnicians.length&&<span className="text-xs">No hay técnicos asignados a esta sucursal; la orden puede quedar sin asignar.</span>}</label>
-          <select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select>
+          <label className="grid gap-1 text-sm text-muted-foreground">Prioridad de atención<select aria-label="Prioridad" className={field} value={priority} onChange={event => setPriority(event.target.value as typeof priority)}><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
           <div><Label>Anticipo recibido</Label><Input required type="number" min="0" max="9999999999.99" step="0.01" inputMode="decimal" value={depositAmount} onChange={event => setDepositAmount(event.target.value)}/>{Number(depositAmount)>0&&<select aria-label="Método de pago del anticipo" className={`${field} mt-2`} value={depositPaymentMethod} onChange={event=>setDepositPaymentMethod(event.target.value as typeof depositPaymentMethod)}><option value="CASH">Efectivo</option><option value="CHECK">Cheque</option><option value="BANK_DEPOSIT">Depósito bancario</option><option value="PAYPAL">PayPal</option><option value="CARD">Tarjeta</option></select>}{selectedService&&Number(depositAmount)>selectedService.basePrice&&<p role="note" className="mt-1 text-xs text-warning">El anticipo excede el precio base de {selectedService.name}; verifica que cubra cargos o piezas adicionales.</p>}</div>
         </div>
-        <textarea required aria-label="Falla reportada" className={field} placeholder="Falla reportada por el cliente" value={form.reportedFailure} onChange={event => setForm({ ...form, reportedFailure: event.target.value })}/>
+        </IntakeSection>
+        <IntakeSection number="04" icon={ClipboardCheck} title="Condición de ingreso" description="Deja evidencia de lo que reporta el cliente y de cómo recibes el equipo.">
+        <Label htmlFor="intake-failure">¿Qué falla presenta el equipo?</Label>
+        <textarea id="intake-failure" rows={3} required aria-label="Falla reportada" className={field} placeholder="Falla reportada por el cliente" value={form.reportedFailure} onChange={event => setForm({ ...form, reportedFailure: event.target.value })}/>
         {checklistTemplate.length > 0 && <fieldset className="space-y-2 rounded border p-3"><legend className="px-1 text-sm font-medium">Checklist configurable de recepción</legend>{checklistTemplate.map(item => <label className="flex items-start gap-2 text-sm" key={item}><input type="checkbox" checked={checkedChecklist.includes(item)} onChange={event => setCheckedChecklist(current => event.target.checked ? [...current, item] : current.filter(value => value !== item))}/>{item}</label>)}</fieldset>}
-        <textarea aria-label="Notas del checklist de recepción" className={field} placeholder="Notas de recepción o checklist adicional" value={form.intakeChecklist} onChange={event => setForm({ ...form, intakeChecklist: event.target.value })}/>
-        <textarea required aria-label="Resumen de orden" className={field} placeholder="Resumen de síntomas y condición" value={form.summary} onChange={event => setForm({ ...form, summary: event.target.value })}/>
+        <Label htmlFor="intake-notes">Checklist y observaciones de recepción</Label>
+        <textarea id="intake-notes" rows={3} aria-label="Notas del checklist de recepción" className={field} placeholder="Notas de recepción o checklist adicional" value={form.intakeChecklist} onChange={event => setForm({ ...form, intakeChecklist: event.target.value })}/>
+        <Label htmlFor="intake-summary">Resumen de la orden</Label>
+        <textarea id="intake-summary" rows={2} required aria-label="Resumen de orden" className={field} placeholder="Resumen de síntomas y condición" value={form.summary} onChange={event => setForm({ ...form, summary: event.target.value })}/>
         <div className="grid gap-3 md:grid-cols-2"><div><Label>Fecha compromiso (opcional)</Label><Input type="datetime-local" value={form.promisedAt} onChange={event => setForm({ ...form, promisedAt: event.target.value })}/></div><div><Label>Evidencia inicial / imágenes (URL o referencia)</Label><Input value={form.intakeEvidence} onChange={event => setForm({ ...form, intakeEvidence: event.target.value })}/></div></div>
-        <Button disabled={busy || capabilitiesLoading || !capabilities.has('ORDERS_CREATE') || customerLoading || branchesLoading || !branches.some(branch=>branch.id===branchId&&branch.active) || !customerId}>{busy ? 'Creando…' : 'Crear orden'}</Button>
+        </IntakeSection>
+        <div className="fixi-intake-submit"><div><h2>¿Todo listo para recibirlo?</h2><p>Revisa la información antes de crear la orden.</p></div>
+        <Button className="h-11 px-6" disabled={busy || capabilitiesLoading || !capabilities.has('ORDERS_CREATE') || customerLoading || branchesLoading || !branches.some(branch=>branch.id===branchId&&branch.active) || !customerId}>{busy ? 'Creando…' : 'Crear orden'}<ArrowRight size={16} aria-hidden="true" /></Button></div>
         {!capabilitiesLoading&&!capabilities.has('ORDERS_CREATE')&&<p role="alert" className="text-sm text-destructive">Se requiere ORDERS_CREATE para registrar una orden en la sucursal seleccionada.</p>}
         {message && <p role="status" className="text-sm text-success">{message}</p>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        </div>
+        <aside className="fixi-intake-summary" aria-label="Resumen de la recepción">
+          <div className="fixi-intake-summary-heading"><ClipboardCheck size={20} aria-hidden="true" /><span>Nueva recepción</span></div>
+          <h2>La orden, en contexto.</h2><p>Los datos que captures aparecerán en el expediente de servicio.</p>
+          <dl>
+            <div><dt>Cliente</dt><dd>{customerId ? customers.find(customer => customer.id === customerId)?.firstName || 'Cliente seleccionado' : 'Por seleccionar'}{customerId && <Check size={14} aria-label="Seleccionado" />}</dd></div>
+            <div><dt>Equipo</dt><dd>{deviceId ? devices.find(device => device.id === deviceId)?.model || 'Equipo seleccionado' : 'Sin equipo registrado'}</dd></div>
+            <div><dt>Sucursal</dt><dd>{branches.find(branch => branch.id === branchId)?.name || 'Por seleccionar'}</dd></div>
+            <div><dt>Servicio</dt><dd>{serviceName || 'Por cotizar'}</dd></div>
+            <div><dt>Responsable</dt><dd>{users.find(user => user.id === assignedUserId)?.username || 'Sin asignar'}</dd></div>
+          </dl>
+          <div className="fixi-intake-deposit"><span>Anticipo recibido</span><strong>{depositAmount || '0'} <small>{currency}</small></strong></div>
+          <div className="fixi-intake-tip"><ClipboardCheck size={18} aria-hidden="true" /><p>Registra daños visibles y accesorios en el checklist. Un ingreso claro ayuda a tu equipo y al cliente.</p></div>
+        </aside>
       </form>
-    </CardContent></Card></div>
+    </div>
   </BaseLayout>
 }

@@ -47,7 +47,7 @@ export function NavMain({
 
   return (
     <SidebarGroup className="py-1">
-      <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 px-2.5 py-1 select-none">
+      <SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60 px-2.5 py-1 select-none">
         {label}
       </SidebarGroupLabel>
       <SidebarMenu className="gap-0.5">
@@ -64,9 +64,9 @@ export function NavMain({
                 {item.items?.length ? (
                   <>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        className="cursor-pointer text-xs rounded-lg transition-colors hover:bg-sidebar-accent/80"
+                      <SidebarMenuButton 
+                        tooltip={item.title} 
+                        className="cursor-pointer text-sm rounded-lg transition-colors hover:bg-sidebar-accent/80"
                       >
                         {item.icon && <item.icon className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />}
                         <span className="truncate font-medium">{item.title}</span>
@@ -77,12 +77,12 @@ export function NavMain({
                       <SidebarMenuSub className="my-0.5 ml-3 border-l border-sidebar-border/70 pl-2">
                         {item.items?.map((subItem) => (
                           <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton
-                              asChild
-                              className="cursor-pointer text-xs rounded-md transition-colors data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium"
+                            <SidebarMenuSubButton 
+                              asChild 
+                              className="cursor-pointer text-sm rounded-md transition-colors data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium" 
                               isActive={location.pathname === subItem.url}
                             >
-                              <Link
+                              <Link 
                                 to={subItem.url}
                                 target={(item.title === "Auth Pages" || item.title === "Errors") ? "_blank" : undefined}
                                 rel={(item.title === "Auth Pages" || item.title === "Errors") ? "noopener noreferrer" : undefined}
@@ -96,10 +96,10 @@ export function NavMain({
                     </CollapsibleContent>
                   </>
                 ) : (
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={item.title}
-                    className="cursor-pointer text-xs rounded-lg transition-colors data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold hover:bg-sidebar-accent/80"
+                  <SidebarMenuButton 
+                    asChild 
+                    tooltip={item.title} 
+                    className="cursor-pointer text-sm rounded-lg transition-colors data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold hover:bg-sidebar-accent/80" 
                     isActive={isItemActive}
                   >
                     <Link to={item.url} className="flex items-center gap-2.5">
