@@ -177,7 +177,7 @@ public sealed class AuthService
         user.SetPendingToken(user.HasPendingInvitation ? UserTokenPurpose.Invitation : UserTokenPurpose.PasswordReset, TokenHasher.Hash(raw), now.AddHours(2), now);
 
         var link = user.HasPendingInvitation ? _links.Invitation(raw) : _links.PasswordReset(raw);
-        var body = $"Hola {user.DisplayName},\n\nRecibimos un pedido para restablecer tu contraseña de RepairShop.\n" +
+        var body = $"Hola {user.DisplayName},\n\nRecibimos un pedido para restablecer tu contraseña de Fixi.\n" +
                    $"Ingresá a este link (vence en 2 horas):\n{link}\n\nSi no fuiste vos, ignorá este mensaje.";
         var item = new NotificationOutboxItem(user.ShopId, NotificationChannel.Email, user.Email, "Restablecer contraseña", body,
             OutboxStatus.Pending, $"user:{user.Id}:reset:{now:yyyyMMddHHmmss}", "user", user.Id, now);
@@ -259,7 +259,7 @@ public sealed class AuthService
         var now = _clock.UtcNow;
         var raw = TokenHasher.NewToken();
         user.RequestEmailVerification(TokenHasher.Hash(raw), now);
-        var body = $"Hola {user.DisplayName},\n\nConfirmá tu email para terminar de crear tu cuenta de RepairShop:\n{_links.VerifyEmail(raw)}\n\n" +
+        var body = $"Hola {user.DisplayName},\n\nConfirmá tu email para terminar de crear tu cuenta de Fixi:\n{_links.VerifyEmail(raw)}\n\n" +
                    "Si no creaste una cuenta, ignorá este mensaje.";
         var item = new NotificationOutboxItem(user.ShopId, NotificationChannel.Email, user.Email, "Confirmá tu email", body,
             OutboxStatus.Pending, $"user:{user.Id}:verify:{now:yyyyMMddHHmmss}", "user", user.Id, now);
