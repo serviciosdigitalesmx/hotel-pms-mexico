@@ -1,40 +1,9 @@
-# Keep source available for the opt-in Native Image builder. The dedicated
-# guest-service/Dockerfile.native.dockerignore keeps its context minimal.
-# JVM service images still receive their pre-built build/libs JARs.
-.gradle/
-*/build/classes/
-*/build/generated/
-*/build/generated-sources/
-*/build/tmp/
-*/build/resources/
-*/build/reports/
-*/build/test-results/
-*/build/native/
-/build/
-frontend/
-**/node_modules/
-frontend/node_modules/
-frontend/node_modules/**
-docs/
-backup/
-.git/
-.github/
-.add/
-.ralph-add/
-scripts/ci/
-argos
-argos-local
-*.backup-*
-*.env.backup-*
-.env
-.env.*
-**/.env
-**/.env.*
-**/node_modules/
-**/node_modules/**
-**/build/
-!**/build/
-**/build/*
-!**/build/libs/
-**/build/libs/*
-!**/build/libs/*-SNAPSHOT.jar
+# Build context of deploy/web.Dockerfile (repository root): only the frontend sources are needed.
+.git
+**/node_modules
+**/bin
+**/obj
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+docs

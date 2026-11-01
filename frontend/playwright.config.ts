@@ -1,51 +1,36 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
-// In CI (GitHub Actions sets CI=true automatically):
-//   - PLAYWRIGHT_BASE_URL is set to http://localhost:80 (Docker nginx)
-//   - No webServer block — Docker Compose provides the frontend
-//   - retries: 2 to tolerate transient flakiness
-//   - workers: 1 for stability in constrained CI environments
-//   - reporters include 'github' for inline PR annotations
-//
-// Locally:
-//   - baseURL defaults to http://localhost:5173 (Vite dev server)
-//   - webServer starts 'npm run dev' automatically if not already running
-//   - retries: 0, full parallelism
-
-const isCI = !!process.env.CI;
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
+// End-to-end tests run against a real API + database.
+// Start the backend first (see README), then: npm run test:e2e
+//   E2E_BASE_URL     use an already running frontend instead of starting Vite
+//   VITE_PROXY_TARGET backend URL for the Vite dev server (default http://localhost:8080)
+//   PW_CHROMIUM_EXECUTABLE use a preinstalled Chromium instead of the Playwright download
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:5173'
+const executablePath = process.env.PW_CHROMIUM_EXECUTABLE || undefined
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
-  retries: isCI ? 2 : 0,
-  workers: isCI ? 1 : undefined,
-  reporter: isCI
-    ? [['github'], ['html', { open: 'never' }]]
-    : 'html',
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  workers: 1,
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    locale: 'es-AR',
+    timezoneId: 'America/Argentina/Buenos_Aires',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    launchOptions: executablePath ? { executablePath } : undefined,
   },
-  projects: [
-    {
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // In CI, use the pre-installed system Chrome (google-chrome-stable on
-        // ubuntu-latest) instead of downloading playwright's bundled binary.
-        ...(isCI ? { channel: 'chrome' } : {}),
-      },
-    },
-  ],
-  // webServer is only used locally — in CI the full Docker stack is already up
-  ...(isCI
-    ? {}
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
     : {
-        webServer: {
-          command: 'npm run dev',
-          url: 'http://localhost:5173',
-          reuseExistingServer: true,
-        },
-      }),
-});
+        command: 'npm run dev -- --port 5173 --strictPort',
+        url: 'http://localhost:5173',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
+})

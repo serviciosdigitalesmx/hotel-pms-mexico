@@ -1,39 +1,37 @@
-import path from "path"
-import tailwindcss from "@tailwindcss/vite"
-import react from "@vitejs/plugin-react"
-import { defineConfig } from "vitest/config"
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
-const apiProxy = {
-  '/api': {
-    target: process.env.FIXI_API_PROXY_TARGET || 'http://localhost:8080',
-    changeOrigin: true,
-  },
-}
+// Dev proxy: frontend -> backend (so API calls can use /api/v1 and the refresh cookie stays same-origin).
+// Override the backend target with VITE_PROXY_TARGET.
+const target = process.env.VITE_PROXY_TARGET || 'http://localhost:8080'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react()],
   server: {
-    proxy: apiProxy,
-  },
-  preview: {
-    proxy: apiProxy,
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    proxy: {
+      '/api': {
+        target,
+        changeOrigin: true,
+      },
     },
   },
-  define: {
-    'import.meta.env.VITE_BASENAME': JSON.stringify(process.env.VITE_BASENAME || ''),
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          query: ['@tanstack/react-query', 'axios'],
+        },
+      },
+    },
   },
   test: {
-    globals: true,
     environment: 'jsdom',
-    // axe checks and async UI flows exceed Vitest's 5s default under CI load.
-    testTimeout: 15_000,
-    setupFiles: ['./src/setupTests.ts'],
-    css: true,
-    coverage: { provider: 'v8', reporter: ['text', 'lcov'] },
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    css: false,
   },
 })

@@ -1,75 +1,57 @@
-# ── Build & dependency artifacts ────────────────────────────────────────────
-/build/
-/.gradle/
-/bin/
-**/build/
-**/out/
-**/bin/
-**/.gradle/
-
-# Gradle wrapper JARs (keep gradlew scripts, ignore the jar)
-!gradle/wrapper/gradle-wrapper.jar
-
-# Node / frontend
-node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/coverage/
-frontend/playwright-report/
-frontend/test-results/
-frontend/e2e-live/.auth/
-frontend/.eslintcache
-
-# ── IDE ──────────────────────────────────────────────────────────────────────
-.vscode/
-.idea/
-*.swp
-*.swo
-*.DS_Store
-.project
-.classpath
-.settings/
-.nb-gradle/
-
-# ── Secrets & environment ────────────────────────────────────────────────────
+# Environment
 .env
-.env.local
-.env.*.local
-*.pem
-*.key
+.env.*
+!.env.example
+!.env.*.example
 
-# ── Logs & temp ──────────────────────────────────────────────────────────────
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# Logs
 *.log
-*.txt
-*.tmp
+logs/
 
-# ── AI tooling — never commit ────────────────────────────────────────────────
-.claude/
-CLAUDE.md
-.ai/
-backup/
+# Local app settings
+appsettings.Local.json
+appsettings.*.local.json
 
-# ── Local tools ──────────────────────────────────────────────────────────────
-.antigravity.json
+# OS
+.DS_Store
+Thumbs.db
 
-# ── Screenshots ──────────────────────────────────────────────────────────────
-screenshots/
-*.png
-bash.exe.stackdump
-frontend/bash.exe.stackdump
+# Archives / backups
+*.zip
+*.rar
+*.7z
+*.bak
+*copy*
+*final*
+*fixed*
 
-# ── Playwright MCP ───────────────────────────────────────────────────────────
-.playwright-mcp/
+# Uploaded files (local storage)
+**/data/uploads/
 
-# Agent factory runtime artifacts
-.agent-orchestration/state.lock
-.agent-orchestration/logs/
-.agent-orchestration/results/
-.agent-orchestration/state.json
-.agent-orchestration/provider-state.json
-.agent-orchestration/*.lease
+# Playwright
+test-results/
+playwright-report/
+blob-report/
 
-# Python runtime artifacts
-__pycache__/
-*.py[cod]
+# Preserve local agent material; never publish it.
+.codex-attachments/
+.codex-remote-attachments/
+.push-temp/
+.nuget-demo/
+Dockerfile.local-demo
+compose.local.yml
+*.dump
+*.sql.gz
+*.zip

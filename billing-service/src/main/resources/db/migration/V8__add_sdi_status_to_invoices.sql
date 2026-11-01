@@ -1,2 +1,0 @@
-ALTER TABLE invoices
-    ADD COLUMN sdi_status VARCHAR(30) NOT NULL DEFAULT 'NOT_SENT';
