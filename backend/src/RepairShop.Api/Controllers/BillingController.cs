@@ -26,7 +26,7 @@ public sealed class BillingController : ControllerBase
         _cache = cache;
     }
 
-    /// <summary>Public price list (pricing page). Argentina sees pesos; every other country, dollars.</summary>
+    /// <summary>Public price list (pricing page). Argentina and Mexico see local currency; other countries see USD.</summary>
     [HttpGet("plans")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimits.Public)]

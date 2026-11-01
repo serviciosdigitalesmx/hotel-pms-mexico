@@ -9,7 +9,7 @@ describe('billing helpers', () => {
     expect(detectCountry([])).toBe('AR')
   })
 
-  it('bills "other country" like any country outside Argentina', () => {
+  it('bills "other country" like any country outside Argentina and Mexico', () => {
     expect(billingCountry('OT')).toBe('US')
     expect(billingCountry('AR')).toBe('AR')
   })
@@ -25,6 +25,7 @@ describe('billing helpers', () => {
   it('formats prices without decimals in the plan currency', () => {
     expect(planPrice({ id: 'Basic', name: 'Básico', maxBranches: 1, modules: [], price: 25, currency: 'USD' })).toBe('$25')
     expect(planPrice({ id: 'Basic', name: 'Básico', maxBranches: 1, modules: [], price: 29900, currency: 'ARS' })).toMatch(/29\.900/)
+    expect(planPrice({ id: 'Basic', name: 'Básico', maxBranches: 1, modules: [], price: 300, currency: 'MXN' })).toContain('300')
     expect(planPrice({ id: 'Basic', name: 'Básico', maxBranches: 1, modules: [], price: null, currency: 'USD' })).toBe('Consultar')
   })
 })

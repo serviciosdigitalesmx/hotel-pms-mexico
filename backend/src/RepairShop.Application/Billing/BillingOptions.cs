@@ -18,18 +18,28 @@ public sealed class BillingOptions
     /// <summary>Allow new shops to sign up from the website.</summary>
     public bool SignupEnabled { get; set; } = true;
 
-    /// <summary>Monthly price per plan in US dollars (Paddle, every country except Argentina). Must match the Paddle prices.</summary>
+    /// <summary>Monthly price per plan in US dollars (Paddle, countries outside Argentina and Mexico).</summary>
     public Dictionary<string, decimal> UsdPrices { get; set; } = new() { ["Basic"] = 25m, ["Standard"] = 45m, ["Pro"] = 79m };
 
     /// <summary>Monthly price per plan in Argentine pesos (Mercado Pago).</summary>
     public Dictionary<string, decimal> ArsPrices { get; set; } = new() { ["Basic"] = 29900m, ["Standard"] = 44900m, ["Pro"] = 74900m };
+
+    /// <summary>Monthly price per plan in Mexican pesos (Mercado Pago), configurable for the platform's pricing policy.</summary>
+    public Dictionary<string, decimal> MxnPrices { get; set; } = new() { ["Basic"] = 300m, ["Standard"] = 450m, ["Pro"] = 600m };
 
     public MercadoPagoBillingOptions MercadoPago { get; set; } = new();
     public PaddleBillingOptions Paddle { get; set; } = new();
 
     public decimal? PriceFor(PlanId plan, string currency)
     {
-        var table = string.Equals(currency, "ARS", StringComparison.OrdinalIgnoreCase) ? ArsPrices : UsdPrices;
+        var table = currency.ToUpperInvariant() switch
+        {
+            "ARS" => ArsPrices,
+            "MXN" => MxnPrices,
+            "USD" => UsdPrices,
+            _ => null
+        };
+        if (table is null) return null;
         return table.TryGetValue(plan.ToString(), out var price) && price > 0 ? price : null;
     }
 }

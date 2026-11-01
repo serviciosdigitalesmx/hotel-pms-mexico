@@ -12,8 +12,8 @@ using RepairShop.Domain.Common;
 namespace RepairShop.Infrastructure.Billing;
 
 /// <summary>
-/// Monthly subscriptions in Argentine pesos with Mercado Pago "suscripciones sin plan asociado" (preapproval),
-/// charged to the platform's own Mercado Pago account.
+/// Monthly subscriptions in the platform's local Mercado Pago market currency (ARS or MXN),
+/// using "suscripciones sin plan asociado" (preapproval).
 /// </summary>
 public sealed class MercadoPagoSubscriptionGateway : IMercadoPagoSubscriptionGateway
 {

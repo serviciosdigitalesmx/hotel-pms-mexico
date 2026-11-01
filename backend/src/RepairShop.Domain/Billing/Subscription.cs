@@ -24,7 +24,7 @@ public enum BillingProvider
 
 /// <summary>
 /// The SaaS subscription of one organization (all its branches). Starts as a free trial; a payment provider
-/// (Mercado Pago in Argentina, Paddle elsewhere) moves it to Active and keeps it up to date through webhooks.
+/// (Mercado Pago in Argentina/Mexico, Paddle elsewhere) moves it to Active and keeps it up to date through webhooks.
 /// </summary>
 public sealed class Subscription
 {
@@ -38,7 +38,7 @@ public sealed class Subscription
     public SubscriptionStatus Status { get; private set; }
     public BillingProvider Provider { get; private set; }
 
-    /// <summary>ISO 3166-1 alpha-2 country used to pick the provider and currency (AR => Mercado Pago in ARS).</summary>
+    /// <summary>ISO 3166-1 alpha-2 country used to pick the provider and currency (AR => ARS, MX => MXN via Mercado Pago).</summary>
     public string BillingCountry { get; private set; } = "AR";
 
     public string? ProviderSubscriptionId { get; private set; }

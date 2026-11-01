@@ -77,6 +77,9 @@ services:
       Billing__ArsPrices__Basic: ${PRICE_ARS_BASIC:-29900}
       Billing__ArsPrices__Standard: ${PRICE_ARS_STANDARD:-44900}
       Billing__ArsPrices__Pro: ${PRICE_ARS_PRO:-74900}
+      Billing__MxnPrices__Basic: ${PRICE_MXN_BASIC:-300}
+      Billing__MxnPrices__Standard: ${PRICE_MXN_STANDARD:-450}
+      Billing__MxnPrices__Pro: ${PRICE_MXN_PRO:-600}
       Billing__MercadoPago__AccessToken: ${MP_BILLING_ACCESS_TOKEN:-}
       Billing__MercadoPago__WebhookSecret: ${MP_BILLING_WEBHOOK_SECRET:-}
       Billing__Paddle__Environment: ${PADDLE_ENVIRONMENT:-sandbox}

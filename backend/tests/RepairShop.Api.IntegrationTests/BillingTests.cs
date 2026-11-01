@@ -29,7 +29,7 @@ public sealed class BillingTests
         sub.Str("plan").Should().Be("Pro");
         sub.GetProperty("trialDaysLeft").GetInt32().Should().Be(14);
         sub.Str("billingCountry").Should().Be("MX");
-        sub.GetProperty("plans")[0].Str("currency").Should().Be("USD");
+        sub.GetProperty("plans")[0].Str("currency").Should().Be("MXN");
 
         var settings = await (await owner.Get("/settings")).DataAsync();
         settings.GetProperty("defaultCurrency").GetString().Should().Be("MXN");
@@ -178,12 +178,17 @@ public sealed class BillingTests
     }
 
     [IntegrationFact]
-    public async Task Public_price_list_is_in_pesos_for_argentina_and_dollars_elsewhere()
+    public async Task Public_price_list_uses_local_currencies_for_Argentina_and_Mexico()
     {
         var anon = _factory.CreateClient();
         var ar = await (await anon.GetAsync("/api/v1/billing/plans?country=AR")).DataAsync();
         ar.Str("currency").Should().Be("ARS");
         ar.GetProperty("plans").GetArrayLength().Should().Be(3);
+
+        var mx = await (await anon.GetAsync("/api/v1/billing/plans?country=MX")).DataAsync();
+        mx.Str("currency").Should().Be("MXN");
+        mx.GetProperty("plans").GetArrayLength().Should().Be(3);
+        mx.GetProperty("plans")[0].Dec("price").Should().Be(300m);
 
         var us = await (await anon.GetAsync("/api/v1/billing/plans")).DataAsync();
         us.Str("currency").Should().Be("USD");

@@ -1,7 +1,7 @@
 import type { Plan, PlanId, SubscriptionStatus } from '../api/types'
 import type { Tone } from './labels'
 
-/** Countries offered at signup (name in Spanish). Argentina pays in pesos; everyone else, in dollars. */
+/** Countries offered at signup (name in Spanish). Argentina/Mexico pay in local currency; others use USD. */
 export const COUNTRIES: { code: string; name: string }[] = [
   { code: 'AR', name: 'Argentina' },
   { code: 'BO', name: 'Bolivia' },
@@ -37,7 +37,7 @@ export function detectCountry(languages: readonly string[] = typeof navigator ==
   return 'AR'
 }
 
-/** "Otro país" is billed like any country outside Argentina. */
+/** "Otro país" is billed like any country outside Argentina and Mexico. */
 export function billingCountry(code: string): string {
   return code === 'OT' ? 'US' : code
 }
@@ -88,7 +88,8 @@ export const SUBSCRIPTION_STATUS: Record<SubscriptionStatus, { label: string; to
 
 export function planPrice(plan: Plan): string {
   if (plan.price == null) return 'Consultar'
-  return new Intl.NumberFormat(plan.currency === 'ARS' ? 'es-AR' : 'en-US', {
+  const locale = plan.currency === 'ARS' ? 'es-AR' : plan.currency === 'MXN' ? 'es-MX' : 'en-US'
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: plan.currency,
     maximumFractionDigits: 0,

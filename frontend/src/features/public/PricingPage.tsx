@@ -95,7 +95,9 @@ export function PricingPage() {
           <p className="mt-4 text-xs text-slate-500">
             {country === 'AR'
               ? 'Precios finales en pesos, cobrados por Mercado Pago cada mes.'
-              : 'Precios en dólares por mes. Paddle cobra el pago mensual y suma los impuestos que correspondan en tu país.'}{' '}
+              : country === 'MX'
+                ? 'Precios en pesos mexicanos por mes. Mercado Pago realiza el cobro mensual.'
+                : 'Precios en dólares por mes. Paddle cobra el pago mensual y suma los impuestos que correspondan en tu país.'}{' '}
             Cancelás cuando quieras.
           </p>
         </section>

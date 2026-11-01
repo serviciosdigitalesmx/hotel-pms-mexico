@@ -57,6 +57,11 @@ services:
       Ai__Provider: None
       Billing__SignupEnabled: "true"
       Billing__AllowSimulated: "false"
+      Billing__MxnPrices__Basic: ${PRICE_MXN_BASIC:-300}
+      Billing__MxnPrices__Standard: ${PRICE_MXN_STANDARD:-450}
+      Billing__MxnPrices__Pro: ${PRICE_MXN_PRO:-600}
+      Billing__MercadoPago__AccessToken: ${MP_BILLING_ACCESS_TOKEN:-}
+      Billing__MercadoPago__WebhookSecret: ${MP_BILLING_WEBHOOK_SECRET:-}
     volumes:
       - uploads:/app/data/uploads
     networks:

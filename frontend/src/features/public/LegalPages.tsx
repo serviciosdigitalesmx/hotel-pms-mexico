@@ -42,7 +42,7 @@ export function TermsPage() {
       <h2>2. Prueba gratis, planes y pagos</h2>
       <p>
         Cada cuenta nueva incluye una prueba gratis con todos los módulos y sin tarjeta. Al terminar, la cuenta queda en modo consulta hasta que elijas un plan
-        mensual. En Argentina la suscripción se cobra mensualmente en pesos con Mercado Pago. En el resto de los países lo cobra en dólares Paddle.com, que actúa como revendedor
+        mensual. En Argentina y México la suscripción se cobra mensualmente en moneda local con Mercado Pago. En los demás países lo cobra en dólares Paddle.com, que actúa como revendedor
         autorizado (merchant of record) y agrega los impuestos que correspondan en tu país. La suscripción se cobra por adelantado cada mes y puedes cancelarla cuando
         quieras desde la sección Suscripción; la cancelación rige al final del período pagado y no se reintegran períodos parciales.
       </p>

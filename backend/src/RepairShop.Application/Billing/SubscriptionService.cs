@@ -16,8 +16,8 @@ public sealed record SubscriptionAccess(bool HasFullAccess, PlanDefinition Plan,
 }
 
 /// <summary>
-/// Plans, checkout and the subscription lifecycle. Argentina pays in pesos through Mercado Pago; every other
-/// country pays in dollars through Paddle (merchant of record: it charges and remits each country's taxes).
+/// Plans, checkout and the subscription lifecycle. Argentina and Mexico pay in local currency through Mercado Pago;
+/// other countries pay in dollars through Paddle (merchant of record).
 /// </summary>
 public sealed class SubscriptionService
 {
@@ -56,9 +56,18 @@ public sealed class SubscriptionService
         _logger = logger;
     }
 
-    public static string CurrencyFor(string country) => string.Equals(country, "AR", StringComparison.OrdinalIgnoreCase) ? "ARS" : "USD";
+    public static string CurrencyFor(string country) => country.ToUpperInvariant() switch
+    {
+        "AR" => "ARS",
+        "MX" => "MXN",
+        _ => "USD"
+    };
 
-    public static BillingProvider ProviderFor(string country) => string.Equals(country, "AR", StringComparison.OrdinalIgnoreCase) ? BillingProvider.MercadoPago : BillingProvider.Paddle;
+    public static BillingProvider ProviderFor(string country) => country.ToUpperInvariant() switch
+    {
+        "AR" or "MX" => BillingProvider.MercadoPago,
+        _ => BillingProvider.Paddle
+    };
 
     public PlansResponse ListPlans(string? country)
     {
