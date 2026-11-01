@@ -9,13 +9,15 @@ public sealed class RepairOrderReceptionChecklist : IShopScoped
     public Guid ShopId { get; private set; }
     public Guid RepairOrderId { get; private set; }
 
-    public bool ScreenOk { get; private set; }
-    public bool CamerasOk { get; private set; }
-    public bool SpeakersOk { get; private set; }
-    public bool MicrophoneOk { get; private set; }
-    public bool ButtonsOk { get; private set; }
-    public bool FaceIdOk { get; private set; }
-    public bool FingerprintOk { get; private set; }
+    public bool? PowersOn { get; private set; }
+    public bool? ChargingOk { get; private set; }
+    public bool? ScreenOk { get; private set; }
+    public bool? CamerasOk { get; private set; }
+    public bool? SpeakersOk { get; private set; }
+    public bool? MicrophoneOk { get; private set; }
+    public bool? ButtonsOk { get; private set; }
+    public bool? FaceIdOk { get; private set; }
+    public bool? FingerprintOk { get; private set; }
     public CloudLockStatus CloudLock { get; private set; }
 
     public int? BatteryPercent { get; private set; }
@@ -42,13 +44,15 @@ public sealed class RepairOrderReceptionChecklist : IShopScoped
     }
 
     public void Update(
-        bool screenOk,
-        bool camerasOk,
-        bool speakersOk,
-        bool microphoneOk,
-        bool buttonsOk,
-        bool faceIdOk,
-        bool fingerprintOk,
+        bool? powersOn,
+        bool? chargingOk,
+        bool? screenOk,
+        bool? camerasOk,
+        bool? speakersOk,
+        bool? microphoneOk,
+        bool? buttonsOk,
+        bool? faceIdOk,
+        bool? fingerprintOk,
         CloudLockStatus cloudLock,
         int? batteryPercent,
         string? cosmeticNotes,
@@ -58,6 +62,8 @@ public sealed class RepairOrderReceptionChecklist : IShopScoped
         if (updatedByUserId == Guid.Empty) throw new DomainException("El checklist debe tener un usuario.");
         if (batteryPercent is < 0 or > 100) throw new DomainException("El porcentaje de batería debe estar entre 0 y 100.");
 
+        PowersOn = powersOn;
+        ChargingOk = chargingOk;
         ScreenOk = screenOk;
         CamerasOk = camerasOk;
         SpeakersOk = speakersOk;

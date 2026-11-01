@@ -84,7 +84,9 @@ public sealed class DocumentService
         var items = new List<DocKeyValue>();
         if (checklist is not null)
         {
-            string Ok(bool v) => v ? "OK" : "Con falla";
+            string Ok(bool? v) => v switch { true => "OK", false => "Con falla", null => "Sin revisar" };
+            items.Add(new("Enciende", Ok(checklist.PowersOn)));
+            items.Add(new("Carga", Ok(checklist.ChargingOk)));
             items.Add(new("Pantalla", Ok(checklist.ScreenOk)));
             items.Add(new("Cámaras", Ok(checklist.CamerasOk)));
             items.Add(new("Parlantes", Ok(checklist.SpeakersOk)));

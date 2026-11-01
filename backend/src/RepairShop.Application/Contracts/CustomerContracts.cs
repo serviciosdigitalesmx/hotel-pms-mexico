@@ -32,7 +32,7 @@ public sealed record CustomerCreateRequest(
     CustomerTaxCondition TaxCondition = CustomerTaxCondition.ConsumidorFinal,
     string? Address = null,
     string? Tags = null,
-    bool NotificationsOptIn = true,
+    bool NotificationsOptIn = false,
     bool MarketingOptIn = false
 );
 
@@ -46,7 +46,7 @@ public sealed record CustomerUpdateRequest(
     CustomerTaxCondition TaxCondition = CustomerTaxCondition.ConsumidorFinal,
     string? Address = null,
     string? Tags = null,
-    bool NotificationsOptIn = true,
+    bool NotificationsOptIn = false,
     bool MarketingOptIn = false
 );
 

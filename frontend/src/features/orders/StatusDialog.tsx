@@ -13,7 +13,7 @@ import { transitionBlocker } from './rules'
 export function StatusDialog({ order, target, onClose }: { order: RepairOrder; target: OrderStatus; onClose: () => void }) {
   const queryClient = useQueryClient()
   const { role } = useSession()
-  const [notify, setNotify] = useState(true)
+  const [notify, setNotify] = useState(order.customerNotificationsOptIn)
   const [channel, setChannel] = useState<NotificationChannel | ''>('')
   const [reason, setReason] = useState('')
   const [force, setForce] = useState(false)
@@ -25,7 +25,7 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
     mutationFn: () =>
       ordersApi.changeStatus(order.id, {
         status: target,
-        enqueueOutbox: notify,
+        enqueueOutbox: notify && order.customerNotificationsOptIn,
         channel: channel || null,
         reason: reason.trim() || null,
         forceUnpaidDelivery: unpaid && force,
@@ -106,8 +106,8 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
           </Field>
         ) : null}
-        <Checkbox label="Avisar al cliente" description="Usa la plantilla del estado. Si no hay proveedor configurado, te damos el enlace de WhatsApp." checked={notify} onChange={(e) => setNotify(e.target.checked)} />
-        {notify ? (
+        <Checkbox label="Avisar al cliente" description={order.customerNotificationsOptIn ? 'Usa la plantilla del estado. Si no hay proveedor configurado, te damos el enlace de WhatsApp.' : 'El cliente no aceptó recibir avisos; no se enviará ningún mensaje.'} checked={notify && order.customerNotificationsOptIn} disabled={!order.customerNotificationsOptIn} onChange={(e) => setNotify(e.target.checked)} />
+        {notify && order.customerNotificationsOptIn ? (
           <Field label="Canal">
             <Select value={channel} onChange={(e) => setChannel(e.target.value as NotificationChannel | '')}>
               <option value="">El predeterminado de la sucursal</option>

@@ -11,7 +11,7 @@ export function emptyCustomer(): CustomerInput {
     taxCondition: 'ConsumidorFinal',
     address: '',
     tags: '',
-    notificationsOptIn: true,
+    notificationsOptIn: false,
     marketingOptIn: false,
   }
 }

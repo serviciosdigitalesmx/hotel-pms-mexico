@@ -139,7 +139,7 @@ public sealed class OrderRecordsService
             await _reception.AddAsync(cl, ct);
         }
 
-        cl.Update(b.ScreenOk, b.CamerasOk, b.SpeakersOk, b.MicrophoneOk, b.ButtonsOk, b.FaceIdOk, b.FingerprintOk, b.CloudLock, b.BatteryPercent, b.CosmeticNotes, actor.UserId, now);
+        cl.Update(b.PowersOn, b.ChargingOk, b.ScreenOk, b.CamerasOk, b.SpeakersOk, b.MicrophoneOk, b.ButtonsOk, b.FaceIdOk, b.FingerprintOk, b.CloudLock, b.BatteryPercent, b.CosmeticNotes, actor.UserId, now);
         await _audit.AddAsync(shopId, EntityType, orderId, "checklist_updated", actor, null, ct);
         await _uow.SaveChangesAsync(ct);
         return ToResponse(cl);
@@ -209,7 +209,7 @@ public sealed class OrderRecordsService
     }
 
     private static RepairOrderChecklistResponse ToResponse(RepairOrderReceptionChecklist c)
-        => new(c.Id, c.RepairOrderId, c.ScreenOk, c.CamerasOk, c.SpeakersOk, c.MicrophoneOk, c.ButtonsOk, c.FaceIdOk, c.FingerprintOk,
+        => new(c.Id, c.RepairOrderId, c.PowersOn, c.ChargingOk, c.ScreenOk, c.CamerasOk, c.SpeakersOk, c.MicrophoneOk, c.ButtonsOk, c.FaceIdOk, c.FingerprintOk,
             c.CloudLock, c.BatteryPercent, c.CosmeticNotes, c.UpdatedByUserId, c.UpdatedAtUtc);
 
     private static QaChecklistResponse ToResponse(RepairOrderQaChecklist q)

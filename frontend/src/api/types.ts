@@ -357,6 +357,7 @@ export interface RepairOrder {
   trackingUrl: string
   allowedNextStatuses: OrderStatus[]
   photosCount: number
+  customerNotificationsOptIn: boolean
 }
 
 export interface CreateOrderInput {
@@ -494,13 +495,15 @@ export interface OrderFinancials {
 export interface ReceptionChecklist {
   id?: Guid
   repairOrderId?: Guid
-  screenOk: boolean
-  camerasOk: boolean
-  speakersOk: boolean
-  microphoneOk: boolean
-  buttonsOk: boolean
-  faceIdOk: boolean
-  fingerprintOk: boolean
+  powersOn?: boolean | null
+  chargingOk?: boolean | null
+  screenOk?: boolean | null
+  camerasOk?: boolean | null
+  speakersOk?: boolean | null
+  microphoneOk?: boolean | null
+  buttonsOk?: boolean | null
+  faceIdOk?: boolean | null
+  fingerprintOk?: boolean | null
   cloudLock: CloudLockStatus
   batteryPercent?: number | null
   cosmeticNotes?: string | null

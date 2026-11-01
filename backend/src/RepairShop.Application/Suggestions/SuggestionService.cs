@@ -128,8 +128,8 @@ public sealed class SuggestionService
             {
                 var checklist = await _checklists.GetByOrderAsync(shopId, orderId, ct);
                 var result = await _ai.SuggestRepairAsync(new AiRepairRequest(device.Brand, device.Model, order.IssueDescription, order.IssueCategory, mainCurrency,
-                    checklist is null ? null : $"pantalla {(checklist.ScreenOk ? "ok" : "con falla")}, cámaras {(checklist.CamerasOk ? "ok" : "con falla")}, " +
-                                                $"audio {(checklist.SpeakersOk ? "ok" : "con falla")}, batería {checklist.BatteryPercent?.ToString() ?? "s/d"}%, notas: {checklist.CosmeticNotes}",
+                    checklist is null ? null : $"pantalla {ReceptionResult(checklist.ScreenOk)}, cámaras {ReceptionResult(checklist.CamerasOk)}, carga {ReceptionResult(checklist.ChargingOk)}, " +
+                                                $"audio {ReceptionResult(checklist.SpeakersOk)}, batería {checklist.BatteryPercent?.ToString() ?? "s/d"}%, notas: {checklist.CosmeticNotes}",
                     similar.Take(5).Select(s => new AiSimilarCase(s.Device, s.IssueDescription, s.Category, s.Items, s.Total, s.Currency)).ToList()), ct);
                 if (result is not null)
                     ai = new AiSuggestionResponse(result.DiagnosisHypotheses,
@@ -166,6 +166,8 @@ public sealed class SuggestionService
     }
 
     private static string NormalizeDescription(string d) => string.Join(' ', Tokens(d).OrderBy(x => x));
+
+    private static string ReceptionResult(bool? value) => value switch { true => "funciona", false => "falla", null => "sin revisar" };
 
     private static decimal Median(IReadOnlyList<decimal> values)
     {

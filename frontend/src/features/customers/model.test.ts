@@ -16,9 +16,9 @@ describe('isValidImei', () => {
 })
 
 describe('customer mapping', () => {
-  it('starts with notifications enabled and marketing disabled', () => {
+  it('requires explicit consent for notifications and keeps marketing disabled', () => {
     const c = emptyCustomer()
-    expect(c.notificationsOptIn).toBe(true)
+    expect(c.notificationsOptIn).toBe(false)
     expect(c.marketingOptIn).toBe(false)
   })
 

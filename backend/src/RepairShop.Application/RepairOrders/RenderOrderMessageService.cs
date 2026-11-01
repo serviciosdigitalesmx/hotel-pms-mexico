@@ -180,6 +180,8 @@ public sealed class RenderOrderMessageService
     private static void AddChecklist(Dictionary<string, string> dict, RepairOrderReceptionChecklist? checklist)
     {
         string YesNo(bool? v) => v is null ? "" : v.Value ? "SI" : "NO";
+        dict["check_powers_on"] = YesNo(checklist?.PowersOn);
+        dict["check_charging_ok"] = YesNo(checklist?.ChargingOk);
         dict["check_screen_ok"] = YesNo(checklist?.ScreenOk);
         dict["check_cameras_ok"] = YesNo(checklist?.CamerasOk);
         dict["check_speakers_ok"] = YesNo(checklist?.SpeakersOk);

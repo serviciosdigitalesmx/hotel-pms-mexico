@@ -33,7 +33,7 @@ public static class OrderMapping
             o.DeliverySignatureFileId is not null, o.DeliverySignedByName,
             links.Tracking(o.PublicToken),
             RepairOrder.AllowedTransitions(o.Status).Select(s => s.ToString()).ToList(),
-            info.PhotosCount);
+            info.PhotosCount, info.CustomerNotificationsOptIn);
     }
 
     public static OrderCardResponse ToCard(RepairOrder o, OrderReadInfo info, string defaultCurrency, int staleDays, DateTime nowUtc)

@@ -1922,10 +1922,10 @@ namespace RepairShop.Infrastructure.Persistence.Migrations
                     b.Property<int?>("BatteryPercent")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("ButtonsOk")
+                    b.Property<bool?>("ButtonsOk")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("CamerasOk")
+                    b.Property<bool?>("CamerasOk")
                         .HasColumnType("boolean");
 
                     b.Property<int>("CloudLock")
@@ -1935,25 +1935,31 @@ namespace RepairShop.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<bool>("FaceIdOk")
+                    b.Property<bool?>("FaceIdOk")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("FingerprintOk")
+                    b.Property<bool?>("FingerprintOk")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("MicrophoneOk")
+                    b.Property<bool?>("MicrophoneOk")
                         .HasColumnType("boolean");
 
                     b.Property<Guid>("RepairOrderId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("ScreenOk")
+                    b.Property<bool?>("ScreenOk")
                         .HasColumnType("boolean");
 
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("SpeakersOk")
+                    b.Property<bool?>("SpeakersOk")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("PowersOn")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("ChargingOk")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("UpdatedAtUtc")

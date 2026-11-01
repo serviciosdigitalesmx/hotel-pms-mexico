@@ -57,7 +57,8 @@ public sealed record RepairOrderResponse(
     string? DeliverySignedByName,
     string TrackingUrl,
     IReadOnlyList<string> AllowedNextStatuses,
-    int PhotosCount
+    int PhotosCount,
+    bool CustomerNotificationsOptIn
 );
 
 public sealed record RepairOrderCreateRequest(
@@ -190,13 +191,15 @@ public sealed record OrderFinancialsResponse(
     bool HasAgreedPrice);
 
 public sealed record UpdateRepairOrderChecklistRequest(
-    bool ScreenOk,
-    bool CamerasOk,
-    bool SpeakersOk,
-    bool MicrophoneOk,
-    bool ButtonsOk,
-    bool FaceIdOk,
-    bool FingerprintOk,
+    bool? PowersOn,
+    bool? ChargingOk,
+    bool? ScreenOk,
+    bool? CamerasOk,
+    bool? SpeakersOk,
+    bool? MicrophoneOk,
+    bool? ButtonsOk,
+    bool? FaceIdOk,
+    bool? FingerprintOk,
     CloudLockStatus CloudLock,
     int? BatteryPercent,
     string? CosmeticNotes
@@ -205,13 +208,15 @@ public sealed record UpdateRepairOrderChecklistRequest(
 public sealed record RepairOrderChecklistResponse(
     Guid Id,
     Guid RepairOrderId,
-    bool ScreenOk,
-    bool CamerasOk,
-    bool SpeakersOk,
-    bool MicrophoneOk,
-    bool ButtonsOk,
-    bool FaceIdOk,
-    bool FingerprintOk,
+    bool? PowersOn,
+    bool? ChargingOk,
+    bool? ScreenOk,
+    bool? CamerasOk,
+    bool? SpeakersOk,
+    bool? MicrophoneOk,
+    bool? ButtonsOk,
+    bool? FaceIdOk,
+    bool? FingerprintOk,
     CloudLockStatus CloudLock,
     int? BatteryPercent,
     string? CosmeticNotes,

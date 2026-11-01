@@ -366,6 +366,8 @@ export function ChecklistsPanel({ order }: { order: RepairOrder }) {
             <ul className="grid grid-cols-2 gap-1">
               {(
                 [
+                  ['powersOn', 'Enciende'],
+                  ['chargingOk', 'Carga'],
                   ['screenOk', 'Pantalla'],
                   ['camerasOk', 'Cámaras'],
                   ['speakersOk', 'Parlantes'],
@@ -375,8 +377,8 @@ export function ChecklistsPanel({ order }: { order: RepairOrder }) {
                   ['fingerprintOk', 'Huella'],
                 ] as const
               ).map(([k, label]) => (
-                <li key={k} className={reception.data![k] ? 'text-slate-700' : 'font-medium text-rose-700'}>
-                  {reception.data![k] ? '✓' : '✗'} {label}
+                <li key={k} className={reception.data![k] === null || reception.data![k] === undefined ? 'text-slate-500' : reception.data![k] ? 'text-emerald-700' : 'font-medium text-rose-700'}>
+                  {reception.data![k] === null || reception.data![k] === undefined ? '— Sin revisar' : reception.data![k] ? '✓ Funciona' : '✗ Falla'} · {label}
                 </li>
               ))}
             </ul>

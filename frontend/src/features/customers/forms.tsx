@@ -122,7 +122,7 @@ export function CustomerForm({ initial, customerId, submitLabel = 'Guardar', onS
       ) : null}
 
       <div className="space-y-2">
-        <Checkbox label="Acepta recibir avisos del estado de su equipo" checked={v.notificationsOptIn ?? true} onChange={(e) => set('notificationsOptIn', e.target.checked)} />
+        <Checkbox label="Acepta recibir avisos del estado de su equipo" checked={v.notificationsOptIn ?? false} onChange={(e) => set('notificationsOptIn', e.target.checked)} />
         <Checkbox label="Acepta recibir promociones" checked={v.marketingOptIn ?? false} onChange={(e) => set('marketingOptIn', e.target.checked)} />
       </div>
 

@@ -10,6 +10,7 @@ import { Alert, Badge, Button, Card, Checkbox, EmptyState, Field, Input, Loading
 import { dateTime, money, parseAmount } from '../../../lib/format'
 import { openPdf } from '../../../lib/files'
 import { QUOTE_ITEM_KIND, QUOTE_STATUS_TONE } from '../../../lib/labels'
+import { CURRENCIES } from '../../../lib/shop'
 import { ItemPicker } from '../../inventory/ItemPicker'
 
 export function QuotesPanel({ order }: { order: RepairOrder }) {
@@ -272,8 +273,9 @@ function QuoteEditor({ order, quote, initial, onClose, onSaved }: { order: Repai
         <div className="grid gap-3 sm:grid-cols-4">
           <Field label="Moneda">
             <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
+              {CURRENCIES.map((supportedCurrency) => (
+                <option key={supportedCurrency} value={supportedCurrency}>{supportedCurrency}</option>
+              ))}
             </Select>
           </Field>
           <Field label="Descuento">

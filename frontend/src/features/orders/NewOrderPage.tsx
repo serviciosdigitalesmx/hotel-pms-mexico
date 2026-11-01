@@ -17,6 +17,7 @@ import { emptyCustomer, emptyDevice } from '../customers/model'
 type Step = 'customer' | 'device' | 'issue' | 'done'
 
 const CHECKS: { key: keyof ReceptionChecklist; label: string }[] = [
+  { key: 'chargingOk', label: 'Carga' },
   { key: 'screenOk', label: 'Pantalla / táctil' },
   { key: 'camerasOk', label: 'Cámaras' },
   { key: 'speakersOk', label: 'Parlantes' },
@@ -52,14 +53,14 @@ export function NewOrderPage() {
   const [priority, setPriority] = useState<Priority>('Normal')
   const [promised, setPromised] = useState(defaultPromise())
   const [technicianId, setTechnicianId] = useState('')
-  const [checks, setChecks] = useState<Record<string, boolean>>({ screenOk: true, camerasOk: true, speakersOk: true, microphoneOk: true, buttonsOk: true, faceIdOk: true, fingerprintOk: true })
+  const [checks, setChecks] = useState<Record<string, boolean | null>>({})
   const [cloudLock, setCloudLock] = useState<CloudLockStatus>('Unknown')
   const [battery, setBattery] = useState('')
   const [cosmetic, setCosmetic] = useState('')
-  const [powersOn, setPowersOn] = useState(true)
+  const [powersOn, setPowersOn] = useState<boolean | null>(null)
   const [unlockMethod, setUnlockMethod] = useState<UnlockMethod>('None')
   const [unlockValue, setUnlockValue] = useState('')
-  const [notify, setNotify] = useState(true)
+  const [notify, setNotify] = useState(false)
   const [signature, setSignature] = useState<string | null>(null)
   const [signer, setSigner] = useState('')
   const [saving, setSaving] = useState(false)
@@ -101,7 +102,7 @@ export function NewOrderPage() {
           priority,
           assignedTechnicianId: technicianId || null,
           promisedAtUtc: fromLocalInput(promised),
-          sendReceivedMessage: notify,
+          sendReceivedMessage: notify && customer.notificationsOptIn,
         },
         idempotencyKey
       )
@@ -111,9 +112,11 @@ export function NewOrderPage() {
       try {
         await ordersApi.saveReception(created.id, {
           ...(checks as unknown as ReceptionChecklist),
+          powersOn,
+          chargingOk: checks.chargingOk ?? null,
           cloudLock,
           batteryPercent: battery ? Number(battery) : null,
-          cosmeticNotes: [powersOn ? null : 'No enciende al ingresar.', cosmetic.trim() || null].filter(Boolean).join(' ') || null,
+          cosmeticNotes: cosmetic.trim() || null,
         })
       } catch (err) {
         problems.push(`checklist: ${errorMessage(err)}`)
@@ -155,7 +158,7 @@ export function NewOrderPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Nueva orden de reparación" subtitle="Recepción del equipo con checklist, código de desbloqueo y firma del cliente." />
+      <PageHeader title="Nueva orden de reparación" subtitle="Registra el estado del equipo al recibirlo. La firma de recepción es opcional." />
       <ol className="mb-5 flex gap-2 text-sm" aria-label="Pasos">
         {steps.map((s) => (
           <li key={s.id} className={cn('flex-1 rounded-lg border px-3 py-2 text-center', s.id === step ? 'border-brand-500 bg-brand-50 font-medium text-brand-800' : 'border-slate-200 bg-white text-slate-500')} aria-current={s.id === step ? 'step' : undefined}>
@@ -173,13 +176,16 @@ export function NewOrderPage() {
               submitLabel="Crear cliente y seguir"
               onCancel={() => setCreatingCustomer(false)}
               onUseExisting={async (id) => {
-                setCustomer(await customersApi.get(id))
+                const selected = await customersApi.get(id)
+                setCustomer(selected)
+                setNotify(false)
                 setCreatingCustomer(false)
                 setStep('device')
               }}
               onSubmit={async (input) => {
                 const c = await customersApi.create(input)
                 setCustomer(c)
+                setNotify(false)
                 setCreatingCustomer(false)
                 setStep('device')
               }}
@@ -190,6 +196,7 @@ export function NewOrderPage() {
                 autoFocus
                 onSelect={(c) => {
                   setCustomer(c)
+                  setNotify(false)
                   setStep('device')
                 }}
               />
@@ -310,12 +317,13 @@ export function NewOrderPage() {
 
           <Card title="Estado en que ingresa (checklist de recepción)">
             <div className="space-y-4">
-              <Checkbox label="Enciende al ingresar" checked={powersOn} onChange={(e) => setPowersOn(e.target.checked)} />
+              <TriStateCheck label="Enciende al ingresar" value={powersOn} onChange={setPowersOn} />
               <fieldset>
-                <legend className="mb-2 text-sm font-medium text-slate-700">Funciona correctamente (desmarca lo que falla)</legend>
+                <legend className="mb-2 text-sm font-medium text-slate-700">Revisión de funciones</legend>
+                <p className="mb-2 text-xs text-slate-500">Marca “Funciona” o “Falla” después de revisar. Lo que dejes sin marcar queda como no revisado.</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {CHECKS.map((c) => (
-                    <Checkbox key={c.key} label={c.label} checked={!!checks[c.key]} onChange={(e) => setChecks((prev) => ({ ...prev, [c.key]: e.target.checked }))} />
+                    <TriStateCheck key={c.key} label={c.label} value={checks[c.key] ?? null} onChange={(value) => setChecks((prev) => ({ ...prev, [c.key]: value }))} />
                   ))}
                 </div>
               </fieldset>
@@ -362,11 +370,11 @@ export function NewOrderPage() {
                 <Input value={signer} onChange={(e) => setSigner(e.target.value)} placeholder={customer.fullName} />
               </Field>
               <SignaturePad onChange={setSignature} />
-              <p className="text-xs text-slate-500">La firma se imprime en el comprobante junto con los términos de recepción configurados.</p>
+              <p className="text-xs text-slate-500">Opcional. Si el cliente firma, se imprime en el comprobante junto con los términos de recepción configurados.</p>
             </div>
           </Card>
 
-          <Checkbox label="Avisarle al cliente que recibimos el equipo (con el enlace de seguimiento)" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+          <Checkbox label="Avisarle al cliente que recibimos el equipo (con el enlace de seguimiento)" description={customer.notificationsOptIn ? 'Solo se enviará si el cliente aceptó recibir avisos.' : 'El cliente no aceptó recibir avisos; no se enviará ningún mensaje.'} checked={notify && customer.notificationsOptIn} disabled={!customer.notificationsOptIn} onChange={(e) => setNotify(e.target.checked)} />
           {error ? <Alert tone="rose">{error}</Alert> : null}
           <div className="flex justify-end gap-2">
             <Button onClick={() => navigate(-1)}>Cancelar</Button>
@@ -410,6 +418,21 @@ export function NewOrderPage() {
           </div>
         </Card>
       ) : null}
+    </div>
+  )
+}
+
+function TriStateCheck({ label, value, onChange }: { label: string; value: boolean | null; onChange: (value: boolean | null) => void }) {
+  return (
+    <div className="rounded-lg border border-slate-200 p-2">
+      <p className="mb-2 text-sm font-medium text-slate-700">{label}</p>
+      <div className="flex gap-1">
+        {([[true, 'Funciona'], [false, 'Falla'], [null, 'No revisado']] as const).map(([next, text]) => (
+          <button key={text} type="button" aria-pressed={value === next} onClick={() => onChange(next)} className={cn('rounded-md border px-2 py-1 text-xs', value === next ? next === true ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : next === false ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-slate-400 bg-slate-100 text-slate-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>
+            {text}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

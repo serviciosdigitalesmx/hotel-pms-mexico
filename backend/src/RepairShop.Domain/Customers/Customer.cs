@@ -29,7 +29,7 @@ public sealed class Customer : IShopScoped
     public string? Tags { get; private set; }
 
     // Consent: transactional messages (status updates) and marketing.
-    public bool NotificationsOptIn { get; private set; } = true;
+    public bool NotificationsOptIn { get; private set; }
     public bool MarketingOptIn { get; private set; }
 
     public DateTime CreatedAtUtc { get; private set; }

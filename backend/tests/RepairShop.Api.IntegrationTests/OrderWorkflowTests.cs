@@ -17,6 +17,7 @@ public sealed class OrderWorkflowTests
         var api = await ApiClient.LoginAsync(_factory);
         var order = await api.CreateOrderAsync();
         var id = order.Str("id");
+        order.GetProperty("customerNotificationsOptIn").GetBoolean().Should().BeFalse("new customers do not consent to messages by default");
         order.Str("code").Should().MatchRegex(@"^#\d{6}$");
 
         await (await api.Post($"/orders/{id}/status", new { status = "Diagnosing" })).DataAsync();
@@ -90,6 +91,39 @@ public sealed class OrderWorkflowTests
         var board = await (await api.Get("/orders/board")).DataAsync();
         var received = board.GetProperty("columns").EnumerateArray().Single(c => c.Str("status") == "Received");
         received.GetProperty("items").EnumerateArray().Should().Contain(o => o.Str("id") == order.Str("id"));
+    }
+
+    [IntegrationFact]
+    public async Task Reception_checklist_preserves_unreviewed_and_charging_states()
+    {
+        var api = await ApiClient.LoginAsync(_factory);
+        var order = await api.CreateOrderAsync();
+        var id = order.Str("id");
+
+        var saved = await (await api.Put($"/orders/{id}/checklist", new
+        {
+            powersOn = (bool?)null,
+            chargingOk = false,
+            screenOk = true,
+            camerasOk = (bool?)null,
+            speakersOk = (bool?)null,
+            microphoneOk = (bool?)null,
+            buttonsOk = (bool?)null,
+            faceIdOk = (bool?)null,
+            fingerprintOk = (bool?)null,
+            cloudLock = "Unknown",
+            batteryPercent = (int?)null,
+            cosmeticNotes = "Mancha visible"
+        })).DataAsync();
+
+        saved.GetProperty("powersOn").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+        saved.GetProperty("chargingOk").GetBoolean().Should().BeFalse();
+        saved.GetProperty("screenOk").GetBoolean().Should().BeTrue();
+        saved.GetProperty("camerasOk").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+
+        var reloaded = await (await api.Get($"/orders/{id}/checklist")).DataAsync();
+        reloaded.GetProperty("powersOn").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+        reloaded.GetProperty("chargingOk").GetBoolean().Should().BeFalse();
     }
 
     [IntegrationFact]
