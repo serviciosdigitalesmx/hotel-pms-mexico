@@ -94,9 +94,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="gap-2 px-1.5 py-2">
-        {visibleGroups.map(group => (
-          <NavMain key={group.label} label={group.label} items={group.items} />
-        ))}
+        {!capabilities && <p role="status" className="px-3 py-4 text-xs text-muted-foreground">Preparando tu menú…</p>}
+        <nav aria-label="Navegación del taller">
+          {visibleGroups.map(group => (
+            <NavMain key={group.label} label={group.label} items={group.items} />
+          ))}
+        </nav>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border/50 pt-2">
         <NavUser user={{ name: user?.username ?? 'Usuario Fixi', email: 'Sesión activa', avatar: '' }} />

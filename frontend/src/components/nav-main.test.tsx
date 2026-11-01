@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { SidebarProvider } from './ui/sidebar'
+import { Sidebar, SidebarProvider } from './ui/sidebar'
 import { NavMain } from './nav-main'
 
 const items = [
@@ -31,4 +31,13 @@ describe('compact module navigation', () => {
     expect(screen.getByRole('link', { name: 'Directorio' })).toHaveAttribute('data-active', 'false')
     expect(screen.queryByRole('link', { name: 'Todas las órdenes' })).not.toBeInTheDocument()
   })
+  it('expands the icon rail when opening a module with children', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<MemoryRouter initialEntries={['/dashboard']}><SidebarProvider defaultOpen={false}><Sidebar collapsible="icon"><NavMain label="Taller" items={items}/></Sidebar></SidebarProvider></MemoryRouter>)
+    expect(container.querySelector('[data-slot="sidebar"][data-state="collapsed"]')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Órdenes' }))
+    expect(container.querySelector('[data-slot="sidebar"][data-state="expanded"]')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Todas las órdenes' })).toBeVisible()
+  })
+
 })

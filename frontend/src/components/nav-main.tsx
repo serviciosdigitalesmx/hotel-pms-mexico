@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ChevronRight, type LucideIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar'
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, useSidebar } from '@/components/ui/sidebar'
 
 type Item = { title: string; url: string; icon?: LucideIcon; isActive?: boolean; items?: { title: string; url: string; isActive?: boolean }[] }
 const matchesRoute = (path: string, url: string) => {
@@ -15,6 +15,7 @@ const matchesRoute = (path: string, url: string) => {
 
 export function NavMain({ label, items }: { label: string; items: Item[] }) {
   const { pathname } = useLocation()
+  const { state, setOpen } = useSidebar()
   const activeParent = items.find(item => item.items?.some(child => matchesRoute(pathname, child.url)))?.title ?? null
   const [selection, setSelection] = useState<{ path: string; title: string | null }>({ path: pathname, title: activeParent })
   const expanded = selection.path === pathname ? selection.title : activeParent
@@ -32,7 +33,7 @@ export function NavMain({ label, items }: { label: string; items: Item[] }) {
         return <Collapsible key={item.title} asChild open={expanded === item.title} onOpenChange={open => setSelection({ path: pathname, title: open ? item.title : null })}>
           <SidebarMenuItem>
             <CollapsibleTrigger asChild>
-              <SidebarMenuButton tooltip={item.title} isActive={active} className="fixi-nav-item">
+              <SidebarMenuButton tooltip={item.title} isActive={active} className="fixi-nav-item" onClick={() => { if (state === 'collapsed') setOpen(true) }}>
                 {item.icon && <item.icon aria-hidden="true" />}<span>{item.title}</span>
                 <ChevronRight aria-hidden="true" className={`ml-auto size-4 transition-transform ${expanded === item.title ? 'rotate-90' : ''}`} />
               </SidebarMenuButton>
