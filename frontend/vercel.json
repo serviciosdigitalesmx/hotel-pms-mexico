@@ -4,7 +4,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://api-fixi.serviciosdigitalesmx.online/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://api-fixi.serviciosdigitalesmx.online/fixi4/api/:path*" },
     { "source": "/((?!api/|assets/|icon\\.svg|icon-maskable\\.svg|manifest\\.webmanifest|sw\\.js).*)", "destination": "/index.html" }
   ],
   "headers": [
