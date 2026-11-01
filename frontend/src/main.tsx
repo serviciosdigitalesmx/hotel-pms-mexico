@@ -8,6 +8,14 @@ import App from './App'
 import { SessionProvider } from './auth/session'
 import './styles.css'
 
+try {
+  const savedTheme = localStorage.getItem('fixi-theme')
+  const initialTheme = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  document.documentElement.dataset.theme = initialTheme
+} catch {
+  document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

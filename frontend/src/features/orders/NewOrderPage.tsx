@@ -270,7 +270,7 @@ export function NewOrderPage() {
             }
           >
             <div className="space-y-4">
-              <Field label="Falla que reporta el cliente" required hint="Describila con sus palabras: qué pasa, desde cuándo, si tuvo golpes o humedad.">
+              <Field label="Falla que reporta el cliente" required hint="Descríbela con sus palabras: qué pasa, desde cuándo y si tuvo golpes o humedad.">
                 <Textarea rows={3} value={issue} onChange={(e) => setIssue(e.target.value)} autoFocus maxLength={500} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-3">

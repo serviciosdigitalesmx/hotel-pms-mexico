@@ -23,7 +23,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg border font-medium shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50',
+        'fixi-button inline-flex items-center justify-center gap-2 rounded-md border font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' && 'h-8 px-2.5 text-xs',
         size === 'md' && 'h-10 px-3.5 text-sm',
         size === 'lg' && 'h-12 px-5 text-base',
@@ -114,7 +114,7 @@ export function Field({ label, error, hint, required, className, children, contr
 // ===== Layout bits =====
 export function Card({ className, children, title, actions, padded = true }: { className?: string; children?: React.ReactNode; title?: React.ReactNode; actions?: React.ReactNode; padded?: boolean }) {
   return (
-    <section className={cn('rounded-xl border border-slate-200 bg-white shadow-sm', className)}>
+    <section className={cn('fixi-card rounded-lg border border-slate-200 bg-white shadow-sm', className)}>
       {title || actions ? (
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
           {title ? <h2 className="text-sm font-semibold text-slate-800">{title}</h2> : <span />}
@@ -128,7 +128,7 @@ export function Card({ className, children, title, actions, padded = true }: { c
 
 export function PageHeader({ title, subtitle, actions }: { title: React.ReactNode; subtitle?: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <div className="fixi-page-header mb-5 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <h1 className="truncate text-xl font-semibold text-slate-900">{title}</h1>
         {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
@@ -139,7 +139,7 @@ export function PageHeader({ title, subtitle, actions }: { title: React.ReactNod
 }
 
 export function Badge({ tone = 'slate', className, children }: { tone?: Tone; className?: string; children: React.ReactNode }) {
-  return <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset', TONE_CLASSES[tone], className)}>{children}</span>
+  return <span className={cn('fixi-badge inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset', TONE_CLASSES[tone], className)}>{children}</span>
 }
 
 export function Spinner({ className }: { className?: string }) {
@@ -198,7 +198,7 @@ export function Stat({ label, value, hint, tone, onClick }: { label: string; val
     <Comp
       onClick={onClick}
       className={cn(
-        'w-full rounded-xl border bg-white p-4 text-left shadow-sm',
+        'fixi-stat w-full rounded-lg border bg-white p-4 text-left shadow-sm',
         onClick && 'transition hover:border-brand-300 hover:shadow',
         tone === 'warn' && 'border-amber-200',
         tone === 'bad' && 'border-rose-200',
@@ -227,7 +227,7 @@ export function Stat({ label, value, hint, tone, onClick }: { label: string; val
 export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn('overflow-x-auto', className)}>
-      <table className="min-w-full divide-y divide-slate-200 text-sm">{children}</table>
+      <table className="fixi-table min-w-full divide-y divide-slate-200 text-sm">{children}</table>
     </div>
   )
 }

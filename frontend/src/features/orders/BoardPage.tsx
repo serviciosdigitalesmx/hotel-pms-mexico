@@ -100,7 +100,7 @@ export function BoardPage() {
         <ErrorState error={errorMessage(board.error)} onRetry={() => board.refetch()} />
       ) : (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="fixi-board flex gap-3 overflow-x-auto pb-4">
             {board.data!.columns.map((col) => (
               <Column key={col.status} status={col.status} label={col.label} count={col.count}>
                 {col.items.map((card) => (
@@ -119,7 +119,7 @@ function Column({ status, label, count, children }: { status: OrderStatus; label
   const { setNodeRef, isOver } = useDroppable({ id: status })
   const tone = ORDER_STATUS[status]?.tone ?? 'slate'
   return (
-    <section ref={setNodeRef} aria-label={label} className={cn('flex w-72 shrink-0 flex-col rounded-xl border bg-slate-100/70 transition', isOver ? 'border-brand-400 bg-brand-50' : 'border-slate-200')}>
+    <section ref={setNodeRef} aria-label={label} className={cn('fixi-board-column flex w-72 shrink-0 flex-col rounded-lg border bg-slate-100/70 transition', isOver ? 'border-brand-400 bg-brand-50' : 'border-slate-200')}>
       <header className="flex items-center justify-between px-3 py-2">
         <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset', TONE_CLASSES[tone])}>{label}</span>
         <span className="text-xs font-medium text-slate-500">{count}</span>
@@ -139,7 +139,7 @@ function Card({ card }: { card: OrderCard }) {
       {...listeners}
       {...attributes}
       className={cn(
-        'cursor-grab rounded-lg border bg-white p-3 text-sm shadow-sm active:cursor-grabbing',
+        'fixi-board-card cursor-grab rounded-lg border bg-white p-3 text-sm shadow-sm active:cursor-grabbing',
         isDragging && 'z-10 opacity-80 shadow-lg',
         card.isOverdue ? 'border-rose-300' : card.isStale ? 'border-amber-300' : 'border-slate-200'
       )}

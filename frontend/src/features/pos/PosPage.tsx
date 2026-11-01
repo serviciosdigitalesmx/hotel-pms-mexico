@@ -165,10 +165,10 @@ export function PosPage() {
   const cashClosed = cash.isSuccess && !cash.data
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="fixi-pos-layout grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold text-slate-900">Punto de venta</h1>
+          <h1 className="fixi-pos-title text-xl font-semibold text-slate-900">Punto de venta</h1>
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">
             <kbd className="rounded border bg-white px-1.5">F2</kbd> buscar <kbd className="rounded border bg-white px-1.5">F4</kbd> cobrar <kbd className="rounded border bg-white px-1.5">F8</kbd> en espera
           </div>
@@ -185,7 +185,7 @@ export function PosPage() {
             <SearchInput inputRef={searchRef} value={q} onChange={setQ} onEnter={() => void onEnter()} placeholder="Escanea o busca por nombre, SKU o código de barras…" className="flex-1" autoFocus />
             {cameraScanSupported() ? (
               <Button onClick={() => setScanning(true)} aria-label="Escanear con la cámara">
-                📷
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3"/></svg>
               </Button>
             ) : null}
             <Button onClick={() => setFreeItem(true)}>+ Producto libre</Button>
@@ -210,7 +210,7 @@ export function PosPage() {
               key={i.id}
               type="button"
               onClick={() => addItem(i)}
-              className="flex flex-col rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-400 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="fixi-pos-product flex flex-col rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-400 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               <span className="line-clamp-2 text-sm font-medium text-slate-800">{i.name}</span>
               <span className="mt-0.5 text-xs text-slate-400">{i.sku}</span>
@@ -251,7 +251,7 @@ export function PosPage() {
         ) : null}
       </div>
 
-      <aside className="lg:sticky lg:top-20 lg:self-start">
+      <aside className="fixi-pos-cart lg:sticky lg:top-20 lg:self-start">
         <Card padded={false} className="flex flex-col">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div className="min-w-0 text-sm">
