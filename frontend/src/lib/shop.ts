@@ -10,4 +10,4 @@ export function useDefaultCurrency(): string {
   return useShopSettings().data?.defaultCurrency ?? 'ARS'
 }
 
-export const CURRENCIES = ['ARS', 'USD']
+export const CURRENCIES = ['MXN', 'USD', 'ARS']

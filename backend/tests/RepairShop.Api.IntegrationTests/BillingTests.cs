@@ -32,7 +32,9 @@ public sealed class BillingTests
         sub.GetProperty("plans")[0].Str("currency").Should().Be("USD");
 
         var settings = await (await owner.Get("/settings")).DataAsync();
-        settings.ToString().Should().Contain("USD").And.Contain("America/Mexico_City");
+        settings.GetProperty("defaultCurrency").GetString().Should().Be("MXN");
+        settings.GetProperty("reportingCurrency").GetString().Should().Be("MXN");
+        settings.GetProperty("timeZone").GetString().Should().Be("America/Mexico_City");
 
         // The owner works right away (templates were provisioned too).
         await owner.CreateOrderAsync("Pantalla rota");

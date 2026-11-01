@@ -171,3 +171,24 @@ jobs:
             frontend/playwright-report
             frontend/test-results
             ${{ runner.temp }}/api.log
+
+  publish:
+    name: Publish immutable Fixi 4V image
+    needs: [backend, frontend, docker, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/fixi-repairshop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build immutable image
+        run: |
+          docker build --label org.opencontainers.image.revision="$GITHUB_SHA" --label org.opencontainers.image.title="Fixi 4V" -t "ghcr.io/serviciosdigitalesmx/fixi-monolith:4v-$GITHUB_SHA" backend
+      - name: Publish image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "ghcr.io/serviciosdigitalesmx/fixi-monolith:4v-$GITHUB_SHA"
+          docker logout ghcr.io

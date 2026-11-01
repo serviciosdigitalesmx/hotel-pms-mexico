@@ -38,6 +38,7 @@ const TIME_ZONES = [
   'America/Lima',
   'America/Bogota',
   'America/Mexico_City',
+  'America/Monterrey',
   'Europe/Madrid',
   'UTC',
 ]

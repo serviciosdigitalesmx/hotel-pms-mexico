@@ -1,0 +1,78 @@
+name: fixi4
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fixi4
+      POSTGRES_USER: fixi4
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Required}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U fixi4 -d fixi4]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+  api:
+    image: ${FIXI4_IMAGE:?Immutable image digest required}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__RepairShopDb: Host=db;Port=5432;Database=fixi4;Username=fixi4;Password=${DB_PASSWORD}
+      Jwt__Key: ${JWT_KEY:?Required}
+      DataProtection__MasterKey: ${MASTER_KEY:?Required}
+      App__FrontendBaseUrl: https://fixi-monolith-web.vercel.app
+      App__PublicApiUrl: https://api-fixi.serviciosdigitalesmx.online
+      AllowedHosts: api-fixi.serviciosdigitalesmx.online;localhost;fixi4-api
+      Cors__AllowedOrigins__0: https://fixi-monolith-web.vercel.app
+      Cors__AllowedOrigins__1: https://api-fixi.serviciosdigitalesmx.online
+      Auth__RefreshCookie__Secure: "true"
+      Auth__RefreshCookie__SameSite: Strict
+      HttpsRedirection__Enabled: "false"
+      Swagger__Enabled: "false"
+      Seed__Enabled: "false"
+      Database__Init: Migrate
+      Database__ConnectRetries: "30"
+      Storage__Provider: Local
+      Storage__Local__RootPath: /app/data/uploads
+      Notifications__Email__Provider: Smtp
+      Notifications__Smtp__Host: ${SMTP_HOST:?Required}
+      Notifications__Smtp__Port: ${SMTP_PORT:-587}
+      Notifications__Smtp__Username: ${SMTP_USERNAME:?Required}
+      Notifications__Smtp__Password: ${SMTP_PASSWORD:?Required}
+      Notifications__Smtp__FromAddress: ${SMTP_FROM:?Required}
+      Notifications__Smtp__FromName: Fixi
+      Notifications__Smtp__Security: StartTls
+      Notifications__WhatsApp__Provider: None
+      Ai__Provider: None
+      Billing__SignupEnabled: "true"
+      Billing__AllowSimulated: "false"
+    volumes:
+      - uploads:/app/data/uploads
+    networks:
+      data:
+      edge:
+        aliases: [fixi4-api]
+    healthcheck:
+      test: [CMD-SHELL, curl -fsS http://localhost:8080/readyz]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    mem_limit: 1g
+networks:
+  data:
+    internal: true
+  edge:
+    external: true
+    name: fixi_edge
+volumes:
+  db_data:
+  uploads:

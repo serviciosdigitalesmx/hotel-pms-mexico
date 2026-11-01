@@ -138,7 +138,7 @@ public sealed class SignupService
         {
             var known = Countries.TryGetValue(country, out var c);
             var zone = IsValidTimeZone(browserTimeZone) ? browserTimeZone!.Trim() : known ? c.Zone : "UTC";
-            return new Regional(SubscriptionService.CurrencyFor(country), known ? c.Phone : "1", zone);
+            return new Regional(country == "MX" ? "MXN" : SubscriptionService.CurrencyFor(country), known ? c.Phone : "1", zone);
         }
 
         private static bool IsValidTimeZone(string? id)
