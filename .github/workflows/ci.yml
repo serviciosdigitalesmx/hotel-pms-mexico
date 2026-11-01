@@ -93,6 +93,18 @@ jobs:
           JWT_KEY: ci-signing-key-0123456789abcdef0123456789
           MASTER_KEY: ci
         run: docker compose -f compose.yml config --quiet
+      - name: Validate Fixi 4V VPS compose manifest
+        env:
+          DB_PASSWORD: ci-only-placeholder
+          FIXI4_IMAGE: ghcr.io/serviciosdigitalesmx/fixi-monolith@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          JWT_KEY: ci-only-signing-key-placeholder
+          MASTER_KEY: ci-only-encryption-key-placeholder
+          SMTP_HOST: smtp.example.invalid
+          SMTP_PORT: "587"
+          SMTP_USERNAME: ci@example.invalid
+          SMTP_PASSWORD: ci-only-placeholder
+          SMTP_FROM: ci@example.invalid
+        run: docker compose -f deploy/compose.vps.yml config --quiet
       - name: Validate the Caddyfile
         run: docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
