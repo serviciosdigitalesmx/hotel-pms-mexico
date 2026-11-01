@@ -115,7 +115,7 @@ export function CustomerDetailAccessPage() {
           <Input aria-label="Uso CFDI" maxLength={4} value={draft.cfdiUse} onChange={event => setDraft({ ...draft, cfdiUse: event.target.value.toUpperCase() })}/>
           <div className="flex gap-2"><Button disabled={saving}>{saving ? 'Guardando…' : 'Guardar cambios'}</Button><Button type="button" variant="outline" disabled={saving} onClick={() => setEditing(false)}>Cancelar</Button></div>
         </form> : <div className="space-y-1 text-sm"><p>{customer.phone || 'Sin teléfono'} · {customer.email || 'Sin correo'}</p><p>{customer.identityNumber ? `Identificación ${customer.identityNumber}` : 'Sin identificación'} · {customer.address || 'Sin dirección'}</p><p>{customer.fiscalName || 'Sin razón social'}{customer.rfc ? ` · RFC ${customer.rfc}` : ''}</p>{customer.fiscalPostalCode && <p>CP fiscal {customer.fiscalPostalCode} · Régimen {customer.fiscalRegime || '—'} · CFDI {customer.cfdiUse || '—'}</p>}</div>}
-        {message && <p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}{errors.save && <p role="alert" className="mt-3 text-sm text-destructive">{errors.save}</p>}{errors.permissions && <p role="alert" className="mt-3 text-xs text-muted-foreground">No se habilitó la edición porque no se pudieron consultar permisos.</p>}
+        {message && <p role="status" className="mt-3 text-sm text-success">{message}</p>}{errors.save && <p role="alert" className="mt-3 text-sm text-destructive">{errors.save}</p>}{errors.permissions && <p role="alert" className="mt-3 text-xs text-muted-foreground">No se habilitó la edición porque no se pudieron consultar permisos.</p>}
       </CardContent></Card>}
 
       <div className="grid gap-4 lg:grid-cols-2">

@@ -18,37 +18,41 @@ interface BaseLayoutProps {
 export function BaseLayout({ children, title, description }: BaseLayoutProps) {
   return (
     <SidebarProvider
+      className="fixi-workspace"
       style={
         {
-          "--sidebar-width": "16rem",
-          "--sidebar-width-icon": "3rem", 
-          "--header-height": "calc(var(--spacing) * 14)",
+          "--sidebar-width": "16.5rem",
+          "--sidebar-width-icon": "3.25rem",
+          "--header-height": "4rem",
         } as React.CSSProperties
       }
-      className=""
     >
       <AppSidebar variant="inset" collapsible="icon" side="left" />
       <SessionIdleLock />
-          <SidebarInset>
-            <SiteHeader />
-            <div className="flex flex-1 flex-col">
-              <div className="@container/main flex flex-1 flex-col gap-2">
-                <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                  {title && (
-                    <div className="px-4 lg:px-6">
-                      <div className="flex flex-col gap-2">
-                        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-                        {description && (
-                          <p className="text-muted-foreground">{description}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {children}
+      <SidebarInset className="border-border/60 bg-background/50">
+        <SiteHeader />
+        <div className="fixi-main flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+              {title && (
+                <div className="px-4 lg:px-6">
+                  <div className="fixi-page-heading flex flex-col gap-2 pb-2">
+                    <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                      {title}
+                    </h1>
+                    {description && (
+                      <p className="text-sm text-muted-foreground font-normal">
+                        {description}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+              {children}
             </div>
-          </SidebarInset>
+          </div>
+        </div>
+      </SidebarInset>
     </SidebarProvider>
   )
 }

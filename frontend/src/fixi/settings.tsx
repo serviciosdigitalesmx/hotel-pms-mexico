@@ -185,7 +185,7 @@ export function BusinessSettings() {
           <Button disabled={saving}>{saving ? 'Guardando…' : 'Actualizar contraseña'}</Button>
         </form><div className="mt-5 space-y-3 border-t pt-4"><Label htmlFor="idle-timeout">Bloqueo por inactividad</Label><select id="idle-timeout" aria-label="Duración de la sesión" className="h-10 w-full rounded-md border bg-background px-3 text-sm" disabled={loading || saving} value={idleTimeoutMinutes} onChange={event => setIdleTimeoutMinutes(Number(event.target.value) as 0 | 15 | 60)}><option value={0}>Nunca bloquear (recomendado)</option><option value={15}>Después de 15 minutos</option><option value={60}>Después de 1 hora</option></select><Button type="button" variant="outline" disabled={loading || saving} onClick={() => void saveSessionSecurity()}>{saving ? 'Guardando…' : 'Guardar seguridad de sesión'}</Button><p className="text-xs text-muted-foreground">Al bloquear, la pantalla requerirá volver a autenticar tu cuenta para continuar.</p></div></CardContent>
       </Card>
-      {message && <p role="status" className="text-emerald-600">{message}</p>}
+      {message && <p role="status" className="text-success">{message}</p>}
       {error && <p role="alert" className="text-destructive">{error}</p>}
     </div>
   </BaseLayout>

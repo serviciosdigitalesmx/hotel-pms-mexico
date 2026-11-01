@@ -78,7 +78,7 @@ export function OrderPreferencesPage() {
           <label className="flex items-center justify-between gap-4 text-sm">Incluir espacios para firmas<input type="checkbox" checked={printing.includeSignatures} onChange={event => setPrinting(value => ({ ...value, includeSignatures: event.target.checked }))}/></label>
           <div className="flex items-center justify-between gap-4"><label htmlFor="print-copies" className="text-sm">Ejemplares por impresión</label><Input id="print-copies" className="w-24" type="number" min={1} max={5} step={1} value={printing.copies} onChange={event => setPrinting(value => ({ ...value, copies: Math.min(5, Math.max(1, Math.round(Number(event.target.value) || 1))) }))}/></div>
         </CardContent></Card>
-        <div className="flex flex-wrap items-center gap-3"><Button disabled={saving || loading}>{saving ? 'Guardando…' : 'Guardar preferencias'}</Button>{message && <p role="status" className="text-sm text-emerald-700">{message}</p>}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</div>
+        <div className="flex flex-wrap items-center gap-3"><Button disabled={saving || loading}>{saving ? 'Guardando…' : 'Guardar preferencias'}</Button>{message && <p role="status" className="text-sm text-success">{message}</p>}{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</div>
       </form>}
     </div>
   </BaseLayout>

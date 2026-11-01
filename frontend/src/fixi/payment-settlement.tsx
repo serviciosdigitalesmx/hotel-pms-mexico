@@ -57,7 +57,7 @@ export function ServiceOrderPaymentSettlementPage() {
         <div className="flex gap-2"><Button disabled={busy || order.status !== 'COMPLETED' || order.paymentStatus !== 'PENDING' || balance <= 0 || Number(amount) <= 0 || Number(amount) > balance} onClick={() => void settle()}>{busy ? 'Registrando…' : Number(amount) < balance ? 'Registrar abono' : 'Confirmar pago recibido'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => navigate('/orders/pending-payment')}>Volver a pendientes</Button></div>
         {(order.status !== 'COMPLETED' || order.paymentStatus !== 'PENDING') && <p className="text-sm text-muted-foreground">Esta orden ya no tiene un pago pendiente liquidable.</p>}
       </>}
-      {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
+      {message && <p role="status" className="text-sm text-success">{message}</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </CardContent></Card>
   </div></BaseLayout>

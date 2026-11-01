@@ -1,0 +1,123 @@
+/* Fixi visual layer. Scoped to the active application shells. */
+.fixi-workspace { background: var(--background); }
+.fixi-workspace .fixi-main { width: 100%; max-width: 1600px; margin-inline: auto; }
+.fixi-page-heading h1 { letter-spacing: -.035em; line-height: 1.2; }
+.fixi-page-heading p { max-width: 72ch; line-height: 1.65; }
+.fixi-workspace [data-slot="card"] {
+  border-color: var(--border); border-radius: 14px;
+  box-shadow: 0 2px 5px #122b3904, 0 8px 24px #122b3904;
+}
+.fixi-workspace [data-slot="card-title"] { line-height: 1.4; letter-spacing: -.015em; }
+.fixi-workspace [data-slot="card-description"] { line-height: 1.6; }
+.fixi-workspace table { border-collapse: collapse; font-size: .875rem; }
+.fixi-workspace thead { background: var(--muted); }
+.fixi-workspace th { padding: 13px 16px; font-size: .7rem; letter-spacing: .055em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
+.fixi-workspace td { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.fixi-workspace tbody tr:hover { background: color-mix(in oklch, var(--primary) 3%, transparent); }
+.fixi-workspace :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea), .fixi-auth :is(input, select) {
+  border-radius: 9px; min-height: 40px; box-shadow: none;
+}
+.fixi-workspace label, .fixi-auth label { line-height: 1.5; }
+.fixi-auth label { margin-bottom: 7px; font-size: .8rem; font-weight: 600; }
+.fixi-workspace [data-slot="button"], .fixi-auth [data-slot="button"] { border-radius: 9px; font-weight: 600; }
+.fixi-auth { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 100svh; background: var(--card); color: var(--foreground); }
+.fixi-auth-story { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 56px; padding: clamp(32px, 5vw, 80px); background: #103c43; color: #f2faf9; overflow: hidden; }
+.fixi-auth-story::after { content: ""; position: absolute; width: 480px; height: 480px; border: 1px solid #ffffff0c; border-radius: 50%; bottom: -330px; right: -180px; box-shadow: 0 0 0 70px #ffffff03, 0 0 0 140px #ffffff03; pointer-events: none; }
+.fixi-brand { display: inline-flex; align-items: center; width: fit-content; font-size: 32px; font-weight: 750; letter-spacing: -.06em; gap: 10px; }
+.fixi-brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #a7dad43b; border-radius: 12px; background: #ffffff0a; }
+.fixi-brand-dot { color: #8dd8c7; margin-left: -10px; }
+.fixi-eyebrow { font-size: .65rem; letter-spacing: .16em; font-weight: 700; color: var(--muted-foreground); margin-bottom: 18px; }
+.fixi-auth-story .fixi-eyebrow { color: #9acbc5; }
+.fixi-auth-editorial h1 { font-size: clamp(2.4rem, 3.7vw, 4rem); font-weight: 600; line-height: 1.12; letter-spacing: -.045em; }
+.fixi-auth-editorial h1 span { color: #a6ddd0; }
+.fixi-auth-editorial > p:not(.fixi-eyebrow) { max-width: 39ch; margin-top: 24px; color: #bed5d3; font-size: .95rem; line-height: 1.85; }
+.fixi-auth-features { display: grid; gap: 24px; margin-top: 44px; }
+.fixi-auth-features > div { display: flex; align-items: center; gap: 16px; color: #b8dcd6; }
+.fixi-auth-features span { font-size: .85rem; color: #f2faf9; }
+.fixi-auth-features strong { display: block; margin-top: 4px; font-size: .75rem; font-weight: 400; color: #adc7c4; }
+.fixi-auth-footer { font-size: .7rem; line-height: 1.7; color: #adc7c4; }
+.fixi-auth-form-area { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px clamp(24px, 5vw, 80px); position: relative; }
+.fixi-auth-back { position: absolute; left: 32px; top: 24px; font-size: .75rem; color: var(--muted-foreground); }
+.fixi-auth-card { border: 0; box-shadow: none; background: transparent; gap: 28px; }
+.fixi-auth-card [data-slot="card-header"], .fixi-auth-card [data-slot="card-content"] { padding-inline: 0; }
+.fixi-auth-card [data-slot="card-header"] { gap: 12px; }
+.fixi-auth-card .fixi-eyebrow { margin-bottom: 0; }
+.fixi-auth-card input { min-height: 46px; }
+.fixi-auth-card button[type="submit"] { min-height: 46px; }
+.fixi-auth-mobile-brand { display: none; }
+.fixi-auth-footnote { margin-top: 40px; font-size: .65rem; color: var(--muted-foreground); text-align: center; }
+.fixi-landing > header { max-width: 1400px; margin-inline: auto; }
+.fixi-landing > main h1 { line-height: 1.08; letter-spacing: -.045em; }
+.fixi-landing > main { padding-block: clamp(64px, 9vw, 144px); }
+.fixi-landing [data-slot="card"] { border-radius: 16px; box-shadow: none; }
+@media (max-width: 900px) {
+  .fixi-auth { grid-template-columns: 1fr; }
+  .fixi-auth-story { display: none; }
+  .fixi-auth-mobile-brand { display: block; margin-bottom: 24px; }
+  .fixi-auth-form-area { padding: 72px 24px 32px; }
+}
+@media (max-width: 640px) {
+  .fixi-workspace [data-slot="card-header"], .fixi-workspace [data-slot="card-content"] { padding-inline: 16px; }
+  .fixi-workspace [data-slot="card"] { gap: 20px; }
+  .fixi-workspace table { width: 100%; }
+  .fixi-workspace [data-slot="card-content"]:has(> table) { overflow-x: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fixi-workspace *, .fixi-auth *, .fixi-landing * { scroll-behavior: auto; transition-duration: 0.01ms; animation-duration: 0.01ms; }
+}
+
+/* Shared defaults sit below utilities so individual layouts retain their intent. */
+@layer components {
+  .fixi-app { min-height: 100svh; background: var(--background); color: var(--foreground); }
+  .fixi-app :is(button, a, input, select, textarea) { -webkit-tap-highlight-color: transparent; }
+  .fixi-app :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--ring); outline-offset: 3px;
+  }
+  .fixi-app :is(input, select, textarea) { accent-color: var(--primary); }
+  .fixi-app :is(select, textarea) {
+    background-color: var(--card); border-color: var(--input);
+    border-radius: 9px; padding: 10px 12px; font-size: .875rem;
+  }
+  .fixi-app select { min-height: 40px; }
+  .fixi-app textarea { min-height: 88px; line-height: 1.6; }
+  .fixi-app :is(input, select, textarea):disabled { cursor: not-allowed; opacity: .6; }
+  .fixi-app label { font-size: .8125rem; font-weight: 600; }
+  .fixi-app form label { margin-bottom: 6px; }
+  .fixi-app [role="alert"] {
+    padding: 12px 14px; border-radius: 9px; border: 1px solid color-mix(in oklch, var(--destructive) 25%, transparent);
+    background: color-mix(in oklch, var(--destructive) 6%, var(--card)); color: var(--destructive); line-height: 1.6;
+  }
+  .fixi-app [role="status"] { line-height: 1.6; }
+  .fixi-app table { font-variant-numeric: tabular-nums; }
+  .fixi-platform { font-feature-settings: "cv11", "ss01"; }
+  .fixi-platform-sidebar nav a { transition: background-color .15s, color .15s; }
+  .fixi-platform-sidebar nav a[aria-current="page"] { box-shadow: inset 3px 0 var(--primary); }
+  .fixi-platform-panel > header { border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  .fixi-platform-panel h1 { font-size: clamp(1.5rem, 2vw, 2rem); letter-spacing: -.035em; line-height: 1.25; }
+  .fixi-platform-panel header p { line-height: 1.65; max-width: 70ch; }
+  .fixi-platform :is(table, article) { background-color: var(--card); }
+  .fixi-platform th { background: var(--muted); color: var(--muted-foreground); font-size: .7rem; letter-spacing: .05em; font-weight: 600; }
+  .fixi-platform :is(th, td) { padding: 14px 16px; }
+  .fixi-platform tbody tr:hover { background: color-mix(in oklch, var(--primary) 3%, transparent); }
+  .fixi-platform button { min-height: 40px; border-radius: 9px; font-weight: 600; }
+  .fixi-platform button:disabled { cursor: not-allowed; opacity: .5; }
+  .fixi-platform input { min-height: 40px; border-color: var(--input); background: var(--card); border-radius: 9px; }
+  .fixi-platform article { border-radius: 14px; }
+  .fixi-platform article > p:last-child { font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+  [data-slot="dialog-title"], [data-slot="sheet-title"], [data-slot="alert-dialog-title"] { letter-spacing: -.025em; }
+  [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="popover-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] {
+    border-color: var(--border); background: var(--popover); color: var(--popover-foreground);
+  }
+  [data-slot="badge"] { font-weight: 600; line-height: 1.4; }
+}
+@media (max-width: 767px) {
+  .fixi-platform-sidebar nav { scrollbar-width: thin; }
+  .fixi-platform-sidebar nav a { flex-shrink: 0; }
+  .fixi-platform-panel > header { align-items: flex-start; }
+  .fixi-platform-panel > header > :last-child:not(:first-child) { max-width: 100%; }
+}
+@media print {
+  .fixi-workspace [data-slot="sidebar"], .fixi-workspace [data-slot="sidebar-container"], .fixi-workspace [data-slot="sidebar-gap"], .fixi-workspace > [data-slot="sidebar-inset"] > header, .fixi-platform-sidebar { display: none; }
+  .fixi-workspace, .fixi-platform { background: white; color: black; }
+  .fixi-workspace [data-slot="card"] { box-shadow: none; break-inside: avoid; }
+}

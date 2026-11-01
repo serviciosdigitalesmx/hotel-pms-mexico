@@ -2,6 +2,7 @@
 
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
+import { cn } from "@/lib/utils"
 
 import {
   Collapsible,
@@ -45,55 +46,72 @@ export function NavMain({
   }
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
-      <SidebarMenu>
-        {items.map((item) => (
-          <Collapsible
-            key={item.title}
-            asChild
-            defaultOpen={shouldBeOpen(item)}
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              {item.items?.length ? (
-                <>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip={item.title} className="cursor-pointer">
-                      {item.icon && <item.icon />}
-                      <span>{item.title}</span>
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.items?.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild className="cursor-pointer" isActive={location.pathname === subItem.url}>
-                            <Link 
-                              to={subItem.url}
-                              target={(item.title === "Auth Pages" || item.title === "Errors") ? "_blank" : undefined}
-                              rel={(item.title === "Auth Pages" || item.title === "Errors") ? "noopener noreferrer" : undefined}
+    <SidebarGroup className="py-1">
+      <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 px-2.5 py-1 select-none">
+        {label}
+      </SidebarGroupLabel>
+      <SidebarMenu className="gap-0.5">
+        {items.map((item) => {
+          const isItemActive = location.pathname === item.url || (item.url !== '/' && item.url !== '/dashboard' && location.pathname.startsWith(item.url + '/'))
+          return (
+            <Collapsible
+              key={item.title}
+              asChild
+              defaultOpen={shouldBeOpen(item)}
+              className="group/collapsible"
+            >
+              <SidebarMenuItem>
+                {item.items?.length ? (
+                  <>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        className="cursor-pointer text-xs rounded-lg transition-colors hover:bg-sidebar-accent/80"
+                      >
+                        {item.icon && <item.icon className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />}
+                        <span className="truncate font-medium">{item.title}</span>
+                        <ChevronRight className="ml-auto size-3.5 text-muted-foreground/70 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub className="my-0.5 ml-3 border-l border-sidebar-border/70 pl-2">
+                        {item.items?.map((subItem) => (
+                          <SidebarMenuSubItem key={subItem.title}>
+                            <SidebarMenuSubButton
+                              asChild
+                              className="cursor-pointer text-xs rounded-md transition-colors data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium"
+                              isActive={location.pathname === subItem.url}
                             >
-                              <span>{subItem.title}</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </>
-              ) : (
-                <SidebarMenuButton asChild tooltip={item.title} className="cursor-pointer" isActive={location.pathname === item.url}>
-                  <Link to={item.url}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              )}
-            </SidebarMenuItem>
-          </Collapsible>
-        ))}
+                              <Link
+                                to={subItem.url}
+                                target={(item.title === "Auth Pages" || item.title === "Errors") ? "_blank" : undefined}
+                                rel={(item.title === "Auth Pages" || item.title === "Errors") ? "noopener noreferrer" : undefined}
+                              >
+                                <span>{subItem.title}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </>
+                ) : (
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={item.title}
+                    className="cursor-pointer text-xs rounded-lg transition-colors data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold hover:bg-sidebar-accent/80"
+                    isActive={isItemActive}
+                  >
+                    <Link to={item.url} className="flex items-center gap-2.5">
+                      {item.icon && <item.icon className={cn("size-4 shrink-0 transition-colors", isItemActive ? "text-primary" : "text-muted-foreground")} />}
+                      <span className="truncate">{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+            </Collapsible>
+          )
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )

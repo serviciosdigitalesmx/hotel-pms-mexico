@@ -52,7 +52,7 @@ export function TeamUserEditor() {
       <Button disabled={saving || !userId}>{saving ? 'Guardando…' : 'Guardar perfil'}</Button>
     </form>
     {loading && <p role="status" className="mt-3 text-sm text-muted-foreground">Cargando usuarios…</p>}
-    {message && <p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}
+    {message && <p role="status" className="mt-3 text-sm text-success">{message}</p>}
     {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
   </CardContent></Card>
 }

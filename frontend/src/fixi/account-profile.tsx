@@ -44,11 +44,11 @@ export function AccountProfilePage() {
     <div className="px-4 lg:px-6"><Card className="max-w-2xl"><CardHeader><CardTitle>Perfil de la cuenta</CardTitle><CardDescription>Los cambios aplican sólo a tu usuario autenticado. Al cambiar el correo se envía un enlace de verificación.</CardDescription></CardHeader><CardContent>
       {loading ? <p role="status" className="text-sm text-muted-foreground">Cargando perfil…</p> : <form className="space-y-4" onSubmit={save}>
         <div className="space-y-2"><Label htmlFor="profile-name">Nombre</Label><Input id="profile-name" required maxLength={160} autoComplete="name" value={fullName} onChange={event => setFullName(event.target.value)}/></div>
-        <div className="space-y-2"><Label htmlFor="profile-email">Correo electrónico</Label><Input id="profile-email" required type="email" maxLength={100} autoComplete="email" value={email} onChange={event => setEmail(event.target.value)}/>{profile&&!profile.emailVerified&&<p className="text-xs text-amber-700">Este correo aún no está verificado.</p>}</div>
+        <div className="space-y-2"><Label htmlFor="profile-email">Correo electrónico</Label><Input id="profile-email" required type="email" maxLength={100} autoComplete="email" value={email} onChange={event => setEmail(event.target.value)}/>{profile&&!profile.emailVerified&&<p className="text-xs text-warning">Este correo aún no está verificado.</p>}</div>
         {profile&&<p className="text-xs text-muted-foreground">Usuario para iniciar sesión: {profile.username}</p>}
         <Button disabled={saving||!fullName.trim()||!email.trim()}>{saving?'Guardando…':'Guardar'}</Button>
       </form>}
-      {message&&<p role="status" className="mt-3 text-sm text-emerald-700">{message}</p>}{verificationEmailSent&&<div className="mt-3"><EmailDeliveryNotice/></div>}{error&&<p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
+      {message&&<p role="status" className="mt-3 text-sm text-success">{message}</p>}{verificationEmailSent&&<div className="mt-3"><EmailDeliveryNotice/></div>}{error&&<p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
     </CardContent></Card></div>
   </BaseLayout>
 }
