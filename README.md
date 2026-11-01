@@ -1,4 +1,4 @@
-# Fixi — nueva base RepairShop
+# Fixi 4V · 1.0 — nueva base RepairShop
 
 Este es el **nuevo Fixi**, adoptado por decisión del propietario a partir de RepairShop. Backend ASP.NET Core 8, frontend React/TypeScript/Vite y PostgreSQL independiente. La marca visible es Fixi; los nombres técnicos internos se conservan para reducir riesgo.
 

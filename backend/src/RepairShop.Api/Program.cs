@@ -62,16 +62,16 @@ builder.Services
     {
         options.Filters.Add<RepairShop.Api.Billing.SubscriptionGateFilter>();
         var m = options.ModelBindingMessageProvider;
-        m.SetAttemptedValueIsInvalidAccessor((value, field) => $"El valor '{value}' no es vÃ¡lido para {field}.");
+        m.SetAttemptedValueIsInvalidAccessor((value, field) => $"El valor '{value}' no es válido para {field}.");
         m.SetMissingBindRequiredValueAccessor(field => $"Falta el valor de {field}.");
         m.SetMissingKeyOrValueAccessor(() => "Falta un valor.");
         m.SetMissingRequestBodyRequiredValueAccessor(() => "Falta el cuerpo de la solicitud.");
-        m.SetNonPropertyAttemptedValueIsInvalidAccessor(value => $"El valor '{value}' no es vÃ¡lido.");
-        m.SetNonPropertyUnknownValueIsInvalidAccessor(() => "El valor no es vÃ¡lido.");
-        m.SetNonPropertyValueMustBeANumberAccessor(() => "El valor debe ser un nÃºmero.");
-        m.SetUnknownValueIsInvalidAccessor(field => $"El valor de {field} no es vÃ¡lido.");
-        m.SetValueIsInvalidAccessor(value => $"El valor '{value}' no es vÃ¡lido.");
-        m.SetValueMustBeANumberAccessor(field => $"{field} debe ser un nÃºmero.");
+        m.SetNonPropertyAttemptedValueIsInvalidAccessor(value => $"El valor '{value}' no es válido.");
+        m.SetNonPropertyUnknownValueIsInvalidAccessor(() => "El valor no es válido.");
+        m.SetNonPropertyValueMustBeANumberAccessor(() => "El valor debe ser un número.");
+        m.SetUnknownValueIsInvalidAccessor(field => $"El valor de {field} no es válido.");
+        m.SetValueIsInvalidAccessor(value => $"El valor '{value}' no es válido.");
+        m.SetValueMustBeANumberAccessor(field => $"{field} debe ser un número.");
         m.SetValueMustNotBeNullAccessor(_ => "El valor es obligatorio.");
     })
     .AddJsonOptions(o =>
@@ -98,7 +98,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
         var problem = new ValidationProblemDetails(errors)
         {
             Status = StatusCodes.Status400BadRequest,
-            Title = "RevisÃ¡ los datos ingresados",
+            Title = "Revisá los datos ingresados",
             Detail = errors.Values.SelectMany(v => v).FirstOrDefault(),
             Type = "https://httpstatuses.com/400",
             Instance = ctx.HttpContext.Request.Path
@@ -434,11 +434,11 @@ internal static class ValidationText
     public static string Translate(string message, string key, Exception? exception)
     {
         if (string.IsNullOrWhiteSpace(message))
-            return exception is not null ? $"El campo {FieldKey(key)} tiene un formato invÃ¡lido." : "Valor invÃ¡lido.";
+            return exception is not null ? $"El campo {FieldKey(key)} tiene un formato inválido." : "Valor inválido.";
 
         if (message.StartsWith("The JSON value could not be converted", StringComparison.Ordinal) ||
             message.StartsWith("'", StringComparison.Ordinal) && message.Contains("is an invalid", StringComparison.Ordinal))
-            return $"El campo {FieldKey(key)} tiene un formato invÃ¡lido.";
+            return $"El campo {FieldKey(key)} tiene un formato inválido.";
 
         var m = Required.Match(message);
         if (m.Success) return m.Groups["f"].Value is "body" or "req" ? "Falta el cuerpo de la solicitud." : $"El campo {FieldKey(m.Groups["f"].Value)} es obligatorio.";

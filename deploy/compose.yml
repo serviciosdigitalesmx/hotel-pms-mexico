@@ -1,4 +1,4 @@
-# RepairShop Â· stack de producciÃ³n detrÃ¡s de un proxy existente (Caddy del host + Cloudflare).
+# RepairShop · stack de producción detrás de un proxy existente (Caddy del host + Cloudflare).
 # Uso, desde esta carpeta en el servidor:
 #   cp .env.example .env        # completar (ver README.md)
 #   docker compose up -d --build
@@ -33,7 +33,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__RepairShopDb: Host=db;Port=5432;Database=repairshop;Username=repairshop;Password=${DB_PASSWORD}
       Jwt__Key: ${JWT_KEY:?Falta JWT_KEY en .env}
-      # Cifra las claves que protegen tokens de Mercado Pago y certificados ARCA. Guardala tambiÃ©n fuera del servidor.
+      # Cifra las claves que protegen tokens de Mercado Pago y certificados ARCA. Guardala también fuera del servidor.
       DataProtection__MasterKey: ${MASTER_KEY:?Falta MASTER_KEY en .env}
       App__FrontendBaseUrl: https://${DOMAIN:?Falta DOMAIN en .env}
       App__PublicApiUrl: https://${DOMAIN}
@@ -46,7 +46,7 @@ services:
       Seed__Enabled: "false"
       Database__Init: Migrate
       Database__ConnectRetries: "30"
-      # Solo el contenedor web llega a la API (no tiene puertos publicados): se confÃ­a en su X-Forwarded-For.
+      # Solo el contenedor web llega a la API (no tiene puertos publicados): se confía en su X-Forwarded-For.
       ReverseProxy__KnownNetworks__0: 10.0.0.0/8
       ReverseProxy__KnownNetworks__1: 172.16.0.0/12
       ReverseProxy__KnownNetworks__2: 192.168.0.0/16
@@ -68,7 +68,7 @@ services:
       Notifications__Meta__TemplateName: ${META_TEMPLATE_NAME:-}
       Ai__Provider: ${AI_PROVIDER:-None}
       Ai__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
-      # Suscripciones de los talleres: alta pÃºblica con prueba gratis y cobro mensual (ver README).
+      # Suscripciones de los talleres: alta pública con prueba gratis y cobro mensual (ver README).
       Billing__SignupEnabled: ${SIGNUP_ENABLED:-false}
       Billing__TrialDays: ${TRIAL_DAYS:-14}
       Billing__UsdPrices__Basic: ${PRICE_USD_BASIC:-25}
@@ -87,7 +87,7 @@ services:
       Billing__Paddle__PriceIds__Standard: ${PADDLE_PRICE_STANDARD:-}
       Billing__Paddle__PriceIds__Pro: ${PADDLE_PRICE_PRO:-}
     volumes:
-      # Fotos, firmas, logos y adjuntos de las Ã³rdenes.
+      # Fotos, firmas, logos y adjuntos de las órdenes.
       - app_data:/app/data/uploads
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/readyz || exit 1"]

@@ -10,7 +10,7 @@ Built as a real business application for workshops in Argentina (Spanish UI, ARS
 
 Small repair shops usually run on WhatsApp chats, paper tickets and spreadsheets: repairs get lost, customers keep asking "is it ready?", quotes are approved by voice, stock and cash never match, and nobody knows which technician or which repair is profitable.
 
-RepairShop centralizes the whole cycle â€” **intake â†’ diagnosis â†’ quote â†’ repair â†’ QA â†’ pickup â†’ warranty** â€” and connects it with stock, sales, cash and invoicing.
+RepairShop centralizes the whole cycle — **intake → diagnosis → quote → repair → QA → pickup → warranty** — and connects it with stock, sales, cash and invoicing.
 
 ## Features
 
@@ -30,7 +30,7 @@ RepairShop centralizes the whole cycle â€” **intake â†’ diagnosis â�
 **Customers and management**
 - Public tracking portal: progress timeline, quote approval, online payment, warranty, satisfaction survey and WhatsApp contact.
 - Automatic messages from editable templates (WhatsApp via Twilio or Meta, email via SMTP) with an outbox that retries, pickup reminders and surveys.
-- Reports: revenue, margins, time per status (bottlenecks), quote approval rate, top issues and models, technicians, warranty re-entry rate, satisfaction and inventory value â€” exportable to Excel.
+- Reports: revenue, margins, time per status (bottlenecks), quote approval rate, top issues and models, technicians, warranty re-entry rate, satisfaction and inventory value — exportable to Excel.
 - Multi-branch organizations, users invited by link, four roles (admin, technician, reception, cashier), audit log.
 
 ## Screenshots
@@ -51,11 +51,11 @@ More in [`docs/screenshots`](docs/screenshots).
 ## Architecture
 
 ```txt
-React SPA (Vite) â”€â”€/api/v1â”€â”€â–¶ ASP.NET Core API â”€â”€â–¶ Application â”€â”€â–¶ Domain
-       â–²                           â”‚                    â”‚
- public portal                  Infrastructure â—€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                   â”‚  EF Core + PostgreSQL, outbox dispatcher, scheduled jobs,
-                                   â”‚  PDF/QR, Excel, S3/R2 files, Mercado Pago, ARCA, Claude
+React SPA (Vite) ──/api/v1──▶ ASP.NET Core API ──▶ Application ──▶ Domain
+       ▲                           │                    │
+ public portal                  Infrastructure ◀────────┘
+                                   │  EF Core + PostgreSQL, outbox dispatcher, scheduled jobs,
+                                   │  PDF/QR, Excel, S3/R2 files, Mercado Pago, ARCA, Claude
 ```
 
 ```txt
@@ -67,7 +67,7 @@ backend/
   tests/                         # Domain, application and API integration tests (real PostgreSQL)
 frontend/
   src/api        # Typed API client (in-memory access token, refresh cookie)
-  src/features   # Orders, customers, POS, cash, inventory, reports, settings, portalâ€¦
+  src/features   # Orders, customers, POS, cash, inventory, reports, settings, portal…
   src/components # UI kit, charts, domain widgets
   e2e/           # Playwright end-to-end tests
 ```
@@ -102,7 +102,7 @@ Open http://localhost:5173 and sign in with a demo user:
 | Reception | `recepcion@local` | `Recepcion123` |
 | Cashier | `caja@local` | `Caja123456` |
 
-API: http://localhost:8080 Â· Swagger: http://localhost:8080/swagger Â· Health: `/healthz`, `/readyz`.
+API: http://localhost:8080 · Swagger: http://localhost:8080/swagger · Health: `/healthz`, `/readyz`.
 
 Production deployment on a server with its own reverse proxy (web app, API, database and daily backups): [`deploy/README.md`](deploy/README.md). Configuration and integrations are documented in the [backend README](backend/README.md) and the [frontend README](frontend/README.md). Example configuration files: `backend/.env.example`, `backend/src/RepairShop.Api/appsettings.Example.json`, `frontend/.env.example`. Never commit real secrets.
 

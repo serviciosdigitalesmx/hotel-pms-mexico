@@ -1,7 +1,7 @@
 {
-  "name": "Fixi Â· GestiÃ³n de taller",
+  "name": "Fixi · Gestión de taller",
   "short_name": "Fixi",
-  "description": "Ã“rdenes de reparaciÃ³n, clientes, stock, punto de venta y caja.",
+  "description": "Órdenes de reparación, clientes, stock, punto de venta y caja.",
   "lang": "es-MX",
   "start_url": "/",
   "scope": "/",

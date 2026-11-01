@@ -1,8 +1,8 @@
-# Adopción de RepairShop como nuevo Fixi
+# Fixi 4V · 1.0 — adopción de RepairShop
 
 ## Decisión
 
-Por instrucción del propietario, la base completa de RepairShop pasa a ser el nuevo producto Fixi en `codex/fixi-repairshop`. No es un frontend para el backend Spring anterior: incluye su propio backend .NET, esquema PostgreSQL, autenticación y frontend.
+Por instrucción del propietario, la base completa de RepairShop pasa a ser el nuevo producto Fixi 4V, versión 1.0; Fixi 3V es el producto anterior en `codex/fixi-repairshop`. No es un frontend para el backend Spring anterior: incluye su propio backend .NET, esquema PostgreSQL, autenticación y frontend.
 
 ## Archivo del producto anterior
 

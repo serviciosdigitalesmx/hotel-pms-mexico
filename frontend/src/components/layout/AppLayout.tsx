@@ -83,7 +83,7 @@ export function AppLayout() {
       <div className="flex items-center gap-2 px-4 py-4">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">F</span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">Fixi</p>
+          <p className="truncate text-sm font-semibold text-white">Fixi <span className="text-xs font-normal text-slate-400">4V · 1.0</span></p>
           <p className="truncate text-xs text-slate-400">{user?.shopName}</p>
         </div>
       </div>
