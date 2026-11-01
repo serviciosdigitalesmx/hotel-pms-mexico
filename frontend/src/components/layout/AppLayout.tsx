@@ -122,7 +122,7 @@ export function AppLayout() {
       <div className="fixi-nav-scroll">
         <p className="fixi-nav-caption">Taller</p>
         {primary?.items.map(navLink)}
-        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))}>
+        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))}>
           <summary>{section.section}<span className="fixi-nav-count">{section.items.length}</span></summary>
           <div>{section.items.map(navLink)}</div>
         </details>)}
