@@ -1,9 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { Sidebar, SidebarProvider } from './ui/sidebar'
 import { NavMain } from './nav-main'
+
+// jsdom lacks this browser geometry API, which Radix uses for tooltip sizing.
+// Navigation state and DOM assertions remain real; Chromium covers actual layout.
+beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  })
+})
+afterEach(() => { vi.unstubAllGlobals() })
 
 const items = [
   { title: 'Órdenes', url: '/service-orders', items: [{ title: 'Todas las órdenes', url: '/service-orders' }] },

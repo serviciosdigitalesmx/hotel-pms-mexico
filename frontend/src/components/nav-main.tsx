@@ -26,14 +26,14 @@ export function NavMain({ label, items }: { label: string; items: Item[] }) {
         const activeChild = item.items?.filter(child => matchesRoute(pathname, child.url)).sort((a,b) => b.url.length-a.url.length)[0]?.url
         const active = item.items?.length ? Boolean(activeChild) : matchesRoute(pathname, item.url)
         if (!item.items?.length) return <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton asChild tooltip={item.title} isActive={active} className="fixi-nav-item">
+          <SidebarMenuButton asChild aria-label={item.title} tooltip={item.title} isActive={active} className="fixi-nav-item">
             <Link to={item.url}>{item.icon && <item.icon aria-hidden="true" />}<span>{item.title}</span></Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         return <Collapsible key={item.title} asChild open={expanded === item.title} onOpenChange={open => setSelection({ path: pathname, title: open ? item.title : null })}>
           <SidebarMenuItem>
             <CollapsibleTrigger asChild>
-              <SidebarMenuButton tooltip={item.title} isActive={active} className="fixi-nav-item" onClick={() => { if (state === 'collapsed') setOpen(true) }}>
+              <SidebarMenuButton aria-label={item.title} tooltip={item.title} isActive={active} className="fixi-nav-item" onClick={() => { if (state === 'collapsed') setOpen(true) }}>
                 {item.icon && <item.icon aria-hidden="true" />}<span>{item.title}</span>
                 <ChevronRight aria-hidden="true" className={`ml-auto size-4 transition-transform ${expanded === item.title ? 'rotate-90' : ''}`} />
               </SidebarMenuButton>

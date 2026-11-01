@@ -114,6 +114,35 @@ test('signup, verify, invitation, and reset stay on the configured frontend', as
   expect(currentUser.status()).toBe(200);
   const owner = await currentUser.json() as { hotelId: string };
 
+  // Exercise compact navigation in a real browser using this ephemeral, verified owner.
+  const navigationContext = await page.context().browser()!.newContext();
+  try {
+    const navigationPage = await navigationContext.newPage();
+    navigationPage.on('pageerror', error => pageErrors.push(error.message));
+    await navigationPage.goto(`${frontendUrl}/login`);
+    await navigationPage.getByLabel('Correo o usuario').fill(email);
+    await navigationPage.getByLabel('Contraseña', { exact: true }).fill(password);
+    await navigationPage.getByTestId('login-submit').click();
+    await expect(navigationPage).toHaveURL(/\/(?:onboarding|dashboard)$/);
+    const workshopNavigation = navigationPage.getByRole('navigation', { name: 'Navegación del taller' });
+    await expect(workshopNavigation.getByRole('button', { name: 'Órdenes de servicio', exact: true })).toBeVisible();
+    await expect(workshopNavigation.getByRole('link', { name: 'Nueva recepción', exact: true })).toHaveCount(0);
+    await workshopNavigation.getByRole('button', { name: 'Órdenes de servicio', exact: true }).click();
+    await workshopNavigation.getByRole('link', { name: 'Nueva recepción', exact: true }).click();
+    await expect(navigationPage).toHaveURL(`${frontendUrl}/reception/new`);
+    await expect(navigationPage.getByRole('heading', { name: 'Condición de ingreso', exact: true })).toBeVisible();
+    await expect(navigationPage.getByRole('navigation', { name: 'Vistas de órdenes' })).toBeVisible();
+    await workshopNavigation.getByRole('button', { name: 'Configuración', exact: true }).click();
+    await expect(workshopNavigation.getByRole('link', { name: 'Usuarios y permisos', exact: true })).toBeVisible();
+    await expect(workshopNavigation.getByRole('link', { name: 'Todas las órdenes', exact: true })).toHaveCount(0);
+    await navigationPage.getByRole('button', { name: 'Toggle Sidebar', exact: true }).click();
+    await workshopNavigation.getByRole('button', { name: 'Clientes', exact: true }).click();
+    await expect(workshopNavigation.getByRole('link', { name: 'Directorio de clientes', exact: true })).toBeVisible();
+    expect(await workshopNavigation.locator('[data-slot=sidebar-menu] > [data-slot=sidebar-menu-item]').count()).toBeLessThanOrEqual(9);
+  } finally {
+    await navigationContext.close();
+  }
+
   const inviteEmail = `invite-${suffix}@example.test`;
   const invitation = await request.post(`${monolithUrl}/api/v1/auth/invitations`, {
     headers: {
