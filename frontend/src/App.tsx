@@ -43,7 +43,7 @@ function Guard({ permission, children }: { permission: Permission; children: Rea
 
 export default function App() {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<div className="fx-route-loading"><Loading label="Preparando tu espacio de trabajo…" /></div>}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/olvide" element={<ForgotPasswordPage />} />
@@ -91,8 +91,9 @@ export default function App() {
 
 function NotFound() {
   return (
-    <div className="mx-auto max-w-md py-16 text-center">
-      <p className="text-lg font-semibold text-slate-900">No encontramos esta página</p>
+    <div className="fx-not-found mx-auto max-w-md">
+      <span aria-hidden="true">404</span>
+      <h1 className="text-lg font-semibold text-slate-900">No encontramos esta página</h1>
       <p className="mt-1 text-sm text-slate-500">Puede que el enlace esté mal o que la sección ya no exista.</p>
       <Link to="/" className="mt-4 inline-block text-sm font-medium text-brand-700 underline">
         Volver al inicio

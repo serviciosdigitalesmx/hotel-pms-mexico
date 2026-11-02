@@ -64,7 +64,7 @@ export function TransfersPage() {
         </Select>
       </div>
 
-      <Card padded={false}>
+      <Card padded={false} title="Movimientos entre sucursales" actions={transfers.data ? <Badge tone="blue">{transfers.data.total} transferencias</Badge> : undefined}>
         {transfers.isLoading ? (
           <Loading />
         ) : transfers.isError ? (

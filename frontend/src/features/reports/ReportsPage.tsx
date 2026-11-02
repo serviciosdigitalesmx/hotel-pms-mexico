@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { exportPaths, reportsApi, type ReportRange } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { PaymentMethod, ReportPeriod } from '../../api/types'
-import { BarChart, RankBars, StackedBar } from '../../components/charts'
+import { AreaChart, BarChart, RankBars, StackedBar } from '../../components/charts'
 import { Alert, Badge, Button, Card, EmptyState, ErrorState, Input, Loading, PageHeader, Select, Stat, Table, Tabs, Td, Th } from '../../components/ui'
 import { amounts, date, dateTime, money, number, percent, todayIso } from '../../lib/format'
 import { downloadFile } from '../../lib/files'
@@ -173,7 +173,7 @@ function RevenueReportView({ range, groupBy }: { range: ReportRange; groupBy: st
               <Stat label="Ventas de mostrador" value={number(sales, 2)} hint={refunds ? `Devoluciones ${number(refunds, 2)}` : undefined} />
             </div>
             <Card title={`Ingresos netos por ${groupBy === 'day' ? 'día' : groupBy === 'week' ? 'semana' : 'mes'} (${currency})`}>
-              <BarChart data={series} title="Ingresos netos por período" format={(v) => money(v, currency).replace(/,00$/, '')} />
+              <AreaChart data={series} title="Ingresos netos por período" format={(v) => money(v, currency).replace(/,00$/, '')} />
             </Card>
             <Card title="Por medio de pago">
               {r.byMethod.length === 0 ? (

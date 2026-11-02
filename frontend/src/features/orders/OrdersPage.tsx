@@ -127,7 +127,11 @@ export function OrdersPage() {
         </div>
       </Card>
 
-      <Card padded={false}>
+      <Card
+        padded={false}
+        title="Cartera de órdenes"
+        actions={orders.data ? <Badge tone="blue">{orders.data.total} resultado{orders.data.total === 1 ? '' : 's'}</Badge> : undefined}
+      >
         {orders.isLoading ? (
           <Loading />
         ) : orders.isError ? (
@@ -154,7 +158,18 @@ export function OrdersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {orders.data!.items.map((o) => (
-                  <tr key={o.id} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/orders/${o.id}`)}>
+                  <tr
+                    key={o.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => navigate(`/orders/${o.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        navigate(`/orders/${o.id}`)
+                      }
+                    }}
+                  >
                     <Td className="whitespace-nowrap">
                       <Link to={`/orders/${o.id}`} className="font-semibold text-brand-700 hover:underline" onClick={(e) => e.stopPropagation()}>
                         {o.code}

@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { auditApi } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { AuditEvent } from '../../api/types'
-import { Card, EmptyState, ErrorState, Input, Loading, Modal, Pagination, Select, Table, Td, Th } from '../../components/ui'
+import { Badge, Card, EmptyState, ErrorState, Input, Loading, Modal, Pagination, Select, Table, Td, Th } from '../../components/ui'
 import { dateTime } from '../../lib/format'
 
 const TAKE = 50
@@ -127,7 +127,7 @@ export function AuditTab() {
           <Input type="date" className="w-40" value={to} onChange={(e) => { setTo(e.target.value); setSkip(0) }} aria-label="Hasta" />
         </div>
       </Card>
-      <Card padded={false}>
+      <Card padded={false} title="Registro de actividad" actions={events.data ? <Badge tone="blue">{events.data.total} eventos</Badge> : undefined}>
         {events.isLoading ? (
           <Loading />
         ) : events.isError ? (
@@ -151,7 +151,18 @@ export function AuditTab() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {events.data!.items.map((e) => (
-                  <tr key={e.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setViewing(e)}>
+                  <tr
+                    key={e.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => setViewing(e)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setViewing(e)
+                      }
+                    }}
+                  >
                     <Td className="whitespace-nowrap text-xs">{dateTime(e.createdAtUtc)}</Td>
                     <Td className="text-xs">{e.actorEmail ?? 'Sistema'}</Td>
                     <Td>{ACTION[e.action] ?? e.action.replace(/_/g, ' ')}</Td>

@@ -13,10 +13,10 @@ function Contact() {
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="fx-public-shell">
       <PublicHeader />
-      <main className="mx-auto max-w-3xl px-4 pb-6">
-        <article className="space-y-3 rounded-2xl bg-white p-6 text-sm leading-relaxed text-slate-700 shadow-sm ring-1 ring-slate-200 sm:p-8 [&_h2]:pt-3 [&_h2]:font-semibold [&_h2]:text-slate-900">
+      <main className="fx-legal-main">
+        <article className="fx-legal-card">
           <p className="text-xs uppercase tracking-wide text-slate-500">Actualizado el {UPDATED}</p>
           <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
           {children}

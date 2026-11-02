@@ -80,7 +80,7 @@ export function SalesPage() {
         </div>
       </Card>
 
-      <Card padded={false}>
+      <Card padded={false} title="Historial de ventas" actions={sales.data ? <Badge tone="blue">{sales.data.total} ventas</Badge> : undefined}>
         {sales.isLoading ? (
           <Loading />
         ) : sales.isError ? (
@@ -107,7 +107,18 @@ export function SalesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map((s) => (
-                  <tr key={s.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setSelected(s.id)}>
+                  <tr
+                    key={s.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => setSelected(s.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setSelected(s.id)
+                      }
+                    }}
+                  >
                     <Td className="font-medium text-brand-700">
                       <button type="button" className="hover:underline" onClick={(e) => { e.stopPropagation(); setSelected(s.id) }}>
                         {s.code}

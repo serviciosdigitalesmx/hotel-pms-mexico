@@ -45,7 +45,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
 
 // ===== Inputs =====
 const fieldClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100 disabled:text-slate-500 aria-[invalid=true]:border-rose-400 aria-[invalid=true]:ring-rose-100'
+  'fixi-field w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100 disabled:text-slate-500 aria-[invalid=true]:border-rose-400 aria-[invalid=true]:ring-rose-100'
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...props }, ref) {
   return <input ref={ref} className={cn(fieldClass, 'h-10', className)} {...props} />
@@ -153,7 +153,7 @@ export function Spinner({ className }: { className?: string }) {
 
 export function Loading({ label = 'Cargando…' }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500" role="status">
+    <div className="fx-loading flex items-center justify-center gap-2 py-10 text-sm text-slate-500" role="status">
       <Spinner />
       {label}
     </div>
@@ -162,9 +162,10 @@ export function Loading({ label = 'Cargando…' }: { label?: string }) {
 
 export function EmptyState({ title, description, action }: { title: string; description?: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center">
-      <p className="text-sm font-medium text-slate-700">{title}</p>
-      {description ? <p className="mt-1 max-w-md text-sm text-slate-500">{description}</p> : null}
+    <div className="fx-empty-state flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 px-6 py-10 text-center">
+      <span className="fx-empty-symbol" aria-hidden="true"><i /><i /><i /></span>
+      <p className="text-sm font-semibold text-slate-700">{title}</p>
+      {description ? <p className="mt-1 max-w-md text-xs text-slate-500">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )
@@ -172,10 +173,14 @@ export function EmptyState({ title, description, action }: { title: string; desc
 
 export function ErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
-    <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-      <p>{error}</p>
+    <div role="alert" className="fx-error-state rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+      <span className="fx-error-mark" aria-hidden="true">!</span>
+      <div>
+        <p className="font-semibold">No pudimos cargar esta sección</p>
+        <p className="mt-0.5 text-xs opacity-85">{error}</p>
+      </div>
       {onRetry ? (
-        <Button size="sm" className="mt-3" onClick={onRetry}>
+        <Button size="sm" className="ml-auto shrink-0" onClick={onRetry}>
           Reintentar
         </Button>
       ) : null}
@@ -344,8 +349,8 @@ export function Modal({ open, onClose, title, description, children, footer, siz
               </p>
             ) : null}
           </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Cerrar">
-            ✕
+          <button type="button" onClick={onClose} className="fixi-modal-close rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Cerrar">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
           </button>
         </header>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>

@@ -1,1 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#2547ea"/><text x="256" y="304" font-family="Inter,Arial,sans-serif" font-size="150" font-weight="700" fill="#fff" text-anchor="middle">F</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="40" x2="450" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7976ef"/>
+      <stop offset="1" stop-color="#4845be"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="156" y1="132" x2="376" y2="386" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#efefff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="405" cy="104" r="118" fill="#ffffff" opacity=".12"/>
+  <path d="M171 365V147h176v53H232v42h99v52h-99v71h-61Z" fill="url(#mark)"/>
+  <path d="M288 241h59v124h-59z" fill="#5a58d6"/>
+</svg>

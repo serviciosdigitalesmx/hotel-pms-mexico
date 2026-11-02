@@ -97,7 +97,11 @@ export function InventoryPage() {
         </div>
       </Card>
 
-      <Card padded={false}>
+      <Card
+        padded={false}
+        title="Catálogo y disponibilidad"
+        actions={items.data ? <Badge tone="blue">{items.data.total} producto{items.data.total === 1 ? '' : 's'}</Badge> : undefined}
+      >
         {items.isLoading ? (
           <Loading />
         ) : items.isError ? (
@@ -128,7 +132,18 @@ export function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {list.map((i) => (
-                  <tr key={i.id} className={cn('cursor-pointer hover:bg-slate-50', !i.isActive && 'opacity-60')} onClick={() => setEditing(i)}>
+                  <tr
+                    key={i.id}
+                    className={cn('cursor-pointer', !i.isActive && 'opacity-60')}
+                    tabIndex={0}
+                    onClick={() => setEditing(i)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setEditing(i)
+                      }
+                    }}
+                  >
                     <Td>
                       <button type="button" className="text-left font-medium text-slate-800 hover:underline" onClick={(e) => { e.stopPropagation(); setEditing(i) }}>
                         {i.name}

@@ -1,14 +1,14 @@
 {
   "name": "Fixi · Gestión de taller",
   "short_name": "Fixi",
-  "description": "Órdenes de reparación, clientes, stock, punto de venta y caja.",
+  "description": "Órdenes de reparación, clientes, inventario, caja y seguimiento.",
   "lang": "es-MX",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f8fafc",
-  "theme_color": "#2547ea",
+  "background_color": "#f4f5f8",
+  "theme_color": "#f4f5f8",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

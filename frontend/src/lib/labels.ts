@@ -159,12 +159,12 @@ export const ISSUE_CATEGORIES = ['Pantalla', 'Batería', 'Pin de carga', 'Humeda
 export type Tone = 'slate' | 'blue' | 'indigo' | 'violet' | 'amber' | 'emerald' | 'green' | 'rose'
 
 export const TONE_CLASSES: Record<Tone, string> = {
-  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
-  blue: 'bg-blue-50 text-blue-700 ring-blue-200',
-  indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-  violet: 'bg-violet-50 text-violet-700 ring-violet-200',
-  amber: 'bg-amber-50 text-amber-800 ring-amber-200',
-  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  green: 'bg-green-50 text-green-700 ring-green-200',
-  rose: 'bg-rose-50 text-rose-700 ring-rose-200',
+  slate: 'fx-tone fx-tone-slate',
+  blue: 'fx-tone fx-tone-blue',
+  indigo: 'fx-tone fx-tone-violet',
+  violet: 'fx-tone fx-tone-violet',
+  amber: 'fx-tone fx-tone-amber',
+  emerald: 'fx-tone fx-tone-green',
+  green: 'fx-tone fx-tone-green',
+  rose: 'fx-tone fx-tone-red',
 }
