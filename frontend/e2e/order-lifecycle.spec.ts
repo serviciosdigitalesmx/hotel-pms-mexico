@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { createOrderViaUi, ensureCashOpen, login, moveOrderTo } from './helpers'
+import { createOrderViaUi, ensureCashOpen, login, moveOrderTo, uniquePhone } from './helpers'
 
 const QA_ITEMS = ['Enciende', 'Pantalla', 'Táctil', 'Cámaras', 'Audio / parlantes', 'Micrófono', 'Botones', 'Carga', 'WiFi / señal / Bluetooth', 'Face ID / huella']
 
@@ -50,4 +50,45 @@ test('an order goes from reception to delivery: quote, QA, payment and warranty'
   await page.getByRole('tab', { name: /^Historial/ }).click()
   for (const label of ['En diagnóstico', 'En reparación', 'Listo para retirar', 'Entregado']) await expect(page.getByText(label).first()).toBeVisible()
   expect(code).toMatch(/^#\d+$/)
+})
+
+test('order confirmation prepares a consented WhatsApp link with the real tracking URL and distinguishes receipt from QR label', async ({ page }) => {
+  test.setTimeout(120_000)
+  await login(page, 'reception')
+  await page.goto('/orders/new')
+  await page.getByRole('button', { name: '+ Cliente nuevo' }).click()
+
+  const customerName = `Cliente seguimiento ${Date.now()}`
+  await page.getByLabel('Nombre y apellido').fill(customerName)
+  await page.getByLabel('Teléfono / WhatsApp').fill(uniquePhone())
+  await page.getByLabel('Acepta recibir avisos del estado de su equipo').check()
+  const customerResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/customers')
+  )
+  await page.getByRole('button', { name: 'Crear cliente y seguir' }).click()
+  const customerResponse = await customerResponsePromise
+  expect(customerResponse.ok()).toBeTruthy()
+  const customerPayload = await customerResponse.json()
+  const customerWhatsApp = String(customerPayload.data.whatsAppNumber).replace(/\D/g, '')
+
+  await page.getByLabel('Marca').fill('Motorola')
+  await page.getByLabel('Modelo').fill('Moto G54')
+  await page.getByRole('button', { name: 'Agregar equipo y seguir' }).click()
+  await page.getByLabel('Falla que reporta el cliente').fill('No carga; revisar centro de carga')
+  await page.getByRole('button', { name: 'Crear orden' }).click()
+  await expect(page.getByText('Orden creada')).toBeVisible()
+
+  const trackingLink = page.getByRole('link', { name: /https?:\/\// })
+  const trackingUrl = await trackingLink.getAttribute('href')
+  expect(trackingUrl).toBeTruthy()
+  const whatsappLink = page.getByRole('link', { name: 'Enviar seguimiento por WhatsApp' })
+  const whatsappUrl = new URL((await whatsappLink.getAttribute('href'))!)
+  expect(whatsappUrl.origin + whatsappUrl.pathname).toBe(`https://wa.me/${customerWhatsApp}`)
+  expect(whatsappUrl.searchParams.get('text')).toContain(`Hola ${customerName},`)
+  expect(whatsappUrl.searchParams.get('text')).toContain(trackingUrl)
+  await expect(whatsappLink).toHaveAttribute('target', '_blank')
+
+  await expect(page.getByRole('button', { name: 'Imprimir comprobante de ingreso' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Imprimir etiqueta QR' })).toBeVisible()
+  await expect(page.getByText(/El comprobante incluye los datos de ingreso/)).toBeVisible()
 })

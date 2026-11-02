@@ -11,6 +11,7 @@ import { cn } from '../../lib/cn'
 import { fromLocalInput } from '../../lib/format'
 import { openPdf, printPdf } from '../../lib/files'
 import { CLOUD_LOCK, ISSUE_CATEGORIES, PRIORITY, UNLOCK_METHOD } from '../../lib/labels'
+import { trackingWhatsAppUrl } from '../../lib/whatsapp'
 import { CustomerForm, DeviceForm } from '../customers/forms'
 import { emptyCustomer, emptyDevice } from '../customers/model'
 
@@ -66,6 +67,9 @@ export function NewOrderPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const idempotencyKey = useMemo(() => newIdempotencyKey(), [])
+  const trackingMessageUrl = order?.customerNotificationsOptIn
+    ? trackingWhatsAppUrl(customer?.whatsAppNumber, order.customerName, order.code, order.trackingUrl)
+    : null
 
   const presetCustomerId = params.get('customerId')
   useEffect(() => {
@@ -400,10 +404,20 @@ export function NewOrderPage() {
               {order.deviceLabel} · {order.customerName}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
+              {trackingMessageUrl ? (
+                <a
+                  href={trackingMessageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="fixi-button inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-600 bg-emerald-600 px-3.5 text-sm font-medium text-white transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-emerald-500"
+                >
+                  Enviar seguimiento por WhatsApp
+                </a>
+              ) : null}
               <Button variant="primary" onClick={() => void openPdf(`/orders/${order.id}/documents/intake`)}>
-                Imprimir comprobante
+                Imprimir comprobante de ingreso
               </Button>
-              <Button onClick={() => void printPdf(`/orders/${order.id}/documents/label`)}>Imprimir etiqueta</Button>
+              <Button onClick={() => void printPdf(`/orders/${order.id}/documents/label`)}>Imprimir etiqueta QR</Button>
               <Button onClick={() => navigate(`/orders/${order.id}`)}>Ver orden</Button>
               <Button variant="ghost" onClick={() => window.location.reload()}>
                 Cargar otra
@@ -415,6 +429,14 @@ export function NewOrderPage() {
                 {order.trackingUrl}
               </a>
             </p>
+            {trackingMessageUrl ? (
+              <p className="text-xs text-slate-500">WhatsApp abrirá el chat con el mensaje listo; confirma el envío en la aplicación.</p>
+            ) : order.customerNotificationsOptIn ? (
+              <p className="text-xs text-amber-700">No se pudo preparar WhatsApp porque el teléfono del cliente no tiene un formato válido.</p>
+            ) : (
+              <p className="text-xs text-slate-500">El cliente no autorizó avisos por WhatsApp. El comprobante incluye el QR para consultar el estatus.</p>
+            )}
+            <p className="text-xs text-slate-500">El comprobante incluye los datos de ingreso; la etiqueta QR es la versión compacta para colocar en el equipo.</p>
           </div>
         </Card>
       ) : null}
