@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   Cancelled: '#b86662',
 }
 
-function revenueValue(summary: { converted?: number | null; byCurrency: { amount: number }[] } | null | undefined, currency: string) {
+function revenueValue(summary: { converted?: number | null; byCurrency: { currency: string; amount: number }[] } | null | undefined, currency: string) {
   if (!summary) return '—'
   return summary.converted !== null && summary.converted !== undefined ? money(summary.converted, currency) : amounts(summary.byCurrency)
 }

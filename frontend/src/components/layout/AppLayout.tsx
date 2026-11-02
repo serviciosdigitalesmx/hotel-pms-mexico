@@ -82,6 +82,7 @@ export function AppLayout() {
   const [switching, setSwitching] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [navSections, setNavSections] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
   const location = useLocation()
   const nav = NAV.map(s => ({ ...s, items: s.items.filter(i => !i.permission || can(i.permission)) })).filter(s => s.items.length > 0)
@@ -141,7 +142,7 @@ export function AppLayout() {
       <div className="fixi-nav-scroll">
         <p className="fixi-nav-caption">Taller</p>
         {primary?.items.map(navLink)}
-        {secondary.map(section => <details className="fixi-nav-group" key={section.section} defaultOpen={section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))}>
+        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={navSections[section.section] ?? (section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')))} onToggle={event => setNavSections(current => ({ ...current, [section.section]: event.currentTarget.open }))}>
           <summary>{section.section}<span className="fixi-nav-count">{section.items.length}</span></summary>
           <div>{section.items.map(navLink)}</div>
         </details>)}
