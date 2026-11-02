@@ -142,7 +142,10 @@ export function AppLayout() {
       <div className="fixi-nav-scroll">
         <p className="fixi-nav-caption">Taller</p>
         {primary?.items.map(navLink)}
-        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={navSections[section.section] ?? (section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')))} onToggle={event => setNavSections(current => ({ ...current, [section.section]: event.currentTarget.open }))}>
+        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={navSections[section.section] ?? (section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')))} onToggle={event => {
+          const isOpen = event.currentTarget.open
+          setNavSections(current => ({ ...current, [section.section]: isOpen }))
+        }}>
           <summary>{section.section}<span className="fixi-nav-count">{section.items.length}</span></summary>
           <div>{section.items.map(navLink)}</div>
         </details>)}
