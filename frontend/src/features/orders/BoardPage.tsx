@@ -20,7 +20,7 @@ import { ORDER_STATUS, TONE_CLASSES } from '../../lib/labels'
  */
 export function BoardPage() {
   const [params, setParams] = useSearchParams()
-  const { user } = useSession()
+  const { user, can } = useSession()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [q, setQ] = useState('')
@@ -56,7 +56,7 @@ export function BoardPage() {
       <PageHeader
         title="Tablero del taller"
         subtitle="Arrastra una tarjeta para cambiar el estado. Las tarjetas rojas están atrasadas; las ámbar, estancadas."
-        actions={<Button onClick={() => navigate('/orders')}>Ver lista</Button>}
+        actions={<><Button onClick={() => navigate('/orders')}>Ver lista</Button>{can('orders.manage') ? <Button variant="primary" onClick={() => navigate('/orders/new')}>+ Nueva orden</Button> : null}</>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SearchInput value={q} onChange={setQ} placeholder="Filtrar tarjetas…" className="w-full sm:w-72" />

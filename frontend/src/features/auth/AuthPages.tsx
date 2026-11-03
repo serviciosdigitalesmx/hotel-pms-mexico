@@ -8,18 +8,50 @@ import { useSession } from '../../auth/session'
 import { Alert, Button, Field, Input, Loading } from '../../components/ui'
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    document.documentElement.dataset.theme = next
+    try { localStorage.setItem('fixi-theme', next) } catch { /* theme still applies for this session */ }
+  }
+
   return (
-    <div className="flex min-h-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-brand-900 px-4 py-10">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-5 flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">F</span>
-          <div>
-            <h1 className="text-lg font-semibold text-slate-900">{title}</h1>
-            {subtitle ? <p className="text-sm text-slate-500">{subtitle}</p> : null}
-          </div>
+    <div className="fx-auth-shell">
+      <button type="button" className="fx-auth-theme" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+          {theme === 'dark' ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></> : <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5z" />}
+        </svg>
+      </button>
+      <section className="fx-auth-story" aria-label="Fixi para talleres">
+        <Link to="/login" className="fx-auth-brand">
+          <span className="fixi-brand-mark">F</span>
+          <span>Fixi</span>
+        </Link>
+        <div className="fx-auth-message">
+          <span>Operación de taller, sin fricción</span>
+          <h2>Todo el taller, en un solo pulso.</h2>
+          <p>Recepción, reparación, refacciones y cobros conectados en una experiencia clara para tomar decisiones y avanzar más rápido.</p>
         </div>
-        {children}
-      </div>
+        <div className="fx-auth-proof">
+          <span>Órdenes y expedientes</span>
+          <span>Inventario y mostrador</span>
+          <span>Caja y seguimiento</span>
+        </div>
+      </section>
+      <main className="fx-auth-side">
+        <div className="fx-auth-card">
+          <div className="fx-auth-card-head">
+            <span className="fixi-brand-mark">F</span>
+            <div>
+              <h1>{title}</h1>
+              {subtitle ? <p>{subtitle}</p> : null}
+            </div>
+          </div>
+          {children}
+        </div>
+      </main>
     </div>
   )
 }
@@ -84,20 +116,20 @@ export function LoginPage() {
       </form>
 
       {import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_USERS === 'true' ? (
-        <div className="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-          <p className="mb-1 font-medium">Usuarios de demo</p>
-          <ul className="space-y-1">
+        <div className="fx-auth-demo">
+          <p>Acceso rápido de demostración</p>
+          <ul>
             {DEMO_USERS.map((u) => (
               <li key={u.email}>
                 <button
                   type="button"
-                  className="text-left text-brand-700 hover:underline"
                   onClick={() => {
                     setEmail(u.email)
                     setPassword(u.password)
                   }}
                 >
-                  {u.role}: {u.email} / {u.password}
+                  <strong className="block text-slate-700">{u.role}</strong>
+                  {u.email} / {u.password}
                 </button>
               </li>
             ))}

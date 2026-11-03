@@ -64,7 +64,11 @@ export function CustomersPage() {
           autoFocus
         />
       </Card>
-      <Card padded={false}>
+      <Card
+        padded={false}
+        title="Directorio de clientes"
+        actions={customers.data ? <Badge tone="blue">{customers.data.total} cliente{customers.data.total === 1 ? '' : 's'}</Badge> : undefined}
+      >
         {customers.isLoading ? (
           <Loading />
         ) : customers.isError ? (
@@ -89,7 +93,18 @@ export function CustomersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {customers.data!.items.map((c) => (
-                  <tr key={c.id} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/customers/${c.id}`)}>
+                  <tr
+                    key={c.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => navigate(`/customers/${c.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        navigate(`/customers/${c.id}`)
+                      }
+                    }}
+                  >
                     <Td className="font-medium text-slate-800">{c.fullName}</Td>
                     <Td>{c.phone}</Td>
                     <Td className="text-slate-500">{c.email ?? '—'}</Td>

@@ -80,7 +80,7 @@ function InvoicesTab() {
           <p className="pb-2 text-xs text-slate-500">Las facturas se emiten desde cada orden (pestaña Pagos) o venta.</p>
         </div>
       </Card>
-      <Card padded={false}>
+      <Card padded={false} title="Comprobantes emitidos" actions={invoices.data ? <Badge tone="blue">{invoices.data.total} comprobantes</Badge> : undefined}>
         {invoices.isLoading ? (
           <Loading />
         ) : invoices.isError ? (

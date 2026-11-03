@@ -163,7 +163,7 @@ export function NewOrderPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Nueva orden de reparación" subtitle="Registra el estado del equipo al recibirlo. La firma de recepción es opcional." />
-      <ol className="mb-5 flex gap-2 text-sm" aria-label="Pasos">
+      <ol className="fx-stepper mb-5 flex gap-2 text-sm" aria-label="Pasos">
         {steps.map((s) => (
           <li key={s.id} className={cn('flex-1 rounded-lg border px-3 py-2 text-center', s.id === step ? 'border-brand-500 bg-brand-50 font-medium text-brand-800' : 'border-slate-200 bg-white text-slate-500')} aria-current={s.id === step ? 'step' : undefined}>
             {s.label}

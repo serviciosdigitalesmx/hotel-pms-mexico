@@ -60,7 +60,7 @@ function PurchaseOrdersTab() {
           + Nueva orden de compra
         </Button>
       </div>
-      <Card padded={false}>
+      <Card padded={false} title="Órdenes de compra" actions={orders.data ? <Badge tone="blue">{orders.data.total} pedidos</Badge> : undefined}>
         {orders.isLoading ? (
           <Loading />
         ) : orders.isError ? (
@@ -86,7 +86,18 @@ function PurchaseOrdersTab() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {orders.data!.items.map((po) => (
-                  <tr key={po.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setViewing(po.id)}>
+                  <tr
+                    key={po.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => setViewing(po.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setViewing(po.id)
+                      }
+                    }}
+                  >
                     <Td className="font-medium text-brand-700">{po.code}</Td>
                     <Td>{po.supplierName}</Td>
                     <Td>{date(po.createdAtUtc)}</Td>

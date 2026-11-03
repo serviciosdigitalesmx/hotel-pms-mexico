@@ -9,33 +9,33 @@ import { cn } from '../../lib/cn'
 
 export function PublicHeader() {
   return (
-    <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
-      <Link to="/precios" className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">F</span>
-        <span className="text-lg font-semibold text-slate-900">Fixi</span>
+    <header className="fx-public-header">
+      <div className="fx-public-nav">
+      <Link to="/precios" className="fx-public-brand">
+        <span className="fixi-brand-mark">F</span>
+        <span>Fixi</span>
       </Link>
-      <nav className="flex items-center gap-4 text-sm">
-        <Link to="/login" className="text-slate-600 hover:text-slate-900">
+      <nav className="flex items-center gap-2">
+        <Link to="/login" className="fx-public-link">
           Ingresar
         </Link>
-        <Link to="/registro" className="rounded-lg bg-brand-600 px-3 py-2 font-medium text-white hover:bg-brand-700">
+        <Link to="/registro" className="fx-public-cta">
           Probar gratis
         </Link>
       </nav>
+      </div>
     </header>
   )
 }
 
 export function PublicFooter() {
   return (
-    <footer className="mx-auto max-w-6xl px-4 py-8 text-center text-xs text-slate-500">
-      <Link to="/terminos" className="hover:underline">
-        Términos
-      </Link>
-      {' · '}
-      <Link to="/privacidad" className="hover:underline">
-        Privacidad
-      </Link>
+    <footer className="fx-public-footer">
+      <span>Fixi · Operación para talleres de reparación</span>
+      <nav>
+        <Link to="/terminos">Términos</Link>
+        <Link to="/privacidad">Privacidad</Link>
+      </nav>
     </footer>
   )
 }
@@ -45,16 +45,17 @@ export function PricingPage() {
   const plans = useQuery({ queryKey: ['plans', billingCountry(country)], queryFn: () => billingApi.plans(billingCountry(country)) })
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="fx-public-shell">
       <PublicHeader />
-      <main className="mx-auto max-w-6xl px-4 pb-10">
-        <section className="py-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">El sistema para tu servicio técnico</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-600">
+      <main className="fx-public-main">
+        <section className="fx-pricing-hero">
+          <span className="fx-kicker">Planes claros, taller sin límites</span>
+          <h1>El sistema para tu servicio técnico</h1>
+          <p>
             Órdenes, cotizaciones, stock, caja y avisos a tus clientes en un solo lugar. Usuarios ilimitados en todos los planes.
           </p>
-          <p className="mt-2 text-sm font-medium text-brand-700">{plans.data?.trialDays ?? 14} días gratis, sin tarjeta.</p>
-          <label className="mt-5 inline-flex items-center gap-2 text-sm text-slate-600">
+          <span className="fx-pricing-trial">{plans.data?.trialDays ?? 14} días gratis, sin tarjeta.</span>
+          <label className="fx-country-select">
             Precios para
             <Select value={country} onChange={(e) => setCountry(e.target.value)} className="w-48">
               {COUNTRIES.map((c) => (
@@ -69,30 +70,33 @@ export function PricingPage() {
         {plans.isLoading ? (
           <Loading />
         ) : plans.data ? (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="fx-pricing-cards">
             {plans.data.plans.map((p) => (
               <PlanCard key={p.id} plan={p} highlight={p.id === 'Standard'} />
             ))}
           </div>
         ) : null}
 
-        <section className="mt-10 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h2 className="font-semibold text-slate-900">Todos los planes incluyen</h2>
-          <ul className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+        <section className="fx-pricing-features">
+          <div>
+            <span className="fx-kicker">La base completa</span>
+            <h2>Todos los planes incluyen</h2>
+          </div>
+          <ul>
             {CORE_FEATURES.map((f) => (
               <li key={f} className="flex gap-2">
-                <span aria-hidden="true" className="text-brand-600">✓</span>
+                <span aria-hidden="true" className="fx-feature-check">✓</span>
                 {f}
               </li>
             ))}
             {country === 'AR' ? (
               <li className="flex gap-2">
-                <span aria-hidden="true" className="text-brand-600">✓</span>
+                <span aria-hidden="true" className="fx-feature-check">✓</span>
                 Factura electrónica ARCA
               </li>
             ) : null}
           </ul>
-          <p className="mt-4 text-xs text-slate-500">
+          <p>
             {country === 'AR'
               ? 'Precios finales en pesos, cobrados por Mercado Pago cada mes.'
               : country === 'MX'
@@ -109,30 +113,28 @@ export function PricingPage() {
 
 function PlanCard({ plan, highlight }: { plan: Plan; highlight: boolean }) {
   return (
-    <div className={cn('flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1', highlight ? 'ring-2 ring-brand-600' : 'ring-slate-200')}>
-      <p className="text-sm font-semibold text-brand-700">{plan.name}</p>
-      <p className="mt-1 text-sm text-slate-500">{PLAN_TAGLINE[plan.id]}</p>
-      <p className="mt-4">
-        <span className="text-3xl font-bold text-slate-900">{planPrice(plan)}</span>
-        <span className="text-sm text-slate-500"> /mes</span>
+    <article className={cn('fx-plan-card', highlight && 'is-highlighted')}>
+      {highlight ? <span className="fx-plan-badge">Más elegido</span> : null}
+      <p className="fx-plan-name">{plan.name}</p>
+      <p className="fx-plan-tagline">{PLAN_TAGLINE[plan.id]}</p>
+      <p className="fx-plan-price">
+        <span>{planPrice(plan)}</span>
+        <small> /mes</small>
       </p>
-      <ul className="mt-4 flex-1 space-y-2 text-sm text-slate-700">
+      <ul className="fx-plan-features">
         {planFeatures(plan).map((f) => (
           <li key={f} className="flex gap-2">
-            <span aria-hidden="true" className="text-brand-600">✓</span>
+            <span aria-hidden="true" className="fx-feature-check">✓</span>
             {f}
           </li>
         ))}
       </ul>
       <Link
         to="/registro"
-        className={cn(
-          'mt-6 rounded-lg px-4 py-2 text-center text-sm font-medium',
-          highlight ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-        )}
+        className={cn('fx-plan-cta', highlight && 'is-primary')}
       >
         Empezar la prueba gratis
       </Link>
-    </div>
+    </article>
   )
 }

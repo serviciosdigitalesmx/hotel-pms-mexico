@@ -73,7 +73,7 @@ export function OrderDetailPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="fx-order-header flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-slate-500">
             <Link to="/orders" className="hover:underline">
@@ -93,7 +93,7 @@ export function OrderDetailPage() {
             {o.deviceLabel} · {o.customerName} · ingresó {relative(o.createdAtUtc)}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="fx-order-actions flex flex-wrap gap-2">
           <Button onClick={() => void openPdf(`/orders/${o.id}/documents/intake`)}>Comprobante</Button>
           <Button onClick={() => void printPdf(`/orders/${o.id}/documents/label`)}>Etiqueta</Button>
           {o.status === 'Delivered' ? <Button onClick={() => void openPdf(`/orders/${o.id}/documents/warranty`)}>Garantía</Button> : null}

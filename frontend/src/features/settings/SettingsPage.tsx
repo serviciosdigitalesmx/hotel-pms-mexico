@@ -107,7 +107,7 @@ function SettingsEditor({ settings, section }: { settings: ShopSettings; section
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="fx-settings-form space-y-4">
       {section === 'general' ? (
         <>
           <LogoCard settings={settings} />
@@ -234,7 +234,7 @@ function SettingsEditor({ settings, section }: { settings: ShopSettings; section
           </Card>
         </>
       )}
-      <div className="sticky bottom-0 flex justify-end border-t border-slate-200 bg-slate-50/90 py-3 backdrop-blur">
+      <div className="fx-save-bar sticky bottom-0 flex justify-end border-t border-slate-200 bg-slate-50/90 py-3 backdrop-blur">
         <Button type="submit" variant="primary" loading={save.isPending}>
           Guardar cambios
         </Button>

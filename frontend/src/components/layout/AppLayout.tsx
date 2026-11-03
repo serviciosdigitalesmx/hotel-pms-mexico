@@ -60,6 +60,13 @@ export function AppIcon({ name, className }: { name: string; className?: string 
     pin: 'M12 21s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12zm0-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6',
     chevron: 'm9 18 6-6-6-6',
     search: 'm20 20-4-4m2-6a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
+    clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 4v5l3 2',
+    pickup: 'M5 8h14l1 12H4zM8 8V6a4 4 0 0 1 8 0v2m-7 7 2 2 4-4',
+    quote: 'M6 3h9l3 3v15H6zM14 3v4h4M9 11h6m-6 4h4',
+    pause: 'M8 5v14M16 5v14',
+    check: 'm5 12 4 4L19 6',
+    alert: 'M12 3 2.8 20h18.4zM12 9v5m0 3h.01',
+    arrow: 'M5 12h14m-5-5 5 5-5 5',
   }
   return <svg aria-hidden="true" className={cn('h-[18px] w-[18px] shrink-0', className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name] ?? paths.orders}/></svg>
 }
@@ -75,6 +82,7 @@ export function AppLayout() {
   const [switching, setSwitching] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [navSections, setNavSections] = useState<Record<string, boolean>>({})
   const navigate = useNavigate()
   const location = useLocation()
   const nav = NAV.map(s => ({ ...s, items: s.items.filter(i => !i.permission || can(i.permission)) })).filter(s => s.items.length > 0)
@@ -99,6 +107,15 @@ export function AppLayout() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  useEffect(() => {
+    if (!mobileOpen) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [mobileOpen])
+
   async function onSwitch(shopId: string) {
     if (shopId === user?.shopId) return
     setSwitching(true)
@@ -119,10 +136,16 @@ export function AppLayout() {
       <NavLink to="/" className="fixi-brand" onClick={() => setMobileOpen(false)}>
         <span className="fixi-brand-mark">F</span><span className="fixi-brand-copy"><b>Fixi</b><small>{user?.shopName}</small></span>
       </NavLink>
+      <div className="fixi-workspace" aria-label="Contexto de trabajo">
+        <span>{user?.shopName ?? 'Taller'}</span><b>Operación activa</b>
+      </div>
       <div className="fixi-nav-scroll">
         <p className="fixi-nav-caption">Taller</p>
         {primary?.items.map(navLink)}
-        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))}>
+        {secondary.map(section => <details className="fixi-nav-group" key={section.section} open={navSections[section.section] ?? (section.section === 'Administración' || section.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')))} onToggle={event => {
+          const isOpen = event.currentTarget.open
+          setNavSections(current => ({ ...current, [section.section]: isOpen }))
+        }}>
           <summary>{section.section}<span className="fixi-nav-count">{section.items.length}</span></summary>
           <div>{section.items.map(navLink)}</div>
         </details>)}
@@ -158,6 +181,8 @@ export function AppLayout() {
             {shops.length > 1 ? <label className="fixi-branch-control"><span>Sucursal</span><select value={user?.shopId} disabled={switching} onChange={e => void onSwitch(e.target.value)} aria-label="Cambiar de sucursal">
               {shops.map(s => <option key={s.shopId} value={s.shopId}>{s.shopName}</option>)}
             </select></label> : null}
+            {can('orders.manage') ? <NavLink to="/orders/new" className="fixi-top-primary"><AppIcon name="plus"/><span>Nueva orden</span></NavLink> : null}
+            <span className="fixi-topbar-divider" aria-hidden="true" />
             <button type="button" className="fixi-icon-button fixi-theme-top" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}><AppIcon name={theme === 'dark' ? 'sun' : 'moon'}/></button>
           </div>
         </header>

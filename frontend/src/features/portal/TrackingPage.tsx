@@ -39,7 +39,7 @@ export function TrackingPage() {
     const status = (q.error as AxiosError | null)?.response?.status
     return (
       <Shell>
-        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+        <div className="fx-tracking-card p-8 text-center">
           <p className="text-lg font-semibold text-slate-900">{status === 404 ? 'No encontramos esta orden' : 'No pudimos cargar la orden'}</p>
           <p className="mt-2 text-sm text-slate-600">{status === 404 ? 'Revisa que el enlace esté completo o pídele uno nuevo al taller.' : errorMessage(q.error)}</p>
           {status !== 404 ? (
@@ -106,25 +106,27 @@ export function TrackingPage() {
 
 function Shell({ shop, children }: { shop?: PublicTracking['shop']; children: ReactNode }) {
   return (
-    <div className="min-h-full bg-slate-100">
-      <header className="bg-white shadow-sm">
+    <div className="fx-tracking-shell">
+      <header className="fx-tracking-header">
         <div className="mx-auto flex max-w-xl items-center gap-3 px-4 py-4">
-          {shop?.logoUrl ? <img src={shop.logoUrl} alt="" className="h-10 w-10 rounded-lg object-contain" /> : <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">{shop?.name?.slice(0, 2).toUpperCase() ?? 'RS'}</span>}
+          {shop?.logoUrl ? <img src={shop.logoUrl} alt="" className="h-10 w-10 rounded-xl object-contain" /> : <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">{shop?.name?.slice(0, 2).toUpperCase() ?? 'FX'}</span>}
           <div className="min-w-0">
-            <p className="truncate font-semibold text-slate-900">{shop?.name ?? 'Seguimiento de reparación'}</p>
+            <p className="fx-tracking-eyebrow">Seguimiento en línea</p>
+            <p className="truncate font-semibold text-slate-900">{shop?.name ?? 'Tu reparación'}</p>
             {shop?.city ? <p className="truncate text-xs text-slate-500">{shop.city}</p> : null}
           </div>
+          <span className="fx-live ml-auto text-[10px] text-slate-500">Al día</span>
         </div>
       </header>
-      <main className="mx-auto max-w-xl px-4 py-5">{children}</main>
+      <main className="relative mx-auto max-w-xl px-4 py-6">{children}</main>
     </div>
   )
 }
 
 function Section({ title, children, className, innerRef }: { title: string; children: ReactNode; className?: string; innerRef?: Ref<HTMLElement> }) {
   return (
-    <section ref={innerRef} className={cn('rounded-2xl bg-white p-4 shadow-sm', className)}>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+    <section ref={innerRef} className={cn('fx-tracking-card p-4', className)}>
+      <h2 className="mb-3 text-[10px] font-bold uppercase tracking-[0.11em] text-slate-500">{title}</h2>
       {children}
     </section>
   )
@@ -136,11 +138,12 @@ function StatusCard({ data }: { data: PublicTracking }) {
   const current = STEPS.findIndex((s) => s.status.includes(o.status))
   const tone = ORDER_STATUS[o.status]?.tone ?? 'slate'
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">
+    <section className="fx-tracking-card overflow-hidden p-5">
+      <span className="fx-tracking-accent" aria-hidden="true" />
+      <p className="text-xs text-slate-500">
         Hola {o.customerFirstName} · Orden <strong className="text-slate-700">{o.code}</strong>
       </p>
-      <p className="mt-1 text-lg font-semibold text-slate-900">{o.device}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-900">{o.device}</p>
       <p
         className={cn(
           'mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold',
@@ -152,7 +155,7 @@ function StatusCard({ data }: { data: PublicTracking }) {
       {o.isWarrantyClaim ? <p className="mt-2 text-xs text-slate-500">Ingreso por garantía.</p> : null}
 
       {!cancelled ? (
-        <ol className="mt-5 grid grid-cols-5 gap-1" aria-label="Progreso de la reparación">
+        <ol className="fx-tracking-progress" aria-label="Progreso de la reparación">
           {STEPS.map((s, i) => (
             <li key={s.label} className="text-center">
               <span className={cn('mx-auto block h-1.5 rounded-full', i <= current ? 'bg-brand-600' : 'bg-slate-200')} />

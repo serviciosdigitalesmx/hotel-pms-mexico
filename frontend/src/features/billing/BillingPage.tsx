@@ -187,7 +187,7 @@ function PlanOption({
   onChoose: () => void
 }) {
   return (
-    <div className={cn('flex flex-col rounded-xl bg-white p-5 shadow-sm ring-1', current ? 'ring-2 ring-brand-600' : 'ring-slate-200')}>
+    <div className={cn('fx-plan-card !min-h-0 !p-5', current && 'is-highlighted')}>
       <div className="flex items-center justify-between">
         <p className="font-semibold text-slate-900">{plan.name}</p>
         {current ? <Badge tone="blue">Tu plan</Badge> : null}

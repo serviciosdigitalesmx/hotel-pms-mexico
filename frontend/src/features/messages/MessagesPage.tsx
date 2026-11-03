@@ -46,7 +46,7 @@ export function MessagesPage() {
           Los avisos se registran pero no salen solos. Mientras tanto puedes enviarlos por WhatsApp desde cada orden con un clic.
         </Alert>
       ) : null}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="fx-filter-pills mb-4 flex flex-wrap items-center gap-2">
         {(['', 'Pending', 'Failed', 'Sent', 'Cancelled'] as const).map((s) => (
           <button
             key={s || 'all'}
@@ -55,13 +55,13 @@ export function MessagesPage() {
               setSkip(0)
               setParams(s ? { status: s } : {}, { replace: true })
             }}
-            className={`rounded-full border px-3 py-1 text-sm ${status === s ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+            className={`rounded-full border px-3 py-1 text-xs ${status === s ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
           >
             {s ? OUTBOX_STATUS[s].label : 'Todos'}
           </button>
         ))}
       </div>
-      <Card padded={false}>
+      <Card padded={false} title="Cola de mensajes" actions={messages.data ? <Badge tone="blue">{messages.data.total} envíos</Badge> : undefined}>
         {messages.isLoading ? (
           <Loading />
         ) : messages.isError ? (
@@ -87,7 +87,18 @@ export function MessagesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {messages.data!.items.map((m) => (
-                  <tr key={m.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setViewing(m)}>
+                  <tr
+                    key={m.id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => setViewing(m)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setViewing(m)
+                      }
+                    }}
+                  >
                     <Td>
                       <span className="font-medium text-slate-800">{m.title}</span>
                       <span className="block max-w-md truncate text-xs text-slate-500">{m.body}</span>
