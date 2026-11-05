@@ -73,7 +73,8 @@ public sealed class FileService
         var file = await _files.GetByIdAnyShopAsync(fileId, ct) ?? throw new NotFoundException("Archivo no encontrado.");
         if (!file.IsImage) throw new NotFoundException("Miniatura no disponible.");
         var key = file.StorageKey + ".thumb.webp";
-        var stream = await _storage.OpenReadAsync(key, ct) ?? throw new NotFoundException("Miniatura no disponible.");
+        var stream = await _storage.OpenReadAsync(key, ct);
+        if (stream is null) return await OpenAsync(file, ct);
         return new FileDownload(stream, "image/webp", Path.GetFileNameWithoutExtension(file.FileName) + ".webp");
     }
 

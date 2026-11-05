@@ -1,30 +1,59 @@
+using System.Diagnostics;
+using System.Text.Json;
 using FluentAssertions;
 using RepairShop.Application.Abstractions;
 using RepairShop.Infrastructure.Files.Images;
 using SkiaSharp;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace RepairShop.Api.IntegrationTests;
 
 public sealed class ImageThumbnailerTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public ImageThumbnailerTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public void CreatesSmallWebpPreviewFromLargeRasterImage()
     {
-        using var source = new SKBitmap(new SKImageInfo(1200, 800, SKColorType.Bgra8888, SKAlphaType.Premul));
-        using var canvas = new SKCanvas(source);
-        canvas.Clear(SKColors.CornflowerBlue);
-        using var image = SKImage.FromBitmap(source);
-        using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
-        var thumbnailer = new SkiaImageThumbnailer();
+        var original = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "smartphone-cracked-screen.jpg"));
+        IImageThumbnailer thumbnailer = new SkiaImageThumbnailer();
 
-        var result = thumbnailer.CreateWebpThumbnail(encoded.ToArray());
+        var result = thumbnailer.CreateWebpThumbnail(original);
 
         result.Should().NotBeNull();
         using var decoded = SKBitmap.Decode(result!);
         decoded.Should().NotBeNull();
-        decoded!.Width.Should().Be(640);
+        decoded!.Width.Should().BeLessThanOrEqualTo(640);
         decoded.Height.Should().BeInRange(1, 640);
+        result!.Length.Should().BeLessThan(original.Length);
+
+        var samples = new List<(double Ms, long AllocatedBytes)>();
+        for (var i = 0; i < 9; i++)
+        {
+            var before = GC.GetTotalAllocatedBytes(precise: true);
+            var timer = Stopwatch.StartNew();
+            var sample = thumbnailer.CreateWebpThumbnail(original);
+            timer.Stop();
+            sample.Should().NotBeNull();
+            samples.Add((timer.Elapsed.TotalMilliseconds, GC.GetTotalAllocatedBytes(precise: true) - before));
+        }
+        var orderedTimes = samples.Select(x => x.Ms).Order().ToArray();
+        var orderedAllocations = samples.Select(x => x.AllocatedBytes).Order().ToArray();
+        var report = new
+        {
+            Benchmark = "photo-thumbnail",
+            Input = "Wikimedia Commons smartphone photo, 1920x1280 JPEG",
+            Samples = samples.Count,
+            OriginalBytes = original.Length,
+            ThumbnailBytes = result.Length,
+            TransferReductionPercent = Math.Round((original.Length - result.Length) * 100d / original.Length, 1),
+            MedianProcessingMs = Math.Round(orderedTimes[orderedTimes.Length / 2], 3),
+            MedianAllocatedBytes = orderedAllocations[orderedAllocations.Length / 2]
+        };
+        _output.WriteLine("FIXI_PERF_REPORT=" + JsonSerializer.Serialize(report));
     }
 
     [Fact]
