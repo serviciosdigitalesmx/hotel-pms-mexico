@@ -68,7 +68,7 @@ public sealed class DashboardMetricsParityTests
         using var scope = _factory.Services.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<IReportQueries>();
         var connection = new NpgsqlConnectionStringBuilder(_factory.ConnectionString);
-        using var counter = new EfCommandCounter(connection.Database);
+        using var counter = new EfCommandCounter(connection.Database ?? throw new InvalidOperationException("Integration database name is missing."));
         var now = DateTime.UtcNow;
         var staleBefore = now.AddDays(1);
         var readyBefore = now.AddDays(1);

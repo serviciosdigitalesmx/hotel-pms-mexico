@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using RepairShop.Application.Abstractions;
+using SkiaSharp;
 using Xunit;
 
 namespace RepairShop.Api.IntegrationTests;
