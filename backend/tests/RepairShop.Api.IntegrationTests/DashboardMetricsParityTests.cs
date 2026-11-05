@@ -61,7 +61,7 @@ public sealed class DashboardMetricsParityTests
         api.UseToken(switchedBack.Str("accessToken"));
         var primarySummary = await (await api.Get("/dashboard/summary")).DataAsync();
         primarySummary.GetProperty("totalOrders").GetInt32().Should().Be(2);
-        primarySummary.GetProperty("overdueOrders").GetInt32().Should().Be(1);
+        primarySummary.GetProperty("overdueOrders").GetInt32().Should().Be(0);
         var anonymous = _factory.CreateClient();
         (await anonymous.GetAsync("/api/v1/dashboard/summary")).StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
 
@@ -69,8 +69,9 @@ public sealed class DashboardMetricsParityTests
         var queries = scope.ServiceProvider.GetRequiredService<IReportQueries>();
         var connection = new NpgsqlConnectionStringBuilder(_factory.ConnectionString);
         using var counter = new EfCommandCounter(connection.Database ?? throw new InvalidOperationException("Integration database name is missing."));
-        // Use a future promised date to satisfy the order domain invariant while
-        // choosing a benchmark cutoff that counts it as overdue.
+        // A promised date two days from creation is valid. Benchmark against a
+        // reference three days later so both legacy and aggregate overdue logic
+        // include it, while the live dashboard correctly sees it as not overdue.
         var now = DateTime.UtcNow.AddDays(3);
         var staleBefore = now.AddDays(1);
         var readyBefore = now.AddDays(1);
