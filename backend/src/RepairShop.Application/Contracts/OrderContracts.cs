@@ -145,7 +145,8 @@ public sealed record RepairOrderAttachmentResponse(
     Guid? FileId = null,
     string? FileName = null,
     string? ContentType = null,
-    long? SizeBytes = null
+    long? SizeBytes = null,
+    string? ThumbnailUrl = null
 );
 
 public sealed record CreateRepairOrderAttachmentRequest(

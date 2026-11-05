@@ -31,7 +31,10 @@ public sealed class DashboardService
         var shop = await _shops.GetByIdAsync(shopId, ct) ?? throw new NotFoundException("Sucursal no encontrada.");
         var (todayStart, monthStart) = LocalBoundaries(shop, now);
 
-        var counts = await _queries.CountOrdersByStatusAsync(shopId, ct);
+        var staleBefore = now.AddDays(-shop.StaleOrderDays);
+        var readyBefore = now.AddDays(-(shop.GetReadyReminderDays().FirstOrDefault() is var d and > 0 ? d : 7));
+        var orderMetrics = await _queries.DashboardOrderMetricsAsync(shopId, now, staleBefore, readyBefore, ct);
+        var counts = orderMetrics.CountsByStatus;
         int Count(RepairOrderStatus s) => counts.GetValueOrDefault(s);
         var total = counts.Values.Sum();
         var open = total - Count(RepairOrderStatus.Delivered) - Count(RepairOrderStatus.Cancelled);
@@ -50,15 +53,15 @@ public sealed class DashboardService
             paymentsByCurrency.Count == 1 ? paymentsByCurrency[0].Currency : null,
             now,
             Enum.GetValues<RepairOrderStatus>().ToDictionary(s => s.ToString(), Count),
-            await _queries.CountOverdueAsync(shopId, now, ct),
-            await _queries.CountStaleAsync(shopId, now.AddDays(-shop.StaleOrderDays), ct),
-            await _queries.CountReadyBeforeAsync(shopId, now.AddDays(-(shop.GetReadyReminderDays().FirstOrDefault() is var d and > 0 ? d : 7)), ct),
+            orderMetrics.Overdue,
+            orderMetrics.Stale,
+            orderMetrics.ReadyBefore,
             await _queries.CountQuotesAsync(shopId, QuoteStatus.Sent, ct),
             await _queries.CountLowStockAsync(shopId, ct),
-            await _queries.CountOpenAssignedAsync(shopId, userId, ct),
+            orderMetrics.AssignedOrders.FirstOrDefault(a => a.UserId == userId)?.OpenOrders ?? 0,
             today,
             month,
-            (await _queries.TechnicianWorkloadAsync(shopId, now, ct)).Select(w => new TechnicianWorkload(w.UserId, w.Name, w.OpenOrders, w.OverdueOrders)).ToList(),
+            (await _queries.TechnicianWorkloadAsync(shopId, orderMetrics, ct)).Select(w => new TechnicianWorkload(w.UserId, w.Name, w.OpenOrders, w.OverdueOrders)).ToList(),
             await _queries.HasOpenCashSessionAsync(shopId, ct),
             shop.ReportingCurrency,
             converter.MissingCurrencies.ToList(),

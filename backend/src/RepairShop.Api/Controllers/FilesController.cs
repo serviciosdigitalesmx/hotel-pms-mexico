@@ -18,13 +18,16 @@ public sealed class FilesController : ControllerBase
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
     public async Task<IActionResult> Get(Guid id, [FromQuery] long? exp, [FromQuery] string? sig,
+        [FromQuery] string? variant,
         [FromServices] FileService files, [FromServices] IFileUrlSigner signer, CancellationToken ct)
     {
         FileDownload download;
         if (exp is not null && sig is not null)
         {
             if (!signer.Validate(id, exp.Value, sig)) throw new ForbiddenException("El link del archivo venció. Recargá la página.");
-            download = await files.OpenAnyShopAsync(id, ct);
+            download = string.Equals(variant, "thumbnail", StringComparison.OrdinalIgnoreCase)
+                ? await files.OpenThumbnailAnyShopAsync(id, ct)
+                : await files.OpenAnyShopAsync(id, ct);
             Response.Headers.CacheControl = "private, max-age=600";
         }
         else

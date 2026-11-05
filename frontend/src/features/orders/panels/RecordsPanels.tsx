@@ -122,7 +122,7 @@ export function PhotosPanel({ order }: { order: RepairOrder }) {
             <li key={a.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
               {a.kind === 'Photo' && a.url ? (
                 <button type="button" className="block w-full" onClick={() => setPreview(a.url!)}>
-                  <img src={a.url} alt={a.label ?? 'Foto de la orden'} loading="lazy" className="aspect-square w-full object-cover" />
+                  <img src={a.thumbnailUrl ?? a.url} alt={a.label ?? 'Foto de la orden'} loading="lazy" className="aspect-square w-full object-cover" />
                 </button>
               ) : (
                 <a href={a.url ?? '#'} target="_blank" rel="noreferrer" className="flex aspect-square items-center justify-center bg-slate-50 text-3xl text-slate-400">

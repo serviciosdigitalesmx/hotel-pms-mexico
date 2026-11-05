@@ -22,13 +22,15 @@ public sealed class FileService
     private readonly IStoredFileRepository _files;
     private readonly IUnitOfWork _uow;
     private readonly IDateTimeProvider _clock;
+    private readonly IImageThumbnailer _thumbnailer;
 
-    public FileService(IFileStorage storage, IStoredFileRepository files, IUnitOfWork uow, IDateTimeProvider clock)
+    public FileService(IFileStorage storage, IStoredFileRepository files, IUnitOfWork uow, IDateTimeProvider clock, IImageThumbnailer thumbnailer)
     {
         _storage = storage;
         _files = files;
         _uow = uow;
         _clock = clock;
+        _thumbnailer = thumbnailer;
     }
 
     public async Task<StoredFile> UploadAsync(Guid shopId, Stream content, string? fileName, string purpose, bool imagesOnly, Guid? userId, CancellationToken ct)
@@ -64,6 +66,16 @@ public sealed class FileService
     {
         var file = await _files.GetByIdAnyShopAsync(fileId, ct) ?? throw new NotFoundException("Archivo no encontrado.");
         return await OpenAsync(file, ct);
+    }
+
+    public async Task<FileDownload> OpenThumbnailAnyShopAsync(Guid fileId, CancellationToken ct)
+    {
+        var file = await _files.GetByIdAnyShopAsync(fileId, ct) ?? throw new NotFoundException("Archivo no encontrado.");
+        if (!file.IsImage) throw new NotFoundException("Miniatura no disponible.");
+        var key = file.StorageKey + ".thumb.webp";
+        var stream = await _storage.OpenReadAsync(key, ct);
+        if (stream is null) return await OpenAsync(file, ct);
+        return new FileDownload(stream, "image/webp", Path.GetFileNameWithoutExtension(file.FileName) + ".webp");
     }
 
     public async Task<byte[]?> ReadBytesAsync(Guid shopId, Guid? fileId, CancellationToken ct)
@@ -103,6 +115,27 @@ public sealed class FileService
         await using (var ms = new MemoryStream(bytes, writable: false))
         {
             await _storage.SaveAsync(key, ms, contentType, ct);
+        }
+
+        if (isImage && contentType is ("image/jpeg" or "image/png" or "image/webp" or "image/gif"))
+        {
+            try
+            {
+                var thumbnail = _thumbnailer.CreateWebpThumbnail(bytes);
+                if (thumbnail is { Length: > 0 })
+                {
+                    await using var thumbnailStream = new MemoryStream(thumbnail, writable: false);
+                    await _storage.SaveAsync(key + ".thumb.webp", thumbnailStream, "image/webp", ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                // Preserve upload availability when an optional derivative cannot be generated or stored.
+            }
         }
 
         var name = string.IsNullOrWhiteSpace(fileName) ? $"archivo{ext}" : fileName;

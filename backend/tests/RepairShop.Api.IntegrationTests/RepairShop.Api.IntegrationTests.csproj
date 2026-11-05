@@ -23,4 +23,8 @@
     <ProjectReference Include="..\..\src\RepairShop.Api\RepairShop.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Fixtures\smartphone-cracked-screen.jpg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

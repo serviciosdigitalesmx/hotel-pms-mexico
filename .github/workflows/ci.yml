@@ -50,6 +50,14 @@ jobs:
           # Integration tests create and drop their own databases on this server.
           REPAIRSHOP_TEST_CONNECTION: Host=localhost;Port=5432;Username=postgres;Password=postgres
         run: dotnet test RepairShop.sln -c Release --no-build --logger "trx;LogFilePrefix=results" --results-directory TestResults
+      - name: Measure dashboard query parity and photo thumbnails
+        env:
+          REPAIRSHOP_TEST_CONNECTION: Host=localhost;Port=5432;Username=postgres;Password=postgres
+        run: >-
+          dotnet test tests/RepairShop.Api.IntegrationTests/RepairShop.Api.IntegrationTests.csproj
+          -c Release --no-build
+          --filter "FullyQualifiedName~DashboardMetricsParityTests|FullyQualifiedName~ImageThumbnailerTests|FullyQualifiedName~ImageAttachmentTests"
+          --logger "console;verbosity=detailed"
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4

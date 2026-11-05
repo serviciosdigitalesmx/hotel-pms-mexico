@@ -12,6 +12,12 @@ public interface IFileStorage
     string? GetPresignedUrl(string key, string contentType, TimeSpan ttl);
 }
 
+/// <summary>Creates bounded, browser-friendly previews for supported raster images.</summary>
+public interface IImageThumbnailer
+{
+    byte[]? CreateWebpThumbnail(ReadOnlySpan<byte> imageBytes, int maxDimension = 640, int quality = 75);
+}
+
 /// <summary>Builds short-lived URLs to download files without a bearer token (img tags, PDFs).</summary>
 public interface IFileUrlSigner
 {
