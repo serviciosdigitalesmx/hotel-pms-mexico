@@ -21,6 +21,35 @@ public sealed class ReportQueries : IReportQueries
     // Cross-shop (consolidated dashboard) needs to bypass the tenant filter: shop filters are explicit below.
     private IQueryable<RepairOrder> Orders(Guid shopId) => _db.RepairOrders.IgnoreQueryFilters().Where(o => o.ShopId == shopId);
 
+    public async Task<DashboardOrderMetrics> DashboardOrderMetricsAsync(Guid shopId, DateTime nowUtc, DateTime staleBeforeUtc, DateTime readyBeforeUtc, CancellationToken ct)
+    {
+        var rows = await Orders(shopId)
+            .GroupBy(o => o.Status)
+            .Select(g => new
+            {
+                Status = g.Key,
+                Count = g.Count(),
+                Overdue = g.Count(o => o.PromisedAtUtc != null && o.PromisedAtUtc < nowUtc && !Final.Contains(o.Status) && o.Status != RepairOrderStatus.Ready),
+                Stale = g.Count(o => !Final.Contains(o.Status) && o.Status != RepairOrderStatus.Ready && o.LastStatusChangeAtUtc < staleBeforeUtc),
+                ReadyBefore = g.Count(o => o.Status == RepairOrderStatus.Ready && o.ReadyAtUtc != null && o.ReadyAtUtc < readyBeforeUtc),
+            })
+            .ToListAsync(ct);
+
+        var assigned = await Orders(shopId)
+            .Where(o => o.AssignedTechnicianId != null && !Final.Contains(o.Status))
+            .GroupBy(o => o.AssignedTechnicianId!.Value)
+            .Select(g => new AssignedOrderMetrics(g.Key, g.Count(),
+                g.Count(o => o.PromisedAtUtc != null && o.PromisedAtUtc < nowUtc && o.Status != RepairOrderStatus.Ready)))
+            .ToListAsync(ct);
+
+        return new DashboardOrderMetrics(
+            rows.ToDictionary(r => r.Status, r => r.Count),
+            rows.Sum(r => r.Overdue),
+            rows.Sum(r => r.Stale),
+            rows.Sum(r => r.ReadyBefore),
+            assigned);
+    }
+
     public async Task<IReadOnlyDictionary<RepairOrderStatus, int>> CountOrdersByStatusAsync(Guid shopId, CancellationToken ct)
         => (await Orders(shopId).GroupBy(o => o.Status).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct))
             .ToDictionary(x => x.Key, x => x.Count);
@@ -69,13 +98,40 @@ public sealed class ReportQueries : IReportQueries
             .ToListAsync(ct);
 
         var names = techIds.ToDictionary(u => u.Id, u => u.DisplayName);
-        foreach (var r in rows.Where(r => !names.ContainsKey(r.UserId)))
-            names[r.UserId] = (await _db.Users.Where(u => u.Id == r.UserId).Select(u => u.DisplayName).FirstOrDefaultAsync(ct)) ?? "?";
+        var missingIds = rows.Where(r => !names.ContainsKey(r.UserId)).Select(r => r.UserId).ToArray();
+        if (missingIds.Length > 0)
+        {
+            var missingNames = await _db.Users.Where(u => missingIds.Contains(u.Id)).Select(u => new { u.Id, u.DisplayName }).ToListAsync(ct);
+            foreach (var user in missingNames) names[user.Id] = user.DisplayName;
+        }
+        foreach (var id in missingIds) names.TryAdd(id, "?");
 
         return names.Select(n =>
         {
             var row = rows.FirstOrDefault(r => r.UserId == n.Key);
             return new WorkloadRow(n.Key, n.Value, row?.Open ?? 0, row?.Overdue ?? 0);
+        }).Where(w => w.OpenOrders > 0 || techIds.Any(t => t.Id == w.UserId && t.Role == UserRole.Tech))
+          .OrderByDescending(w => w.OpenOrders).ToList();
+    }
+
+    public async Task<IReadOnlyList<WorkloadRow>> TechnicianWorkloadAsync(Guid shopId, DashboardOrderMetrics metrics, CancellationToken ct)
+    {
+        var techIds = await _db.Users
+            .Where(u => u.IsActive && (u.ShopId == shopId && (u.Role == UserRole.Tech || u.Role == UserRole.Admin)
+                                       || _db.UserShopAccess.Any(a => a.UserId == u.Id && a.ShopId == shopId && (a.Role == UserRole.Tech || a.Role == UserRole.Admin))))
+            .Select(u => new { u.Id, u.DisplayName, u.Role })
+            .ToListAsync(ct);
+        var names = techIds.ToDictionary(u => u.Id, u => u.DisplayName);
+        var missingIds = metrics.AssignedOrders.Where(r => !names.ContainsKey(r.UserId)).Select(r => r.UserId).Distinct().ToArray();
+        if (missingIds.Length > 0)
+        {
+            var missingNames = await _db.Users.Where(u => missingIds.Contains(u.Id)).Select(u => new { u.Id, u.DisplayName }).ToListAsync(ct);
+            foreach (var user in missingNames) names[user.Id] = user.DisplayName;
+        }
+        return names.Select(n =>
+        {
+            var row = metrics.AssignedOrders.FirstOrDefault(r => r.UserId == n.Key);
+            return new WorkloadRow(n.Key, n.Value, row?.OpenOrders ?? 0, row?.OverdueOrders ?? 0);
         }).Where(w => w.OpenOrders > 0 || techIds.Any(t => t.Id == w.UserId && t.Role == UserRole.Tech))
           .OrderByDescending(w => w.OpenOrders).ToList();
     }

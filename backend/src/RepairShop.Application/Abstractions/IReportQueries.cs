@@ -6,6 +6,8 @@ namespace RepairShop.Application.Abstractions;
 /// <summary>Raw, already filtered rows for dashboards and reports (aggregation happens in the application layer).</summary>
 public interface IReportQueries
 {
+    Task<DashboardOrderMetrics> DashboardOrderMetricsAsync(Guid shopId, DateTime nowUtc, DateTime staleBeforeUtc, DateTime readyBeforeUtc, CancellationToken ct);
+    Task<IReadOnlyList<WorkloadRow>> TechnicianWorkloadAsync(Guid shopId, DashboardOrderMetrics metrics, CancellationToken ct);
     Task<IReadOnlyDictionary<RepairOrderStatus, int>> CountOrdersByStatusAsync(Guid shopId, CancellationToken ct);
     Task<int> CountOverdueAsync(Guid shopId, DateTime nowUtc, CancellationToken ct);
     Task<int> CountStaleAsync(Guid shopId, DateTime olderThanUtc, CancellationToken ct);
@@ -26,6 +28,15 @@ public interface IReportQueries
     Task<IReadOnlyList<FeedbackRow>> FeedbackAsync(Guid shopId, DateTime fromUtc, DateTime toUtc, CancellationToken ct);
     Task<IReadOnlyList<StockRow>> StockAsync(Guid shopId, CancellationToken ct);
 }
+
+public sealed record DashboardOrderMetrics(
+    IReadOnlyDictionary<RepairOrderStatus, int> CountsByStatus,
+    int Overdue,
+    int Stale,
+    int ReadyBefore,
+    IReadOnlyList<AssignedOrderMetrics> AssignedOrders);
+
+public sealed record AssignedOrderMetrics(Guid UserId, int OpenOrders, int OverdueOrders);
 
 public sealed record WorkloadRow(Guid UserId, string Name, int OpenOrders, int OverdueOrders);
 

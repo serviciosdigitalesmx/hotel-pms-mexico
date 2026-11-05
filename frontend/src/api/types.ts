@@ -465,6 +465,7 @@ export interface OrderAttachment {
   fileName?: string | null
   contentType?: string | null
   sizeBytes?: number | null
+  thumbnailUrl?: string | null
 }
 
 export interface OrderPayment {

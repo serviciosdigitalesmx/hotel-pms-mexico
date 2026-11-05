@@ -13,6 +13,7 @@ using RepairShop.Infrastructure.Ai;
 using RepairShop.Infrastructure.Billing;
 using RepairShop.Infrastructure.Documents;
 using RepairShop.Infrastructure.Files;
+using RepairShop.Infrastructure.Files.Images;
 using RepairShop.Infrastructure.Idempotency;
 using RepairShop.Infrastructure.Integrations;
 using RepairShop.Infrastructure.Jobs;
@@ -135,6 +136,7 @@ public static class DependencyInjection
 
     private static void AddFiles(IServiceCollection services, IConfiguration config)
     {
+        services.AddSingleton<IImageThumbnailer, SkiaImageThumbnailer>();
         services.Configure<StorageOptions>(config.GetSection(StorageOptions.SectionName));
         var provider = config.GetSection(StorageOptions.SectionName)["Provider"];
         if (string.Equals(provider, "S3", StringComparison.OrdinalIgnoreCase))

@@ -204,8 +204,9 @@ public sealed class OrderRecordsService
         StoredFile? file = a.FileId is null ? null : await _storedFiles.GetByIdAsync(shopId, a.FileId.Value, ct);
         // Files get a short-lived signed URL so they can be shown in <img> tags without the bearer token.
         var url = a.FileId is null ? a.Url : _urls.GetUrl(a.FileId.Value, TimeSpan.FromMinutes(30));
+        var thumbnailUrl = file?.IsImage == true ? url + "&variant=thumbnail" : null;
         return new RepairOrderAttachmentResponse(a.Id, url, a.Label, a.CreatedByUserId, a.CreatedAtUtc, a.Kind.ToString(), a.FileId,
-            file?.FileName, file?.ContentType, file?.SizeBytes);
+            file?.FileName, file?.ContentType, file?.SizeBytes, thumbnailUrl);
     }
 
     private static RepairOrderChecklistResponse ToResponse(RepairOrderReceptionChecklist c)
