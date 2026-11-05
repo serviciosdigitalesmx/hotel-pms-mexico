@@ -1478,6 +1478,11 @@ button.fx-summary-cell:hover {
 }
 
 .fx-metric-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
   min-width: 0;
 }
 
