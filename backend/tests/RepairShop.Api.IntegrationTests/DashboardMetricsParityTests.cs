@@ -41,7 +41,7 @@ public sealed class DashboardMetricsParityTests
         {
             assignedTechnicianId = userId,
             priority = "Normal",
-            promisedAtUtc = DateTime.UtcNow.AddDays(-2)
+            promisedAtUtc = DateTime.UtcNow.AddDays(2)
         })).DataAsync();
         var secondOrder = await api.CreateOrderAsync("Benchmark: another open status");
         await (await api.Post($"/orders/{secondOrder.Str("id")}/status", new { status = "Diagnosing" })).DataAsync();
@@ -69,7 +69,9 @@ public sealed class DashboardMetricsParityTests
         var queries = scope.ServiceProvider.GetRequiredService<IReportQueries>();
         var connection = new NpgsqlConnectionStringBuilder(_factory.ConnectionString);
         using var counter = new EfCommandCounter(connection.Database ?? throw new InvalidOperationException("Integration database name is missing."));
-        var now = DateTime.UtcNow;
+        // Use a future promised date to satisfy the order domain invariant while
+        // choosing a benchmark cutoff that counts it as overdue.
+        var now = DateTime.UtcNow.AddDays(3);
         var staleBefore = now.AddDays(1);
         var readyBefore = now.AddDays(1);
 
