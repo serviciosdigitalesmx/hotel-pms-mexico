@@ -115,6 +115,16 @@ export function LoginPage() {
         </p>
       </form>
 
+      <aside className="fx-auth-android" aria-label="Aplicación Android de Fixi">
+        <div>
+          <strong>Fixi en Android</strong>
+          <span>Administra tu taller desde el celular.</span>
+        </div>
+        <a href="/downloads/fixi-android.apk" download>
+          Descargar APK 4.0.1
+        </a>
+      </aside>
+
       {import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_USERS === 'true' ? (
         <div className="fx-auth-demo">
           <p>Acceso rápido de demostración</p>
