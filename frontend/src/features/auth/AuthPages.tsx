@@ -50,6 +50,18 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
             </div>
           </div>
           {children}
+          <div className="fx-auth-download">
+            <div>
+              <strong>Fixi en Android</strong>
+              <span>Administra tu taller desde el celular.</span>
+            </div>
+            <a href="/downloads/fixi-android.apk" download>
+              Descargar APK
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" />
+              </svg>
+            </a>
+          </div>
         </div>
       </main>
     </div>
