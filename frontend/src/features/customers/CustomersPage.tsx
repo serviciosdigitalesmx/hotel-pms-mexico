@@ -1,13 +1,13 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { customersApi, devicesApi, exportPaths, inventoryApi } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { Customer, Device, ImportResult } from '../../api/types'
 import { useSession } from '../../auth/session'
 import { CustomerSearch, StatusBadge } from '../../components/domain'
-import { Alert, Badge, Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState, KeyValue, Loading, Modal, PageHeader, Pagination, SearchInput, Stat, Table, Td, Th } from '../../components/ui'
+import { Alert, Badge, Button, Card, Checkbox, ConfirmDialog, Drawer, EmptyState, ErrorState, KeyValue, Loading, Modal, PageHeader, Pagination, SearchInput, Stat, Table, Td, Th } from '../../components/ui'
 import { amounts, date, dateTime, money, number, relative } from '../../lib/format'
 import { downloadFile } from '../../lib/files'
 import { useDebounced } from '../../lib/hooks'
@@ -19,11 +19,15 @@ const TAKE = 25
 
 export function CustomersPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [params, setParams] = useSearchParams()
   const { can } = useSession()
   const queryClient = useQueryClient()
-  const [q, setQ] = useState('')
-  const [skip, setSkip] = useState(0)
+  const q = params.get('q') ?? ''
+  const skip = Number(params.get('skip') ?? 0)
   const [creating, setCreating] = useState(false)
+  const [createDirty, setCreateDirty] = useState(false)
+  const [confirmCreateClose, setConfirmCreateClose] = useState(false)
   const [importing, setImporting] = useState(false)
   const debounced = useDebounced(q.trim(), 300)
   const customers = useQuery({
@@ -31,6 +35,28 @@ export function CustomersPage() {
     queryFn: () => customersApi.search({ q: debounced || undefined, skip, take: TAKE, sortBy: debounced ? 'name' : 'createdAt', sortDir: debounced ? 'asc' : 'desc' }),
     placeholderData: keepPreviousData,
   })
+
+  useLayoutEffect(() => {
+    const restoreScrollY = (location.state as { restoreScrollY?: number } | null)?.restoreScrollY
+    if (typeof restoreScrollY === 'number') window.scrollTo({ top: restoreScrollY })
+  }, [location.key, location.state])
+
+  function updateListParams(changes: Record<string, string | undefined>) {
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    }
+    if (!('skip' in changes)) next.delete('skip')
+    setParams(next, { replace: true })
+  }
+
+  function closeCreate(force = false) {
+    if (createDirty && !force) { setConfirmCreateClose(true); return }
+    setConfirmCreateClose(false)
+    setCreateDirty(false)
+    setCreating(false)
+  }
 
   return (
     <div>
@@ -56,10 +82,7 @@ export function CustomersPage() {
       <Card className="mb-4">
         <SearchInput
           value={q}
-          onChange={(v) => {
-            setQ(v)
-            setSkip(0)
-          }}
+          onChange={(v) => updateListParams({ q: v })}
           placeholder="Buscar clientes…"
           autoFocus
         />
@@ -97,11 +120,11 @@ export function CustomersPage() {
                     key={c.id}
                     className="cursor-pointer"
                     tabIndex={0}
-                    onClick={() => navigate(`/customers/${c.id}`)}
+                    onClick={() => navigate(`/customers/${c.id}`, { state: { from: `${location.pathname}${location.search}`, scrollY: window.scrollY } })}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                        navigate(`/customers/${c.id}`)
+                        navigate(`/customers/${c.id}`, { state: { from: `${location.pathname}${location.search}`, scrollY: window.scrollY } })
                       }
                     }}
                   >
@@ -124,28 +147,31 @@ export function CustomersPage() {
               </tbody>
             </Table>
             <div className="px-4 pb-3">
-              <Pagination skip={skip} take={TAKE} total={customers.data!.total} onChange={setSkip} />
+              <Pagination skip={skip} take={TAKE} total={customers.data!.total} onChange={(value) => updateListParams({ skip: String(value) })} />
             </div>
           </>
         )}
       </Card>
 
       {creating ? (
-        <Modal open onClose={() => setCreating(false)} title="Nuevo cliente" size="lg">
+        <Drawer open onClose={() => closeCreate()} title="Nuevo cliente">
           <CustomerForm
             initial={emptyCustomer()}
             submitLabel="Crear cliente"
-            onCancel={() => setCreating(false)}
-            onUseExisting={(id) => navigate(`/customers/${id}`)}
+            onCancel={() => closeCreate()}
+            onDirtyChange={setCreateDirty}
+            onUseExisting={(id) => navigate(`/customers/${id}`, { state: { from: `${location.pathname}${location.search}`, scrollY: window.scrollY } })}
             onSubmit={async (input) => {
               const c = await customersApi.create(input)
               toast.success('Cliente creado')
+              setCreateDirty(false)
               void queryClient.invalidateQueries({ queryKey: ['customers'] })
-              navigate(`/customers/${c.id}`)
+              navigate(`/customers/${c.id}`, { state: { from: `${location.pathname}${location.search}`, scrollY: window.scrollY } })
             }}
           />
-        </Modal>
+        </Drawer>
       ) : null}
+      <ConfirmDialog open={confirmCreateClose} title="Descartar cambios" message="Hay datos del cliente sin guardar. ¿Quieres cerrar el formulario y descartarlos?" confirmLabel="Descartar" danger onConfirm={() => closeCreate(true)} onClose={() => setConfirmCreateClose(false)} />
       {importing ? <ImportDialog kind="customers" onClose={() => setImporting(false)} /> : null}
     </div>
   )
@@ -259,10 +285,13 @@ export function ImportDialog({ kind, onClose }: { kind: 'customers' | 'inventory
 export function CustomerDetailPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { can } = useSession()
   const queryClient = useQueryClient()
   const summary = useQuery({ queryKey: ['customer', id, 'summary'], queryFn: () => customersApi.summary(id) })
   const [editing, setEditing] = useState(false)
+  const [editDirty, setEditDirty] = useState(false)
+  const [confirmEditClose, setConfirmEditClose] = useState(false)
   const [device, setDevice] = useState<Device | 'new' | null>(null)
   const [merging, setMerging] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -281,7 +310,14 @@ export function CustomerDetailPage() {
   if (summary.isError) return <ErrorState error={errorMessage(summary.error)} />
   const s = summary.data!
   const c = s.customer
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/customers'
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ['customer', id] })
+  function closeEdit(force = false) {
+    if (editDirty && !force) { setConfirmEditClose(true); return }
+    setConfirmEditClose(false)
+    setEditDirty(false)
+    setEditing(false)
+  }
 
   return (
     <div className="space-y-5">
@@ -295,6 +331,7 @@ export function CustomerDetailPage() {
         }
         actions={
           <>
+            <Button onClick={() => navigate(backTo, { state: { restoreScrollY: (location.state as { scrollY?: number } | null)?.scrollY } })}>Volver a clientes</Button>
             {c.whatsAppNumber ? (
               <a href={`https://wa.me/${c.whatsAppNumber}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-lg border border-emerald-600 px-3.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50">
                 WhatsApp
@@ -439,20 +476,23 @@ export function CustomerDetailPage() {
       ) : null}
 
       {editing ? (
-        <Modal open size="lg" onClose={() => setEditing(false)} title="Editar cliente">
+        <Drawer open onClose={() => closeEdit()} title="Editar cliente">
           <CustomerForm
             initial={customerToInput(c)}
             customerId={c.id}
-            onCancel={() => setEditing(false)}
+            onCancel={() => closeEdit()}
+            onDirtyChange={setEditDirty}
             onSubmit={async (input) => {
               await customersApi.update(c.id, input)
               toast.success('Cliente actualizado')
+              setEditDirty(false)
               setEditing(false)
               refresh()
             }}
           />
-        </Modal>
+        </Drawer>
       ) : null}
+      <ConfirmDialog open={confirmEditClose} title="Descartar cambios" message="Hay cambios del cliente sin guardar. ¿Quieres cerrarlos?" confirmLabel="Descartar" danger onConfirm={() => closeEdit(true)} onClose={() => setConfirmEditClose(false)} />
       {device ? (
         <Modal open onClose={() => setDevice(null)} title={device === 'new' ? 'Nuevo equipo' : 'Editar equipo'}>
           <DeviceForm

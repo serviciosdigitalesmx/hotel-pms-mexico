@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { settingsApi, transfersApi } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { Transfer } from '../../api/types'
-import { Alert, Badge, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, Select, Table, Td, Textarea, Th } from '../../components/ui'
+import { Alert, Badge, Button, Card, ConfirmDialog, Drawer, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Pagination, Select, Table, Td, Textarea, Th } from '../../components/ui'
 import { dateTime } from '../../lib/format'
 import { TRANSFER_STATUS } from '../../lib/labels'
 import { ItemPicker } from './ItemPicker'
@@ -160,6 +160,11 @@ function NewTransferDialog({ branches, onClose }: { branches: { id: string; name
   const [toShopId, setToShopId] = useState(branches[0]?.id ?? '')
   const [lines, setLines] = useState<{ id: string; name: string; available: number; quantity: number }[]>([])
   const [notes, setNotes] = useState('')
+  const [confirmClose, setConfirmClose] = useState(false)
+  function requestClose() {
+    if (toShopId !== branches[0]?.id || lines.length > 0 || notes.trim()) { setConfirmClose(true); return }
+    onClose()
+  }
   const create = useMutation({
     mutationFn: () => transfersApi.create({ toShopId, lines: lines.map((l) => ({ inventoryItemId: l.id, quantity: l.quantity })), notes: notes.trim() || null }),
     onSuccess: (t) => {
@@ -172,21 +177,21 @@ function NewTransferDialog({ branches, onClose }: { branches: { id: string; name
   })
   const invalid = lines.some((l) => l.quantity < 1 || l.quantity > l.available)
   return (
-    <Modal
-      open
-      size="lg"
-      onClose={onClose}
-      title="Nueva transferencia"
-      footer={
-        <>
-          <Button onClick={onClose}>Cancelar</Button>
-          <Button variant="primary" loading={create.isPending} disabled={!toShopId || lines.length === 0 || invalid} onClick={() => create.mutate()}>
-            Enviar
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
+    <>
+      <Drawer
+        open
+        onClose={requestClose}
+        title="Nueva transferencia"
+        footer={
+          <>
+            <Button onClick={requestClose}>Cancelar</Button>
+            <Button variant="primary" loading={create.isPending} disabled={!toShopId || lines.length === 0 || invalid} onClick={() => create.mutate()}>
+              Enviar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
         <Field label="Sucursal de destino">
           <Select value={toShopId} onChange={(e) => setToShopId(e.target.value)}>
             {branches.map((b) => (
@@ -247,7 +252,9 @@ function NewTransferDialog({ branches, onClose }: { branches: { id: string; name
         <Field label="Notas">
           <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Quién lo lleva, remito…" />
         </Field>
-      </div>
-    </Modal>
+        </div>
+      </Drawer>
+      <ConfirmDialog open={confirmClose} title="Descartar transferencia" message="La transferencia todavía no se ha enviado. ¿Quieres cerrar el formulario y descartar los productos agregados?" confirmLabel="Descartar" danger onConfirm={onClose} onClose={() => setConfirmClose(false)} />
+    </>
   )
 }

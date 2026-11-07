@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { customersApi } from '../../api/endpoints'
 import { errorMessage, fieldErrors } from '../../api/http'
@@ -9,24 +9,32 @@ import { DOCUMENT_TYPE, TAX_CONDITION } from '../../lib/labels'
 import { isValidImei } from './model'
 
 /** Customer form with live duplicate detection by phone (any format). */
-export function CustomerForm({ initial, customerId, submitLabel = 'Guardar', onSubmit, onCancel, onUseExisting, compact }: {
+export function CustomerForm({ initial, customerId, submitLabel = 'Guardar', onSubmit, onCancel, onUseExisting, onDirtyChange, compact }: {
   initial: CustomerInput
   customerId?: string
   submitLabel?: string
   onSubmit: (input: CustomerInput) => Promise<void>
   onCancel?: () => void
   onUseExisting?: (id: string) => void
+  onDirtyChange?: (dirty: boolean) => void
   compact?: boolean
 }) {
   const [v, setV] = useState<CustomerInput>(initial)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const initialSnapshot = useRef(JSON.stringify(initial))
   const phone = useDebounced((v.phone ?? '').replace(/\D/g, ''), 400)
   const dups = useQuery({ queryKey: ['customers', 'duplicates', phone, customerId], queryFn: () => customersApi.duplicates(phone, customerId), enabled: phone.length >= 6 })
 
 
-  const set = <K extends keyof CustomerInput>(k: K, value: CustomerInput[K]) => setV((prev) => ({ ...prev, [k]: value }))
+  const set = <K extends keyof CustomerInput>(k: K, value: CustomerInput[K]) => setV((prev) => {
+    return { ...prev, [k]: value }
+  })
+
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(v) !== initialSnapshot.current)
+  }, [v, onDirtyChange])
 
   async function submit(e: FormEvent) {
     e.preventDefault()

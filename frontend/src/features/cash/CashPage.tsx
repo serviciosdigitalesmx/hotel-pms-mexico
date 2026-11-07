@@ -6,7 +6,7 @@ import { cashApi } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { CashMovementType, CashSession, PaymentMethod } from '../../api/types'
 import { Money } from '../../components/domain'
-import { Alert, Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, Select, Stat, Table, Td, Textarea, Th } from '../../components/ui'
+import { Alert, Badge, Button, Card, ConfirmDialog, Drawer, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, Select, Stat, Table, Td, Textarea, Th } from '../../components/ui'
 import { cn } from '../../lib/cn'
 import { dateTime, money, parseAmount, relative, time } from '../../lib/format'
 import { openPdf } from '../../lib/files'
@@ -311,7 +311,12 @@ function MovementDialog({ type, currency, onClose }: { type: CashMovementType; c
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState(text.categories[0]!)
   const [method, setMethod] = useState<PaymentMethod>('Cash')
+  const [confirmClose, setConfirmClose] = useState(false)
   const value = parseAmount(amount)
+  function requestClose() {
+    if (amount.trim() || description.trim() || category !== text.categories[0] || method !== 'Cash') { setConfirmClose(true); return }
+    onClose()
+  }
   const save = useMutation({
     mutationFn: () => cashApi.movement({ type, amount: value!, method, currency, description: description.trim(), category }),
     onSuccess: () => {
@@ -322,14 +327,14 @@ function MovementDialog({ type, currency, onClose }: { type: CashMovementType; c
     onError: (err) => toast.error('No se pudo registrar', { description: errorMessage(err) }),
   })
   return (
-    <Modal
+    <>
+    <Drawer
       open
-      size="sm"
-      onClose={onClose}
+      onClose={requestClose}
       title={text.title}
       footer={
         <>
-          <Button onClick={onClose}>Cancelar</Button>
+          <Button onClick={requestClose}>Cancelar</Button>
           <Button variant="primary" loading={save.isPending} disabled={!value || value <= 0 || description.trim().length < 2} onClick={() => save.mutate()}>
             Guardar
           </Button>
@@ -362,7 +367,9 @@ function MovementDialog({ type, currency, onClose }: { type: CashMovementType; c
           <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={text.placeholder} />
         </Field>
       </div>
-    </Modal>
+    </Drawer>
+    <ConfirmDialog open={confirmClose} title="Descartar movimiento" message="Hay información del movimiento sin guardar. ¿Quieres cerrar y descartarla?" confirmLabel="Descartar" danger onConfirm={onClose} onClose={() => setConfirmClose(false)} />
+    </>
   )
 }
 
@@ -384,6 +391,12 @@ function CloseDialog({ session, onClose, onClosed }: { session: CashSession; onC
     return Math.round((billsTotal + (parseAmount(coins) ?? 0)) * 100) / 100
   }, [useCounter, countedText, bills, coins])
   const difference = counted === null ? null : Math.round((counted - expected) * 100) / 100
+  const unsaved = Boolean(countedText.trim() || coins.trim() || notes.trim() || Object.values(bills).some((value) => value.trim()) || others.some((line) => declared[`${line.method}|${line.currency}`] !== String(line.expected).replace('.', ',')))
+  const [confirmClose, setConfirmClose] = useState(false)
+  function requestClose() {
+    if (unsaved) { setConfirmClose(true); return }
+    onClose()
+  }
 
   const close = useMutation({
     mutationFn: () =>
@@ -401,15 +414,17 @@ function CloseDialog({ session, onClose, onClosed }: { session: CashSession; onC
   })
 
   return (
+    <>
     <Modal
       open
       size="lg"
-      onClose={onClose}
+      fullscreenMobile
+      onClose={requestClose}
       title={`Cerrar turno #${session.number}`}
       description="Contá el efectivo del cajón. La diferencia queda registrada en el cierre."
       footer={
         <>
-          <Button onClick={onClose}>Cancelar</Button>
+          <Button onClick={requestClose}>Cancelar</Button>
           <Button variant="primary" loading={close.isPending} disabled={counted === null || counted < 0} onClick={() => close.mutate()}>
             Cerrar caja
           </Button>
@@ -501,6 +516,8 @@ function CloseDialog({ session, onClose, onClosed }: { session: CashSession; onC
         </div>
       </div>
     </Modal>
+    <ConfirmDialog open={confirmClose} title="Descartar arqueo" message="Hay datos del arqueo sin guardar. ¿Quieres cerrar y descartarlos?" confirmLabel="Descartar" danger onConfirm={onClose} onClose={() => setConfirmClose(false)} />
+    </>
   )
 }
 

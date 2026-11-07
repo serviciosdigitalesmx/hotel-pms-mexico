@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { purchasingApi } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { PurchaseOrder, PurchaseOrderStatus, Supplier } from '../../api/types'
-import { Alert, Badge, Button, Card, Checkbox, ConfirmDialog, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, SearchInput, Select, Table, Tabs, Td, Textarea, Th } from '../../components/ui'
+import { Alert, Badge, Button, Card, Checkbox, ConfirmDialog, Drawer, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, SearchInput, Select, Table, Tabs, Td, Textarea, Th } from '../../components/ui'
 import { date, dateTime, money, parseAmount, todayIso } from '../../lib/format'
 import { useDebounced } from '../../lib/hooks'
 import { PURCHASE_STATUS } from '../../lib/labels'
@@ -316,9 +316,8 @@ function PurchaseOrderDialog({ id, onClose, onEdit }: { id: string; onClose: () 
   const open = po && (po.status === 'Ordered' || po.status === 'PartiallyReceived')
 
   return (
-    <Modal
+    <Drawer
       open
-      size="lg"
       onClose={onClose}
       title={po ? `${po.code} · ${po.supplierName}` : 'Orden de compra'}
       description={po ? `Creada ${dateTime(po.createdAtUtc)}${po.orderedAtUtc ? ` · pedida ${dateTime(po.orderedAtUtc)}` : ''}${po.receivedAtUtc ? ` · recibida ${dateTime(po.receivedAtUtc)}` : ''}` : undefined}
@@ -395,7 +394,7 @@ function PurchaseOrderDialog({ id, onClose, onEdit }: { id: string; onClose: () 
         />
       ) : null}
       <ConfirmDialog open={cancelling} title="¿Cancelar la orden de compra?" message="No se puede deshacer." danger confirmLabel="Cancelar orden" loading={cancel.isPending} onConfirm={() => cancel.mutate()} onClose={() => setCancelling(false)} />
-    </Modal>
+    </Drawer>
   )
 }
 

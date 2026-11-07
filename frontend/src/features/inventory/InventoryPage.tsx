@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,7 +6,7 @@ import { exportPaths, inventoryApi } from '../../api/endpoints'
 import { errorMessage, fieldErrors } from '../../api/http'
 import type { AdjustmentType, InventoryItem, InventoryItemInput } from '../../api/types'
 import { useSession } from '../../auth/session'
-import { Alert, Badge, Button, Card, Checkbox, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, SearchInput, Select, Table, Tabs, Td, Th } from '../../components/ui'
+import { Alert, Badge, Button, Card, Checkbox, ConfirmDialog, Drawer, EmptyState, ErrorState, Field, Input, Loading, Modal, PageHeader, Pagination, SearchInput, Select, Table, Tabs, Td, Th } from '../../components/ui'
 import { cn } from '../../lib/cn'
 import { dateTime, money, parseAmount } from '../../lib/format'
 import { downloadFile } from '../../lib/files'
@@ -30,6 +30,7 @@ export function InventoryPage() {
   const category = params.get('category') ?? ''
   const sortBy = params.get('sort') ?? 'name'
   const skip = Number(params.get('skip') ?? 0)
+  const activeSecondaryFilters = [lowStock, sellable, inactive].filter(Boolean).length
   const [editing, setEditing] = useState<InventoryItem | 'new' | null>(null)
   const [importing, setImporting] = useState(false)
 
@@ -90,11 +91,22 @@ export function InventoryPage() {
             <option value="updatedAt">Últimos modificados</option>
           </Select>
         </div>
-        <div className="mt-3 flex flex-wrap gap-4">
-          <Checkbox checked={lowStock} onChange={(e) => setParam('lowStock', e.target.checked ? '1' : '')} label="Solo stock bajo" />
-          <Checkbox checked={sellable} onChange={(e) => setParam('sellable', e.target.checked ? '1' : '')} label="Solo vendibles en mostrador" />
-          <Checkbox checked={inactive} onChange={(e) => setParam('inactive', e.target.checked ? '1' : '')} label="Incluir inactivos" />
-        </div>
+        <details className="fx-more-filters" open={activeSecondaryFilters > 0}>
+          <summary>Más filtros{activeSecondaryFilters > 0 ? <Badge tone="blue">{activeSecondaryFilters} activos</Badge> : null}</summary>
+          <div className="fx-more-filters-content">
+            <Checkbox checked={lowStock} onChange={(e) => setParam('lowStock', e.target.checked ? '1' : '')} label="Solo stock bajo" />
+            <Checkbox checked={sellable} onChange={(e) => setParam('sellable', e.target.checked ? '1' : '')} label="Solo vendibles en mostrador" />
+            <Checkbox checked={inactive} onChange={(e) => setParam('inactive', e.target.checked ? '1' : '')} label="Incluir inactivos" />
+            {activeSecondaryFilters > 0 ? <Button size="sm" variant="ghost" onClick={() => {
+              const next = new URLSearchParams(params)
+              next.delete('lowStock')
+              next.delete('sellable')
+              next.delete('inactive')
+              next.delete('skip')
+              setParams(next, { replace: true })
+            }}>Limpiar filtros secundarios</Button> : null}
+          </div>
+        </details>
       </Card>
 
       <Card
@@ -196,14 +208,21 @@ type Tab = 'data' | 'moves' | 'compat'
 function ItemDialog({ item, canManage, onClose }: { item: InventoryItem | null; canManage: boolean; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('data')
   const [adjusting, setAdjusting] = useState(false)
+  const [editing, setEditing] = useState(item === null)
+  const [dirty, setDirty] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
   const fresh = useQuery({ queryKey: ['inventory', item?.id], queryFn: () => inventoryApi.get(item!.id), enabled: !!item, initialData: item ?? undefined })
   const current = fresh.data ?? item
+  function requestClose() {
+    if (dirty) { setConfirmClose(true); return }
+    onClose()
+  }
 
   return (
-    <Modal
+    <>
+    <Drawer
       open
-      size="lg"
-      onClose={onClose}
+      onClose={requestClose}
       title={current ? current.name : 'Nuevo producto'}
       description={current ? `${current.sku} · stock ${current.quantityOnHand} · disponible ${current.availableQuantity}` : 'Refacción, accesorio o servicio con código.'}
     >
@@ -221,6 +240,7 @@ function ItemDialog({ item, canManage, onClose }: { item: InventoryItem | null; 
           />
           {tab === 'data' ? (
             <div className="space-y-4">
+              {canManage && !editing ? <Button variant="primary" onClick={() => setEditing(true)}>Editar producto</Button> : null}
               {canManage && current.trackStock ? (
                 <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                   <span>
@@ -231,7 +251,7 @@ function ItemDialog({ item, canManage, onClose }: { item: InventoryItem | null; 
                   </Button>
                 </div>
               ) : null}
-              <ItemForm item={current} readOnly={!canManage} onSaved={onClose} />
+              <ItemForm item={current} readOnly={!canManage || !editing} onSaved={onClose} onDirtyChange={setDirty} />
             </div>
           ) : tab === 'moves' ? (
             <AdjustmentsList itemId={current.id} />
@@ -240,14 +260,16 @@ function ItemDialog({ item, canManage, onClose }: { item: InventoryItem | null; 
           )}
         </>
       ) : (
-        <ItemForm item={null} readOnly={false} onSaved={onClose} />
+        <ItemForm item={null} readOnly={false} onSaved={onClose} onDirtyChange={setDirty} />
       )}
       {adjusting && current ? <AdjustDialog item={current} onClose={() => setAdjusting(false)} /> : null}
-    </Modal>
+    </Drawer>
+    <ConfirmDialog open={confirmClose} title="Descartar cambios" message="Hay cambios del producto sin guardar. ¿Quieres cerrar y descartarlos?" confirmLabel="Descartar" danger onConfirm={onClose} onClose={() => setConfirmClose(false)} />
+    </>
   )
 }
 
-function ItemForm({ item, readOnly, onSaved }: { item: InventoryItem | null; readOnly: boolean; onSaved: () => void }) {
+function ItemForm({ item, readOnly, onSaved, onDirtyChange }: { item: InventoryItem | null; readOnly: boolean; onSaved: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const queryClient = useQueryClient()
   const currency = useDefaultCurrency()
   const [v, setV] = useState({
@@ -268,12 +290,17 @@ function ItemForm({ item, readOnly, onSaved }: { item: InventoryItem | null; rea
     isActive: item?.isActive ?? true,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const initialSnapshot = useRef(JSON.stringify(v))
   const costId = useId()
   const priceId = useId()
   const set = <K extends keyof typeof v>(k: K, value: (typeof v)[K]) => setV((x) => ({ ...x, [k]: value }))
   const cost = parseAmount(v.unitCost)
   const price = parseAmount(v.salePrice)
   const margin = cost && price && v.unitCostCurrency === v.salePriceCurrency ? (price - cost) / price : null
+
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(v) !== initialSnapshot.current)
+  }, [v, onDirtyChange])
 
   const save = useMutation({
     mutationFn: () => {
