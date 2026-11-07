@@ -34,6 +34,7 @@ export function OrdersPage() {
     skip: Number(params.get('skip') ?? 0),
     take: TAKE,
   }
+  const activeSecondaryFilters = [filters.onlyOpen, filters.onlyOverdue, user?.role === 'Tech' ? filters.mine : false].filter(Boolean).length
 
   function update(changes: Record<string, string | undefined | null | boolean>) {
     const next = new URLSearchParams(params)
@@ -99,9 +100,15 @@ export function OrdersPage() {
           </Select>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-4">
-          <Checkbox label="Solo abiertas" checked={!!filters.onlyOpen} onChange={(e) => update({ onlyOpen: e.target.checked })} />
-          <Checkbox label="Atrasadas" checked={!!filters.onlyOverdue} onChange={(e) => update({ onlyOverdue: e.target.checked })} />
-          {user?.role === 'Tech' || filters.mine ? <Checkbox label="Asignadas a mí" checked={!!filters.mine} onChange={(e) => update({ mine: e.target.checked, technicianId: undefined })} /> : null}
+          <details className="fx-more-filters" open={activeSecondaryFilters > 0}>
+            <summary>Más filtros{activeSecondaryFilters > 0 ? <Badge tone="blue">{activeSecondaryFilters} activos</Badge> : null}</summary>
+            <div className="fx-more-filters-content">
+              <Checkbox label="Solo abiertas" checked={!!filters.onlyOpen} onChange={(e) => update({ onlyOpen: e.target.checked })} />
+              <Checkbox label="Atrasadas" checked={!!filters.onlyOverdue} onChange={(e) => update({ onlyOverdue: e.target.checked })} />
+              {user?.role === 'Tech' || filters.mine ? <Checkbox label="Asignadas a mí" checked={!!filters.mine} onChange={(e) => update({ mine: e.target.checked, technicianId: undefined })} /> : null}
+              {activeSecondaryFilters > 0 ? <Button size="sm" variant="ghost" onClick={() => update({ onlyOpen: false, onlyOverdue: false, mine: false })}>Limpiar filtros secundarios</Button> : null}
+            </div>
+          </details>
           <label className="ml-auto flex items-center gap-2 text-sm text-slate-600">
             Ordenar
             <Select
@@ -144,6 +151,16 @@ export function OrdersPage() {
           </div>
         ) : (
           <>
+            <div className="fx-orders-mobile" aria-label="Órdenes">
+              {orders.data!.items.map((o) => (
+                <button key={o.id} type="button" className="fx-order-mobile-card" onClick={() => navigate(`/orders/${o.id}`)}>
+                  <span className="fx-order-mobile-top"><strong>{o.code}</strong><StatusBadge status={o.status} /></span>
+                  <span className="fx-order-mobile-primary"><strong>{o.customerName}</strong><span>{o.deviceLabel}</span></span>
+                  <span className="fx-order-mobile-secondary"><span>{o.assignedTechnicianName ?? 'Sin asignar'} · {o.promisedAtUtc ? relative(o.promisedAtUtc) : 'Sin fecha prometida'}</span><span>{o.balanceDue > 0 ? <Money value={o.balanceDue} currency={o.currency} /> : 'Sin saldo'}</span></span>
+                </button>
+              ))}
+            </div>
+            <div className="fx-orders-desktop">
             <Table>
               <thead className="bg-slate-50">
                 <tr>
@@ -202,6 +219,7 @@ export function OrdersPage() {
                 ))}
               </tbody>
             </Table>
+            </div>
             <div className="px-4 pb-3">
               <Pagination skip={filters.skip ?? 0} take={TAKE} total={orders.data!.total} onChange={(skip) => update({ skip: String(skip) })} />
             </div>

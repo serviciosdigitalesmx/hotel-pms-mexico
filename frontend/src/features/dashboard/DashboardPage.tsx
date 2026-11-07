@@ -153,11 +153,13 @@ export function DashboardPage() {
             <span className="fx-live">actualizado {relative(s.generatedAtUtc)}</span>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {can('sales') ? <Button variant="default" onClick={() => navigate('/pos')}>Abrir punto de venta</Button> : null}
-          {can('orders.manage') ? <Button variant="primary" onClick={() => navigate('/orders/new')}>+ Recibir equipo</Button> : null}
-        </div>
       </header>
+
+      <nav className="fx-quick-actions" aria-label="Accesos operativos">
+        <Button variant="default" onClick={() => navigate('/orders')}>Ver órdenes</Button>
+        {can('orders.manage') ? <Button variant="primary" onClick={() => navigate('/orders/new')}>+ Recibir equipo</Button> : null}
+        {can('sales') ? <Button variant="default" onClick={() => navigate('/pos')}>Punto de venta</Button> : null}
+      </nav>
 
       {can('sales') && !s.cashSessionOpen ? (
         <Alert tone="amber" title="La caja está cerrada">

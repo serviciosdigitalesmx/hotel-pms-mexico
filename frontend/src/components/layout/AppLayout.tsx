@@ -125,7 +125,7 @@ export function AppLayout() {
   }
 
   const navLink = (item: NavItem) => (
-    <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileOpen(false)}
+      <NavLink key={item.to} to={item.to} end={item.end} title={item.label} aria-label={item.label} onClick={() => setMobileOpen(false)}
       className={({ isActive }) => cn('fixi-navlink', isActive && 'is-active')}>
       <AppIcon name={item.icon}/><span>{item.label}</span>
     </NavLink>
@@ -146,7 +146,7 @@ export function AppLayout() {
           const isOpen = event.currentTarget.open
           setNavSections(current => ({ ...current, [section.section]: isOpen }))
         }}>
-          <summary>{section.section}<span className="fixi-nav-count">{section.items.length}</span></summary>
+          <summary title={section.section} aria-label={`Sección ${section.section}`}><span>{section.section}</span><span className="fixi-nav-count">{section.items.length}</span></summary>
           <div>{section.items.map(navLink)}</div>
         </details>)}
       </div>
@@ -154,7 +154,7 @@ export function AppLayout() {
         <button type="button" className="fixi-quiet-link" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Usar modo claro' : 'Usar modo oscuro'}>
           <AppIcon name={theme === 'dark' ? 'sun' : 'moon'}/><span>Modo {theme === 'dark' ? 'oscuro' : 'claro'}</span>
         </button>
-        <button type="button" className="fixi-user-button" onClick={() => setMenuOpen(v => !v)} aria-expanded={menuOpen} aria-haspopup="menu">
+        <button type="button" className="fixi-user-button" aria-label={`${user?.displayName ?? 'Usuario'} · ${user ? ROLE[user.role] : ''}`} onClick={() => setMenuOpen(v => !v)} aria-expanded={menuOpen} aria-haspopup="menu">
           <span className="fixi-avatar">{initials(user?.displayName ?? '')}</span><span className="fixi-brand-copy"><b>{user?.displayName}</b><small>{user ? ROLE[user.role] : ''}</small></span><span className="fixi-user-more">···</span>
         </button>
         {menuOpen && <button type="button" className="fixi-menu-dismiss" aria-label="Cerrar opciones de cuenta" onClick={() => setMenuOpen(false)} />}
@@ -181,8 +181,6 @@ export function AppLayout() {
             {shops.length > 1 ? <label className="fixi-branch-control"><span>Sucursal</span><select value={user?.shopId} disabled={switching} onChange={e => void onSwitch(e.target.value)} aria-label="Cambiar de sucursal">
               {shops.map(s => <option key={s.shopId} value={s.shopId}>{s.shopName}</option>)}
             </select></label> : null}
-            {can('orders.manage') ? <NavLink to="/orders/new" className="fixi-top-primary"><AppIcon name="plus"/><span>Nueva orden</span></NavLink> : null}
-            <span className="fixi-topbar-divider" aria-hidden="true" />
             <button type="button" className="fixi-icon-button fixi-theme-top" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}><AppIcon name={theme === 'dark' ? 'sun' : 'moon'}/></button>
           </div>
         </header>

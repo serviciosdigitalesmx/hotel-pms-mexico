@@ -23,7 +23,7 @@ export function BoardPage() {
   const { user, can } = useSession()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [q, setQ] = useState('')
+  const q = params.get('q') ?? ''
   const debounced = useDebounced(q.trim(), 300)
   const mine = params.get('mine') === 'true'
   const technicianId = params.get('technicianId') ?? undefined
@@ -59,7 +59,12 @@ export function BoardPage() {
         actions={<><Button onClick={() => navigate('/orders')}>Ver lista</Button>{can('orders.manage') ? <Button variant="primary" onClick={() => navigate('/orders/new')}>+ Nueva orden</Button> : null}</>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <SearchInput value={q} onChange={setQ} placeholder="Filtrar tarjetas…" className="w-full sm:w-72" />
+        <SearchInput value={q} onChange={(value) => {
+          const next = new URLSearchParams(params)
+          if (value) next.set('q', value)
+          else next.delete('q')
+          setParams(next, { replace: true })
+        }} placeholder="Filtrar tarjetas…" className="w-full sm:w-72" />
         <Select
           className="w-full sm:w-56"
           value={technicianId ?? ''}
@@ -100,7 +105,23 @@ export function BoardPage() {
         <ErrorState error={errorMessage(board.error)} onRetry={() => board.refetch()} />
       ) : (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-          <div className="fixi-board flex gap-3 overflow-x-auto pb-4">
+          <div className="fx-board-mobile">
+            {board.data!.columns.map((col) => (
+              <details key={col.status} className="fx-board-mobile-group" open={col.count > 0}>
+                <summary><span>{col.label}</span><Badge>{col.count}</Badge></summary>
+                <div>
+                  {col.items.length === 0 ? <p className="fx-board-mobile-empty">Sin órdenes en este estado.</p> : col.items.map((card) => (
+                    <Link key={card.id} to={`/orders/${card.id}`} className="fx-board-mobile-card">
+                      <span><strong>{card.code}</strong><PriorityBadge priority={card.priority} hideNormal /></span>
+                      <b>{card.deviceLabel}</b>
+                      <small>{card.customerName} · {card.assignedTechnicianName ?? 'Sin asignar'}</small>
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+          <div className="fx-board-desktop fixi-board flex gap-3 overflow-x-auto pb-4">
             {board.data!.columns.map((col) => (
               <Column key={col.status} status={col.status} label={col.label} count={col.count}>
                 {col.items.map((card) => (

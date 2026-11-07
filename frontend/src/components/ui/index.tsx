@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { cn } from '../../lib/cn'
 import { TONE_CLASSES, type Tone } from '../../lib/labels'
 
@@ -48,7 +48,7 @@ const fieldClass =
   'fixi-field w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100 disabled:text-slate-500 aria-[invalid=true]:border-rose-400 aria-[invalid=true]:ring-rose-100'
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...props }, ref) {
-  return <input ref={ref} className={cn(fieldClass, 'h-10', className)} {...props} />
+  return <input ref={ref} className={cn(fieldClass, 'h-11', className)} {...props} />
 })
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, rows = 3, ...props }, ref) {
@@ -57,7 +57,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
 
 export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, children, ...props }, ref) {
   return (
-    <select ref={ref} className={cn(fieldClass, 'h-10 pr-8', className)} {...props}>
+    <select ref={ref} className={cn(fieldClass, 'h-11 pr-8', className)} {...props}>
       {children}
     </select>
   )
@@ -84,15 +84,21 @@ export function Field({ label, error, hint, required, className, children, contr
   const id = useId()
   const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined
   const targetId = controlId ?? (children.props as { id?: string }).id ?? id
-  const child = controlId
-    ? children
-    : React.cloneElement(children, {
+  const attributes = {
         id: targetId,
         'aria-invalid': error ? true : undefined,
         'aria-describedby': describedBy,
-      } as Record<string, unknown>)
+      } as Record<string, unknown>
+  function associate(node: React.ReactNode): React.ReactNode {
+    if (!React.isValidElement(node)) return node
+    const props = node.props as { id?: string; children?: React.ReactNode }
+    if (props.id === targetId) return React.cloneElement(node, { 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy } as Record<string, unknown>)
+    if (props.children === undefined) return node
+    return React.cloneElement(node, {}, React.Children.map(props.children, associate))
+  }
+  const child = controlId ? associate(children) : React.cloneElement(children, attributes)
   return (
-    <div className={cn('space-y-1', className)}>
+    <div className={cn('space-y-2', className)}>
       <label htmlFor={targetId} className="block text-sm font-medium text-slate-700">
         {label}
         {required ? <span className="ml-0.5 text-rose-600">*</span> : null}
@@ -230,9 +236,22 @@ export function Stat({ label, value, hint, tone, onClick }: { label: string; val
 
 // ===== Table =====
 export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
+  const tableRef = useRef<HTMLTableElement | null>(null)
+  useLayoutEffect(() => {
+    const table = tableRef.current
+    if (!table) return
+    const labels = Array.from(table.tHead?.rows[table.tHead.rows.length - 1]?.cells ?? []).map((cell) => cell.textContent?.trim() ?? '')
+    for (const body of Array.from(table.tBodies)) {
+      for (const row of Array.from(body.rows)) {
+        Array.from(row.cells).forEach((cell, index) => {
+          if (cell.tagName === 'TD') cell.setAttribute('data-label', labels[index] ?? '')
+        })
+      }
+    }
+  }, [children])
   return (
-    <div className={cn('overflow-x-auto', className)}>
-      <table className="fixi-table min-w-full divide-y divide-slate-200 text-sm">{children}</table>
+    <div className={cn('fixi-table-wrap overflow-x-auto', className)}>
+      <table ref={tableRef} className="fixi-table min-w-full divide-y divide-slate-200 text-sm">{children}</table>
     </div>
   )
 }
@@ -275,17 +294,31 @@ export function Pagination({ skip, take, total, onChange }: { skip: number; take
 
 // ===== Tabs =====
 export function Tabs<T extends string>({ value, onChange, tabs, className }: { value: T; onChange: (v: T) => void; tabs: { value: T; label: React.ReactNode; count?: number; hidden?: boolean }[]; className?: string }) {
+  const visibleTabs = tabs.filter((tab) => !tab.hidden)
+
+  function moveFocus(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | undefined
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % visibleTabs.length
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + visibleTabs.length) % visibleTabs.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = visibleTabs.length - 1
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    onChange(visibleTabs[nextIndex].value)
+    event.currentTarget.closest('[role="tablist"]')?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus()
+  }
+
   return (
-    <div role="tablist" className={cn('flex gap-1 overflow-x-auto border-b border-slate-200', className)}>
-      {tabs
-        .filter((t) => !t.hidden)
-        .map((t) => (
+    <div role="tablist" aria-orientation="horizontal" className={cn('flex gap-1 overflow-x-auto border-b border-slate-200', className)}>
+      {visibleTabs.map((t, index) => (
           <button
             key={t.value}
             role="tab"
             type="button"
             aria-selected={t.value === value}
+            tabIndex={t.value === value ? 0 : -1}
             onClick={() => onChange(t.value)}
+            onKeyDown={(event) => moveFocus(event, index)}
             className={cn(
               '-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition',
               t.value === value ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -299,8 +332,68 @@ export function Tabs<T extends string>({ value, onChange, tabs, className }: { v
   )
 }
 
+export function Drawer({ open, onClose, title, description, children, footer }: { open: boolean; onClose: () => void; title: React.ReactNode; description?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode }) {
+  const closeRef = useRef<HTMLButtonElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  const titleId = useId()
+  const descriptionId = useId()
+  onCloseRef.current = onClose
+
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    document.body.style.overflow = 'hidden'
+    closeRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (event.key === 'Tab') {
+        const panel = closeRef.current?.closest('[role="dialog"]')
+        const controls = panel?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')
+        if (!controls?.length) return
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
+  }, [open])
+
+  if (!open) return null
+  return (
+    <div className="fixi-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && window.matchMedia('(min-width: 761px)').matches) onClose() }}>
+      <section className="fixi-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined}>
+        <header className="fixi-drawer-header">
+          <div className="min-w-0">
+            <h2 id={titleId}>{title}</h2>
+            {description ? <p id={descriptionId}>{description}</p> : null}
+          </div>
+          <button ref={closeRef} type="button" className="fixi-drawer-close" aria-label="Cerrar panel" onClick={onClose}>←<span className="sr-only"> Regresar o cerrar</span></button>
+        </header>
+        <div className="fixi-drawer-content">{children}</div>
+        {footer ? <footer className="fixi-drawer-footer">{footer}</footer> : null}
+      </section>
+    </div>
+  )
+}
+
 // ===== Modal (native <dialog>: focus trap + Escape for free) =====
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: { open: boolean; onClose: () => void; title: React.ReactNode; description?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+export function Modal({ open, onClose, title, description, children, footer, size = 'md', fullscreenMobile = false }: { open: boolean; onClose: () => void; title: React.ReactNode; description?: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; size?: 'sm' | 'md' | 'lg' | 'xl'; fullscreenMobile?: boolean }) {
   const ref = useRef<HTMLDialogElement | null>(null)
   const titleId = useId()
   const descriptionId = useId()
@@ -331,6 +424,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       }}
       className={cn(
         'max-h-[92vh] w-[calc(100%-1.5rem)] overflow-hidden rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40',
+        fullscreenMobile && 'fx-modal-fullscreen-mobile',
         size === 'sm' && 'max-w-md',
         size === 'md' && 'max-w-xl',
         size === 'lg' && 'max-w-3xl',
