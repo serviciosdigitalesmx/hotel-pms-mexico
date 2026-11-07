@@ -1,8 +1,8 @@
 # Auditoría técnica Fixi Web UX/UI v1.1
 
-Fecha: 2026-11-07  
-Rama auditada: `codex/fixi-web-uxui-v11`  
-Commit base: `13621171b1567213b193757018361be62ec135e4` (`codex/fixi-repairshop`)  
+Fecha: 2026-11-07
+Rama auditada: `codex/fixi-web-uxui-v11`
+Commit base: `13621171b1567213b193757018361be62ec135e4` (`codex/fixi-repairshop`)
 Alcance: frontend React 18, TypeScript, Vite; API ASP.NET consumida por `frontend/src/api/endpoints.ts`.
 
 ## Método y límites
