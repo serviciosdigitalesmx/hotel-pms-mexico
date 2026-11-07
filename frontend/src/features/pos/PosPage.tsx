@@ -48,6 +48,7 @@ export function PosPage() {
   const [freeItem, setFreeItem] = useState(false)
   const [done, setDone] = useState<Sale | null>(null)
   const [pickingCustomer, setPickingCustomer] = useState(false)
+  const [cartExpanded, setCartExpanded] = useState(false)
 
   const catalog = useQuery({ queryKey: ['pos', 'catalog', debounced], queryFn: () => salesApi.catalog(debounced || undefined, 60), staleTime: 30_000 })
   const cash = useQuery({ queryKey: ['cash', 'current'], queryFn: cashApi.current, staleTime: 30_000 })
@@ -165,7 +166,7 @@ export function PosPage() {
   const cashClosed = cash.isSuccess && !cash.data
 
   return (
-    <div className="fixi-pos-layout grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="fixi-pos-layout grid gap-4 lg:grid-cols-[minmax(0,1.85fr)_minmax(300px,1fr)]">
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="fixi-pos-title text-xl font-semibold text-slate-900">Punto de venta</h1>
@@ -251,8 +252,12 @@ export function PosPage() {
         ) : null}
       </div>
 
-      <aside className="fixi-pos-cart lg:sticky lg:top-20 lg:self-start">
+      <aside className={`fixi-pos-cart lg:sticky lg:top-20 lg:self-start ${cartExpanded ? 'is-expanded' : 'is-collapsed'}`}>
         <Card padded={false} className="flex flex-col">
+          <button type="button" className="fx-pos-mobile-summary" aria-expanded={cartExpanded} onClick={() => setCartExpanded((expanded) => !expanded)}>
+            <span>{cartExpanded ? 'Ocultar carrito' : `${lines.length} producto${lines.length === 1 ? '' : 's'} · Ver carrito`}</span>
+            <strong>{money(totals.total)}</strong>
+          </button>
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div className="min-w-0 text-sm">
               {customer ? (

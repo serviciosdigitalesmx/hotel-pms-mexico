@@ -5,7 +5,7 @@ import { ordersApi } from '../../api/endpoints'
 import { errorMessage } from '../../api/http'
 import type { ChangeStatusResult, NotificationChannel, OrderStatus, RepairOrder } from '../../api/types'
 import { useSession } from '../../auth/session'
-import { Alert, Button, Checkbox, Field, Modal, Select, Textarea } from '../../components/ui'
+import { Alert, Button, Checkbox, Drawer, Field, Select, Textarea } from '../../components/ui'
 import { money } from '../../lib/format'
 import { CHANNEL, ORDER_STATUS } from '../../lib/labels'
 import { transitionBlocker } from './rules'
@@ -42,7 +42,7 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
 
   if (result) {
     return (
-      <Modal
+      <Drawer
         open
         onClose={onClose}
         title={`Orden ${order.code}: ${ORDER_STATUS[result.toStatus].label}`}
@@ -61,12 +61,12 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
             </a>
           ) : null}
         </div>
-      </Modal>
+      </Drawer>
     )
   }
 
   return (
-    <Modal
+    <Drawer
       open
       onClose={onClose}
       title={`Pasar a “${ORDER_STATUS[target].label}”`}
@@ -120,6 +120,6 @@ export function StatusDialog({ order, target, onClose }: { order: RepairOrder; t
           </Field>
         ) : null}
       </div>
-    </Modal>
+    </Drawer>
   )
 }

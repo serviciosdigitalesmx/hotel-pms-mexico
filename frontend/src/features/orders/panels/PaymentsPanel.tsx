@@ -7,7 +7,7 @@ import { errorMessage, newIdempotencyKey } from '../../../api/http'
 import type { DocumentType, OrderPayment, PaymentMethod, RepairOrder, TaxCondition } from '../../../api/types'
 import { useSession } from '../../../auth/session'
 import { Money } from '../../../components/domain'
-import { Alert, Badge, Button, Card, EmptyState, Field, Input, KeyValue, Loading, Modal, Select, Table, Td, Th } from '../../../components/ui'
+import { Alert, Badge, Button, Card, Drawer, EmptyState, Field, Input, KeyValue, Loading, Modal, Select, Table, Td, Th } from '../../../components/ui'
 import { dateTime, money, parseAmount } from '../../../lib/format'
 import { openPdf } from '../../../lib/files'
 import { DOCUMENT_TYPE, PAYMENT_METHOD, TAX_CONDITION } from '../../../lib/labels'
@@ -210,7 +210,7 @@ function PaymentDialog({ order, balance, currency, onClose, onDone }: { order: R
     onError: (err) => toast.error('No se pudo registrar el pago', { description: errorMessage(err) }),
   })
   return (
-    <Modal
+    <Drawer
       open
       size="sm"
       onClose={onClose}
@@ -248,7 +248,7 @@ function PaymentDialog({ order, balance, currency, onClose, onDone }: { order: R
           </Alert>
         ) : null}
       </div>
-    </Modal>
+    </Drawer>
   )
 }
 

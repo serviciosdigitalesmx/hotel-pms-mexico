@@ -35,6 +35,7 @@ export function OrderDetailPage() {
   const [signing, setSigning] = useState(false)
   const [warranty, setWarranty] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showFullIssue, setShowFullIssue] = useState(false)
 
   const reveal = useMutation({
     mutationFn: () => ordersApi.revealUnlock(id),
@@ -135,10 +136,9 @@ export function OrderDetailPage() {
         </Card>
       ) : null}
 
-      <div className="grid items-start gap-4 lg:grid-cols-3">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(290px,3fr)]">
         <Card
           title="Cliente y equipo"
-          className="lg:col-span-2"
           actions={
             can('orders.manage') && !final ? (
               <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
@@ -162,12 +162,16 @@ export function OrderDetailPage() {
               },
               { label: 'Equipo', value: o.deviceLabel },
               { label: 'IMEI', value: o.deviceImei ?? '—' },
-              { label: 'Falla reportada', value: <span className="whitespace-pre-wrap">{o.issueDescription}</span> },
               { label: 'Categoría', value: o.issueCategory ?? '—' },
               { label: 'Notas internas', value: o.notes ?? '—', hidden: !o.notes },
               { label: 'Motivo de cancelación', value: o.cancellationReason ?? '—', hidden: !o.cancellationReason },
             ]}
           />
+          <section className="fx-order-issue" aria-labelledby="fx-order-issue-title">
+            <h3 id="fx-order-issue-title">Falla reportada</h3>
+            <p className={showFullIssue ? 'whitespace-pre-wrap' : 'line-clamp-3 whitespace-pre-wrap'}>{o.issueDescription}</p>
+            {o.issueDescription.length > 180 ? <button type="button" aria-expanded={showFullIssue} onClick={() => setShowFullIssue((value) => !value)}>{showFullIssue ? 'Ver menos' : 'Ver descripción completa'}</button> : null}
+          </section>
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
             <span className="text-slate-500">Seguimiento del cliente:</span>
             <a href={o.trackingUrl} target="_blank" rel="noreferrer" className="text-brand-700 hover:underline">
@@ -262,6 +266,7 @@ export function OrderDetailPage() {
       <Tabs<Tab>
         value={tab}
         onChange={(t) => setParams({ tab: t }, { replace: true })}
+        className="fx-order-tabs"
         tabs={[
           { value: 'quotes', label: 'Cotizaciones' },
           { value: 'parts', label: 'Refacciones' },

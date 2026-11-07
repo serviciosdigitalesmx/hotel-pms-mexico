@@ -66,6 +66,7 @@ export function NewOrderPage() {
   const [signer, setSigner] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [issueError, setIssueError] = useState<string | undefined>()
   const idempotencyKey = useMemo(() => newIdempotencyKey(), [])
   const trackingMessageUrl = order?.customerNotificationsOptIn
     ? trackingWhatsAppUrl(customer?.whatsAppNumber, order.customerName, order.code, order.trackingUrl)
@@ -93,6 +94,11 @@ export function NewOrderPage() {
 
   async function createOrder() {
     if (!customer || !device) return
+    if (issue.trim().length < 5) {
+      setIssueError('Describe la falla con al menos 5 caracteres.')
+      document.querySelector<HTMLInputElement | HTMLTextAreaElement>('[name="issueDescription"]')?.focus()
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -274,8 +280,8 @@ export function NewOrderPage() {
             }
           >
             <div className="space-y-4">
-              <Field label="Falla que reporta el cliente" required hint="Descríbela con sus palabras: qué pasa, desde cuándo y si tuvo golpes o humedad.">
-                <Textarea rows={3} value={issue} onChange={(e) => setIssue(e.target.value)} autoFocus maxLength={500} />
+              <Field label="Falla que reporta el cliente" required error={issueError} hint="Descríbela con sus palabras: qué pasa, desde cuándo y si tuvo golpes o humedad.">
+                <Textarea name="issueDescription" rows={3} value={issue} onChange={(e) => { setIssue(e.target.value); setIssueError(undefined) }} autoFocus maxLength={500} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field label="Categoría">
@@ -380,13 +386,14 @@ export function NewOrderPage() {
 
           <Checkbox label="Avisarle al cliente que recibimos el equipo (con el enlace de seguimiento)" description={customer.notificationsOptIn ? 'Solo se enviará si el cliente aceptó recibir avisos.' : 'El cliente no aceptó recibir avisos; no se enviará ningún mensaje.'} checked={notify && customer.notificationsOptIn} disabled={!customer.notificationsOptIn} onChange={(e) => setNotify(e.target.checked)} />
           {error ? <Alert tone="rose">{error}</Alert> : null}
-          <div className="flex justify-end gap-2">
+          <div className="fx-reception-actions flex justify-end gap-2">
+            <Button onClick={() => setStep('device')}>Anterior</Button>
             <Button onClick={() => navigate(-1)}>Cancelar</Button>
             <Button
               variant="primary"
               size="lg"
               loading={saving}
-              disabled={issue.trim().length < 5}
+              disabled={saving}
               onClick={() => void createOrder()}
             >
               Crear orden
