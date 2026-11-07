@@ -212,7 +212,6 @@ function PaymentDialog({ order, balance, currency, onClose, onDone }: { order: R
   return (
     <Drawer
       open
-      size="sm"
       onClose={onClose}
       title="Registrar pago"
       description={balance > 0 ? `Saldo: ${money(balance, currency)}` : 'La orden no tiene saldo pendiente: se registra como seña.'}
