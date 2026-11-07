@@ -643,7 +643,7 @@ a:focus-visible,
   .fixi-navlink span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   .fixi-nav-group { margin: 5px 0; }
   .fixi-nav-group summary { min-height: 36px; justify-content: center; padding: 5px 1px; font-size: 8px; letter-spacing: 0; text-align: center; line-height: 1.1; }
-  .fixi-nav-group summary::after { display: none; }
+  .fixi-nav-group summary::after { display: block; margin-left: 3px; font-size: 12px; }
   .fixi-nav-group summary span:first-child { max-width: 54px; overflow: hidden; text-overflow: ellipsis; }
   .fixi-nav-count { display: none; }
   .fixi-nav-group > div { display: grid; gap: 2px; }
